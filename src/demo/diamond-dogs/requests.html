@@ -220,12 +220,94 @@ All synced globally via WebRTC.
     }
     .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
 
-    @media (max-width: 600px) {
-      .header { padding: 12px 16px; }
+    /* Tablet */
+    @media (max-width: 900px) {
+      .header { flex-wrap: wrap; gap: 12px; }
+      .btn-add { margin-left: 0; }
+    }
+
+    /* Mobile landscape / small tablet */
+    @media (max-width: 768px) {
+      .header {
+        padding: 12px 16px;
+        gap: 10px;
+      }
+      .logo span { font-size: 24px; }
+      .logo h1 { font-size: 1rem; }
+      .controls { order: 3; width: 100%; }
+      .controls input { flex: 1; min-width: 0; }
+      .btn-add { order: 4; width: 100%; }
+      .status { order: 2; margin-left: auto; }
       .container { padding: 16px; }
       .request { padding: 12px; }
       .stats { gap: 12px; }
-      .stat { padding: 12px 16px; flex: 1; min-width: 100px; }
+      .stat { padding: 12px 16px; flex: 1; min-width: 80px; }
+      .stat-value { font-size: 1.5rem; }
+      .request-votes { min-width: 40px; }
+      .modal { width: 95%; padding: 20px; }
+    }
+
+    /* Mobile portrait */
+    @media (max-width: 480px) {
+      .header { padding: 10px 12px; }
+      .logo h1 { font-size: 0.9rem; }
+      .controls input {
+        padding: 10px;
+        font-size: 14px; /* Prevents iOS zoom */
+      }
+      .btn { padding: 10px 14px; }
+      .container { padding: 12px; }
+      .stats { gap: 8px; }
+      .stat {
+        padding: 10px 12px;
+        min-width: 70px;
+      }
+      .stat-value { font-size: 1.3rem; }
+      .stat-label { font-size: 9px; }
+      .filters { gap: 6px; }
+      .filter-btn { padding: 8px 10px; font-size: 10px; }
+      .request-header { gap: 8px; }
+      .request-votes { min-width: 36px; }
+      .vote-btn { padding: 6px 10px; font-size: 16px; }
+      .vote-count { font-size: 1rem; }
+      .request-title { font-size: 0.95rem; }
+      .request-desc { font-size: 12px; }
+      .modal { padding: 16px; }
+      .modal h2 { font-size: 1.1rem; }
+      .modal-field input,
+      .modal-field textarea,
+      .modal-field select {
+        padding: 12px;
+        font-size: 16px; /* Prevents iOS zoom */
+      }
+    }
+
+    /* Safe area for notched phones */
+    @supports (padding: max(0px)) {
+      .header {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+        padding-top: max(10px, env(safe-area-inset-top));
+      }
+      .container {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+      }
+    }
+
+    /* Touch-friendly sizing */
+    @media (hover: none) and (pointer: coarse) {
+      .btn, .filter-btn, .vote-btn { min-height: 44px; }
+      .controls input { min-height: 44px; }
+      .request { padding: 14px; }
+    }
+
+    /* Landscape mobile */
+    @media (max-height: 500px) and (orientation: landscape) {
+      .header { padding: 8px 16px; position: static; }
+      .stats { margin-bottom: 16px; }
+      .stat { padding: 10px 16px; }
     }
   </style>
 </head>
@@ -312,7 +394,8 @@ All synced globally via WebRTC.
     const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     const $ = id => document.getElementById(id);
-    const myId = 'DD' + Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b => b.toString(16).padStart(2,'0')).join('').toUpperCase();
+    // Peer ID must be exactly 20 bytes for WebTorrent tracker protocol
+    const myId = '-DD0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b => b.toString(16).padStart(2,'0')).join('');
 
     let ws = null, infoHash = null;
     let dataChannels = new Map(), pendingOffers = new Map();
