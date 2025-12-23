@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<!--
+ANON::GENESIS[∞D]@Ω - v1
+Self-replicating, evolving, networked, anonymous organisms
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ANON::GENESIS - Infinite Depth Organisms</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #0f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Matrix rain background */
+    .matrix-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0.1;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      height: 100vh;
+      padding: 12px;
+    }
+
+    /* Header */
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(0, 255, 0, 0.05);
+      border: 1px solid #0f03;
+      border-radius: 8px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      font-size: 28px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+
+    .logo h1 {
+      font-size: 1.2rem;
+      color: #0f0;
+      text-shadow: 0 0 10px #0f0;
+    }
+
+    .logo-sub {
+      font-size: 10px;
+      color: #0a0;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 8px 16px;
+      background: #001100;
+      border: 1px solid #0f0;
+      color: #0f0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #0f0;
+      color: #000;
+      box-shadow: 0 0 15px #0f0;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: #0f0;
+      color: #000;
+    }
+
+    button.primary:hover {
+      background: #0a0;
+    }
+
+    /* Main canvas area */
+    .main-area {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .canvas-container {
+      position: relative;
+      background: #000;
+      border: 1px solid #0f03;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #world-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Entity info overlay */
+    .entity-info {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid #0f0;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      max-width: 250px;
+      display: none;
+    }
+
+    .entity-info.active { display: block; }
+
+    .entity-info h3 {
+      color: #0f0;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .entity-svg {
+      width: 80px;
+      height: 80px;
+      margin: 8px auto;
+      display: block;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #0f03;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #0a0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+    }
+
+    .tab:hover { color: #0f0; }
+
+    .tab.active {
+      color: #0f0;
+      border-bottom-color: #0f0;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 12px;
+      background: rgba(0, 255, 0, 0.02);
+      border: 1px solid #0f03;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .tab-content.active { display: block; }
+
+    /* Sidebar */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .panel {
+      background: rgba(0, 255, 0, 0.03);
+      border: 1px solid #0f03;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .panel h2 {
+      font-size: 11px;
+      color: #0a0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #0f02;
+    }
+
+    /* Stats */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat {
+      text-align: center;
+      padding: 8px;
+      background: #001100;
+      border-radius: 4px;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      color: #0f0;
+      text-shadow: 0 0 5px #0f0;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: #080;
+      margin-top: 4px;
+    }
+
+    /* Fractal zoom slider */
+    .slider-container {
+      margin: 10px 0;
+    }
+
+    .slider-container label {
+      display: block;
+      font-size: 10px;
+      color: #0a0;
+      margin-bottom: 6px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: #001100;
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #0f0;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 10px #0f0;
+    }
+
+    .depth-indicator {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: #080;
+      margin-top: 4px;
+    }
+
+    /* Entity list */
+    .entity-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .entity-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      margin: 4px 0;
+      background: #001100;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .entity-item:hover {
+      background: #002200;
+      border-left: 2px solid #0f0;
+    }
+
+    .entity-item.selected {
+      background: #003300;
+      border-left: 2px solid #0f0;
+    }
+
+    .entity-mini-svg {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .entity-mini-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .entity-id {
+      font-size: 10px;
+      color: #0f0;
+      font-family: monospace;
+    }
+
+    .entity-meta {
+      font-size: 9px;
+      color: #080;
+    }
+
+    .fitness-bar {
+      height: 3px;
+      background: #001100;
+      border-radius: 2px;
+      margin-top: 4px;
+    }
+
+    .fitness-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f00, #ff0, #0f0);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    /* Console */
+    .console {
+      font-size: 10px;
+      line-height: 1.6;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .console-line {
+      padding: 2px 0;
+      border-bottom: 1px solid #0f01;
+    }
+
+    .console-line.birth { color: #0f0; }
+    .console-line.death { color: #f00; }
+    .console-line.emergence { color: #ff0; text-shadow: 0 0 5px #ff0; }
+    .console-line.gen { color: #0aa; }
+
+    /* Code viewer */
+    .code-viewer {
+      font-size: 10px;
+      background: #000;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      white-space: pre;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    /* Fractal view */
+    .fractal-view {
+      padding: 12px;
+    }
+
+    .fractal-svg {
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto 12px;
+      display: block;
+    }
+
+    .fractal-text {
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .fractal-level {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #0f02;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    /* Footer */
+    footer {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(0, 255, 0, 0.03);
+      border: 1px solid #0f02;
+      border-radius: 8px;
+      font-size: 10px;
+      color: #080;
+    }
+
+    .status { display: flex; align-items: center; gap: 8px; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #0f0;
+      border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #001100; }
+    ::-webkit-scrollbar-thumb { background: #0f03; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #0f05; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto auto;
+      }
+      .sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .panel { flex: 1; min-width: 200px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas class="matrix-bg" id="matrix-bg"></canvas>
+
+  <div class="container">
+    <header>
+      <div class="logo">
+        <span class="logo-icon">🧬</span>
+        <div>
+          <h1>ANON::GENESIS</h1>
+          <div class="logo-sub">[∞D]@Ω - Self-replicating Anonymous Organisms</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="btn-spawn">+ Spawn</button>
+        <button id="btn-evolve">Evolve</button>
+        <button id="btn-run" class="primary">Run 10 Gen</button>
+        <button id="btn-audio">Play Audio</button>
+        <button id="btn-reset">Reset</button>
+      </div>
+    </header>
+
+    <div class="main-area">
+      <div class="canvas-container">
+        <canvas id="world-canvas"></canvas>
+        <div class="entity-info" id="entity-info">
+          <h3>Entity <span id="info-id">---</span></h3>
+          <div id="info-svg" class="entity-svg"></div>
+          <div id="info-details"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tabs">
+          <button class="tab active" data-tab="console">Console</button>
+          <button class="tab" data-tab="code">Code</button>
+          <button class="tab" data-tab="fractal">Fractal</button>
+          <button class="tab" data-tab="dna">DNA</button>
+        </div>
+
+        <div class="tab-content active" id="tab-console">
+          <div class="console" id="console"></div>
+        </div>
+
+        <div class="tab-content" id="tab-code">
+          <div class="code-viewer" id="code-viewer">// Select an entity to view its code</div>
+        </div>
+
+        <div class="tab-content" id="tab-fractal">
+          <div class="fractal-view" id="fractal-view">
+            <p>Select an entity and adjust depth</p>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-dna">
+          <div class="code-viewer" id="dna-viewer">// Select an entity to view DNA</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="panel">
+        <h2>Statistics</h2>
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="stat-value" id="stat-pop">0</div>
+            <div class="stat-label">Population</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-gen">0</div>
+            <div class="stat-label">Generation</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-births">0</div>
+            <div class="stat-label">Births</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-deaths">0</div>
+            <div class="stat-label">Deaths</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-connections">0</div>
+            <div class="stat-label">Connections</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-fitness">0</div>
+            <div class="stat-label">Avg Fitness</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Fractal Zoom</h2>
+        <div class="slider-container">
+          <label>Depth: <span id="depth-value">0</span></label>
+          <input type="range" id="depth-slider" min="0" max="30" value="0">
+          <div class="depth-indicator">
+            <span>Structure</span>
+            <span>Math</span>
+            <span>Philosophy</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1; min-height:0;">
+        <h2>Entities</h2>
+        <div class="entity-list" id="entity-list"></div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="status">
+        <div class="status-dot"></div>
+        <span id="status-text">Initializing...</span>
+      </div>
+      <div>
+        <a href="index.html" style="color:#0a0;text-decoration:none;">← Back to Demos</a>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module">
+    import {
+      Entity,
+      Network,
+      AudioSynthesizer,
+      createEntity,
+      createNetwork,
+      fractalZoom
+    } from '../genesis/anon-genesis.js';
+
+    // ==========================================================================
+    // STATE
+    // ==========================================================================
+
+    let network = null;
+    let selectedEntity = null;
+    let audioSynth = null;
+    let isRunning = false;
+    let animationFrame = null;
+    let entityPositions = new Map();
+
+    // DOM Elements
+    const canvas = document.getElementById('world-canvas');
+    const ctx = canvas.getContext('2d');
+    const consoleEl = document.getElementById('console');
+    const entityListEl = document.getElementById('entity-list');
+    const entityInfoEl = document.getElementById('entity-info');
+    const depthSlider = document.getElementById('depth-slider');
+    const depthValue = document.getElementById('depth-value');
+
+    // ==========================================================================
+    // MATRIX BACKGROUND
+    // ==========================================================================
+
+    function initMatrixBg() {
+      const matrixCanvas = document.getElementById('matrix-bg');
+      const matrixCtx = matrixCanvas.getContext('2d');
+
+      function resize() {
+        matrixCanvas.width = window.innerWidth;
+        matrixCanvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      const chars = 'ATGC01∞Ω@#';
+      const fontSize = 14;
+      const columns = Math.floor(matrixCanvas.width / fontSize);
+      const drops = Array(columns).fill(1);
+
+      function drawMatrix() {
+        matrixCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+        matrixCtx.fillStyle = '#0f0';
+        matrixCtx.font = `${fontSize}px monospace`;
+
+        for (let i = 0; i < drops.length; i++) {
+          const char = chars[Math.floor(Math.random() * chars.length)];
+          matrixCtx.fillText(char, i * fontSize, drops[i] * fontSize);
+
+          if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
+            drops[i] = 0;
+          }
+          drops[i]++;
+        }
+      }
+
+      setInterval(drawMatrix, 50);
+    }
+
+    // ==========================================================================
+    // CANVAS RENDERING
+    // ==========================================================================
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+
+    function initEntityPositions() {
+      entityPositions.clear();
+      network.entities.forEach(entity => {
+        entityPositions.set(entity.id, {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2
+        });
+      });
+    }
+
+    function updatePositions() {
+      const padding = 50;
+
+      network.entities.forEach(entity => {
+        let pos = entityPositions.get(entity.id);
+        if (!pos) {
+          pos = {
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2
+          };
+          entityPositions.set(entity.id, pos);
+        }
+
+        // Update position based on behavior
+        const props = entity.props;
+
+        switch (props.behavior) {
+          case 'wander':
+            pos.vx += (Math.random() - 0.5) * 0.2;
+            pos.vy += (Math.random() - 0.5) * 0.2;
+            break;
+
+          case 'seek':
+            // Seek center
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            pos.vx += (cx - pos.x) * 0.001;
+            pos.vy += (cy - pos.y) * 0.001;
+            break;
+
+          case 'flee':
+            // Flee from others
+            network.entities.forEach(other => {
+              if (other === entity) return;
+              const otherPos = entityPositions.get(other.id);
+              if (!otherPos) return;
+              const dx = pos.x - otherPos.x;
+              const dy = pos.y - otherPos.y;
+              const d = Math.sqrt(dx * dx + dy * dy);
+              if (d < 100 && d > 0) {
+                pos.vx += dx / d * 0.5;
+                pos.vy += dy / d * 0.5;
+              }
+            });
+            break;
+
+          case 'orbit':
+            const ocx = canvas.width / 2;
+            const ocy = canvas.height / 2;
+            const angle = Math.atan2(pos.y - ocy, pos.x - ocx);
+            pos.vx = -Math.sin(angle) * 2;
+            pos.vy = Math.cos(angle) * 2;
+            break;
+
+          case 'swarm':
+            // Move toward average position
+            let avgX = 0, avgY = 0, count = 0;
+            entity.connections.forEach(conn => {
+              const connPos = entityPositions.get(conn.id);
+              if (connPos) {
+                avgX += connPos.x;
+                avgY += connPos.y;
+                count++;
+              }
+            });
+            if (count > 0) {
+              pos.vx += (avgX / count - pos.x) * 0.01;
+              pos.vy += (avgY / count - pos.y) * 0.01;
+            }
+            break;
+        }
+
+        // Apply velocity with damping
+        pos.vx *= 0.98;
+        pos.vy *= 0.98;
+
+        // Clamp velocity
+        const maxSpeed = 3;
+        const speed = Math.sqrt(pos.vx * pos.vx + pos.vy * pos.vy);
+        if (speed > maxSpeed) {
+          pos.vx = (pos.vx / speed) * maxSpeed;
+          pos.vy = (pos.vy / speed) * maxSpeed;
+        }
+
+        pos.x += pos.vx;
+        pos.y += pos.vy;
+
+        // Bounce off walls
+        if (pos.x < padding) { pos.x = padding; pos.vx *= -0.8; }
+        if (pos.x > canvas.width - padding) { pos.x = canvas.width - padding; pos.vx *= -0.8; }
+        if (pos.y < padding) { pos.y = padding; pos.vy *= -0.8; }
+        if (pos.y > canvas.height - padding) { pos.y = canvas.height - padding; pos.vy *= -0.8; }
+      });
+    }
+
+    function render() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw connections
+      ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+      ctx.lineWidth = 1;
+
+      const drawnConnections = new Set();
+      network.entities.forEach(entity => {
+        const pos = entityPositions.get(entity.id);
+        if (!pos) return;
+
+        entity.connections.forEach(conn => {
+          const key = [entity.id, conn.id].sort().join('-');
+          if (drawnConnections.has(key)) return;
+          drawnConnections.add(key);
+
+          const connPos = entityPositions.get(conn.id);
+          if (!connPos) return;
+
+          const similarity = entity.similarityTo(conn);
+          ctx.strokeStyle = `rgba(0, 255, 0, ${similarity * 0.3})`;
+
+          ctx.beginPath();
+          ctx.moveTo(pos.x, pos.y);
+          ctx.lineTo(connPos.x, connPos.y);
+          ctx.stroke();
+        });
+      });
+
+      // Draw entities
+      network.entities.forEach(entity => {
+        const pos = entityPositions.get(entity.id);
+        if (!pos) return;
+
+        const props = entity.props;
+        const { color, size } = props;
+
+        // Glow
+        const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, size);
+        gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${entity.fitness})`);
+        gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Core
+        ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${entity.fitness})`;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, size / 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Generation rings
+        const rings = Math.min(entity.generation, 5);
+        for (let i = 1; i <= rings; i++) {
+          ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${entity.fitness * 0.2})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, size / 3 + i * 3, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Selected indicator
+        if (entity === selectedEntity) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, size + 5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      });
+
+      // Continue animation
+      animationFrame = requestAnimationFrame(() => {
+        updatePositions();
+        render();
+      });
+    }
+
+    // ==========================================================================
+    // UI UPDATES
+    // ==========================================================================
+
+    function updateStats() {
+      const stats = network.getStats();
+      document.getElementById('stat-pop').textContent = stats.population;
+      document.getElementById('stat-gen').textContent = stats.generation;
+      document.getElementById('stat-births').textContent = stats.births;
+      document.getElementById('stat-deaths').textContent = stats.deaths;
+      document.getElementById('stat-connections').textContent = stats.connections;
+      document.getElementById('stat-fitness').textContent = stats.avgFitness.toFixed(2);
+    }
+
+    function updateEntityList() {
+      entityListEl.innerHTML = '';
+
+      network.entities.forEach(entity => {
+        const div = document.createElement('div');
+        div.className = 'entity-item' + (entity === selectedEntity ? ' selected' : '');
+
+        const svg = entity.observe('visual');
+        div.innerHTML = `
+          <div class="entity-mini-svg">${svg}</div>
+          <div class="entity-mini-info">
+            <div class="entity-id">${entity.id?.slice(0, 8) || '???'}</div>
+            <div class="entity-meta">Gen ${entity.generation} | Age ${entity.age}</div>
+            <div class="fitness-bar">
+              <div class="fitness-fill" style="width:${entity.fitness * 100}%"></div>
+            </div>
+          </div>
+        `;
+
+        div.addEventListener('click', () => selectEntity(entity));
+        entityListEl.appendChild(div);
+      });
+    }
+
+    function selectEntity(entity) {
+      selectedEntity = entity;
+      updateEntityList();
+      updateEntityInfo();
+      updateFractalView();
+      updateCodeView();
+      updateDNAView();
+    }
+
+    function updateEntityInfo() {
+      if (!selectedEntity) {
+        entityInfoEl.classList.remove('active');
+        return;
+      }
+
+      entityInfoEl.classList.add('active');
+      document.getElementById('info-id').textContent = selectedEntity.id?.slice(0, 12) || '???';
+      document.getElementById('info-svg').innerHTML = selectedEntity.observe('visual');
+
+      const props = selectedEntity.props;
+      document.getElementById('info-details').innerHTML = `
+        <div style="font-size:10px;margin-top:8px;">
+          <div>Generation: ${selectedEntity.generation}</div>
+          <div>Age: ${selectedEntity.age}</div>
+          <div>Fitness: ${selectedEntity.fitness.toFixed(3)}</div>
+          <div>Behavior: ${props.behavior}</div>
+          <div>Pattern: ${props.pattern}</div>
+          <div>Connections: ${selectedEntity.connections.length}</div>
+        </div>
+      `;
+    }
+
+    function updateFractalView() {
+      const fractalView = document.getElementById('fractal-view');
+
+      if (!selectedEntity) {
+        fractalView.innerHTML = '<p>Select an entity to view fractal</p>';
+        return;
+      }
+
+      const depth = parseInt(depthSlider.value);
+      const fractal = fractalZoom(selectedEntity, depth);
+
+      let html = `<div class="fractal-level">${fractal.level} (depth ${fractal.depth})</div>`;
+
+      if (fractal.level === 'structure') {
+        html += `<div class="fractal-svg">${fractal.svg}</div>`;
+        html += `<div class="fractal-text">Pattern: ${selectedEntity.props.pattern}<br>Iterations: ${fractal.iterations}</div>`;
+      } else if (fractal.level === 'mathematical') {
+        html += `<div class="fractal-text"><strong>Equations:</strong><br>`;
+        fractal.equations.forEach(eq => {
+          html += `<code>${eq}</code><br>`;
+        });
+        html += `<br><strong>Relationships:</strong><br>`;
+        html += `Golden Ratio: ${fractal.relationships.goldenRatio.toFixed(4)}<br>`;
+        html += `Entropy: ${fractal.relationships.entropy.toFixed(4)}<br>`;
+        html += `Complexity: ${fractal.relationships.complexity.toFixed(4)}`;
+        html += `</div>`;
+      } else if (fractal.level === 'philosophical') {
+        html += `<div class="fractal-text"><strong>Concepts:</strong> ${fractal.concepts.join(', ')}<br><br>`;
+        html += `<em>${fractal.meditation}</em><br><br>`;
+        html += `<strong>Koans:</strong><br>`;
+        fractal.koans.forEach(k => {
+          html += `• ${k}<br>`;
+        });
+        html += `</div>`;
+      }
+
+      fractalView.innerHTML = html;
+    }
+
+    function updateCodeView() {
+      const codeViewer = document.getElementById('code-viewer');
+
+      if (!selectedEntity) {
+        codeViewer.textContent = '// Select an entity to view its code';
+        return;
+      }
+
+      codeViewer.textContent = selectedEntity.observe('exec');
+    }
+
+    function updateDNAView() {
+      const dnaViewer = document.getElementById('dna-viewer');
+
+      if (!selectedEntity) {
+        dnaViewer.textContent = '// Select an entity to view DNA';
+        return;
+      }
+
+      // Format DNA in rows of 64
+      const dna = selectedEntity.dna;
+      let formatted = `// Entity ${selectedEntity.id?.slice(0, 8)} DNA Sequence\n`;
+      formatted += `// Length: ${dna.length} bases\n\n`;
+
+      for (let i = 0; i < dna.length; i += 64) {
+        formatted += `${String(i).padStart(3, '0')}: ${dna.slice(i, i + 64)}\n`;
+      }
+
+      const props = selectedEntity.props;
+      formatted += `\n// Decoded Properties:\n`;
+      formatted += `// Color: rgb(${props.color.r}, ${props.color.g}, ${props.color.b})\n`;
+      formatted += `// Size: ${props.size.toFixed(2)}\n`;
+      formatted += `// Frequency: ${props.frequency.toFixed(2)} Hz\n`;
+      formatted += `// Pattern: ${props.pattern}\n`;
+      formatted += `// Behavior: ${props.behavior}\n`;
+      formatted += `// AT Ratio: ${props.atRatio.toFixed(3)}\n`;
+      formatted += `// GC Ratio: ${props.gcRatio.toFixed(3)}\n`;
+
+      dnaViewer.textContent = formatted;
+    }
+
+    function log(message, type = 'info') {
+      const line = document.createElement('div');
+      line.className = `console-line ${type}`;
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      consoleEl.appendChild(line);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function setStatus(text) {
+      document.getElementById('status-text').textContent = text;
+    }
+
+    // ==========================================================================
+    // EVENT HANDLERS
+    // ==========================================================================
+
+    // Spawn new entity
+    document.getElementById('btn-spawn').addEventListener('click', async () => {
+      const entity = await createEntity();
+      network.add(entity);
+      updateStats();
+      updateEntityList();
+      log(`Spawned entity ${entity.id?.slice(0, 8)}`, 'birth');
+    });
+
+    // Single evolution step
+    document.getElementById('btn-evolve').addEventListener('click', async () => {
+      const result = await network.evolve();
+      updateStats();
+      updateEntityList();
+      if (selectedEntity && !network.entities.includes(selectedEntity)) {
+        selectedEntity = null;
+        updateEntityInfo();
+      }
+      log(`Gen ${result.generation}: +${result.births} births, -${result.deaths} deaths, ${result.connections} new connections`, 'gen');
+    });
+
+    // Run multiple generations
+    document.getElementById('btn-run').addEventListener('click', async () => {
+      if (isRunning) return;
+      isRunning = true;
+      document.getElementById('btn-run').disabled = true;
+      setStatus('Evolving...');
+
+      for (let i = 0; i < 10; i++) {
+        const result = await network.evolve();
+        updateStats();
+        updateEntityList();
+        log(`Gen ${result.generation}: pop=${result.population}, +${result.births}/-${result.deaths}`, 'gen');
+
+        if (network.entities.length === 0) {
+          log('EXTINCTION', 'death');
+          break;
+        }
+
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      if (selectedEntity && !network.entities.includes(selectedEntity)) {
+        selectedEntity = null;
+        updateEntityInfo();
+      }
+
+      isRunning = false;
+      document.getElementById('btn-run').disabled = false;
+      setStatus('Ready');
+    });
+
+    // Play audio
+    document.getElementById('btn-audio').addEventListener('click', () => {
+      if (!audioSynth) {
+        audioSynth = new AudioSynthesizer();
+      }
+
+      if (selectedEntity) {
+        audioSynth.play(selectedEntity);
+      } else {
+        // Play chord of top 5 entities
+        const top5 = network.entities
+          .sort((a, b) => b.fitness - a.fitness)
+          .slice(0, 5);
+        audioSynth.playChord(top5);
+      }
+    });
+
+    // Reset
+    document.getElementById('btn-reset').addEventListener('click', async () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      selectedEntity = null;
+
+      network = await createNetwork(20);
+      initEntityPositions();
+
+      updateStats();
+      updateEntityList();
+      updateEntityInfo();
+      log('Network reset with 20 entities', 'info');
+
+      render();
+    });
+
+    // Depth slider
+    depthSlider.addEventListener('input', () => {
+      depthValue.textContent = depthSlider.value;
+      updateFractalView();
+    });
+
+    // Tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        tab.classList.add('active');
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    // Canvas click
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      let closest = null;
+      let closestDist = Infinity;
+
+      network.entities.forEach(entity => {
+        const pos = entityPositions.get(entity.id);
+        if (!pos) return;
+
+        const dist = Math.sqrt((pos.x - x) ** 2 + (pos.y - y) ** 2);
+        if (dist < entity.props.size && dist < closestDist) {
+          closest = entity;
+          closestDist = dist;
+        }
+      });
+
+      if (closest) {
+        selectEntity(closest);
+      }
+    });
+
+    // Network events
+    function setupNetworkEvents() {
+      network.on('entity:add', (entity) => {
+        // Position will be added on next render
+      });
+
+      network.on('entity:death', (entity) => {
+        entityPositions.delete(entity.id);
+        log(`Entity ${entity.id?.slice(0, 8)} died (fitness: ${entity.fitness.toFixed(3)})`, 'death');
+      });
+
+      network.on('emergence', (data) => {
+        log(`EMERGENCE! Level: ${data.emergenceLevel.toFixed(2)}, Density: ${data.density.toFixed(2)}`, 'emergence');
+      });
+    }
+
+    // Window resize
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+    });
+
+    // ==========================================================================
+    // INITIALIZATION
+    // ==========================================================================
+
+    async function init() {
+      setStatus('Initializing...');
+      initMatrixBg();
+
+      // Create network
+      network = await createNetwork(20);
+      setupNetworkEvents();
+
+      // Setup canvas
+      resizeCanvas();
+      initEntityPositions();
+
+      // Update UI
+      updateStats();
+      updateEntityList();
+
+      log('ANON::GENESIS initialized with 20 entities', 'info');
+      log('Click entities to select, use controls to evolve', 'info');
+
+      setStatus('Ready');
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>
