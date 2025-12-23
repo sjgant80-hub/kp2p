@@ -6,37 +6,40 @@
  * - Runs entirely in browser via WebGPU
  * - Models cached in IndexedDB
  * - No external API calls needed
- * - Works on GitHub Pages
+ * - Works on GitHub Pages (must be HTTPS)
  *
  * REQUIREMENTS:
  * - Browser with WebGPU support (Chrome 113+, Edge 113+)
+ * - HTTPS (for Cache API)
  * - ~2-8GB RAM depending on model size
  */
 
 // WebLLM from CDN
 const WEBLLM_CDN = 'https://esm.run/@mlc-ai/web-llm';
 
-// Available models (downloaded from HuggingFace on first use, cached in IndexedDB)
+// Available models - VERIFIED WebLLM model IDs
+// See: https://github.com/mlc-ai/web-llm/blob/main/src/config.ts
 export const MODELS = {
-  // Small models (2-4GB RAM)
-  'TinyLlama-1.1B': 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
+  // Small models (2-4GB RAM) - Fast to download
+  'SmolLM-135M': 'SmolLM-135M-Instruct-q4f16_1-MLC',
+  'SmolLM-360M': 'SmolLM-360M-Instruct-q4f16_1-MLC',
+  'TinyLlama-1.1B': 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC-1k',
   'Qwen2-0.5B': 'Qwen2-0.5B-Instruct-q4f16_1-MLC',
   'Qwen2-1.5B': 'Qwen2-1.5B-Instruct-q4f16_1-MLC',
-  'Gemma-2B': 'gemma-2b-it-q4f16_1-MLC',
+  'Gemma-2B': 'gemma-2-2b-it-q4f16_1-MLC',
 
   // Medium models (4-6GB RAM)
-  'Phi-3-mini': 'Phi-3-mini-4k-instruct-q4f16_1-MLC',
+  'Phi-3.5-mini': 'Phi-3.5-mini-instruct-q4f16_1-MLC',
   'Llama-3.2-1B': 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
   'Llama-3.2-3B': 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
 
   // Large models (6-8GB+ RAM)
   'Mistral-7B': 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
-  'Llama-3.1-8B': 'Llama-3.1-8B-Instruct-q4f16_1-MLC',
-  'Qwen2.5-7B': 'Qwen2.5-7B-Instruct-q4f16_1-MLC',
+  'Llama-3.1-8B': 'Llama-3.1-8B-Instruct-q4f16_1-MLC-1k',
 };
 
-// Default model
-export const DEFAULT_MODEL = 'Qwen2-0.5B';
+// Default model (smallest for quick start)
+export const DEFAULT_MODEL = 'SmolLM-360M';
 
 /**
  * Check if WebGPU is available

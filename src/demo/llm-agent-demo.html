@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/llm-agent-demo.html
+@desc LLM Agent v2 - Local AI with tools (web, files, code)
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LLM Agent v2</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 12px 20px;
+      background: #12122a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header h1 { font-size: 1.1rem; color: #4facfe; }
+    .header .badge {
+      padding: 4px 10px;
+      background: #1a3a2a;
+      color: #00ff88;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .header .status { margin-left: auto; font-size: 12px; color: #888; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot.off { background: #666; }
+    .dot.on { background: #00ff88; }
+    .dot.loading { background: #ffcc00; animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: #12122a;
+      border-right: 1px solid #333;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+    .sidebar h3 {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 16px 0 8px;
+    }
+    .sidebar h3:first-child { margin-top: 0; }
+
+    select, .btn {
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    select {
+      background: #0a0a1a;
+      color: #fff;
+      border: 1px solid #333;
+    }
+    .btn {
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #4facfe; color: #000; }
+    .btn-danger { background: #ff4444; color: #fff; }
+    .btn-secondary { background: #333; color: #fff; }
+
+    .progress-box {
+      background: #0a0a1a;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .progress-text { font-size: 11px; color: #888; margin-bottom: 6px; }
+    .progress-bar {
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #4facfe;
+      transition: width 0.3s;
+    }
+
+    .tool-list {
+      background: #0a0a1a;
+      border-radius: 6px;
+      padding: 8px;
+    }
+    .tool-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .tool-item:last-child { margin-bottom: 0; }
+    .tool-icon { margin-right: 8px; }
+    .tool-name { flex: 1; }
+    .tool-status { color: #00ff88; font-size: 10px; }
+
+    .file-tree {
+      background: #0a0a1a;
+      border-radius: 6px;
+      padding: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+      font-size: 11px;
+      font-family: monospace;
+    }
+    .file-item { padding: 2px 4px; color: #888; }
+    .file-item.dir { color: #4facfe; }
+
+    /* Chat Area */
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .message {
+      max-width: 80%;
+      margin-bottom: 16px;
+      animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
+    .message.user {
+      margin-left: auto;
+      text-align: right;
+    }
+    .message.assistant {
+      margin-right: auto;
+    }
+    .message-content {
+      display: inline-block;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message.user .message-content {
+      background: #4facfe;
+      color: #000;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant .message-content {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      border-bottom-left-radius: 4px;
+    }
+
+    .tool-call {
+      background: #1a2a1a;
+      border: 1px solid #2a4a2a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 8px 0;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .tool-call .tool-header {
+      color: #00ff88;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .tool-call .tool-body {
+      color: #888;
+      font-size: 11px;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .typing {
+      display: flex;
+      gap: 4px;
+      padding: 12px 16px;
+    }
+    .typing span {
+      width: 8px;
+      height: 8px;
+      background: #4facfe;
+      border-radius: 50%;
+      animation: typing 1s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Input */
+    .input-area {
+      padding: 16px 20px;
+      background: #12122a;
+      border-top: 1px solid #333;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+    .input-row textarea {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 24px;
+      background: #0a0a1a;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+    }
+    .input-row button {
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 50%;
+      background: #4facfe;
+      color: #000;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .suggestions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .suggestion {
+      padding: 6px 12px;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 16px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .suggestion:hover {
+      background: #2a2a3e;
+      border-color: #4facfe;
+    }
+
+    @media (max-width: 800px) {
+      .main { flex-direction: column; }
+      .sidebar { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid #333; }
+      .message { max-width: 90%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 LLM Agent</h1>
+    <span class="badge">v2</span>
+    <span style="color:#666;font-size:12px">Local AI with Tools</span>
+    <div class="status">
+      <span class="dot off" id="statusDot"></span>
+      <span id="statusText">Not loaded</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <h3>Model</h3>
+      <select id="modelSelect">
+        <optgroup label="Tiny (Fast)">
+          <option value="SmolLM-135M">SmolLM 135M</option>
+          <option value="SmolLM-360M" selected>SmolLM 360M</option>
+        </optgroup>
+        <optgroup label="Small">
+          <option value="TinyLlama-1.1B">TinyLlama 1.1B</option>
+          <option value="Qwen2-0.5B">Qwen2 0.5B</option>
+          <option value="Qwen2-1.5B">Qwen2 1.5B</option>
+        </optgroup>
+        <optgroup label="Medium">
+          <option value="Phi-3.5-mini">Phi 3.5 Mini</option>
+          <option value="Llama-3.2-3B">Llama 3.2 3B</option>
+        </optgroup>
+        <optgroup label="Large (Best)">
+          <option value="Mistral-7B">Mistral 7B</option>
+          <option value="Llama-3.1-8B">Llama 3.1 8B</option>
+        </optgroup>
+      </select>
+      <button class="btn btn-primary" id="loadBtn">Load Model</button>
+      <button class="btn btn-danger" id="unloadBtn" disabled>Unload</button>
+
+      <div class="progress-box" id="progressBox">
+        <div class="progress-text" id="progressText">Loading...</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <h3>Tools Available</h3>
+      <div class="tool-list">
+        <div class="tool-item"><span class="tool-icon">🌐</span><span class="tool-name">Web Fetch</span><span class="tool-status">✓</span></div>
+        <div class="tool-item"><span class="tool-icon">📁</span><span class="tool-name">File Read</span><span class="tool-status">✓</span></div>
+        <div class="tool-item"><span class="tool-icon">✏️</span><span class="tool-name">File Write</span><span class="tool-status">✓</span></div>
+        <div class="tool-item"><span class="tool-icon">📂</span><span class="tool-name">File List</span><span class="tool-status">✓</span></div>
+        <div class="tool-item"><span class="tool-icon">⚡</span><span class="tool-name">Code Run</span><span class="tool-status" id="sandboxStatus">?</span></div>
+        <div class="tool-item"><span class="tool-icon">💾</span><span class="tool-name">Memory</span><span class="tool-status">✓</span></div>
+      </div>
+
+      <h3>Virtual Files</h3>
+      <div class="file-tree" id="fileTree">
+        <div class="file-item">(load model to view)</div>
+      </div>
+
+      <h3>Actions</h3>
+      <button class="btn btn-secondary" id="clearBtn">Clear Chat</button>
+      <button class="btn btn-secondary" id="clearFilesBtn">Clear Files</button>
+    </div>
+
+    <div class="chat-area">
+      <div class="messages" id="messages">
+        <div class="message assistant">
+          <div class="message-content">Hello! I'm an AI agent running locally in your browser with WebGPU.
+
+I can help you with:
+🌐 **Web** - Fetch and read web pages
+📁 **Files** - Read, write, and manage files
+⚡ **Code** - Run JavaScript calculations
+💾 **Memory** - Remember things across sessions
+
+Load a model to get started!</div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <textarea id="input" placeholder="Type a message..." rows="1" disabled></textarea>
+          <button id="sendBtn" disabled>➤</button>
+        </div>
+        <div class="suggestions">
+          <span class="suggestion" data-msg="What's the weather in Tokyo?">🌤 Weather</span>
+          <span class="suggestion" data-msg="Calculate 15% tip on $85.50">🧮 Calculate</span>
+          <span class="suggestion" data-msg="Create a file called notes.txt with my shopping list: milk, bread, eggs">📝 Create file</span>
+          <span class="suggestion" data-msg="List all files">📂 List files</span>
+          <span class="suggestion" data-msg="Remember my name is Alex">💾 Memory</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Agent } from '../llm/agent.js';
+    import { checkWebGPU } from '../llm/local.js';
+
+    const $ = id => document.getElementById(id);
+    let agent = null;
+
+    // === UI HELPERS ===
+    function addMessage(role, content) {
+      const messages = $('messages');
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+      return div;
+    }
+
+    function addToolCall(tool, params, result) {
+      const messages = $('messages');
+      const div = document.createElement('div');
+      div.className = 'tool-call';
+      div.innerHTML = `
+        <div class="tool-header">🔧 ${tool}</div>
+        <div class="tool-body">${escapeHtml(JSON.stringify(result, null, 2))}</div>
+      `;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showTyping() {
+      const messages = $('messages');
+      const div = document.createElement('div');
+      div.className = 'message assistant';
+      div.id = 'typing';
+      div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function hideTyping() {
+      const typing = $('typing');
+      if (typing) typing.remove();
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/\n/g, '<br>');
+    }
+
+    function updateFileTree() {
+      const tree = $('fileTree');
+      if (!agent?.vfs) {
+        tree.innerHTML = '<div class="file-item">(not loaded)</div>';
+        return;
+      }
+
+      try {
+        const items = agent.vfs.readdir('/');
+        if (items.length === 0) {
+          tree.innerHTML = '<div class="file-item">(empty)</div>';
+          return;
+        }
+        tree.innerHTML = items.map(name => {
+          const stat = agent.vfs.stat('/' + name);
+          const isDir = stat?.type === 1; // FILE_TYPE.DIR
+          return `<div class="file-item ${isDir ? 'dir' : ''}">${isDir ? '📁' : '📄'} ${name}</div>`;
+        }).join('');
+      } catch (e) {
+        tree.innerHTML = '<div class="file-item">(error)</div>';
+      }
+    }
+
+    // === LOAD MODEL ===
+    $('loadBtn').onclick = async () => {
+      const modelId = $('modelSelect').value;
+      $('loadBtn').disabled = true;
+      $('modelSelect').disabled = true;
+      $('statusDot').className = 'dot loading';
+      $('statusText').textContent = 'Loading...';
+      $('progressBox').style.display = 'block';
+
+      try {
+        // Check WebGPU
+        const gpuCheck = await checkWebGPU();
+        if (!gpuCheck.supported) {
+          throw new Error(gpuCheck.error);
+        }
+
+        // Create agent
+        agent = new Agent({
+          onToolCall: (call) => {
+            console.log('Tool call:', call);
+          },
+          onToolResult: ({ tool, result }) => {
+            addToolCall(tool, {}, result);
+            updateFileTree();
+          }
+        });
+
+        // Initialize
+        await agent.init(modelId, (progress) => {
+          $('progressText').textContent = progress.text || 'Loading...';
+          $('progressFill').style.width = (progress.progress * 100) + '%';
+        });
+
+        // Ready
+        $('statusDot').className = 'dot on';
+        $('statusText').textContent = `${modelId} ready`;
+        $('progressBox').style.display = 'none';
+        $('input').disabled = false;
+        $('sendBtn').disabled = false;
+        $('unloadBtn').disabled = false;
+        $('sandboxStatus').textContent = agent.sandbox ? '✓' : '✗';
+        updateFileTree();
+
+        addMessage('assistant', `Model loaded! I'm ready to help. Try asking me to fetch a webpage, create a file, or calculate something.`);
+
+      } catch (e) {
+        $('statusDot').className = 'dot off';
+        $('statusText').textContent = 'Error';
+        $('progressText').textContent = e.message;
+        $('loadBtn').disabled = false;
+        $('modelSelect').disabled = false;
+        console.error(e);
+      }
+    };
+
+    // === UNLOAD ===
+    $('unloadBtn').onclick = async () => {
+      if (agent) {
+        await agent.destroy();
+        agent = null;
+      }
+      $('statusDot').className = 'dot off';
+      $('statusText').textContent = 'Not loaded';
+      $('input').disabled = true;
+      $('sendBtn').disabled = true;
+      $('unloadBtn').disabled = true;
+      $('loadBtn').disabled = false;
+      $('modelSelect').disabled = false;
+      updateFileTree();
+    };
+
+    // === SEND MESSAGE ===
+    async function sendMessage() {
+      const input = $('input');
+      const msg = input.value.trim();
+      if (!msg || !agent) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+      addMessage('user', msg);
+      showTyping();
+
+      $('input').disabled = true;
+      $('sendBtn').disabled = true;
+
+      try {
+        const response = await agent.chat(msg);
+        hideTyping();
+        addMessage('assistant', response);
+      } catch (e) {
+        hideTyping();
+        addMessage('assistant', `Error: ${e.message}`);
+      }
+
+      $('input').disabled = false;
+      $('sendBtn').disabled = false;
+      $('input').focus();
+      updateFileTree();
+    }
+
+    $('sendBtn').onclick = sendMessage;
+    $('input').onkeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    };
+
+    // Auto-resize textarea
+    $('input').oninput = () => {
+      const input = $('input');
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    };
+
+    // === SUGGESTIONS ===
+    document.querySelectorAll('.suggestion').forEach(el => {
+      el.onclick = () => {
+        if (!$('input').disabled) {
+          $('input').value = el.dataset.msg;
+          $('input').focus();
+        }
+      };
+    });
+
+    // === CLEAR ===
+    $('clearBtn').onclick = () => {
+      $('messages').innerHTML = '';
+      if (agent) agent.clearHistory();
+      addMessage('assistant', 'Chat cleared. How can I help you?');
+    };
+
+    $('clearFilesBtn').onclick = () => {
+      if (agent?.vfs) {
+        // Clear all user files (keep system dirs)
+        try {
+          const items = agent.vfs.readdir('/');
+          items.forEach(name => {
+            if (!['bin', 'dev', 'etc', 'proc', 'var'].includes(name)) {
+              try {
+                const path = '/' + name;
+                const stat = agent.vfs.stat(path);
+                if (stat?.type === 1) {
+                  agent.vfs.rmdir(path);
+                } else {
+                  agent.vfs.unlink(path);
+                }
+              } catch (e) {}
+            }
+          });
+        } catch (e) {}
+        updateFileTree();
+        addMessage('assistant', 'Files cleared.');
+      }
+    };
+
+    // Initial WebGPU check
+    checkWebGPU().then(result => {
+      if (!result.supported) {
+        $('statusText').textContent = 'WebGPU not available';
+        $('loadBtn').disabled = true;
+        addMessage('assistant', `⚠️ WebGPU is not available in your browser. ${result.error}\n\nTry Chrome 113+ or Edge 113+.`);
+      }
+    });
+  </script>
+</body>
+</html>
