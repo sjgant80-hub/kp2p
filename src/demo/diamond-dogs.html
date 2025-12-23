@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<!--
+DIAMOND DOGS - Elite P2P Command Center
+The pack runs together. No servers. No masters.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Diamond Dogs HQ</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --gold: #ffd700;
+      --gold-dark: #b8860b;
+      --diamond: #b9f2ff;
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --bg3: #1a1a25;
+      --red: #ff3333;
+      --green: #00ff88;
+      --border: #2a2a3a;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      padding: 16px 24px;
+      background: linear-gradient(135deg, var(--bg2) 0%, #1a1520 100%);
+      border-bottom: 2px solid var(--gold-dark);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      font-size: 36px;
+      filter: drop-shadow(0 0 10px var(--gold));
+    }
+
+    .logo-text h1 {
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--diamond) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .logo-text p {
+      font-size: 10px;
+      color: #666;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .room-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: 24px;
+      padding-left: 24px;
+      border-left: 1px solid var(--border);
+    }
+
+    .room-controls input {
+      padding: 8px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--gold);
+      font-size: 13px;
+      width: 150px;
+    }
+
+    .room-controls input:focus {
+      outline: none;
+      border-color: var(--gold-dark);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+      color: #000;
+    }
+
+    .btn-gold:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-left: auto;
+      font-size: 13px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #666;
+    }
+
+    .status-dot.connected {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+    }
+
+    .status-dot.connecting {
+      background: var(--gold);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      50% { opacity: 0.5; }
+    }
+
+    /* Main Layout */
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      overflow: hidden;
+    }
+
+    /* Sidebar - Pack Members */
+    .sidebar {
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .sidebar-header .count {
+      margin-left: auto;
+      background: var(--gold-dark);
+      color: #000;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .pack-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .member {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      transition: background 0.2s;
+    }
+
+    .member:hover {
+      background: var(--bg3);
+    }
+
+    .member.self {
+      background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(185,242,255,0.05) 100%);
+      border: 1px solid var(--gold-dark);
+    }
+
+    .member-avatar {
+      font-size: 28px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .member-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .member-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gold);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .member-status {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .member-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: var(--gold-dark);
+      color: #000;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Chat Area */
+    .chat-area {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 70%;
+      display: flex;
+      gap: 12px;
+    }
+
+    .message.self {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+
+    .message-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .message.self .message-content {
+      align-items: flex-end;
+    }
+
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .message-name {
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    .message-time {
+      color: #555;
+    }
+
+    .message-bubble {
+      padding: 12px 16px;
+      background: var(--bg2);
+      border-radius: 16px;
+      border-bottom-left-radius: 4px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .message.self .message-bubble {
+      background: linear-gradient(135deg, var(--gold-dark) 0%, #8b6914 100%);
+      color: #000;
+      border-radius: 16px;
+      border-bottom-right-radius: 4px;
+    }
+
+    .system-msg {
+      text-align: center;
+      font-size: 12px;
+      color: #555;
+      padding: 8px;
+    }
+
+    .system-msg span {
+      padding: 4px 12px;
+      background: var(--bg2);
+      border-radius: 12px;
+    }
+
+    /* Typing indicator */
+    .typing-bar {
+      padding: 8px 20px;
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+      min-height: 28px;
+    }
+
+    /* Input Area */
+    .input-area {
+      padding: 16px 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 14px 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .input-area input:focus {
+      border-color: var(--gold-dark);
+    }
+
+    .input-area input::placeholder {
+      color: #555;
+    }
+
+    .input-area button {
+      padding: 14px 28px;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+      border: none;
+      border-radius: 24px;
+      color: #000;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .input-area button:hover {
+      filter: brightness(1.1);
+      transform: scale(1.02);
+    }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: #444;
+    }
+
+    .empty-state .icon {
+      font-size: 64px;
+      opacity: 0.5;
+    }
+
+    .empty-state h2 {
+      color: var(--gold);
+      font-size: 1.2rem;
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .main {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        display: none;
+      }
+      .header {
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .room-controls {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: none;
+      }
+      .status {
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span class="logo-icon">💎🐕</span>
+      <div class="logo-text">
+        <h1>DIAMOND DOGS</h1>
+        <p>The Pack Runs Together</p>
+      </div>
+    </div>
+
+    <div class="room-controls">
+      <input type="text" id="roomInput" value="diamond-hq" placeholder="Den name...">
+      <button class="btn btn-gold" id="joinBtn">Join Den</button>
+    </div>
+
+    <div class="status">
+      <div class="status-item">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Offline</span>
+      </div>
+      <div class="status-item">
+        <span>🐺</span>
+        <span id="packCount">0</span>
+        <span style="color:#666">in pack</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span>🐺</span>
+        <span>Pack Members</span>
+        <span class="count" id="memberCount">0</span>
+      </div>
+      <div class="pack-list" id="packList">
+        <div class="empty-state" style="padding:40px 20px;">
+          <div style="font-size:32px;opacity:0.5">🐕</div>
+          <div style="font-size:12px;color:#555">No dogs online</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="messages" id="messages">
+        <div class="empty-state" id="emptyState">
+          <div class="icon">💎🐕</div>
+          <h2>Welcome to the Den</h2>
+          <p>The pack is waiting. Say something.</p>
+        </div>
+      </div>
+      <div class="typing-bar" id="typingBar"></div>
+      <div class="input-area">
+        <input type="text" id="messageInput" placeholder="Speak to the pack..." autocomplete="off">
+        <button id="sendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // DIAMOND DOGS - Elite P2P Chat
+    // =========================================================================
+
+    const DOG_AVATARS = ['🐕','🦮','🐕‍🦺','🐶','🐺','🦊','🐾','💎'];
+    const RANKS = ['Pup', 'Scout', 'Hunter', 'Alpha', 'Diamond'];
+
+    // Config
+    const params = new URLSearchParams(location.search);
+    let ROOM = params.get('room') || 'diamond-hq';
+
+    // State
+    let myId = crypto.randomUUID();
+    let myName = params.get('name') || 'Dog-' + Math.random().toString(36).slice(2,6).toUpperCase();
+    let myAvatar = DOG_AVATARS[Math.floor(Math.random() * DOG_AVATARS.length)];
+    let myRank = RANKS[Math.floor(Math.random() * 3)];
+    let channel = null;
+    let peers = new Map();
+    let typingPeers = new Set();
+    let messages = [];
+
+    // DOM
+    const $ = id => document.getElementById(id);
+    const roomInput = $('roomInput');
+    const joinBtn = $('joinBtn');
+    const statusDot = $('statusDot');
+    const statusText = $('statusText');
+    const packCount = $('packCount');
+    const memberCount = $('memberCount');
+    const packList = $('packList');
+    const messagesEl = $('messages');
+    const emptyState = $('emptyState');
+    const typingBar = $('typingBar');
+    const messageInput = $('messageInput');
+    const sendBtn = $('sendBtn');
+
+    roomInput.value = ROOM;
+
+    // =========================================================================
+    // P2P Connection - BroadcastChannel (reliable same-origin)
+    // =========================================================================
+
+    function connect(room) {
+      if (channel) {
+        channel.close();
+      }
+
+      ROOM = room;
+      peers.clear();
+      updatePeerList();
+
+      statusDot.className = 'status-dot connecting';
+      statusText.textContent = 'Connecting...';
+
+      channel = new BroadcastChannel(`diamond-dogs:${room}`);
+
+      channel.onmessage = (e) => handleMessage(e.data);
+
+      // Announce presence
+      setTimeout(() => {
+        broadcast({ type: 'join', user: getMyInfo() });
+
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Connected';
+
+        addSystemMessage(`You joined the den: ${room}`);
+
+        // Add self to peers
+        peers.set(myId, getMyInfo());
+        updatePeerList();
+      }, 100);
+
+      // Leave on close
+      window.addEventListener('beforeunload', () => {
+        broadcast({ type: 'leave', userId: myId });
+      });
+
+      // Heartbeat to maintain presence
+      setInterval(() => {
+        broadcast({ type: 'heartbeat', user: getMyInfo() });
+      }, 5000);
+    }
+
+    function getMyInfo() {
+      return {
+        id: myId,
+        name: myName,
+        avatar: myAvatar,
+        rank: myRank,
+        joinedAt: Date.now()
+      };
+    }
+
+    function broadcast(msg) {
+      if (channel) {
+        channel.postMessage(msg);
+      }
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'join':
+          if (msg.user.id !== myId) {
+            peers.set(msg.user.id, msg.user);
+            updatePeerList();
+            addSystemMessage(`${msg.user.avatar} ${msg.user.name} joined the pack`);
+            // Respond with our presence
+            broadcast({ type: 'presence', user: getMyInfo() });
+          }
+          break;
+
+        case 'presence':
+        case 'heartbeat':
+          if (msg.user.id !== myId) {
+            peers.set(msg.user.id, { ...msg.user, lastSeen: Date.now() });
+            updatePeerList();
+          }
+          break;
+
+        case 'leave':
+          if (peers.has(msg.userId)) {
+            const peer = peers.get(msg.userId);
+            addSystemMessage(`${peer.avatar} ${peer.name} left the pack`);
+            peers.delete(msg.userId);
+            updatePeerList();
+          }
+          break;
+
+        case 'chat':
+          if (msg.userId !== myId) {
+            addChatMessage(msg);
+          }
+          break;
+
+        case 'typing':
+          if (msg.userId !== myId) {
+            if (msg.isTyping) {
+              typingPeers.add(msg.name);
+            } else {
+              typingPeers.delete(msg.name);
+            }
+            updateTyping();
+          }
+          break;
+      }
+    }
+
+    // =========================================================================
+    // UI Updates
+    // =========================================================================
+
+    function updatePeerList() {
+      const count = peers.size;
+      packCount.textContent = count;
+      memberCount.textContent = count;
+
+      if (count === 0) {
+        packList.innerHTML = `
+          <div class="empty-state" style="padding:40px 20px;">
+            <div style="font-size:32px;opacity:0.5">🐕</div>
+            <div style="font-size:12px;color:#555">No dogs online</div>
+          </div>
+        `;
+        return;
+      }
+
+      packList.innerHTML = '';
+      peers.forEach((peer, id) => {
+        const isSelf = id === myId;
+        const div = document.createElement('div');
+        div.className = `member${isSelf ? ' self' : ''}`;
+        div.innerHTML = `
+          <span class="member-avatar">${peer.avatar}</span>
+          <div class="member-info">
+            <div class="member-name">${peer.name}${isSelf ? ' (you)' : ''}</div>
+            <div class="member-status">${peer.rank || 'Pack member'}</div>
+          </div>
+          ${isSelf ? '<span class="member-badge">ALPHA</span>' : ''}
+        `;
+        packList.appendChild(div);
+      });
+    }
+
+    function addChatMessage(msg) {
+      const isSelf = msg.userId === myId;
+      messages.push(msg);
+
+      if (emptyState) {
+        emptyState.style.display = 'none';
+      }
+
+      const div = document.createElement('div');
+      div.className = `message${isSelf ? ' self' : ''}`;
+      div.innerHTML = `
+        <span class="message-avatar">${msg.avatar}</span>
+        <div class="message-content">
+          <div class="message-header">
+            <span class="message-name">${isSelf ? 'You' : msg.name}</span>
+            <span class="message-time">${formatTime(msg.timestamp)}</span>
+          </div>
+          <div class="message-bubble">${escapeHtml(msg.text)}</div>
+        </div>
+      `;
+
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addSystemMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'system-msg';
+      div.innerHTML = `<span>${text}</span>`;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function updateTyping() {
+      if (typingPeers.size === 0) {
+        typingBar.textContent = '';
+      } else {
+        const names = [...typingPeers];
+        if (names.length === 1) {
+          typingBar.textContent = `${names[0]} is typing...`;
+        } else if (names.length === 2) {
+          typingBar.textContent = `${names[0]} and ${names[1]} are typing...`;
+        } else {
+          typingBar.textContent = `${names.length} dogs are typing...`;
+        }
+      }
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // =========================================================================
+    // Chat Functions
+    // =========================================================================
+
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      messageInput.value = '';
+
+      const msg = {
+        type: 'chat',
+        id: crypto.randomUUID(),
+        userId: myId,
+        name: myName,
+        avatar: myAvatar,
+        text,
+        timestamp: Date.now()
+      };
+
+      // Add locally
+      addChatMessage(msg);
+
+      // Broadcast
+      broadcast(msg);
+
+      // Stop typing
+      broadcast({ type: 'typing', userId: myId, name: myName, isTyping: false });
+    }
+
+    // =========================================================================
+    // Event Handlers
+    // =========================================================================
+
+    joinBtn.addEventListener('click', () => {
+      const room = roomInput.value.trim() || 'diamond-hq';
+      connect(room);
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    let typingTimeout;
+    messageInput.addEventListener('input', () => {
+      broadcast({ type: 'typing', userId: myId, name: myName, isTyping: true });
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        broadcast({ type: 'typing', userId: myId, name: myName, isTyping: false });
+      }, 2000);
+    });
+
+    // =========================================================================
+    // Init
+    // =========================================================================
+
+    connect(ROOM);
+    messageInput.focus();
+
+    console.log(`
+    ╔══════════════════════════════════════╗
+    ║     💎🐕 DIAMOND DOGS HQ 🐕💎        ║
+    ║     The Pack Runs Together           ║
+    ╚══════════════════════════════════════╝
+
+    Your ID: ${myId}
+    Your Name: ${myName}
+    Room: ${ROOM}
+    `);
+  </script>
+</body>
+</html>
