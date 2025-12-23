@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!--
+@file test/index.html
+@desc Test runner UI - state machine + CSV params
+@size ~100 tokens
+@deps css/runner.css, core/runner.js, suites/*.js
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konomi P2P - Test Runner</title>
+  <link rel="stylesheet" href="./css/runner.css">
+</head>
+<body>
+  <div class="header">
+    <h1>🧪 Test Runner</h1>
+    <span class="state" id="state">idle</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-val" id="total">0</div><div class="stat-lbl">Total</div></div>
+    <div class="stat pass"><div class="stat-val" id="passed">0</div><div class="stat-lbl">Passed</div></div>
+    <div class="stat fail"><div class="stat-val" id="failed">0</div><div class="stat-lbl">Failed</div></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="runBtn">▶ Run All</button>
+    <button class="btn secondary" id="resetBtn">↻ Reset</button>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <script type="module">
+    import { TestRunner } from './core/runner.js'
+    import { cryptoSuite } from './suites/crypto.suite.js'
+    import { storeSuite } from './suites/store.suite.js'
+    import { syncSuite } from './suites/sync.suite.js'
+    import { networkSuite } from './suites/network.suite.js'
+
+    const $ = id => document.getElementById(id)
+    const runner = new TestRunner()
+
+    const updateUI = () => {
+      $('state').textContent = runner.state
+      $('state').className = 'state ' + runner.state
+      const s = runner.stats
+      $('total').textContent = s.total
+      $('passed').textContent = s.passed
+      $('failed').textContent = s.failed
+    }
+
+    runner.on('result', r => {
+      const div = document.createElement('div')
+      div.className = 'result ' + (r.passed ? 'pass' : 'fail')
+      div.innerHTML = `
+        <span class="icon">${r.passed ? '✓' : '✗'}</span>
+        <span class="id">${r.id}</span>
+        <span class="time">${r.duration.toFixed(1)}ms</span>
+        ${r.error ? `<div class="error">${r.error.message}</div>` : ''}
+      `
+      $('results').appendChild(div)
+      updateUI()
+    })
+
+    runner.on('done', () => updateUI())
+
+    const suites = [cryptoSuite, storeSuite, syncSuite, networkSuite]
+
+    async function init() {
+      for (const s of suites) {
+        await runner.register(s.name, s.csv, s.run.bind(s))
+      }
+      updateUI()
+    }
+
+    $('runBtn').onclick = async () => {
+      $('results').innerHTML = ''
+      await runner.runAll()
+    }
+
+    $('resetBtn').onclick = () => {
+      runner.sm.reset()
+      runner.results = []
+      $('results').innerHTML = ''
+      updateUI()
+    }
+
+    init()
+  </script>
+</body>
+</html>
