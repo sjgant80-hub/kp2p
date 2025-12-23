@@ -9,6 +9,7 @@
 import { defineSuite } from '../templates/suite.tpl.js'
 import { paramTest } from '../templates/test.tpl.js'
 import { assert } from '../core/assertions.js'
+import { register } from '../core/registry.js'
 
 let keyPair, otherKeyPair
 
@@ -54,3 +55,5 @@ export const cryptoSuite = defineSuite('crypto', {
     }
   })
 })
+
+register(cryptoSuite)

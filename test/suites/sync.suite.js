@@ -9,6 +9,7 @@
 import { defineSuite } from '../templates/suite.tpl.js'
 import { paramTest } from '../templates/test.tpl.js'
 import { assert } from '../core/assertions.js'
+import { register } from '../core/registry.js'
 
 const mockMap = new Map()
 const mockArray = []
@@ -65,3 +66,5 @@ export const syncSuite = defineSuite('sync', {
     else assert.ok(true)
   })
 })
+
+register(syncSuite)

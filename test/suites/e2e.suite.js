@@ -9,6 +9,7 @@
 import { defineSuite } from '../templates/suite.tpl.js'
 import { paramTest } from '../templates/test.tpl.js'
 import { assert } from '../core/assertions.js'
+import { register } from '../core/registry.js'
 
 // Mock P2P using BroadcastChannel (same as client.html)
 class MockPeer {
@@ -140,3 +141,5 @@ export const e2eSuite = defineSuite('e2e', {
     }
   })
 })
+
+register(e2eSuite)

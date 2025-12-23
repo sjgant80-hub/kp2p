@@ -9,6 +9,7 @@
 import { defineSuite } from '../templates/suite.tpl.js'
 import { paramTest } from '../templates/test.tpl.js'
 import { assert } from '../core/assertions.js'
+import { register } from '../core/registry.js'
 
 const mockPeers = new Set()
 const mockRooms = new Map()
@@ -67,3 +68,5 @@ export const networkSuite = defineSuite('network', {
     else assert.ok(true) // discovery, relay, nat mocked
   })
 })
+
+register(networkSuite)

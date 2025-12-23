@@ -9,6 +9,7 @@
 import { defineSuite } from '../templates/suite.tpl.js'
 import { paramTest } from '../templates/test.tpl.js'
 import { assert } from '../core/assertions.js'
+import { register } from '../core/registry.js'
 
 const mockStore = new Map()
 
@@ -60,3 +61,5 @@ export const storeSuite = defineSuite('store', {
     }
   })
 })
+
+register(storeSuite)
