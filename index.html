@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konomi P2P - Serverless Collaboration</title>
+  <meta name="description" content="P2P library for GitHub Pages - no server needed">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#0a0a1a;--bg2:#12122a;--bg3:#1a1a3a;--bg4:#252550;
+      --accent:#4facfe;--accent2:#00f2fe;--glow:0 0 20px #4facfe40;
+      --text:#fff;--text2:#888;--text3:#555;
+      --success:#00ff88;--error:#ff6b6b;--warn:#ffd93d;
+      --font:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+      --mono:'SF Mono','Fira Code','Consolas',monospace;
+      --radius:12px;--radius-sm:8px;
+      --shadow:0 8px 32px #00000060;
+      --transition:all .2s ease;
+    }
+    html,body{height:100%;overflow:hidden}
+    body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+    /* Header */
+    header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--bg2);border-bottom:1px solid #ffffff10;z-index:100}
+    .logo{display:flex;align-items:center;gap:10px;font-size:1.2rem;font-weight:700;color:var(--accent)}
+    .logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .status{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:13px;color:var(--text2)}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--warn);animation:pulse 2s infinite}
+    .status-dot.online{background:var(--success)}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    .peer-count{color:var(--accent)}
+    .room-id{color:var(--text3);font-family:var(--mono);font-size:11px}
+    .header-btn{padding:8px 16px;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;transition:var(--transition)}
+    .header-btn:hover{background:var(--accent);color:#000}
+    .header-btn.primary{background:var(--accent);color:#000;border:none}
+    .mobile-toggle{display:none;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer}
+
+    /* Layout */
+    .layout{display:flex;flex:1;overflow:hidden}
+
+    /* Sidebar */
+    .sidebar{width:260px;background:var(--bg2);border-right:1px solid #ffffff10;display:flex;flex-direction:column;overflow:hidden;transition:var(--transition)}
+    .sidebar-section{padding:16px}
+    .sidebar-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:12px}
+    .example-list{display:flex;flex-direction:column;gap:4px}
+    .example-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition)}
+    .example-item:hover{background:var(--bg3)}
+    .example-item.active{background:linear-gradient(135deg,#4facfe20,#00f2fe10);border-left:3px solid var(--accent)}
+    .example-icon{font-size:20px}
+    .example-info{flex:1}
+    .example-name{font-weight:500;margin-bottom:2px}
+    .example-desc{font-size:11px;color:var(--text2)}
+
+    .quick-start{background:var(--bg3);border-radius:var(--radius-sm);padding:12px;font-family:var(--mono);font-size:11px;color:var(--text2);position:relative;overflow-x:auto}
+    .quick-start code{display:block;white-space:pre}
+    .copy-btn{position:absolute;top:8px;right:8px;padding:4px 8px;background:var(--bg4);border:none;color:var(--text2);border-radius:4px;cursor:pointer;font-size:10px}
+    .copy-btn:hover{background:var(--accent);color:#000}
+
+    .api-list{display:flex;flex-direction:column;gap:4px}
+    .api-item{font-family:var(--mono);font-size:12px;color:var(--accent);padding:6px 0;border-bottom:1px solid #ffffff08}
+
+    .features{display:flex;flex-direction:column;gap:8px}
+    .feature{display:flex;align-items:center;gap:8px;font-size:12px}
+    .feature::before{content:'✓';color:var(--success)}
+
+    /* Main */
+    main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+    /* Demo Area */
+    .demo-area{flex:1;position:relative;background:var(--bg3);min-height:200px}
+    .demo-area iframe{width:100%;height:100%;border:none}
+    .demo-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg3)}
+    .demo-loading::after{content:'';width:40px;height:40px;border:3px solid var(--bg4);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .demo-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:8px}
+    .demo-btn{padding:6px 12px;background:var(--bg2);border:1px solid #ffffff20;color:var(--text);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;transition:var(--transition)}
+    .demo-btn:hover{background:var(--bg4);border-color:var(--accent)}
+
+    /* Editor Panel */
+    .editor-panel{display:flex;border-top:1px solid #ffffff10;height:280px}
+    .editor-section{flex:1;display:flex;flex-direction:column;border-right:1px solid #ffffff10}
+    .editor-section:last-child{border-right:none}
+    .editor-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg2);border-bottom:1px solid #ffffff10}
+    .editor-title{font-size:12px;font-weight:600;color:var(--text2)}
+    .editor-actions{display:flex;gap:8px}
+    .editor-actions select,.editor-actions button{padding:4px 10px;background:var(--bg3);border:1px solid #ffffff20;color:var(--text);border-radius:4px;cursor:pointer;font-size:11px}
+    .editor-actions button.run{background:var(--success);color:#000;border:none;font-weight:600}
+    .editor-actions button.run:hover{opacity:.9}
+
+    .code-editor{flex:1;padding:12px;background:var(--bg);font-family:var(--mono);font-size:13px;color:var(--text);resize:none;border:none;outline:none;line-height:1.6}
+    .code-editor::placeholder{color:var(--text3)}
+
+    .console-output{flex:1;padding:12px;background:#050510;overflow-y:auto;font-family:var(--mono);font-size:12px}
+    .log-entry{padding:4px 0;border-bottom:1px solid #ffffff08;display:flex;gap:8px}
+    .log-time{color:var(--text3);min-width:70px}
+    .log-msg{flex:1;word-break:break-all}
+    .log-entry.info .log-msg{color:var(--text)}
+    .log-entry.success .log-msg{color:var(--success)}
+    .log-entry.error .log-msg{color:var(--error)}
+    .log-entry.warn .log-msg{color:var(--warn)}
+
+    /* Status Bar */
+    .status-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-top:1px solid #ffffff10;font-size:11px}
+    .status-bar-left{display:flex;align-items:center;gap:16px;color:var(--text2)}
+    .status-bar-right{display:flex;align-items:center;gap:8px}
+    .user-avatars{display:flex}
+    .user-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;margin-left:-6px;border:2px solid var(--bg2)}
+    .user-avatar:first-child{margin-left:0}
+
+    /* Responsive */
+    @media(max-width:1024px){
+      .sidebar{width:220px}
+    }
+    @media(max-width:768px){
+      .mobile-toggle{display:block}
+      .sidebar{position:fixed;left:0;top:56px;bottom:0;z-index:99;transform:translateX(-100%)}
+      .sidebar.open{transform:translateX(0)}
+      .editor-panel{flex-direction:column;height:auto}
+      .editor-section{border-right:none;border-bottom:1px solid #ffffff10;min-height:200px}
+      .status .room-id{display:none}
+    }
+    @media(max-width:480px){
+      header{padding:10px 12px}
+      .logo{font-size:1rem}
+      .status{gap:6px}
+      .header-btn{padding:6px 12px;font-size:12px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button class="mobile-toggle" id="menuToggle">☰</button>
+    <div class="logo">🌐 <span>Konomi P2P</span></div>
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="peer-count" id="peerCount">0 peers</span>
+      <span class="room-id" id="roomDisplay">-</span>
+    </div>
+    <button class="header-btn" id="shareBtn">Share</button>
+    <a class="header-btn" href="https://github.com/konomi/kp2p" target="_blank">GitHub</a>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Examples</div>
+        <div class="example-list" id="exampleList"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Quick Start</div>
+        <div class="quick-start">
+          <button class="copy-btn" id="copyQuickStart">Copy</button>
+          <code>&lt;script type="module"&gt;
+import{injectP2P}from'konomi-p2p'
+const p2p=await injectP2P()
+console.log(p2p.invite())
+&lt;/script&gt;</code>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">API</div>
+        <div class="api-list">
+          <div class="api-item">p2p.getSharedMap(name)</div>
+          <div class="api-item">p2p.getSharedArray(name)</div>
+          <div class="api-item">p2p.getSharedText(name)</div>
+          <div class="api-item">p2p.getPeers()</div>
+          <div class="api-item">p2p.getUsers()</div>
+          <div class="api-item">p2p.invite()</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section" style="margin-top:auto">
+        <div class="sidebar-title">Features</div>
+        <div class="features">
+          <div class="feature">No server required</div>
+          <div class="feature">Real-time sync</div>
+          <div class="feature">End-to-end encrypted</div>
+          <div class="feature">Works offline</div>
+          <div class="feature">GitHub Pages ready</div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="demo-area" id="demoArea">
+        <div class="demo-loading" id="demoLoading"></div>
+        <div class="demo-toolbar">
+          <button class="demo-btn" id="fullscreenBtn">⛶ Fullscreen</button>
+          <button class="demo-btn" id="reloadBtn">↻ Reload</button>
+        </div>
+      </div>
+
+      <div class="editor-panel">
+        <div class="editor-section">
+          <div class="editor-header">
+            <span class="editor-title">Code Editor</span>
+            <div class="editor-actions">
+              <select id="templateSelect">
+                <option value="basic">Basic Setup</option>
+                <option value="counter">Shared Counter</option>
+                <option value="cursors">Live Cursors</option>
+                <option value="todo">Todo List</option>
+              </select>
+              <button class="run" id="runBtn">▶ Run</button>
+            </div>
+          </div>
+          <textarea class="code-editor" id="codeEditor" placeholder="// Write your P2P code here..."></textarea>
+        </div>
+
+        <div class="editor-section">
+          <div class="editor-header">
+            <span class="editor-title">Console</span>
+            <div class="editor-actions">
+              <button id="clearConsole">Clear</button>
+            </div>
+          </div>
+          <div class="console-output" id="consoleOutput"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-bar-left">
+      <span id="connectionStatus">Connecting...</span>
+      <span id="latency">-</span>
+    </div>
+    <div class="status-bar-right">
+      <div class="user-avatars" id="userAvatars"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    // ═══════════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════════
+    const state = {
+      activeExample: 'chat',
+      roomId: location.hash.slice(1) || crypto.randomUUID(),
+      peers: [],
+      connected: false,
+      logs: [],
+      sidebarOpen: false,
+      p2p: null
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // EXAMPLES CONFIG
+    // ═══════════════════════════════════════════════════════════
+    const EXAMPLES = [
+      { id: 'chat', icon: '💬', name: 'Chat Room', desc: 'Real-time messaging', path: './examples/chat/index.html' },
+      { id: 'board', icon: '🎨', name: 'Whiteboard', desc: 'Collaborative drawing', path: './examples/whiteboard/index.html' },
+      { id: 'wiki', icon: '📚', name: 'Wiki', desc: 'Shared documents', path: './examples/wiki/index.html' },
+      { id: 'custom', icon: '⚡', name: 'Custom', desc: 'Run your own code', path: null }
+    ]
+
+    // ═══════════════════════════════════════════════════════════
+    // CODE TEMPLATES
+    // ═══════════════════════════════════════════════════════════
+    const TEMPLATES = {
+      basic: `// Basic P2P Setup
+import { injectP2P } from './src/index.js'
+
+const p2p = await injectP2P()
+
+console.log('🌐 Peer ID:', p2p.peerId)
+console.log('📋 Room:', p2p.roomId)
+console.log('🔗 Invite:', p2p.invite())
+
+// Get shared state
+const state = p2p.getSharedMap('demo')
+state.observe(() => {
+  console.log('📦 State:', state.toJSON())
+})
+
+// Set a value (syncs to all peers)
+state.set('hello', 'world')`,
+
+      counter: `// Shared Counter Example
+import { injectP2P } from './src/index.js'
+
+const p2p = await injectP2P()
+const counter = p2p.getSharedMap('counter')
+
+// Display count on changes
+counter.observe(() => {
+  const n = counter.get('count') || 0
+  console.log('🔢 Count:', n)
+})
+
+// Increment every 2 seconds
+setInterval(() => {
+  const current = counter.get('count') || 0
+  counter.set('count', current + 1)
+  console.log('➕ Incremented!')
+}, 2000)`,
+
+      cursors: `// Live Cursors Example
+import { injectP2P } from './src/index.js'
+
+const p2p = await injectP2P({
+  user: { name: 'User ' + Math.floor(Math.random()*1000), color: '#4facfe' }
+})
+
+console.log('🖱️ Move your mouse to share cursor position')
+
+// Track mouse
+document.addEventListener('mousemove', (e) => {
+  p2p.setCursor({ x: e.clientX, y: e.clientY })
+})
+
+// Display other users
+setInterval(() => {
+  const users = p2p.getUsers()
+  console.log('👥 Users online:', users.length)
+  users.forEach(u => {
+    if (u.cursor) console.log(\`  \${u.name}: (\${u.cursor.x}, \${u.cursor.y})\`)
+  })
+}, 3000)`,
+
+      todo: `// Shared Todo List
+import { injectP2P } from './src/index.js'
+
+const p2p = await injectP2P()
+const todos = p2p.getSharedArray('todos')
+
+// Display todos
+todos.observe(() => {
+  console.clear()
+  console.log('📝 Todo List:')
+  todos.toArray().forEach((t, i) => {
+    console.log(\`  \${i+1}. [\${t.done ? '✓' : ' '}] \${t.text}\`)
+  })
+})
+
+// Add a todo
+function addTodo(text) {
+  todos.push([{ text, done: false, id: Date.now() }])
+}
+
+// Add sample todos
+addTodo('Learn Konomi P2P')
+addTodo('Build something cool')
+addTodo('Share with friends')`
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // DOM ELEMENTS
+    // ═══════════════════════════════════════════════════════════
+    const $ = (id) => document.getElementById(id)
+    const els = {
+      menuToggle: $('menuToggle'),
+      sidebar: $('sidebar'),
+      exampleList: $('exampleList'),
+      demoArea: $('demoArea'),
+      demoLoading: $('demoLoading'),
+      codeEditor: $('codeEditor'),
+      templateSelect: $('templateSelect'),
+      runBtn: $('runBtn'),
+      consoleOutput: $('consoleOutput'),
+      clearConsole: $('clearConsole'),
+      shareBtn: $('shareBtn'),
+      copyQuickStart: $('copyQuickStart'),
+      fullscreenBtn: $('fullscreenBtn'),
+      reloadBtn: $('reloadBtn'),
+      statusDot: $('statusDot'),
+      peerCount: $('peerCount'),
+      roomDisplay: $('roomDisplay'),
+      connectionStatus: $('connectionStatus'),
+      userAvatars: $('userAvatars')
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // RENDER FUNCTIONS
+    // ═══════════════════════════════════════════════════════════
+    function renderExampleList() {
+      els.exampleList.innerHTML = EXAMPLES.map(ex => `
+        <div class="example-item ${state.activeExample === ex.id ? 'active' : ''}" data-id="${ex.id}">
+          <span class="example-icon">${ex.icon}</span>
+          <div class="example-info">
+            <div class="example-name">${ex.name}</div>
+            <div class="example-desc">${ex.desc}</div>
+          </div>
+        </div>
+      `).join('')
+
+      els.exampleList.querySelectorAll('.example-item').forEach(el => {
+        el.onclick = () => selectExample(el.dataset.id)
+      })
+    }
+
+    function renderConsole() {
+      els.consoleOutput.innerHTML = state.logs.map(log => `
+        <div class="log-entry ${log.level}">
+          <span class="log-time">${new Date(log.ts).toLocaleTimeString()}</span>
+          <span class="log-msg">${escapeHtml(log.msg)}</span>
+        </div>
+      `).join('')
+      els.consoleOutput.scrollTop = els.consoleOutput.scrollHeight
+    }
+
+    function renderStatus() {
+      els.statusDot.className = 'status-dot ' + (state.connected ? 'online' : '')
+      els.peerCount.textContent = state.peers.length + ' peer' + (state.peers.length !== 1 ? 's' : '')
+      els.roomDisplay.textContent = state.roomId.slice(0, 8) + '...'
+      els.connectionStatus.textContent = state.connected ? 'Connected' : 'Connecting...'
+    }
+
+    function renderUsers() {
+      if (!state.p2p) return
+      const users = state.p2p.getUsers().slice(0, 5)
+      els.userAvatars.innerHTML = users.map(u => `
+        <div class="user-avatar" style="background:${u.color}" title="${u.name}">
+          ${u.name[0].toUpperCase()}
+        </div>
+      `).join('')
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ACTIONS
+    // ═══════════════════════════════════════════════════════════
+    function selectExample(id) {
+      state.activeExample = id
+      renderExampleList()
+
+      const example = EXAMPLES.find(e => e.id === id)
+
+      if (example.path) {
+        // Load iframe demo
+        loadDemo(example.path)
+      } else {
+        // Custom code mode
+        showCustomEditor()
+      }
+
+      // Close mobile sidebar
+      els.sidebar.classList.remove('open')
+    }
+
+    function loadDemo(path) {
+      els.demoLoading.style.display = 'flex'
+
+      // Remove old iframe
+      const oldIframe = els.demoArea.querySelector('iframe')
+      if (oldIframe) oldIframe.remove()
+
+      // Create new iframe
+      const iframe = document.createElement('iframe')
+      iframe.src = path + '#' + state.roomId
+      iframe.onload = () => {
+        els.demoLoading.style.display = 'none'
+      }
+      els.demoArea.insertBefore(iframe, els.demoArea.firstChild)
+    }
+
+    function showCustomEditor() {
+      els.demoLoading.style.display = 'none'
+
+      // Remove demo iframe
+      const oldIframe = els.demoArea.querySelector('iframe')
+      if (oldIframe) oldIframe.remove()
+
+      // Show custom sandbox
+      const sandbox = document.createElement('div')
+      sandbox.id = 'customSandbox'
+      sandbox.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg3);color:var(--text2);font-size:14px;'
+      sandbox.innerHTML = '<div style="text-align:center"><div style="font-size:48px;margin-bottom:16px">⚡</div>Write code and click <b>Run</b> to execute</div>'
+      els.demoArea.insertBefore(sandbox, els.demoArea.firstChild)
+
+      // Load template
+      els.codeEditor.value = TEMPLATES.basic
+    }
+
+    function runCode() {
+      const code = els.codeEditor.value
+      addLog('info', '▶ Running code...')
+
+      // Remove old sandbox
+      const oldSandbox = $('customSandbox')
+      if (oldSandbox) oldSandbox.remove()
+
+      // Create sandbox iframe
+      const iframe = document.createElement('iframe')
+      iframe.id = 'customSandbox'
+      iframe.sandbox = 'allow-scripts allow-same-origin'
+      iframe.style.cssText = 'width:100%;height:100%;border:none;background:#fff'
+
+      const html = `<!DOCTYPE html>
+<html><head><style>body{font-family:system-ui;padding:20px;background:#1a1a2e;color:#fff}</style></head>
+<body>
+<script type="module">
+const _log = console.log.bind(console)
+const _error = console.error.bind(console)
+const _warn = console.warn.bind(console)
+
+console.log = (...args) => {
+  parent.postMessage({ type: 'log', level: 'info', args: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') }, '*')
+  _log(...args)
+}
+console.error = (...args) => {
+  parent.postMessage({ type: 'log', level: 'error', args: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') }, '*')
+  _error(...args)
+}
+console.warn = (...args) => {
+  parent.postMessage({ type: 'log', level: 'warn', args: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') }, '*')
+  _warn(...args)
+}
+console.clear = () => parent.postMessage({ type: 'clear' }, '*')
+
+try {
+${code}
+} catch (e) {
+  console.error('Error:', e.message)
+}
+<\/script>
+</body></html>`
+
+      iframe.srcdoc = html
+      els.demoArea.insertBefore(iframe, els.demoArea.firstChild)
+    }
+
+    function addLog(level, msg) {
+      state.logs.push({ level, msg, ts: Date.now() })
+      if (state.logs.length > 100) state.logs.shift()
+      renderConsole()
+    }
+
+    function clearLogs() {
+      state.logs = []
+      renderConsole()
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text)
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div.innerHTML
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // P2P STATUS (optional, for status display)
+    // ═══════════════════════════════════════════════════════════
+    async function initP2PStatus() {
+      try {
+        const { injectP2P } = await import('./src/index.js')
+        state.p2p = await injectP2P({
+          roomId: state.roomId,
+          showUI: false,
+          user: { name: 'Sandbox', color: '#4facfe' }
+        })
+        state.connected = true
+        addLog('success', '🌐 P2P connected: ' + state.p2p.peerId.slice(0, 12) + '...')
+
+        // Update status periodically
+        setInterval(() => {
+          state.peers = state.p2p.getPeers()
+          renderStatus()
+          renderUsers()
+        }, 1000)
+
+      } catch (e) {
+        addLog('warn', '⚠ P2P status unavailable: ' + e.message)
+      }
+      renderStatus()
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // EVENT LISTENERS
+    // ═══════════════════════════════════════════════════════════
+    // Sidebar toggle
+    els.menuToggle.onclick = () => els.sidebar.classList.toggle('open')
+
+    // Template select
+    els.templateSelect.onchange = (e) => {
+      els.codeEditor.value = TEMPLATES[e.target.value] || ''
+    }
+
+    // Run code
+    els.runBtn.onclick = runCode
+
+    // Clear console
+    els.clearConsole.onclick = clearLogs
+
+    // Share
+    els.shareBtn.onclick = () => {
+      const url = location.origin + location.pathname + '#' + state.roomId
+      copyToClipboard(url)
+      els.shareBtn.textContent = 'Copied!'
+      setTimeout(() => els.shareBtn.textContent = 'Share', 2000)
+    }
+
+    // Copy quick start
+    els.copyQuickStart.onclick = () => {
+      copyToClipboard(`<script type="module">
+import{injectP2P}from'konomi-p2p'
+const p2p=await injectP2P()
+console.log(p2p.invite())
+</script>`)
+      els.copyQuickStart.textContent = '✓'
+      setTimeout(() => els.copyQuickStart.textContent = 'Copy', 2000)
+    }
+
+    // Fullscreen
+    els.fullscreenBtn.onclick = () => {
+      const demo = els.demoArea.querySelector('iframe') || els.demoArea
+      if (demo.requestFullscreen) demo.requestFullscreen()
+    }
+
+    // Reload demo
+    els.reloadBtn.onclick = () => {
+      const iframe = els.demoArea.querySelector('iframe')
+      if (iframe) iframe.src = iframe.src
+    }
+
+    // Console messages from sandboxed iframes
+    window.addEventListener('message', (e) => {
+      if (e.data.type === 'log') {
+        addLog(e.data.level, e.data.args)
+      } else if (e.data.type === 'clear') {
+        clearLogs()
+      }
+    })
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        runCode()
+      }
+    })
+
+    // ═══════════════════════════════════════════════════════════
+    // BOOT
+    // ═══════════════════════════════════════════════════════════
+    async function boot() {
+      // Parse URL
+      const params = new URLSearchParams(location.search)
+      const demoParam = params.get('demo')
+      if (demoParam && EXAMPLES.find(e => e.id === demoParam)) {
+        state.activeExample = demoParam
+      }
+
+      // Update URL with room
+      if (!location.hash) {
+        history.replaceState(null, '', '#' + state.roomId)
+      }
+
+      // Render
+      renderExampleList()
+      renderStatus()
+      els.codeEditor.value = TEMPLATES.basic
+
+      // Load initial example
+      selectExample(state.activeExample)
+
+      // Init P2P for status
+      await initP2PStatus()
+
+      addLog('info', '🚀 Sandbox ready!')
+      addLog('info', '📋 Room: ' + state.roomId)
+    }
+
+    boot()
+  </script>
+</body>
+</html>
