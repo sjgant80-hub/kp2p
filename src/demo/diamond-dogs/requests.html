@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<!--
+DIAMOND DOGS - Request Board
+P2P feature request board. Anyone can add requests.
+All synced globally via WebRTC.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Diamond Dogs - Requests</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --gold: #ffd700;
+      --gold-dark: #b8860b;
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --bg3: #1a1a25;
+      --green: #00ff88;
+      --red: #ff4444;
+      --blue: #4facfe;
+      --purple: #a855f7;
+      --border: #2a2a3a;
+    }
+    body {
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    .header {
+      padding: 16px 24px;
+      background: var(--bg2);
+      border-bottom: 2px solid var(--gold-dark);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo span { font-size: 28px; }
+    .logo h1 {
+      font-size: 1.2rem;
+      background: linear-gradient(135deg, var(--gold), #fff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    .controls input {
+      padding: 8px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--gold);
+      font-size: 12px;
+      width: 120px;
+    }
+    .btn {
+      padding: 8px 16px;
+      background: var(--gold-dark);
+      border: none;
+      border-radius: 6px;
+      color: #000;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { background: var(--gold); }
+    .btn-add {
+      background: var(--green);
+      margin-left: auto;
+    }
+    .status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #888; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .dot.on { background: var(--green); }
+    .dot.connecting { background: var(--gold); animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .stat {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 24px;
+      text-align: center;
+    }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--gold); }
+    .stat-label { font-size: 11px; color: #666; margin-top: 4px; }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 6px 12px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: #888;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .filter-btn:hover { border-color: var(--gold-dark); color: #fff; }
+    .filter-btn.active { background: var(--gold-dark); color: #000; border-color: var(--gold-dark); }
+
+    .requests { display: flex; flex-direction: column; gap: 12px; }
+
+    .request {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .request:hover { border-color: var(--gold-dark); }
+    .request-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .request-votes {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 50px;
+    }
+    .vote-btn {
+      background: var(--bg3);
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .vote-btn:hover { background: var(--gold-dark); }
+    .vote-btn.voted { background: var(--gold); }
+    .vote-count { font-size: 1.2rem; font-weight: 700; color: var(--gold); }
+    .request-content { flex: 1; }
+    .request-title { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+    .request-desc { font-size: 13px; color: #888; line-height: 1.5; }
+    .request-meta {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 11px;
+      color: #555;
+      flex-wrap: wrap;
+    }
+    .request-tag {
+      padding: 3px 8px;
+      background: var(--bg3);
+      border-radius: 4px;
+      font-size: 10px;
+    }
+    .request-tag.feature { color: var(--blue); }
+    .request-tag.bug { color: var(--red); }
+    .request-tag.idea { color: var(--purple); }
+    .request-tag.done { color: var(--green); }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 500px;
+    }
+    .modal h2 { margin-bottom: 16px; font-size: 1.2rem; }
+    .modal-field { margin-bottom: 16px; }
+    .modal-field label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
+    .modal-field input, .modal-field textarea, .modal-field select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+    }
+    .modal-field textarea { resize: vertical; min-height: 100px; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn-cancel { background: var(--bg3); color: #fff; }
+
+    .empty {
+      text-align: center;
+      padding: 48px;
+      color: #444;
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+
+    @media (max-width: 600px) {
+      .header { padding: 12px 16px; }
+      .container { padding: 16px; }
+      .request { padding: 12px; }
+      .stats { gap: 12px; }
+      .stat { padding: 12px 16px; flex: 1; min-width: 100px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span>💎🐕</span>
+      <h1>Request Board</h1>
+    </div>
+    <div class="controls">
+      <input type="text" id="roomInput" value="dd-requests" placeholder="Board">
+      <input type="password" id="secretInput" placeholder="Secret">
+      <button class="btn" id="joinBtn">Join</button>
+    </div>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Offline</span>
+      <span>• 🐺 <span id="peerCount">0</span></span>
+    </div>
+    <button class="btn btn-add" id="addBtn">+ Add Request</button>
+  </div>
+
+  <div class="container">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="totalCount">0</div>
+        <div class="stat-label">Total Requests</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="openCount">0</div>
+        <div class="stat-label">Open</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="doneCount">0</div>
+        <div class="stat-label">Completed</div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="feature">Features</button>
+      <button class="filter-btn" data-filter="bug">Bugs</button>
+      <button class="filter-btn" data-filter="idea">Ideas</button>
+      <button class="filter-btn" data-filter="done">Done</button>
+    </div>
+
+    <div class="requests" id="requestList">
+      <div class="empty">
+        <div class="empty-icon">📋</div>
+        <div>No requests yet. Be the first!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Request Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2>New Request</h2>
+      <div class="modal-field">
+        <label>Title</label>
+        <input type="text" id="reqTitle" placeholder="Short descriptive title">
+      </div>
+      <div class="modal-field">
+        <label>Description</label>
+        <textarea id="reqDesc" placeholder="Describe the feature, bug, or idea..."></textarea>
+      </div>
+      <div class="modal-field">
+        <label>Type</label>
+        <select id="reqType">
+          <option value="feature">Feature</option>
+          <option value="bug">Bug</option>
+          <option value="idea">Idea</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="cancelBtn">Cancel</button>
+        <button class="btn" id="submitBtn">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const TRACKER = 'wss://tracker.openwebtorrent.com';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    const $ = id => document.getElementById(id);
+    const myId = 'DD' + Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b => b.toString(16).padStart(2,'0')).join('').toUpperCase();
+
+    let ws = null, infoHash = null;
+    let dataChannels = new Map(), pendingOffers = new Map();
+    let requests = new Map();
+    let myVotes = new Set(JSON.parse(localStorage.getItem('dd-votes') || '[]'));
+    let currentFilter = 'all';
+
+    async function roomToHash(room, secret) {
+      const data = new TextEncoder().encode('dd-requests:' + room + ':' + secret);
+      const hash = await crypto.subtle.digest('SHA-1', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    async function generateOffers(n) {
+      const offers = [];
+      for (let i = 0; i < n; i++) {
+        const pc = new RTCPeerConnection(ICE);
+        const dc = pc.createDataChannel('dd');
+        const id = crypto.randomUUID();
+        await new Promise(r => { pc.onicecandidate = e => { if (!e.candidate) r(); }; pc.createOffer().then(o => pc.setLocalDescription(o)); });
+        offers.push({ offer_id: id, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+        pendingOffers.set(id, { pc, dc });
+        setupPC(pc, dc, id);
+      }
+      return offers;
+    }
+
+    function setupPC(pc, dc, peerId) {
+      dc.onopen = () => {
+        dataChannels.set(peerId, dc);
+        dc.send(JSON.stringify({ type: 'sync', requests: Array.from(requests.entries()) }));
+        updateStatus();
+      };
+      dc.onclose = () => { dataChannels.delete(peerId); updateStatus(); };
+      dc.onmessage = e => handleMsg(JSON.parse(e.data));
+    }
+
+    function handleMsg(msg) {
+      switch(msg.type) {
+        case 'sync':
+          msg.requests.forEach(([id, req]) => {
+            if (!requests.has(id) || requests.get(id).votes < req.votes) {
+              requests.set(id, req);
+            }
+          });
+          render();
+          break;
+        case 'request':
+          requests.set(msg.id, msg.data);
+          render();
+          break;
+        case 'vote':
+          const req = requests.get(msg.id);
+          if (req) { req.votes = msg.votes; render(); }
+          break;
+      }
+    }
+
+    function broadcast(data) {
+      const msg = JSON.stringify(data);
+      dataChannels.forEach(dc => { if (dc.readyState === 'open') dc.send(msg); });
+    }
+
+    async function joinRoom(room, secret) {
+      if (!secret) { alert('Enter board secret!'); return; }
+      if (ws) ws.close();
+      dataChannels.clear(); pendingOffers.clear();
+
+      $('statusDot').className = 'dot connecting';
+      $('statusText').textContent = 'Connecting...';
+
+      infoHash = await roomToHash(room, secret);
+      const offers = await generateOffers(5);
+
+      ws = new WebSocket(TRACKER);
+      ws.onopen = () => {
+        $('statusText').textContent = 'Searching...';
+        ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, numwant: 10, uploaded: 0, downloaded: 0, left: 1, offers }));
+      };
+      ws.onmessage = async e => {
+        const msg = JSON.parse(e.data);
+        if (msg.offer && msg.peer_id !== myId) {
+          const pc = new RTCPeerConnection(ICE);
+          pc.ondatachannel = e => setupPC(pc, e.channel, msg.peer_id);
+          await pc.setRemoteDescription(msg.offer);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await new Promise(r => { if (pc.iceGatheringState === 'complete') r(); else pc.onicecandidate = e => { if (!e.candidate) r(); }; });
+          ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, to_peer_id: msg.peer_id, answer: { type: 'answer', sdp: pc.localDescription.sdp }, offer_id: msg.offer_id }));
+        }
+        if (msg.answer) {
+          const p = pendingOffers.get(msg.offer_id);
+          if (p) await p.pc.setRemoteDescription(msg.answer);
+        }
+        if (msg.interval) setTimeout(() => reannounce(), msg.interval * 1000);
+      };
+      ws.onerror = () => { $('statusDot').className = 'dot'; $('statusText').textContent = 'Error'; };
+      ws.onclose = () => { if (!dataChannels.size) { $('statusDot').className = 'dot'; $('statusText').textContent = 'Offline'; } };
+      updateStatus();
+    }
+
+    async function reannounce() {
+      if (ws?.readyState !== 1) return;
+      ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, numwant: 10, offers: await generateOffers(5) }));
+    }
+
+    function updateStatus() {
+      const count = dataChannels.size;
+      $('peerCount').textContent = count;
+      $('statusDot').className = 'dot' + (count > 0 ? ' on' : ws?.readyState === 1 ? ' connecting' : '');
+      $('statusText').textContent = count > 0 ? 'Connected' : ws?.readyState === 1 ? 'Searching...' : 'Offline';
+    }
+
+    function addRequest(title, desc, type) {
+      const id = crypto.randomUUID();
+      const req = { title, desc, type, votes: 0, author: myId, time: Date.now(), status: 'open' };
+      requests.set(id, req);
+      broadcast({ type: 'request', id, data: req });
+      render();
+    }
+
+    function vote(id) {
+      if (myVotes.has(id)) return;
+      const req = requests.get(id);
+      if (!req) return;
+      req.votes++;
+      myVotes.add(id);
+      localStorage.setItem('dd-votes', JSON.stringify([...myVotes]));
+      broadcast({ type: 'vote', id, votes: req.votes });
+      render();
+    }
+
+    function render() {
+      const list = $('requestList');
+      let arr = Array.from(requests.entries());
+
+      // Filter
+      if (currentFilter !== 'all') {
+        if (currentFilter === 'done') {
+          arr = arr.filter(([_, r]) => r.status === 'done');
+        } else {
+          arr = arr.filter(([_, r]) => r.type === currentFilter && r.status !== 'done');
+        }
+      }
+
+      // Sort by votes
+      arr.sort((a, b) => b[1].votes - a[1].votes);
+
+      // Stats
+      const all = Array.from(requests.values());
+      $('totalCount').textContent = all.length;
+      $('openCount').textContent = all.filter(r => r.status !== 'done').length;
+      $('doneCount').textContent = all.filter(r => r.status === 'done').length;
+
+      if (arr.length === 0) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>No requests found</div></div>';
+        return;
+      }
+
+      list.innerHTML = arr.map(([id, r]) => `
+        <div class="request">
+          <div class="request-header">
+            <div class="request-votes">
+              <button class="vote-btn ${myVotes.has(id) ? 'voted' : ''}" data-id="${id}">▲</button>
+              <span class="vote-count">${r.votes}</span>
+            </div>
+            <div class="request-content">
+              <div class="request-title">${escapeHtml(r.title)}</div>
+              <div class="request-desc">${escapeHtml(r.desc)}</div>
+              <div class="request-meta">
+                <span class="request-tag ${r.type}">${r.type}</span>
+                ${r.status === 'done' ? '<span class="request-tag done">done</span>' : ''}
+                <span>${timeAgo(r.time)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Vote handlers
+      list.querySelectorAll('.vote-btn').forEach(btn => {
+        btn.onclick = () => vote(btn.dataset.id);
+      });
+    }
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function timeAgo(ts) {
+      const s = Math.floor((Date.now() - ts) / 1000);
+      if (s < 60) return 'just now';
+      if (s < 3600) return Math.floor(s / 60) + 'm ago';
+      if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+      return Math.floor(s / 86400) + 'd ago';
+    }
+
+    // Modal
+    $('addBtn').onclick = () => $('modalOverlay').classList.add('open');
+    $('cancelBtn').onclick = () => $('modalOverlay').classList.remove('open');
+    $('modalOverlay').onclick = e => { if (e.target === $('modalOverlay')) $('modalOverlay').classList.remove('open'); };
+    $('submitBtn').onclick = () => {
+      const title = $('reqTitle').value.trim();
+      const desc = $('reqDesc').value.trim();
+      const type = $('reqType').value;
+      if (!title) { alert('Enter a title'); return; }
+      addRequest(title, desc, type);
+      $('reqTitle').value = '';
+      $('reqDesc').value = '';
+      $('modalOverlay').classList.remove('open');
+    };
+
+    // Filters
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        render();
+      };
+    });
+
+    // Events
+    $('joinBtn').onclick = () => joinRoom($('roomInput').value.trim() || 'dd-requests', $('secretInput').value.trim());
+    $('roomInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); };
+    $('secretInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); };
+
+    // Init
+    render();
+  </script>
+</body>
+</html>

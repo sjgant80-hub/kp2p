@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<!--
+DIAMOND DOGS v2 - Command Center
+Global P2P mesh with terminal, files, chat, and peers.
+Password protected. The pack runs together.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Diamond Dogs v2 - Command Center</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --gold: #ffd700;
+      --gold-dark: #b8860b;
+      --bg: #0a0a0f;
+      --bg2: #12121a;
+      --bg3: #1a1a25;
+      --green: #00ff88;
+      --red: #ff4444;
+      --blue: #4facfe;
+      --border: #2a2a3a;
+    }
+    body {
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      padding: 10px 16px;
+      background: var(--bg2);
+      border-bottom: 2px solid var(--gold-dark);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .logo { display: flex; align-items: center; gap: 8px; }
+    .logo span { font-size: 24px; }
+    .logo h1 {
+      font-size: 1.1rem;
+      background: linear-gradient(135deg, var(--gold), #fff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 1px;
+    }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    .controls input {
+      padding: 6px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--gold);
+      font-size: 12px;
+      width: 100px;
+    }
+    .controls input:focus { outline: none; border-color: var(--gold-dark); }
+    .btn {
+      padding: 6px 12px;
+      background: var(--gold-dark);
+      border: none;
+      border-radius: 4px;
+      color: #000;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { background: var(--gold); }
+    .status { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: 11px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.connecting { background: var(--gold); animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    /* Main Grid */
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 8px 12px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+    }
+    .panel-header .count {
+      margin-left: auto;
+      background: var(--bg3);
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      color: #888;
+    }
+    .panel-body {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Terminal */
+    .terminal {
+      flex: 1;
+      background: #000;
+      padding: 8px;
+      overflow-y: auto;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .terminal .line { margin: 1px 0; }
+    .terminal .prompt { color: var(--green); }
+    .terminal .output { color: #888; }
+    .terminal .error { color: var(--red); }
+    .terminal .info { color: var(--gold); }
+    .input-row {
+      display: flex;
+      padding: 8px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+    .input-row input {
+      flex: 1;
+      padding: 8px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .input-row input:focus { outline: none; border-color: var(--gold-dark); }
+
+    /* Chat */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .chat-msg { display: flex; gap: 8px; max-width: 90%; }
+    .chat-msg.self { align-self: flex-end; flex-direction: row-reverse; }
+    .chat-avatar { font-size: 20px; flex-shrink: 0; }
+    .chat-bubble {
+      padding: 6px 10px;
+      background: var(--bg2);
+      border-radius: 8px;
+      font-size: 12px;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+    .chat-msg.self .chat-bubble { background: var(--gold-dark); color: #000; }
+    .chat-meta { font-size: 9px; color: #555; margin-bottom: 2px; }
+    .chat-system { text-align: center; font-size: 10px; color: #444; padding: 4px; }
+
+    /* Peers */
+    .peer-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .peer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg2);
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .peer.self { border: 1px solid var(--gold-dark); }
+    .peer-avatar { font-size: 18px; }
+    .peer-name { color: var(--gold); font-weight: 500; }
+    .peer-id { color: #555; font-size: 9px; font-family: monospace; }
+
+    /* Files */
+    .file-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg2);
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .file-item:hover { background: var(--bg3); }
+    .file-name { flex: 1; color: var(--blue); }
+    .file-size { color: #555; font-size: 9px; }
+    .file-actions { display: flex; gap: 4px; }
+    .file-actions button {
+      padding: 2px 6px;
+      background: var(--bg3);
+      border: none;
+      border-radius: 3px;
+      color: #888;
+      font-size: 9px;
+      cursor: pointer;
+    }
+    .empty { color: #444; font-size: 11px; text-align: center; padding: 20px; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .main { grid-template-columns: 1fr; grid-template-rows: repeat(4, 1fr); }
+      .header { padding: 8px 12px; }
+      .controls input { width: 80px; }
+    }
+    @media (max-width: 480px) {
+      .logo h1 { font-size: 0.9rem; }
+      .controls input { width: 70px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span>💎🐕</span>
+      <h1>DIAMOND DOGS v2</h1>
+    </div>
+    <div class="controls">
+      <input type="text" id="roomInput" value="dd-hq" placeholder="Den">
+      <input type="password" id="secretInput" placeholder="Secret">
+      <button class="btn" id="joinBtn">Join</button>
+    </div>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Offline</span>
+      <span>🐺 <span id="peerCount">0</span></span>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Terminal -->
+    <div class="panel">
+      <div class="panel-header">💻 Terminal</div>
+      <div class="panel-body">
+        <div class="terminal" id="terminal"></div>
+        <div class="input-row">
+          <input type="text" id="cmdInput" placeholder="Type command...">
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="panel">
+      <div class="panel-header">💬 Pack Chat</div>
+      <div class="panel-body">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="input-row">
+          <input type="text" id="chatInput" placeholder="Message the pack...">
+        </div>
+      </div>
+    </div>
+
+    <!-- Peers -->
+    <div class="panel">
+      <div class="panel-header">🐺 Pack <span class="count" id="memberCount">0</span></div>
+      <div class="panel-body">
+        <div class="peer-list" id="peerList">
+          <div class="empty">No pack members yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Files -->
+    <div class="panel">
+      <div class="panel-header">
+        📁 Shared Files
+        <span class="count" id="fileCount">0</span>
+        <button class="btn" style="margin-left:auto;font-size:9px;padding:3px 8px" id="newFileBtn">+ New</button>
+      </div>
+      <div class="panel-body">
+        <div class="file-list" id="fileList">
+          <div class="empty">No files yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const TRACKER = 'wss://tracker.openwebtorrent.com';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const AVATARS = ['🐕','🦮','🐺','🦊','🐾','💎','⚡','🌟'];
+
+    const $ = id => document.getElementById(id);
+    const myId = 'DD' + Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b => b.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const myAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+    const myName = 'Dog-' + myId.slice(2, 6);
+
+    let ws = null, infoHash = null;
+    let peers = new Map(), dataChannels = new Map(), pendingOffers = new Map();
+    let sharedFiles = new Map();
+
+    // Terminal
+    function termPrint(text, type = 'output') {
+      const line = document.createElement('div');
+      line.className = 'line ' + type;
+      line.textContent = text;
+      $('terminal').appendChild(line);
+      $('terminal').scrollTop = $('terminal').scrollHeight;
+    }
+
+    // Chat
+    function addChat(avatar, name, text, isSelf = false) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg' + (isSelf ? ' self' : '');
+      div.innerHTML = `
+        <span class="chat-avatar">${avatar}</span>
+        <div>
+          <div class="chat-meta">${isSelf ? 'You' : name}</div>
+          <div class="chat-bubble">${escapeHtml(text)}</div>
+        </div>
+      `;
+      $('chatMessages').appendChild(div);
+      $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
+    }
+
+    function addSystemChat(text) {
+      const div = document.createElement('div');
+      div.className = 'chat-system';
+      div.textContent = text;
+      $('chatMessages').appendChild(div);
+    }
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // Peers UI
+    function updatePeers() {
+      const count = dataChannels.size;
+      $('peerCount').textContent = count;
+      $('memberCount').textContent = count + 1;
+      $('statusDot').className = 'dot' + (count > 0 ? ' on' : ws?.readyState === 1 ? ' connecting' : '');
+      $('statusText').textContent = count > 0 ? count + ' connected' : ws?.readyState === 1 ? 'Searching...' : 'Offline';
+
+      const list = $('peerList');
+      list.innerHTML = '';
+
+      // Self
+      const self = document.createElement('div');
+      self.className = 'peer self';
+      self.innerHTML = `<span class="peer-avatar">${myAvatar}</span><div><div class="peer-name">${myName} (you)</div><div class="peer-id">${myId}</div></div>`;
+      list.appendChild(self);
+
+      peers.forEach((p, id) => {
+        const div = document.createElement('div');
+        div.className = 'peer';
+        div.innerHTML = `<span class="peer-avatar">${p.avatar || '🐕'}</span><div><div class="peer-name">${p.name || id.slice(0,8)}</div><div class="peer-id">${p.id || id.slice(0,12)}</div></div>`;
+        list.appendChild(div);
+      });
+    }
+
+    // Files UI
+    function updateFiles() {
+      const list = $('fileList');
+      $('fileCount').textContent = sharedFiles.size;
+      if (sharedFiles.size === 0) {
+        list.innerHTML = '<div class="empty">No files yet</div>';
+        return;
+      }
+      list.innerHTML = '';
+      sharedFiles.forEach((file, path) => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `
+          <span>📄</span>
+          <span class="file-name">${path}</span>
+          <span class="file-size">${file.content?.length || 0}b</span>
+        `;
+        div.onclick = () => { termPrint('$ cat ' + path, 'prompt'); termPrint(file.content || '(empty)'); };
+        list.appendChild(div);
+      });
+    }
+
+    // P2P
+    async function roomToHash(room, secret) {
+      const data = new TextEncoder().encode('diamond-dogs-v2:' + room + ':' + secret);
+      const hash = await crypto.subtle.digest('SHA-1', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    async function generateOffers(n) {
+      const offers = [];
+      for (let i = 0; i < n; i++) {
+        const pc = new RTCPeerConnection(ICE);
+        const dc = pc.createDataChannel('dd');
+        const id = crypto.randomUUID();
+        await new Promise(r => { pc.onicecandidate = e => { if (!e.candidate) r(); }; pc.createOffer().then(o => pc.setLocalDescription(o)); });
+        offers.push({ offer_id: id, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+        pendingOffers.set(id, { pc, dc });
+        setupPC(pc, dc, id);
+      }
+      return offers;
+    }
+
+    function setupPC(pc, dc, peerId) {
+      dc.onopen = () => {
+        termPrint('Peer connected: ' + peerId.slice(0,8), 'info');
+        dataChannels.set(peerId, dc);
+        dc.send(JSON.stringify({ type: 'identity', id: myId, name: myName, avatar: myAvatar }));
+        dc.send(JSON.stringify({ type: 'files', files: Array.from(sharedFiles.entries()) }));
+        updatePeers();
+      };
+      dc.onclose = () => {
+        dataChannels.delete(peerId);
+        peers.delete(peerId);
+        updatePeers();
+        addSystemChat('A dog left');
+      };
+      dc.onmessage = e => handleMsg(JSON.parse(e.data), peerId);
+    }
+
+    function handleMsg(msg, peerId) {
+      switch(msg.type) {
+        case 'identity':
+          peers.set(peerId, msg);
+          updatePeers();
+          addSystemChat(msg.avatar + ' ' + msg.name + ' joined');
+          break;
+        case 'chat':
+          addChat(msg.avatar, msg.name, msg.text);
+          break;
+        case 'file':
+          sharedFiles.set(msg.path, { content: msg.content, owner: msg.owner });
+          updateFiles();
+          termPrint('File synced: ' + msg.path, 'info');
+          break;
+        case 'files':
+          msg.files.forEach(([p, f]) => sharedFiles.set(p, f));
+          updateFiles();
+          break;
+      }
+    }
+
+    function broadcast(data) {
+      const msg = JSON.stringify(data);
+      dataChannels.forEach(dc => { if (dc.readyState === 'open') dc.send(msg); });
+    }
+
+    async function joinRoom(room, secret) {
+      if (!secret) { alert('Enter pack secret!'); return; }
+      if (ws) ws.close();
+      peers.clear(); dataChannels.clear(); pendingOffers.clear();
+
+      $('statusDot').className = 'dot connecting';
+      $('statusText').textContent = 'Connecting...';
+      termPrint('Joining den: ' + room, 'info');
+
+      infoHash = await roomToHash(room, secret);
+      const offers = await generateOffers(5);
+
+      ws = new WebSocket(TRACKER);
+      ws.onopen = () => {
+        termPrint('Tracker connected', 'info');
+        ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, numwant: 10, uploaded: 0, downloaded: 0, left: 1, offers }));
+      };
+      ws.onmessage = async e => {
+        const msg = JSON.parse(e.data);
+        if (msg.offer && msg.peer_id !== myId) {
+          const pc = new RTCPeerConnection(ICE);
+          pc.ondatachannel = e => setupPC(pc, e.channel, msg.peer_id);
+          await pc.setRemoteDescription(msg.offer);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await new Promise(r => { if (pc.iceGatheringState === 'complete') r(); else pc.onicecandidate = e => { if (!e.candidate) r(); }; });
+          ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, to_peer_id: msg.peer_id, answer: { type: 'answer', sdp: pc.localDescription.sdp }, offer_id: msg.offer_id }));
+        }
+        if (msg.answer) {
+          const p = pendingOffers.get(msg.offer_id);
+          if (p) await p.pc.setRemoteDescription(msg.answer);
+        }
+        if (msg.interval) setTimeout(() => reannounce(), msg.interval * 1000);
+      };
+      ws.onerror = () => termPrint('Tracker error', 'error');
+      ws.onclose = () => { termPrint('Disconnected', 'info'); if (!dataChannels.size) { $('statusDot').className = 'dot'; $('statusText').textContent = 'Offline'; } };
+      updatePeers();
+    }
+
+    async function reannounce() {
+      if (ws?.readyState !== 1) return;
+      ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, numwant: 10, offers: await generateOffers(5) }));
+    }
+
+    // Commands
+    const cmds = {
+      help: () => 'Commands: help, whoami, peers, ls, cat <file>, write <file> <content>, clear',
+      whoami: () => myAvatar + ' ' + myName + ' (' + myId + ')',
+      peers: () => [myName + ' (you)', ...Array.from(peers.values()).map(p => p.name)].join('\n'),
+      ls: () => sharedFiles.size ? Array.from(sharedFiles.keys()).join('\n') : '(no files)',
+      cat: args => { const f = sharedFiles.get(args[0]) || sharedFiles.get('/' + args[0]); return f ? f.content : 'Not found'; },
+      write: args => {
+        const path = '/' + args[0]?.replace(/^\//, '');
+        const content = args.slice(1).join(' ');
+        sharedFiles.set(path, { content, owner: myId });
+        broadcast({ type: 'file', path, content, owner: myId });
+        updateFiles();
+        return 'Created ' + path;
+      },
+      clear: () => { $('terminal').innerHTML = ''; return ''; }
+    };
+
+    function runCmd() {
+      const input = $('cmdInput').value.trim();
+      if (!input) return;
+      $('cmdInput').value = '';
+      termPrint('$ ' + input, 'prompt');
+      const [cmd, ...args] = input.split(' ');
+      if (cmds[cmd]) { const r = cmds[cmd](args); if (r) termPrint(r); }
+      else termPrint('Unknown: ' + cmd, 'error');
+    }
+
+    function sendChat() {
+      const text = $('chatInput').value.trim();
+      if (!text) return;
+      $('chatInput').value = '';
+      addChat(myAvatar, myName, text, true);
+      broadcast({ type: 'chat', avatar: myAvatar, name: myName, text });
+    }
+
+    // Events
+    $('joinBtn').onclick = () => joinRoom($('roomInput').value.trim() || 'dd-hq', $('secretInput').value.trim());
+    $('roomInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); };
+    $('secretInput').onkeydown = e => { if (e.key === 'Enter') $('joinBtn').click(); };
+    $('cmdInput').onkeydown = e => { if (e.key === 'Enter') runCmd(); };
+    $('chatInput').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
+    $('newFileBtn').onclick = () => {
+      const name = prompt('File name:');
+      if (!name) return;
+      const content = prompt('Content:') || '';
+      cmds.write([name, content]);
+    };
+
+    // Init
+    termPrint('💎🐕 DIAMOND DOGS v2 - Command Center', 'info');
+    termPrint('Type "help" for commands', 'info');
+    termPrint('Your ID: ' + myId, 'info');
+    updatePeers();
+    updateFiles();
+  </script>
+</body>
+</html>
