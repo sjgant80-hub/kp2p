@@ -260,13 +260,88 @@ Kills: n8n $20/mo, Zapier $19/mo, Node-RED
       align-items: center;
     }
 
+    /* Console Panel */
+    .console {
+      position: absolute;
+      bottom: 0;
+      left: 200px;
+      right: 0;
+      height: 150px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.3s;
+      z-index: 50;
+    }
+    .console.open { transform: translateY(0); }
+    .console-header {
+      padding: 8px 12px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+    .console-header .title { font-weight: 600; }
+    .console-header .status { margin-left: auto; font-size: 11px; color: var(--text-dim); }
+    .console-header .status.running { color: var(--orange); }
+    .console-header .status.success { color: var(--green); }
+    .console-header .status.error { color: var(--accent); }
+    .console-toggle {
+      position: absolute;
+      top: -28px;
+      right: 16px;
+      padding: 4px 12px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      color: var(--text);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .console-toggle:hover { background: var(--accent); }
+    .console-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 11px;
+    }
+    .console-line { padding: 2px 0; border-bottom: 1px solid var(--border); }
+    .console-line.info { color: var(--blue); }
+    .console-line.success { color: var(--green); }
+    .console-line.error { color: var(--accent); }
+    .console-line.data { color: var(--purple); }
+    .console-line .time { color: var(--text-dim); margin-right: 8px; }
+    .console-clear {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .console-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Node running state */
+    .node.running { border-color: var(--orange); box-shadow: 0 0 10px var(--orange); }
+    .node.completed { border-color: var(--green); }
+    .node.errored { border-color: var(--accent); }
+
     /* Mobile */
     @media (max-width: 768px) {
       .palette { width: 160px; }
       .palette-item { padding: 6px 8px; font-size: 11px; }
+      .console { left: 160px; }
     }
     @media (max-width: 600px) {
       .palette { display: none; }
+      .console { left: 0; }
     }
   </style>
 </head>
@@ -297,6 +372,16 @@ Kills: n8n $20/mo, Zapier $19/mo, Node-RED
         <button class="zoom-btn" id="zoomIn">+</button>
         <button class="zoom-btn" id="zoomFit">⊡</button>
       </div>
+    </div>
+
+    <div class="console" id="console">
+      <button class="console-toggle" id="consoleToggle">Console ▲</button>
+      <div class="console-header">
+        <span class="title">📋 Console</span>
+        <button class="console-clear" id="consoleClear">Clear</button>
+        <span class="status" id="consoleStatus">Ready</span>
+      </div>
+      <div class="console-body" id="consoleBody"></div>
     </div>
   </div>
 
@@ -653,8 +738,277 @@ Kills: n8n $20/mo, Zapier $19/mo, Node-RED
       input.click();
     };
 
+    // Console
+    const consoleEl = $('console');
+    const consoleBody = $('consoleBody');
+    const consoleStatus = $('consoleStatus');
+    let consoleOpen = false;
+
+    $('consoleToggle').onclick = () => {
+      consoleOpen = !consoleOpen;
+      consoleEl.classList.toggle('open', consoleOpen);
+      $('consoleToggle').textContent = consoleOpen ? 'Console ▼' : 'Console ▲';
+    };
+
+    $('consoleClear').onclick = () => {
+      consoleBody.innerHTML = '';
+    };
+
+    function log(msg, type = 'info') {
+      const line = document.createElement('div');
+      line.className = 'console-line ' + type;
+      const time = new Date().toLocaleTimeString();
+      line.innerHTML = `<span class="time">[${time}]</span> ${escapeHtml(String(msg))}`;
+      consoleBody.appendChild(line);
+      consoleBody.scrollTop = consoleBody.scrollHeight;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function setStatus(text, type = '') {
+      consoleStatus.textContent = text;
+      consoleStatus.className = 'status ' + type;
+    }
+
+    // Flow Execution Engine
+    class FlowEngine {
+      constructor(nodes, connections) {
+        this.nodes = nodes;
+        this.connections = connections;
+        this.nodeData = new Map();
+        this.running = false;
+      }
+
+      getInputs(nodeId) {
+        const inputs = {};
+        this.connections
+          .filter(c => c.to.node === nodeId)
+          .forEach(c => {
+            const sourceData = this.nodeData.get(c.from.node);
+            if (sourceData && sourceData[c.from.port] !== undefined) {
+              inputs[c.to.port] = sourceData[c.from.port];
+            }
+          });
+        return inputs;
+      }
+
+      getStartNodes() {
+        // Nodes with no input connections
+        const nodesWithInputs = new Set(this.connections.map(c => c.to.node));
+        return this.nodes.filter(n => !nodesWithInputs.has(n.id));
+      }
+
+      getNextNodes(nodeId) {
+        const nextIds = this.connections
+          .filter(c => c.from.node === nodeId)
+          .map(c => c.to.node);
+        return this.nodes.filter(n => nextIds.includes(n.id));
+      }
+
+      async executeNode(node) {
+        node.el.classList.remove('completed', 'errored');
+        node.el.classList.add('running');
+        log(`▶ Running: ${node.def.name} (${node.id})`);
+
+        const inputs = this.getInputs(node.id);
+        const outputs = {};
+
+        try {
+          switch (node.type) {
+            case 'text':
+              outputs.text = node.values.value || '';
+              break;
+
+            case 'number':
+              outputs.number = parseFloat(node.values.value) || 0;
+              break;
+
+            case 'file':
+              outputs.file = { path: node.values.path || '', content: null };
+              break;
+
+            case 'trigger':
+              outputs.trigger = { event: node.values.event || 'manual', time: Date.now() };
+              break;
+
+            case 'transform':
+              try {
+                const fn = new Function('data', node.values.code || 'return data');
+                outputs.result = fn(inputs.data);
+              } catch (e) {
+                throw new Error(`Transform error: ${e.message}`);
+              }
+              break;
+
+            case 'filter':
+              try {
+                const condition = node.values.condition || 'true';
+                const fn = new Function('data', `return ${condition}`);
+                const pass = fn(inputs.data);
+                if (pass) outputs.passed = inputs.data;
+                else outputs.failed = inputs.data;
+              } catch (e) {
+                throw new Error(`Filter error: ${e.message}`);
+              }
+              break;
+
+            case 'merge':
+              outputs.merged = { a: inputs.a, b: inputs.b };
+              break;
+
+            case 'split':
+              const delimiter = node.values.delimiter || ',';
+              const str = String(inputs.data || '');
+              outputs.parts = str.split(delimiter);
+              break;
+
+            case 'http':
+              const url = node.values.url || '';
+              const method = node.values.method || 'GET';
+              if (url) {
+                try {
+                  log(`  📡 ${method} ${url}`, 'info');
+                  const resp = await fetch(url, { method });
+                  const text = await resp.text();
+                  try { outputs.response = JSON.parse(text); }
+                  catch { outputs.response = text; }
+                } catch (e) {
+                  throw new Error(`HTTP error: ${e.message}`);
+                }
+              }
+              break;
+
+            case 'condition':
+              try {
+                const cond = node.values.condition || 'true';
+                const fn = new Function('value', `return ${cond}`);
+                const result = fn(inputs.value);
+                if (result) outputs.true = inputs.value;
+                else outputs.false = inputs.value;
+              } catch (e) {
+                throw new Error(`Condition error: ${e.message}`);
+              }
+              break;
+
+            case 'loop':
+              const items = Array.isArray(inputs.items) ? inputs.items : [inputs.items];
+              log(`  🔁 Looping over ${items.length} items`, 'info');
+              for (const item of items) {
+                outputs.item = item;
+              }
+              outputs.done = true;
+              break;
+
+            case 'delay':
+              const ms = parseInt(node.values.ms) || 1000;
+              log(`  ⏱️ Waiting ${ms}ms...`, 'info');
+              await new Promise(r => setTimeout(r, ms));
+              outputs.trigger = inputs.trigger;
+              break;
+
+            case 'log':
+              log(`  📋 LOG: ${JSON.stringify(inputs.data)}`, 'data');
+              break;
+
+            case 'display':
+              log(`  🖥️ DISPLAY: ${JSON.stringify(inputs.data)}`, 'success');
+              break;
+
+            case 'store':
+              const key = node.values.key || 'result';
+              localStorage.setItem('flow-store-' + key, JSON.stringify(inputs.data));
+              log(`  💾 Stored to "${key}"`, 'info');
+              break;
+          }
+
+          this.nodeData.set(node.id, outputs);
+          node.el.classList.remove('running');
+          node.el.classList.add('completed');
+          log(`  ✓ Complete: ${Object.keys(outputs).join(', ')}`, 'success');
+
+          return outputs;
+        } catch (e) {
+          node.el.classList.remove('running');
+          node.el.classList.add('errored');
+          log(`  ✗ Error: ${e.message}`, 'error');
+          throw e;
+        }
+      }
+
+      async run() {
+        if (this.running) return;
+        this.running = true;
+        this.nodeData.clear();
+
+        // Reset node states
+        this.nodes.forEach(n => n.el.classList.remove('running', 'completed', 'errored'));
+
+        log('═══════════════════════════════', 'info');
+        log('Starting flow execution...', 'info');
+        setStatus('Running...', 'running');
+
+        const startNodes = this.getStartNodes();
+        if (startNodes.length === 0) {
+          log('No start nodes found!', 'error');
+          setStatus('Error', 'error');
+          this.running = false;
+          return;
+        }
+
+        const executed = new Set();
+        const queue = [...startNodes];
+
+        try {
+          while (queue.length > 0) {
+            const node = queue.shift();
+            if (executed.has(node.id)) continue;
+
+            // Check if all input dependencies are met
+            const inputConns = this.connections.filter(c => c.to.node === node.id);
+            const allInputsReady = inputConns.every(c => this.nodeData.has(c.from.node));
+
+            if (!allInputsReady) {
+              queue.push(node); // Re-queue
+              continue;
+            }
+
+            await this.executeNode(node);
+            executed.add(node.id);
+
+            // Add connected nodes to queue
+            const nextNodes = this.getNextNodes(node.id);
+            nextNodes.forEach(n => {
+              if (!executed.has(n.id) && !queue.includes(n)) {
+                queue.push(n);
+              }
+            });
+
+            // Small delay for visualization
+            await new Promise(r => setTimeout(r, 100));
+          }
+
+          log('Flow completed successfully!', 'success');
+          log('═══════════════════════════════', 'info');
+          setStatus('Completed', 'success');
+        } catch (e) {
+          log(`Flow failed: ${e.message}`, 'error');
+          setStatus('Error', 'error');
+        }
+
+        this.running = false;
+      }
+    }
+
     $('runBtn').onclick = () => {
-      alert('Flow execution would run here!\n\nNodes: ' + nodes.length + '\nConnections: ' + connections.length);
+      if (!consoleOpen) {
+        consoleOpen = true;
+        consoleEl.classList.add('open');
+        $('consoleToggle').textContent = 'Console ▼';
+      }
+      const engine = new FlowEngine(nodes, connections);
+      engine.run();
     };
 
     // Keyboard
