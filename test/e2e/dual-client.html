@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!--
+@file test/e2e/dual-client.html
+@desc Dual P2P client test - two peers in same room
+@size ~120 tokens
+@deps client.html
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dual Client P2P Test</title>
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box }
+    body { font-family:system-ui,sans-serif;background:#050510;color:#fff;min-height:100vh }
+
+    .header { padding:16px 24px;background:#0a0a1a;border-bottom:1px solid #fff1;display:flex;align-items:center;justify-content:space-between }
+    .header h1 { font-size:1.25rem;display:flex;align-items:center;gap:8px }
+    .room-info { font-size:12px;color:#888;font-family:monospace }
+
+    .controls { padding:12px 24px;background:#0a0a1a;display:flex;gap:12px;flex-wrap:wrap;align-items:center }
+    .btn { padding:8px 16px;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;transition:all .2s }
+    .btn.primary { background:#4facfe;color:#000 }
+    .btn.success { background:#00ff88;color:#000 }
+    .btn.danger { background:#ff6b6b;color:#000 }
+    .btn:hover { opacity:0.85 }
+    .btn:disabled { opacity:0.5;cursor:not-allowed }
+
+    .test-results { padding:8px 16px;background:#12122a;border-radius:6px;font-size:12px;font-family:monospace }
+    .test-results.pass { background:#00ff8822;color:#00ff88 }
+    .test-results.fail { background:#ff6b6b22;color:#ff6b6b }
+
+    .clients { display:grid;grid-template-columns:1fr 1fr;gap:2px;flex:1;height:calc(100vh - 120px) }
+    .client-frame { width:100%;height:100%;border:none;background:#0a0a1a }
+
+    .client-label { position:absolute;top:8px;right:8px;padding:4px 8px;background:#4facfe;color:#000;border-radius:4px;font-size:11px;font-weight:600 }
+    .client-wrap { position:relative }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔗 Dual Client P2P Test</h1>
+    <div class="room-info">Room: <span id="roomId">-</span></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="testSendBtn">▶ Test Send A→B</button>
+    <button class="btn primary" id="testSendBackBtn">▶ Test Send B→A</button>
+    <button class="btn success" id="testRoundtripBtn">⟳ Roundtrip Test</button>
+    <button class="btn danger" id="resetBtn">↻ Reset Clients</button>
+    <div class="test-results" id="testResults">Ready to test</div>
+  </div>
+
+  <div class="clients">
+    <iframe class="client-frame" id="clientA"></iframe>
+    <iframe class="client-frame" id="clientB"></iframe>
+  </div>
+
+  <script>
+    const roomId = 'test-' + Date.now()
+    const $ = id => document.getElementById(id)
+
+    $('roomId').textContent = roomId
+
+    // Load clients with same room
+    function loadClients() {
+      $('clientA').src = `client.html?room=${roomId}&id=A`
+      $('clientB').src = `client.html?room=${roomId}&id=B`
+    }
+
+    loadClients()
+
+    // Wait for both clients to be ready
+    function waitForClients() {
+      return new Promise(resolve => {
+        const check = () => {
+          const a = $('clientA').contentWindow?.p2p
+          const b = $('clientB').contentWindow?.p2p
+          if (a && b) resolve({ a, b })
+          else setTimeout(check, 100)
+        }
+        check()
+      })
+    }
+
+    // Test sending from A to B
+    $('testSendBtn').onclick = async () => {
+      const { a, b } = await waitForClients()
+      const testMsg = 'Test from A: ' + Date.now()
+
+      let received = false
+      const handler = (msg) => {
+        if (msg.text === testMsg) received = true
+      }
+      b.on('message', handler)
+
+      a.send(testMsg)
+
+      await new Promise(r => setTimeout(r, 500))
+
+      $('testResults').textContent = received ? '✓ A→B: Message received!' : '✗ A→B: Message not received'
+      $('testResults').className = 'test-results ' + (received ? 'pass' : 'fail')
+    }
+
+    // Test sending from B to A
+    $('testSendBackBtn').onclick = async () => {
+      const { a, b } = await waitForClients()
+      const testMsg = 'Test from B: ' + Date.now()
+
+      let received = false
+      const handler = (msg) => {
+        if (msg.text === testMsg) received = true
+      }
+      a.on('message', handler)
+
+      b.send(testMsg)
+
+      await new Promise(r => setTimeout(r, 500))
+
+      $('testResults').textContent = received ? '✓ B→A: Message received!' : '✗ B→A: Message not received'
+      $('testResults').className = 'test-results ' + (received ? 'pass' : 'fail')
+    }
+
+    // Roundtrip test
+    $('testRoundtripBtn').onclick = async () => {
+      const { a, b } = await waitForClients()
+      const testMsgAB = 'Roundtrip-A-' + Date.now()
+      const testMsgBA = 'Roundtrip-B-' + Date.now()
+      const startTime = performance.now()
+
+      let abReceived = false, baReceived = false
+
+      b.on('message', (msg) => { if (msg.text === testMsgAB) abReceived = true })
+      a.on('message', (msg) => { if (msg.text === testMsgBA) baReceived = true })
+
+      a.send(testMsgAB)
+      b.send(testMsgBA)
+
+      await new Promise(r => setTimeout(r, 500))
+      const duration = (performance.now() - startTime).toFixed(1)
+
+      const pass = abReceived && baReceived
+      $('testResults').textContent = pass
+        ? `✓ Roundtrip: Both directions work! (${duration}ms)`
+        : `✗ Roundtrip: A→B:${abReceived} B→A:${baReceived}`
+      $('testResults').className = 'test-results ' + (pass ? 'pass' : 'fail')
+    }
+
+    // Reset
+    $('resetBtn').onclick = () => {
+      $('testResults').textContent = 'Resetting...'
+      $('testResults').className = 'test-results'
+      loadClients()
+      setTimeout(() => {
+        $('testResults').textContent = 'Ready to test'
+      }, 1000)
+    }
+  </script>
+</body>
+</html>

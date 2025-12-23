@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<!--
+@file test/e2e/client.html
+@desc Single P2P client for dual-client testing
+@size ~150 tokens
+@deps BroadcastChannel API (mock P2P)
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>P2P Client</title>
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box }
+    body { font-family:system-ui,sans-serif;background:#0a0a1a;color:#fff;padding:12px;height:100vh;display:flex;flex-direction:column }
+    .header { display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #fff2 }
+    .status { width:10px;height:10px;border-radius:50%;background:#666 }
+    .status.connected { background:#0f0 }
+    .peer-id { font-family:monospace;font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis }
+    .messages { flex:1;overflow-y:auto;background:#12122a;border-radius:8px;padding:12px;margin-bottom:12px }
+    .msg { padding:8px 12px;margin-bottom:8px;border-radius:6px;font-size:13px }
+    .msg.sent { background:#4facfe33;margin-left:20% }
+    .msg.received { background:#ff6b6b33;margin-right:20% }
+    .msg .meta { font-size:10px;color:#888;margin-top:4px }
+    .input-row { display:flex;gap:8px }
+    input { flex:1;padding:10px;border:none;border-radius:6px;background:#12122a;color:#fff;font-size:14px }
+    button { padding:10px 20px;border:none;border-radius:6px;background:#4facfe;color:#000;font-weight:600;cursor:pointer }
+    button:hover { opacity:0.9 }
+    .peers { font-size:11px;color:#888;margin-top:8px }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="status" id="status"></div>
+    <span>Client</span>
+    <span class="peer-id" id="peerId">Connecting...</span>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="input-row">
+    <input type="text" id="msgInput" placeholder="Type a message..." />
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <div class="peers" id="peers">Peers: 0</div>
+
+  <script type="module">
+    // Get room ID from parent or URL
+    const params = new URLSearchParams(location.search)
+    const roomId = params.get('room') || 'test-room-' + Date.now()
+    const clientId = params.get('id') || 'client'
+
+    const $ = id => document.getElementById(id)
+    const messages = []
+
+    // Mock P2P for testing without full libp2p
+    // In production, this would be: import { injectP2P } from '../../dist/konomi-p2p.js'
+
+    class MockP2P {
+      constructor(roomId, clientId) {
+        this.roomId = roomId
+        this.clientId = clientId
+        this.peerId = 'peer-' + Math.random().toString(36).slice(2, 10)
+        this.channel = new BroadcastChannel('p2p-test-' + roomId)
+        this.peers = new Set()
+        this.handlers = new Map()
+
+        this.channel.onmessage = (e) => {
+          if (e.data.from !== this.peerId) {
+            if (e.data.type === 'announce') {
+              this.peers.add(e.data.from)
+              this._emit('peer:connect', { peerId: e.data.from })
+              // Respond with our presence
+              this.channel.postMessage({ type: 'announce', from: this.peerId })
+            } else if (e.data.type === 'message') {
+              this._emit('message', { from: e.data.from, text: e.data.text, ts: e.data.ts })
+            }
+          }
+        }
+
+        // Announce presence
+        setTimeout(() => {
+          this.channel.postMessage({ type: 'announce', from: this.peerId })
+          this._emit('connected')
+        }, 100)
+      }
+
+      send(text) {
+        const msg = { type: 'message', from: this.peerId, text, ts: Date.now() }
+        this.channel.postMessage(msg)
+        return msg
+      }
+
+      on(event, handler) {
+        if (!this.handlers.has(event)) this.handlers.set(event, new Set())
+        this.handlers.get(event).add(handler)
+      }
+
+      _emit(event, data) {
+        if (this.handlers.has(event)) {
+          this.handlers.get(event).forEach(h => h(data))
+        }
+      }
+
+      getPeers() { return [...this.peers] }
+
+      destroy() {
+        this.channel.close()
+      }
+    }
+
+    // Initialize
+    const p2p = new MockP2P(roomId, clientId)
+
+    function addMessage(msg, sent = false) {
+      messages.push(msg)
+      const div = document.createElement('div')
+      div.className = 'msg ' + (sent ? 'sent' : 'received')
+      div.innerHTML = `
+        <div>${msg.text}</div>
+        <div class="meta">${sent ? 'You' : msg.from.slice(0, 8)} • ${new Date(msg.ts).toLocaleTimeString()}</div>
+      `
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function updatePeers() {
+      $('peers').textContent = 'Peers: ' + p2p.getPeers().length
+    }
+
+    p2p.on('connected', () => {
+      $('status').classList.add('connected')
+      $('peerId').textContent = p2p.peerId
+    })
+
+    p2p.on('peer:connect', (e) => {
+      updatePeers()
+      addMessage({ text: `${e.peerId.slice(0,8)} joined`, from: 'system', ts: Date.now() })
+    })
+
+    p2p.on('message', (msg) => {
+      addMessage(msg, false)
+    })
+
+    $('sendBtn').onclick = () => {
+      const text = $('msgInput').value.trim()
+      if (!text) return
+      const msg = p2p.send(text)
+      addMessage({ ...msg, text }, true)
+      $('msgInput').value = ''
+    }
+
+    $('msgInput').onkeydown = (e) => {
+      if (e.key === 'Enter') $('sendBtn').click()
+    }
+
+    // Expose for parent
+    window.p2p = p2p
+  </script>
+</body>
+</html>
