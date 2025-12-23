@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/enterprise-demo.html
+@desc Demo: ISA-95 enterprise hierarchy over P2P mesh
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Enterprise P2P Demo</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 { text-align:center; margin-bottom:8px; color:#4facfe; }
+    .subtitle { text-align:center; color:#666; margin-bottom:24px; font-size:14px; }
+
+    .container { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:300px 1fr 300px; gap:20px; }
+    @media(max-width:1000px) { .container { grid-template-columns:1fr; } }
+
+    .panel {
+      background: #12122a;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #333;
+    }
+    .panel h2 {
+      font-size: 14px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    /* Hierarchy Tree */
+    .tree { font-family: monospace; font-size: 13px; }
+    .tree-node {
+      padding: 4px 8px;
+      margin: 2px 0;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tree-node:hover { background: #1a1a3a; }
+    .tree-node.selected { background: #4facfe33; border: 1px solid #4facfe; }
+    .tree-node .icon { width: 16px; text-align: center; }
+    .tree-node .state {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .state-stopped { background: #404040; color: #888; }
+    .state-idle { background: #333; color: #aaa; }
+    .state-execute { background: #00aa0033; color: #00ff88; }
+    .state-held { background: #ff660033; color: #ff6600; }
+    .state-aborted { background: #cc000033; color: #ff4444; }
+    .indent-1 { padding-left: 20px; }
+    .indent-2 { padding-left: 40px; }
+    .indent-3 { padding-left: 60px; }
+    .indent-4 { padding-left: 80px; }
+    .indent-5 { padding-left: 100px; }
+
+    /* Node Details */
+    .details { font-size: 13px; }
+    .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; }
+    .detail-label { color: #888; }
+    .detail-value { color: #fff; font-family: monospace; }
+
+    /* Controls */
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-start { background: #00aa00; color: #fff; }
+    .btn-stop { background: #ff4444; color: #fff; }
+    .btn-hold { background: #ff6600; color: #fff; }
+    .btn-reset { background: #4facfe; color: #000; }
+
+    /* Metrics */
+    .metrics { margin-top: 16px; }
+    .metric {
+      background: #0a0a1a;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .metric-name { font-size: 11px; color: #888; margin-bottom: 4px; }
+    .metric-value { font-size: 24px; font-weight: bold; font-family: monospace; }
+    .metric-unit { font-size: 12px; color: #666; margin-left: 4px; }
+    .metric-quality { font-size: 10px; margin-left: 8px; }
+    .quality-good { color: #00ff88; }
+    .quality-bad { color: #ff4444; }
+
+    /* Events Log */
+    .events {
+      background: #0a0a1a;
+      border-radius: 8px;
+      height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 12px;
+    }
+    .event { margin-bottom: 4px; line-height: 1.4; }
+    .event-time { color: #666; }
+    .event-type { font-weight: bold; }
+    .event-type-data { color: #4facfe; }
+    .event-type-state { color: #00ff88; }
+    .event-type-alarm { color: #ff4444; }
+    .event-type-birth { color: #ffcc00; }
+
+    /* Alarms */
+    .alarms { margin-top: 16px; }
+    .alarm {
+      background: #1a0a0a;
+      border-left: 3px solid #ff4444;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      border-radius: 0 8px 8px 0;
+    }
+    .alarm.p1 { border-color: #cc0000; background: #200a0a; }
+    .alarm.p2 { border-color: #ff6600; background: #1a100a; }
+    .alarm.p3 { border-color: #ffcc00; background: #1a1a0a; }
+    .alarm.p4 { border-color: #00cccc; background: #0a1a1a; }
+    .alarm-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .alarm-id { font-weight: bold; font-size: 12px; }
+    .alarm-priority { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+    .alarm-message { font-size: 12px; color: #aaa; }
+    .alarm-actions { margin-top: 8px; }
+    .alarm-btn { font-size: 10px; padding: 4px 8px; }
+
+    /* Diagram */
+    .diagram {
+      background: #0a0a1a;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 11px;
+      white-space: pre;
+      overflow-x: auto;
+      color: #666;
+    }
+    .diagram .l4 { color: #4facfe; }
+    .diagram .l3 { color: #00ff88; }
+    .diagram .l2 { color: #ffcc00; }
+    .diagram .l1 { color: #ff6600; }
+  </style>
+</head>
+<body>
+  <h1>🏭 Enterprise P2P Demo</h1>
+  <p class="subtitle">ISA-95 hierarchy with PackML states over sandboxed P2P mesh</p>
+
+  <div class="container">
+    <!-- Hierarchy Tree -->
+    <div class="panel">
+      <h2>Hierarchy</h2>
+      <div class="tree" id="tree"></div>
+
+      <h2 style="margin-top:24px">ISA-95 Levels</h2>
+      <div class="diagram"><span class="l4">L4 Business</span>    days-months   [ERP, BI]
+<span class="l3">L3 Operations</span>  shifts-days   [MES, LIMS]
+<span class="l2">L2 Control</span>     sec-hours     [SCADA, HMI]
+<span class="l1">L1 Sensing</span>     ms-sec        [PLC, Sensors]
+L0 Process     continuous    [Actuators]</div>
+    </div>
+
+    <!-- Node Details -->
+    <div class="panel">
+      <h2>Selected Node: <span id="nodeName">-</span></h2>
+
+      <div class="details">
+        <div class="detail-row">
+          <span class="detail-label">Path</span>
+          <span class="detail-value" id="nodePath">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Level</span>
+          <span class="detail-value" id="nodeLevel">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">State</span>
+          <span class="detail-value" id="nodeState">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Mode</span>
+          <span class="detail-value" id="nodeMode">-</span>
+        </div>
+      </div>
+
+      <div class="controls" id="controls">
+        <button class="btn btn-start" id="btnStart">▶ Start</button>
+        <button class="btn btn-stop" id="btnStop">◼ Stop</button>
+        <button class="btn btn-hold" id="btnHold">⏸ Hold</button>
+        <button class="btn btn-reset" id="btnReset">↺ Reset</button>
+      </div>
+
+      <h2 style="margin-top:24px">Metrics</h2>
+      <div class="metrics" id="metrics">
+        <div class="metric">
+          <div class="metric-name">No metrics</div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:24px">Active Alarms</h2>
+      <div class="alarms" id="alarms">
+        <div style="color:#666;font-size:12px">No active alarms</div>
+      </div>
+    </div>
+
+    <!-- Events -->
+    <div class="panel">
+      <h2>Event Log</h2>
+      <div class="events" id="events"></div>
+
+      <h2 style="margin-top:24px">Simulate</h2>
+      <div class="controls">
+        <button class="btn" style="background:#333;color:#fff" id="btnSimData">📊 Random Data</button>
+        <button class="btn" style="background:#cc0000;color:#fff" id="btnSimAlarm">🚨 Alarm P2</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      Enterprise, Site, Area, WorkCenter, WorkUnit, Equipment,
+      STATE, MODE, MSG, LEVEL, QUALITY, ALARM_PRIORITY,
+      createExampleHierarchy
+    } from '../enterprise/hierarchy.js';
+
+    const $ = id => document.getElementById(id);
+    let enterprise = null;
+    let selectedNode = null;
+
+    function getStateClass(state) {
+      if (state === STATE.EXECUTE) return 'state-execute';
+      if (state === STATE.STOPPED) return 'state-stopped';
+      if (state === STATE.IDLE) return 'state-idle';
+      if (state === STATE.HELD) return 'state-held';
+      if (state === STATE.ABORTED) return 'state-aborted';
+      return 'state-stopped';
+    }
+
+    function getIcon(node) {
+      if (node instanceof Enterprise) return '🏢';
+      if (node instanceof Site) return '🏭';
+      if (node instanceof Area) return '📦';
+      if (node instanceof WorkCenter) return '⚙️';
+      if (node instanceof WorkUnit) return '🔧';
+      if (node instanceof Equipment) {
+        if (node.type === 'Conveyor') return '➡️';
+        if (node.type === 'Sensor') return '📡';
+        if (node.type === 'Filler') return '🫗';
+        if (node.type === 'Capper') return '🔩';
+        return '⚡';
+      }
+      return '📁';
+    }
+
+    function getIndent(node) {
+      let depth = 0;
+      let p = node.parent;
+      while (p) { depth++; p = p.parent; }
+      return `indent-${depth}`;
+    }
+
+    function renderTree(node, container) {
+      const div = document.createElement('div');
+      div.className = `tree-node ${getIndent(node)}`;
+      div.dataset.id = node.id;
+      div.innerHTML = `
+        <span class="icon">${getIcon(node)}</span>
+        <span class="name">${node.name}</span>
+        <span class="state ${getStateClass(node.state)}">${node.state}</span>
+      `;
+      div.onclick = () => selectNode(node);
+      container.appendChild(div);
+
+      for (const [_, child] of node.children) {
+        renderTree(child, container);
+      }
+    }
+
+    function selectNode(node) {
+      selectedNode = node;
+
+      // Update selection UI
+      document.querySelectorAll('.tree-node').forEach(el => {
+        el.classList.toggle('selected', el.dataset.id === node.id);
+      });
+
+      // Update details
+      $('nodeName').textContent = node.name;
+      $('nodePath').textContent = node.getPath();
+      $('nodeLevel').textContent = `L${node.level.id} - ${node.level.name}`;
+      $('nodeState').textContent = node.state;
+      $('nodeMode').textContent = node.mode;
+
+      // Update metrics
+      renderMetrics(node);
+
+      // Update alarms
+      renderAlarms(node);
+    }
+
+    function renderMetrics(node) {
+      const container = $('metrics');
+      container.innerHTML = '';
+
+      if (node.metrics.size === 0) {
+        container.innerHTML = '<div style="color:#666;font-size:12px">No metrics</div>';
+        return;
+      }
+
+      for (const [name, metric] of node.metrics) {
+        const div = document.createElement('div');
+        div.className = 'metric';
+        div.innerHTML = `
+          <div class="metric-name">${name}</div>
+          <div>
+            <span class="metric-value">${typeof metric.v === 'number' ? metric.v.toFixed(2) : metric.v}</span>
+            ${metric.unit ? `<span class="metric-unit">${metric.unit}</span>` : ''}
+            <span class="metric-quality ${metric.q === QUALITY.GOOD ? 'quality-good' : 'quality-bad'}">
+              ${metric.q === QUALITY.GOOD ? '●' : '○'}
+            </span>
+          </div>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function renderAlarms(node) {
+      const container = $('alarms');
+      container.innerHTML = '';
+
+      if (node.alarms.size === 0) {
+        container.innerHTML = '<div style="color:#666;font-size:12px">No active alarms</div>';
+        return;
+      }
+
+      for (const [id, alarm] of node.alarms) {
+        const div = document.createElement('div');
+        div.className = `alarm p${alarm.priority.id}`;
+        div.innerHTML = `
+          <div class="alarm-header">
+            <span class="alarm-id">${alarm.id}</span>
+            <span class="alarm-priority" style="background:${alarm.priority.color}">${alarm.priority.name}</span>
+          </div>
+          <div class="alarm-message">${alarm.message}</div>
+          <div class="alarm-actions">
+            <button class="btn alarm-btn" onclick="ackAlarm('${id}')">Acknowledge</button>
+            <button class="btn alarm-btn" onclick="clearAlarm('${id}')">Clear</button>
+          </div>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function logEvent(type, source, data) {
+      const container = $('events');
+      const div = document.createElement('div');
+      div.className = 'event';
+      const time = new Date().toLocaleTimeString();
+      div.innerHTML = `
+        <span class="event-time">${time}</span>
+        <span class="event-type event-type-${type.toLowerCase()}">${type}</span>
+        <span class="event-source">${source}</span>
+        <span class="event-data">${JSON.stringify(data).slice(0, 50)}</span>
+      `;
+      container.insertBefore(div, container.firstChild);
+    }
+
+    function refreshTree() {
+      $('tree').innerHTML = '';
+      renderTree(enterprise, $('tree'));
+      if (selectedNode) selectNode(selectedNode);
+    }
+
+    // Global functions for buttons
+    window.ackAlarm = (id) => {
+      if (selectedNode) {
+        selectedNode.ackAlarm(id, 'operator');
+        renderAlarms(selectedNode);
+      }
+    };
+
+    window.clearAlarm = (id) => {
+      if (selectedNode) {
+        selectedNode.clearAlarm(id);
+        renderAlarms(selectedNode);
+      }
+    };
+
+    // Initialize
+    enterprise = createExampleHierarchy();
+
+    // Subscribe to events
+    enterprise.on(MSG.DATA, (e) => logEvent('DATA', e.source, e.data));
+    enterprise.on(MSG.STATE, (e) => {
+      logEvent('STATE', e.source, e.data);
+      refreshTree();
+    });
+    enterprise.on(MSG.ALARM, (e) => {
+      logEvent('ALARM', e.source, e.data);
+      if (selectedNode) renderAlarms(selectedNode);
+    });
+
+    // Render initial tree
+    renderTree(enterprise, $('tree'));
+    selectNode(enterprise);
+
+    // Control buttons
+    $('btnStart').onclick = () => {
+      if (selectedNode) {
+        selectedNode.transition('start');
+      }
+    };
+
+    $('btnStop').onclick = () => {
+      if (selectedNode) {
+        selectedNode.transition('stop');
+      }
+    };
+
+    $('btnHold').onclick = () => {
+      if (selectedNode) {
+        selectedNode.transition('hold');
+      }
+    };
+
+    $('btnReset').onclick = () => {
+      if (selectedNode) {
+        selectedNode.transition('reset');
+      }
+    };
+
+    // Simulate data
+    $('btnSimData').onclick = () => {
+      if (selectedNode) {
+        const value = Math.random() * 100;
+        selectedNode.setMetric('Value', value, QUALITY.GOOD, '%');
+        selectedNode.setMetric('Temperature', 20 + Math.random() * 10, QUALITY.GOOD, '°C');
+        renderMetrics(selectedNode);
+      }
+    };
+
+    // Simulate alarm
+    $('btnSimAlarm').onclick = () => {
+      if (selectedNode) {
+        const id = 'ALM-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+        selectedNode.raiseAlarm(id, 'High temperature detected', 'P2');
+        renderAlarms(selectedNode);
+      }
+    };
+
+    // Auto-refresh tree for state changes
+    setInterval(refreshTree, 500);
+
+    logEvent('BIRTH', enterprise.getPath(), { state: enterprise.state });
+  </script>
+</body>
+</html>
