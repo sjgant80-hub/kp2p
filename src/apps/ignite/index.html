@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<!--
+KONOMI IGNITE - Industrial Communications Client
+MQTT, OPC-UA, OPC-DA, and Ignition Gateway connectivity.
+Kills: Kepware $2000+, Ignition Edge $1500/yr, custom integrations
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konomi Ignite</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="header">
+    <h1><span>🔥</span> Konomi Ignite</h1>
+    <div class="header-status">
+      <div class="status-item">
+        <span class="status-dot" id="mqttStatus"></span>
+        <span>MQTT</span>
+      </div>
+      <div class="status-item">
+        <span class="status-dot" id="opcuaStatus"></span>
+        <span>OPC-UA</span>
+      </div>
+      <div class="status-item">
+        <span class="status-dot" id="opcdaStatus"></span>
+        <span>OPC-DA</span>
+      </div>
+      <div class="status-item">
+        <span class="status-dot" id="ignitionStatus"></span>
+        <span>Ignition</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Sidebar - Connections -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span>Connections</span>
+        <button id="addConnBtn">+ Add</button>
+      </div>
+      <div class="conn-list" id="connList"></div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active" data-tab="mqtt">MQTT</div>
+        <div class="tab" data-tab="opcua">OPC-UA</div>
+        <div class="tab" data-tab="opcda">OPC-DA</div>
+        <div class="tab" data-tab="ignition">Ignition</div>
+        <div class="tab" data-tab="logs">Logs</div>
+      </div>
+
+      <!-- MQTT Tab -->
+      <div class="tab-content active" id="tab-mqtt">
+        <div class="panel-row">
+          <div class="panel" style="max-width: 320px;">
+            <div class="panel-header">📤 Publish</div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Topic</label>
+                <input type="text" id="mqttPubTopic" placeholder="sensors/temperature">
+              </div>
+              <div class="form-group">
+                <label>Payload</label>
+                <textarea id="mqttPubPayload" rows="4" placeholder='{"value": 23.5}'></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>QoS</label>
+                  <select id="mqttPubQos">
+                    <option value="0">0 - At most once</option>
+                    <option value="1">1 - At least once</option>
+                    <option value="2">2 - Exactly once</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Retain</label>
+                  <select id="mqttPubRetain">
+                    <option value="false">No</option>
+                    <option value="true">Yes</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="mqttPublishBtn">Publish</button>
+
+              <div class="panel-header" style="margin-top: 24px; margin: 24px -12px 0; padding: 10px 16px;">📥 Subscribe</div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label>Topic Filter</label>
+                <input type="text" id="mqttSubTopic" placeholder="sensors/#">
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-success" id="mqttSubscribeBtn">Subscribe</button>
+                <button class="btn btn-danger" id="mqttUnsubscribeBtn">Unsubscribe</button>
+              </div>
+              <div style="margin-top: 12px; font-size: 11px; color: var(--text-dim);">
+                <strong>Subscribed:</strong>
+                <div id="mqttSubscriptions" style="margin-top: 4px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              📨 Messages
+              <button class="btn btn-sm" style="margin-left: auto;" id="mqttClearBtn">Clear</button>
+            </div>
+            <div class="mqtt-messages" id="mqttMessages"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPC-UA Tab -->
+      <div class="tab-content" id="tab-opcua">
+        <div class="panel-row">
+          <div class="panel" style="max-width: 350px;">
+            <div class="panel-header">🌳 Node Browser</div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Browse Path</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="opcuaBrowsePath" placeholder="Objects/Server" style="flex: 1;">
+                  <button class="btn" id="opcuaBrowseBtn">Browse</button>
+                </div>
+              </div>
+              <div class="tag-tree" id="opcuaTree"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">📊 Monitored Items</div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Node ID</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="opcuaNodeId" placeholder="ns=2;s=Tag1" style="flex: 1;">
+                  <button class="btn btn-success" id="opcuaMonitorBtn">Monitor</button>
+                  <button class="btn" id="opcuaReadBtn">Read</button>
+                  <button class="btn" id="opcuaWriteBtn">Write</button>
+                </div>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Node ID</th>
+                    <th>Value</th>
+                    <th>Quality</th>
+                    <th>Timestamp</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="opcuaMonitored"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPC-DA Tab -->
+      <div class="tab-content" id="tab-opcda">
+        <div class="panel-row">
+          <div class="panel" style="max-width: 350px;">
+            <div class="panel-header">🏷️ Tag Browser</div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Server</label>
+                <select id="opcdaServer">
+                  <option value="">Select OPC-DA Server...</option>
+                </select>
+              </div>
+              <button class="btn" id="opcdaRefreshBtn" style="margin-bottom: 12px;">Refresh Servers</button>
+              <div class="tag-tree" id="opcdaTree"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">📋 Tag Group</div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Item ID</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="opcdaItemId" placeholder="Channel1.Device1.Tag1" style="flex: 1;">
+                  <button class="btn btn-success" id="opcdaAddBtn">Add</button>
+                </div>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Item ID</th>
+                    <th>Value</th>
+                    <th>Quality</th>
+                    <th>Timestamp</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="opcdaItems"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ignition Tab -->
+      <div class="tab-content" id="tab-ignition">
+        <div class="panel-row">
+          <div class="panel" style="max-width: 350px;">
+            <div class="panel-header">🔥 Gateway Info</div>
+            <div class="panel-body">
+              <div id="ignitionInfo">
+                <p style="color: var(--text-dim); font-size: 12px;">Not connected to Ignition Gateway</p>
+              </div>
+              <div class="panel-header" style="margin: 16px -12px 12px; padding: 10px 16px;">🏷️ Tag Providers</div>
+              <div id="ignitionProviders"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">📊 Tag Browser</div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Tag Path</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="ignitionTagPath" placeholder="[default]Folder/Tag" style="flex: 1;">
+                  <button class="btn" id="ignitionReadBtn">Read</button>
+                  <button class="btn" id="ignitionWriteBtn">Write</button>
+                </div>
+              </div>
+              <div class="tag-tree" id="ignitionTree"></div>
+
+              <div class="panel-header" style="margin: 16px -12px 12px; padding: 10px 16px;">📈 Live Values</div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Tag Path</th>
+                    <th>Value</th>
+                    <th>Quality</th>
+                    <th>Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody id="ignitionLive"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs Tab -->
+      <div class="tab-content" id="tab-logs">
+        <div class="panel-header">
+          📋 Communication Log
+          <button class="btn btn-sm" style="margin-left: auto;" id="logsClearBtn">Clear</button>
+        </div>
+        <div class="console" id="logsConsole"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Connection Modal -->
+  <div class="modal-overlay" id="addConnModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Add Connection</span>
+        <button class="modal-close" id="closeModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="template-list" id="connTemplates">
+          <div class="template-item" data-type="mqtt">
+            <div class="template-item-icon">📡</div>
+            <div class="template-item-name">MQTT</div>
+            <div class="template-item-desc">WebSocket MQTT broker</div>
+          </div>
+          <div class="template-item" data-type="opcua">
+            <div class="template-item-icon">🔌</div>
+            <div class="template-item-name">OPC-UA</div>
+            <div class="template-item-desc">OPC Unified Architecture</div>
+          </div>
+          <div class="template-item" data-type="opcda">
+            <div class="template-item-icon">🏭</div>
+            <div class="template-item-name">OPC-DA</div>
+            <div class="template-item-desc">Classic OPC via gateway</div>
+          </div>
+          <div class="template-item" data-type="ignition">
+            <div class="template-item-icon">🔥</div>
+            <div class="template-item-name">Ignition</div>
+            <div class="template-item-desc">Ignition Gateway WebDev</div>
+          </div>
+        </div>
+
+        <div id="connForm" style="display: none;">
+          <div class="form-group">
+            <label>Connection Name</label>
+            <input type="text" id="connName" placeholder="My Connection">
+          </div>
+          <div id="connTypeFields"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cancelConnBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveConnBtn" style="display: none;">Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
