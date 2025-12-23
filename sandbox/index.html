@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--
+@file sandbox/index.html
+@desc Konomi P2P Sandbox - main entry point
+@size ~120 tokens (HTML only, CSS/JS external)
+@deps css/*.css, js/app.js
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konomi P2P - Sandbox</title>
+  <meta name="description" content="P2P library playground for GitHub Pages">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+  <link rel="stylesheet" href="./css/theme.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/editor.css">
+  <link rel="stylesheet" href="./css/responsive.css">
+</head>
+<body>
+  <header>
+    <button class="mobile-toggle" id="menuToggle">☰</button>
+    <div class="logo">🌐 <span>Konomi P2P</span></div>
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="peer-count" id="peerCount">0 peers</span>
+      <span class="room-id" id="roomDisplay">-</span>
+    </div>
+    <button class="header-btn" id="shareBtn">Share</button>
+    <a class="header-btn" href="https://github.com/konomi/kp2p" target="_blank">GitHub</a>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Examples</div>
+        <div class="example-list" id="exampleList"></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">Quick Start</div>
+        <div class="quick-start">
+          <button class="copy-btn" id="copyQuickStart">Copy</button>
+          <code>&lt;script type="module"&gt;
+import{injectP2P}from'konomi-p2p'
+const p2p=await injectP2P()
+&lt;/script&gt;</code>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">API</div>
+        <div class="api-list">
+          <div class="api-item">getSharedMap(name)</div>
+          <div class="api-item">getSharedArray(name)</div>
+          <div class="api-item">getPeers()</div>
+          <div class="api-item">invite()</div>
+        </div>
+      </div>
+      <div class="sidebar-section" style="margin-top:auto">
+        <div class="sidebar-title">Features</div>
+        <div class="features">
+          <div class="feature">No server required</div>
+          <div class="feature">Real-time sync</div>
+          <div class="feature">Works offline</div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="demo-area" id="demoArea">
+        <div class="demo-toolbar">
+          <button class="demo-btn" id="fullscreenBtn">⛶ Fullscreen</button>
+          <button class="demo-btn" id="reloadBtn">↻ Reload</button>
+        </div>
+      </div>
+      <div class="editor-panel">
+        <div class="editor-section">
+          <div class="editor-header">
+            <span class="editor-title">Code Editor</span>
+            <div class="editor-actions">
+              <select id="templateSelect">
+                <option value="basic">Basic Setup</option>
+                <option value="counter">Shared Counter</option>
+                <option value="cursors">Live Cursors</option>
+                <option value="todo">Todo List</option>
+              </select>
+              <button class="run" id="runBtn">▶ Run</button>
+            </div>
+          </div>
+          <textarea class="code-editor" id="codeEditor" placeholder="// Write P2P code..."></textarea>
+        </div>
+        <div class="editor-section">
+          <div class="editor-header">
+            <span class="editor-title">Console</span>
+            <div class="editor-actions"><button id="clearConsole">Clear</button></div>
+          </div>
+          <div class="console-output" id="consoleOutput"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-bar-left">
+      <span id="connectionStatus">Connecting...</span>
+    </div>
+    <div class="status-bar-right">
+      <div class="user-avatars" id="userAvatars"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { boot } from './js/app.js'
+    const $ = id => document.getElementById(id)
+    boot({
+      menuToggle: $('menuToggle'), sidebar: $('sidebar'), exampleList: $('exampleList'),
+      demoArea: $('demoArea'), codeEditor: $('codeEditor'), templateSelect: $('templateSelect'),
+      runBtn: $('runBtn'), consoleOutput: $('consoleOutput'), clearConsole: $('clearConsole'),
+      shareBtn: $('shareBtn'), fullscreenBtn: $('fullscreenBtn'), reloadBtn: $('reloadBtn'),
+      statusDot: $('statusDot'), peerCount: $('peerCount'), roomDisplay: $('roomDisplay'),
+      connectionStatus: $('connectionStatus'), userAvatars: $('userAvatars')
+    })
+  </script>
+</body>
+</html>
