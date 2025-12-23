@@ -409,9 +409,9 @@ Password protected. The pack runs together.
       const div = document.createElement('div');
       div.className = 'chat-msg' + (isSelf ? ' self' : '');
       div.innerHTML = `
-        <span class="chat-avatar">${avatar}</span>
+        <span class="chat-avatar">${escapeHtml(avatar)}</span>
         <div>
-          <div class="chat-meta">${isSelf ? 'You' : name}</div>
+          <div class="chat-meta">${isSelf ? 'You' : escapeHtml(name)}</div>
           <div class="chat-bubble">${escapeHtml(text)}</div>
         </div>
       `;
@@ -442,13 +442,13 @@ Password protected. The pack runs together.
       // Self
       const self = document.createElement('div');
       self.className = 'peer self';
-      self.innerHTML = `<span class="peer-avatar">${myAvatar}</span><div><div class="peer-name">${myName} (you)</div><div class="peer-id">${myId}</div></div>`;
+      self.innerHTML = `<span class="peer-avatar">${escapeHtml(myAvatar)}</span><div><div class="peer-name">${escapeHtml(myName)} (you)</div><div class="peer-id">${escapeHtml(myId)}</div></div>`;
       list.appendChild(self);
 
       peers.forEach((p, id) => {
         const div = document.createElement('div');
         div.className = 'peer';
-        div.innerHTML = `<span class="peer-avatar">${p.avatar || '🐕'}</span><div><div class="peer-name">${p.name || id.slice(0,8)}</div><div class="peer-id">${p.id || id.slice(0,12)}</div></div>`;
+        div.innerHTML = `<span class="peer-avatar">${escapeHtml(p.avatar || '🐕')}</span><div><div class="peer-name">${escapeHtml(p.name || id.slice(0,8))}</div><div class="peer-id">${escapeHtml(p.id || id.slice(0,12))}</div></div>`;
         list.appendChild(div);
       });
     }
@@ -467,7 +467,7 @@ Password protected. The pack runs together.
         div.className = 'file-item';
         div.innerHTML = `
           <span>📄</span>
-          <span class="file-name">${path}</span>
+          <span class="file-name">${escapeHtml(path)}</span>
           <span class="file-size">${file.content?.length || 0}b</span>
         `;
         div.onclick = () => { termPrint('$ cat ' + path, 'prompt'); termPrint(file.content || '(empty)'); };

@@ -231,6 +231,13 @@
   <script type="module">
     const $ = id => document.getElementById(id);
 
+    // XSS protection
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
     // Generate VM ID
     const vmId = 'vm-' + Math.random().toString(36).slice(2, 8);
     $('vmId').textContent = vmId;
@@ -244,7 +251,7 @@
     function log(msg) {
       const entry = document.createElement('div');
       entry.className = 'log-entry';
-      entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span>${msg}`;
+      entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span>${escapeHtml(msg)}`;
       $('log').appendChild(entry);
       $('log').scrollTop = $('log').scrollHeight;
     }
@@ -274,7 +281,7 @@
         div.className = 'peer' + (id === vmId ? ' self' : '');
         div.innerHTML = `
           <span class="dot on"></span>
-          <span class="peer-name">${id}</span>
+          <span class="peer-name">${escapeHtml(id)}</span>
           ${id === vmId ? '<span style="color:#666">(you)</span>' : ''}
         `;
         list.appendChild(div);
@@ -295,7 +302,7 @@
       for (const [path, content] of sharedFiles) {
         const div = document.createElement('div');
         div.className = 'file-item';
-        div.innerHTML = `<span>📄</span> ${path} <span style="color:#666;margin-left:auto">${content.length}b</span>`;
+        div.innerHTML = `<span>📄</span> ${escapeHtml(path)} <span style="color:#666;margin-left:auto">${content.length}b</span>`;
         div.onclick = () => {
           termPrint(`$ cat ${path}`, 'prompt');
           termPrint(content);
