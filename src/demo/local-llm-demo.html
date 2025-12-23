@@ -270,6 +270,7 @@
 
       <button class="btn btn-primary" id="loadBtn">Load Model</button>
       <button class="btn btn-danger" id="unloadBtn" disabled>Unload</button>
+      <button class="btn" id="clearCacheBtn" style="background:#666">Clear Cache</button>
 
       <div class="progress" id="progress" style="display:none">
         <div id="progressText">Loading...</div>
@@ -489,6 +490,29 @@
 
     $('sendBtn').onclick = send;
     $('input').onkeydown = (e) => { if (e.key === 'Enter') send(); };
+
+    // Clear cache
+    $('clearCacheBtn').onclick = async () => {
+      if (!confirm('Clear all cached models? You will need to re-download them.')) return;
+
+      try {
+        // Clear Cache Storage
+        const keys = await caches.keys();
+        for (const key of keys) {
+          await caches.delete(key);
+        }
+
+        // Clear IndexedDB
+        const dbs = await indexedDB.databases();
+        for (const db of dbs) {
+          indexedDB.deleteDatabase(db.name);
+        }
+
+        addMessage('Cache cleared! Models will be re-downloaded on next load.');
+      } catch (e) {
+        addMessage('Error clearing cache: ' + e.message);
+      }
+    };
 
     // Init
     populateModels();

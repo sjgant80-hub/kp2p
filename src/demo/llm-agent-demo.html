@@ -349,6 +349,7 @@
       <h3>Actions</h3>
       <button class="btn btn-secondary" id="clearBtn">Clear Chat</button>
       <button class="btn btn-secondary" id="clearFilesBtn">Clear Files</button>
+      <button class="btn btn-secondary" id="clearCacheBtn">Clear Cache</button>
     </div>
 
     <div class="chat-area">
@@ -645,6 +646,19 @@ Load a model to get started!</div>
         } catch (e) {}
         updateFileTree();
         addMessage('assistant', 'Files cleared.');
+      }
+    };
+
+    $('clearCacheBtn').onclick = async () => {
+      if (!confirm('Clear all cached models? You will need to re-download them.')) return;
+      try {
+        const keys = await caches.keys();
+        for (const key of keys) await caches.delete(key);
+        const dbs = await indexedDB.databases();
+        for (const db of dbs) indexedDB.deleteDatabase(db.name);
+        addMessage('assistant', 'Cache cleared! Models will be re-downloaded on next load.');
+      } catch (e) {
+        addMessage('assistant', 'Error clearing cache: ' + e.message);
       }
     };
 
