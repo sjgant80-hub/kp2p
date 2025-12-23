@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/gitfox/level1.html
+@desc GitFox Level 1: Training - Learn the basics
+-->
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitFox - Level 1: Training</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font:bold 14px monospace;color:#0f0}
+#c{position:fixed;inset:0}
+.hud{position:fixed;z-index:10;pointer-events:none}
+
+#shield-bar{top:20px;left:20px;width:200px;height:20px;border:2px solid #0f0;background:#001a00}
+#shield-fill{height:100%;background:linear-gradient(90deg,#f00,#ff0,#0f0);width:100%;transition:width .2s}
+#shield-label{top:22px;left:230px;color:#0f0;font-size:12px}
+
+#score{top:20px;right:20px;font-size:24px;color:#ff0;text-align:right}
+#targets{top:55px;right:20px;font-size:14px;color:#0af}
+
+#level-title{top:80px;left:50%;transform:translateX(-50%);font-size:32px;color:#0f0;text-shadow:0 0 20px #0f0;opacity:0;transition:opacity 1s}
+
+#tutorial{bottom:120px;left:50%;transform:translateX(-50%);background:rgba(0,20,40,.95);border:2px solid #0af;border-radius:12px;padding:20px 30px;max-width:500px;text-align:center;opacity:0;transition:opacity .5s}
+#tutorial h3{color:#0af;font-size:16px;margin-bottom:10px}
+#tutorial p{color:#ccc;font-size:13px;line-height:1.6}
+#tutorial .key{display:inline-block;background:#0af;color:#000;padding:2px 8px;border-radius:4px;font-weight:bold;margin:0 3px}
+
+#radio{bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,10,20,.95);border:2px solid #0af;border-radius:8px;padding:10px 20px;opacity:0;transition:opacity .5s}
+#radio-face{width:40px;height:40px;border:2px solid #08a;border-radius:50%;background:#001a2a;float:left;margin-right:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+#radio-text{color:#0af;font-size:13px;max-width:300px}
+
+#crosshair{top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px}
+
+#complete{top:50%;left:50%;transform:translate(-50%,-50%);font-size:36px;color:#0f0;text-shadow:0 0 20px #0f0;display:none;text-align:center}
+#complete a{color:#0af;font-size:16px;text-decoration:none;display:inline-block;margin-top:20px;padding:10px 20px;border:2px solid #0af;border-radius:8px}
+#complete a:hover{background:#0af;color:#000}
+
+#controls{bottom:20px;right:20px;font-size:10px;color:#888;text-align:right}
+#back-link{bottom:20px;left:20px;pointer-events:auto}
+#back-link a{color:#0af;text-decoration:none;font-size:12px}
+</style></head><body>
+<canvas id="c"></canvas>
+
+<div class="hud" id="shield-bar"><div id="shield-fill"></div></div>
+<div class="hud" id="shield-label">SHIELD</div>
+<div class="hud" id="score">00000</div>
+<div class="hud" id="targets">TARGETS: 0/10</div>
+<div class="hud" id="level-title">LEVEL 1: TRAINING</div>
+
+<div class="hud" id="tutorial">
+  <h3>Welcome, Pilot!</h3>
+  <p>Use <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> to fly your ship.<br>
+  Click to lock mouse, then <span class="key">CLICK</span> to fire.<br>
+  Hold <span class="key">SPACE</span> for rapid fire.<br>
+  Press <span class="key">Q</span> for a barrel roll (evade).</p>
+</div>
+
+<svg class="hud" id="crosshair" viewBox="0 0 60 60">
+  <circle cx="30" cy="30" r="25" stroke="#0f0" stroke-width="2" fill="none" opacity="0.5"/>
+  <line x1="30" y1="0" x2="30" y2="20" stroke="#0f0" stroke-width="2"/>
+  <line x1="30" y1="40" x2="30" y2="60" stroke="#0f0" stroke-width="2"/>
+  <line x1="0" y1="30" x2="20" y2="30" stroke="#0f0" stroke-width="2"/>
+  <line x1="40" y1="30" x2="60" y2="30" stroke="#0f0" stroke-width="2"/>
+  <circle cx="30" cy="30" r="3" fill="#0f0"/>
+</svg>
+
+<div class="hud" id="radio">
+  <div id="radio-face">🐰</div>
+  <div id="radio-text">Welcome to training!</div>
+</div>
+
+<div class="hud" id="complete">
+  TRAINING COMPLETE!<br>
+  <span style="font-size:18px;color:#0af">Score: <span id="final-score">0</span></span><br>
+  <a href="level2.html">Continue to Level 2 →</a><br>
+  <a href="menu.html" style="border-color:#0f0">← Back to Menu</a>
+</div>
+
+<div class="hud" id="controls">WASD: Move | Click: Fire | Q: Barrel Roll | Space: Rapid Fire</div>
+<div class="hud" id="back-link"><a href="menu.html">← Menu</a></div>
+
+<script>
+const T={v3:(x,y,z)=>new THREE.Vector3(x,y,z),rnd:(a,b)=>a+Math.random()*(b-a),clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),lerp:(a,b,t)=>a+(b-a)*t};
+
+const G={
+  shield:100,
+  score:0,
+  targetsHit:0,
+  totalTargets:10,
+  complete:false,
+  barrelRolling:false,
+  barrelRollTimer:0,
+  boost:100,
+  invincible:0,
+  tutorialStep:0,
+
+  targets:[],
+  bullets:[],
+  particles:[],
+
+  mouse:{x:0,y:0,locked:false},
+  keys:{},
+
+  shipX:0,shipY:0,
+  shipTargetX:0,shipTargetY:0,
+
+  init(){
+    this.sc=new THREE.Scene();
+    this.ca=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,2000);
+    this.rn=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+    this.rn.setSize(innerWidth,innerHeight);
+    this.rn.setClearColor(0x000820);
+
+    // Lighting
+    this.sc.add(new THREE.AmbientLight(0x334466,.6));
+    const sun=new THREE.DirectionalLight(0xffffff,.8);
+    sun.position.set(50,100,50);
+    this.sc.add(sun);
+
+    // Starfield
+    this.createStarfield();
+
+    // Planet
+    const planet=new THREE.Mesh(
+      new THREE.SphereGeometry(300,32,32),
+      new THREE.MeshPhongMaterial({color:0x228844})
+    );
+    planet.position.set(0,-400,-100);
+    this.sc.add(planet);
+
+    // Player ship
+    this.ship=this.createShip(0x00ff00);
+    this.ship.position.set(0,0,0);
+    this.sc.add(this.ship);
+
+    // Camera
+    this.ca.position.set(0,15,35);
+    this.ca.lookAt(0,0,-20);
+
+    // Input
+    window.addEventListener('keydown',e=>{
+      this.keys[e.code]=true;
+      if(e.code==='KeyQ')this.barrelRoll();
+    });
+    window.addEventListener('keyup',e=>this.keys[e.code]=false);
+    document.addEventListener('click',()=>{
+      if(!this.mouse.locked)document.body.requestPointerLock();
+      else this.fire();
+    });
+    document.addEventListener('pointerlockchange',()=>{
+      this.mouse.locked=!!document.pointerLockElement;
+    });
+    document.addEventListener('mousemove',e=>{
+      if(this.mouse.locked){
+        this.mouse.x+=e.movementX*.002;
+        this.mouse.y+=e.movementY*.002;
+        this.mouse.x=T.clamp(this.mouse.x,-1,1);
+        this.mouse.y=T.clamp(this.mouse.y,-1,1);
+      }
+    });
+
+    // Intro
+    setTimeout(()=>document.getElementById('level-title').style.opacity=1,500);
+    setTimeout(()=>document.getElementById('level-title').style.opacity=0,2500);
+    setTimeout(()=>{
+      document.getElementById('tutorial').style.opacity=1;
+      this.showRadio('🐰','Welcome to Corneria Academy! I\'m Peppy, your instructor.');
+    },3000);
+    setTimeout(()=>{
+      this.showRadio('🐰','Destroy 10 training drones to complete this mission. Good luck!');
+      this.spawnTargets();
+      this.started=true;
+    },7000);
+    setTimeout(()=>document.getElementById('tutorial').style.opacity=0,12000);
+
+    this.animate();
+  },
+
+  createShip(color){
+    const g=new THREE.Group();
+    const body=new THREE.Mesh(
+      new THREE.ConeGeometry(1.5,6,4),
+      new THREE.MeshPhongMaterial({color:0xcccccc})
+    );
+    body.rotation.x=-Math.PI/2;
+    body.rotation.y=Math.PI/4;
+    g.add(body);
+
+    const wingGeo=new THREE.BoxGeometry(8,.2,2);
+    const wingMat=new THREE.MeshPhongMaterial({color});
+    const lw=new THREE.Mesh(wingGeo,wingMat);
+    lw.position.set(-2,0,1);lw.rotation.z=.1;g.add(lw);
+    const rw=new THREE.Mesh(wingGeo,wingMat);
+    rw.position.set(2,0,1);rw.rotation.z=-.1;g.add(rw);
+
+    const cockpit=new THREE.Mesh(
+      new THREE.SphereGeometry(.8,8,8),
+      new THREE.MeshPhongMaterial({color:0x00ff88,emissive:0x004422})
+    );
+    cockpit.position.z=-1;cockpit.scale.set(1,.5,1);g.add(cockpit);
+
+    for(let i=-1;i<=1;i+=2){
+      const eng=new THREE.Mesh(new THREE.CylinderGeometry(.3,.5,1.5),new THREE.MeshPhongMaterial({color:0x666666}));
+      eng.rotation.x=Math.PI/2;eng.position.set(i*1.5,-.3,3);g.add(eng);
+      const glow=new THREE.Mesh(new THREE.CylinderGeometry(.2,.4,.5),new THREE.MeshBasicMaterial({color:0x00aaff}));
+      glow.rotation.x=Math.PI/2;glow.position.set(i*1.5,-.3,3.8);glow.userData.isGlow=true;g.add(glow);
+    }
+    return g;
+  },
+
+  createStarfield(){
+    const geo=new THREE.BufferGeometry();
+    const pos=[];
+    for(let i=0;i<1500;i++){
+      pos.push(T.rnd(-600,600),T.rnd(-300,300),T.rnd(-600,100));
+    }
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    this.sc.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:.8})));
+  },
+
+  spawnTargets(){
+    for(let i=0;i<this.totalTargets;i++){
+      const target=new THREE.Mesh(
+        new THREE.OctahedronGeometry(3),
+        new THREE.MeshPhongMaterial({color:0xff4400,emissive:0x441100})
+      );
+      target.position.set(
+        T.rnd(-60,60),
+        T.rnd(-25,25),
+        T.rnd(-150,-50)
+      );
+      target.userData={
+        hp:1,
+        speed:T.rnd(.5,1.5),
+        angle:T.rnd(0,Math.PI*2),
+        wobble:T.rnd(.5,2)
+      };
+      this.sc.add(target);
+      this.targets.push(target);
+    }
+  },
+
+  fire(){
+    if(this.complete)return;
+    const bullet=new THREE.Mesh(
+      new THREE.SphereGeometry(.3),
+      new THREE.MeshBasicMaterial({color:0x00ff00})
+    );
+    bullet.position.copy(this.ship.position);
+    bullet.position.z-=5;
+    const aimX=this.shipX*40;
+    const aimY=this.shipY*25;
+    bullet.userData={vel:T.v3(aimX*.015,-aimY*.015,-4),life:60};
+    this.sc.add(bullet);
+    this.bullets.push(bullet);
+  },
+
+  barrelRoll(){
+    if(this.barrelRolling||this.boost<20)return;
+    this.barrelRolling=true;
+    this.barrelRollTimer=0;
+    this.boost-=20;
+    this.invincible=30;
+  },
+
+  spawnExplosion(pos,scale=1){
+    for(let i=0;i<15*scale;i++){
+      const p=new THREE.Mesh(
+        new THREE.SphereGeometry(.4*scale),
+        new THREE.MeshBasicMaterial({color:Math.random()>.5?0xff6600:0xffff00})
+      );
+      p.position.copy(pos);
+      p.userData={vel:T.v3(T.rnd(-2,2)*scale,T.rnd(-2,2)*scale,T.rnd(-2,2)*scale),life:30};
+      this.sc.add(p);
+      this.particles.push(p);
+    }
+  },
+
+  showRadio(face,text){
+    const radio=document.getElementById('radio');
+    document.getElementById('radio-face').textContent=face;
+    document.getElementById('radio-text').textContent=text;
+    radio.style.opacity=1;
+    setTimeout(()=>radio.style.opacity=0,4000);
+  },
+
+  update(){
+    if(this.complete||!this.started)return;
+
+    let lx=this.keys.KeyA?-1:this.keys.KeyD?1:0;
+    let ly=this.keys.KeyW?-1:this.keys.KeyS?1:0;
+
+    this.shipTargetX=T.clamp(this.shipTargetX+lx*.03,-1,1);
+    this.shipTargetY=T.clamp(this.shipTargetY-ly*.03,-1,1);
+    this.shipX=T.lerp(this.shipX,this.shipTargetX,.1);
+    this.shipY=T.lerp(this.shipY,this.shipTargetY,.1);
+
+    this.ship.position.x=this.shipX*50;
+    this.ship.position.y=this.shipY*30;
+    this.ship.rotation.z=T.lerp(this.ship.rotation.z,-lx*.5,.1);
+    this.ship.rotation.x=T.lerp(this.ship.rotation.x,ly*.3,.1);
+
+    if(this.barrelRolling){
+      this.barrelRollTimer+=.25;
+      this.ship.rotation.z=this.barrelRollTimer;
+      if(this.barrelRollTimer>=Math.PI*2){
+        this.barrelRolling=false;
+        this.ship.rotation.z=0;
+      }
+    }
+
+    // Update targets
+    const t=Date.now()*.001;
+    this.targets.forEach(target=>{
+      if(target.userData.hp<=0)return;
+      target.rotation.x+=.02;
+      target.rotation.y+=.03;
+      target.position.x+=Math.sin(t*target.userData.wobble+target.userData.angle)*.3;
+      target.position.y+=Math.cos(t*target.userData.wobble*.7)*.2;
+    });
+
+    // Update bullets
+    this.bullets.forEach(b=>{
+      b.position.add(b.userData.vel);
+      b.userData.life--;
+
+      // Check hits
+      this.targets.forEach(target=>{
+        if(target.userData.hp>0&&b.position.distanceTo(target.position)<5){
+          target.userData.hp=0;
+          b.userData.life=0;
+          this.spawnExplosion(target.position);
+          this.sc.remove(target);
+          this.targetsHit++;
+          this.score+=100;
+          document.getElementById('score').textContent=String(this.score).padStart(5,'0');
+          document.getElementById('targets').textContent=`TARGETS: ${this.targetsHit}/${this.totalTargets}`;
+
+          if(this.targetsHit>=this.totalTargets){
+            this.complete=true;
+            this.score+=500;
+            document.getElementById('final-score').textContent=this.score;
+            document.getElementById('complete').style.display='block';
+            this.showRadio('🐰','Excellent work! You\'re ready for real combat, pilot!');
+          }else if(this.targetsHit===5){
+            this.showRadio('🐰','Halfway there! Keep up the good work!');
+          }
+        }
+      });
+
+      if(b.userData.life<=0){
+        this.sc.remove(b);
+        b.dead=true;
+      }
+    });
+    this.bullets=this.bullets.filter(b=>!b.dead);
+
+    // Update particles
+    this.particles.forEach(p=>{
+      p.position.add(p.userData.vel);
+      p.userData.life--;
+      p.scale.setScalar(p.userData.life/30);
+      if(p.userData.life<=0){this.sc.remove(p);p.dead=true;}
+    });
+    this.particles=this.particles.filter(p=>!p.dead);
+
+    // Boost regen
+    this.boost=Math.min(100,this.boost+.15);
+
+    // Engine glow
+    this.ship.children.forEach(c=>{
+      if(c.userData.isGlow)c.scale.z=.8+Math.random()*.4;
+    });
+
+    // Rapid fire
+    if(this.keys.Space&&Math.random()<.12)this.fire();
+  },
+
+  animate(){
+    requestAnimationFrame(()=>this.animate());
+    this.update();
+
+    this.ca.position.x=T.lerp(this.ca.position.x,this.ship.position.x*.15,.03);
+    this.ca.position.y=T.lerp(this.ca.position.y,15+this.ship.position.y*.1,.03);
+    this.ca.lookAt(this.ship.position.x*.3,this.ship.position.y*.3,-20);
+
+    this.rn.render(this.sc,this.ca);
+  }
+};
+
+onload=()=>G.init();
+onresize=()=>{G.rn.setSize(innerWidth,innerHeight);G.ca.aspect=innerWidth/innerHeight;G.ca.updateProjectionMatrix()};
+</script></body></html>

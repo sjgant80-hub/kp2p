@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/gitfox/level3.html
+@desc GitFox Level 3: Pirate Raid - Infiltrate and retrieve data
+-->
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitFox - Level 3: Pirate Raid</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font:bold 14px monospace;color:#0f0}
+#c{position:fixed;inset:0}
+.hud{position:fixed;z-index:10;pointer-events:none}
+
+#shield-bar{top:20px;left:20px;width:200px;height:20px;border:2px solid #0f0;background:#001a00}
+#shield-fill{height:100%;background:linear-gradient(90deg,#f00,#ff0,#0f0);width:100%;transition:width .2s}
+#boost-bar{top:50px;left:20px;width:150px;height:12px;border:2px solid #08f;background:#001020}
+#boost-fill{height:100%;background:#08f;width:100%}
+
+#score{top:20px;right:20px;font-size:24px;color:#ff0}
+#bombs{top:55px;right:20px;font-size:14px;color:#f80}
+#objective{top:90px;right:20px;font-size:12px;color:#0af;text-align:right;max-width:200px}
+
+#level-title{top:80px;left:50%;transform:translateX(-50%);font-size:28px;color:#f80;text-shadow:0 0 20px #f60;opacity:0;transition:opacity 1s}
+
+#crosshair{top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px}
+
+#radio{bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,10,20,.95);border:2px solid #0af;border-radius:8px;padding:10px 20px;opacity:0;transition:opacity .5s}
+#radio-face{width:40px;height:40px;border:2px solid #08a;border-radius:50%;background:#001a2a;float:left;margin-right:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+#radio-text{color:#0af;font-size:13px;max-width:300px}
+
+#complete{top:50%;left:50%;transform:translate(-50%,-50%);font-size:32px;color:#0f0;text-shadow:0 0 20px #0f0;display:none;text-align:center}
+#complete a{color:#0af;font-size:14px;text-decoration:none;display:inline-block;margin-top:15px;padding:8px 16px;border:2px solid #0af;border-radius:8px}
+
+#game-over{top:50%;left:50%;transform:translate(-50%,-50%);font-size:40px;color:#f00;text-shadow:0 0 20px #f00;display:none}
+
+#controls{bottom:20px;right:20px;font-size:10px;color:#888;text-align:right}
+#back-link{bottom:20px;left:20px;pointer-events:auto}
+#back-link a{color:#0af;text-decoration:none;font-size:12px}
+</style></head><body>
+<canvas id="c"></canvas>
+
+<div class="hud" id="shield-bar"><div id="shield-fill"></div></div>
+<div class="hud" id="boost-bar"><div id="boost-fill"></div></div>
+<div class="hud" id="score">00000</div>
+<div class="hud" id="bombs">BOMBS: 3</div>
+<div class="hud" id="objective">OBJECTIVE:<br>Destroy pirate base<br>and retrieve data core</div>
+<div class="hud" id="level-title">LEVEL 3: PIRATE RAID</div>
+
+<svg class="hud" id="crosshair" viewBox="0 0 60 60">
+  <circle cx="30" cy="30" r="25" stroke="#0f0" stroke-width="2" fill="none" opacity="0.5"/>
+  <line x1="30" y1="0" x2="30" y2="20" stroke="#0f0" stroke-width="2"/>
+  <line x1="30" y1="40" x2="30" y2="60" stroke="#0f0" stroke-width="2"/>
+  <line x1="0" y1="30" x2="20" y2="30" stroke="#0f0" stroke-width="2"/>
+  <line x1="40" y1="30" x2="60" y2="30" stroke="#0f0" stroke-width="2"/>
+  <circle cx="30" cy="30" r="3" fill="#0f0"/>
+</svg>
+
+<div class="hud" id="radio">
+  <div id="radio-face">🐸</div>
+  <div id="radio-text">Pirates ahead!</div>
+</div>
+
+<div class="hud" id="complete">
+  DATA RETRIEVED!<br>
+  <span style="font-size:16px;color:#0af">Score: <span id="final-score">0</span></span><br>
+  <a href="level5.html">Continue to Level 5 →</a><br>
+  <a href="menu.html">← Back to Menu</a>
+</div>
+
+<div class="hud" id="game-over">MISSION FAILED</div>
+
+<div class="hud" id="controls">WASD: Move | Click: Fire | Q: Barrel Roll | B: Bomb</div>
+<div class="hud" id="back-link"><a href="menu.html">← Menu</a></div>
+
+<script>
+const T={v3:(x,y,z)=>new THREE.Vector3(x,y,z),rnd:(a,b)=>a+Math.random()*(b-a),clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),lerp:(a,b,t)=>a+(b-a)*t};
+const $=id=>document.getElementById(id);
+
+const G={
+  shield:100,boost:100,score:0,bombs:3,
+  complete:false,gameOver:false,
+  barrelRolling:false,barrelRollTimer:0,invincible:0,
+  phase:'approach',// approach, combat, boss, escape
+  bossHp:100,dataCollected:false,
+
+  enemies:[],turrets:[],bullets:[],enemyBullets:[],particles:[],
+
+  mouse:{x:0,y:0,locked:false},keys:{},
+  shipX:0,shipY:0,shipTargetX:0,shipTargetY:0,
+
+  init(){
+    this.sc=new THREE.Scene();
+    this.ca=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,3000);
+    this.rn=new THREE.WebGLRenderer({canvas:$('c'),antialias:true});
+    this.rn.setSize(innerWidth,innerHeight);
+    this.rn.setClearColor(0x100808);
+
+    this.sc.add(new THREE.AmbientLight(0x443333,.5));
+    const sun=new THREE.DirectionalLight(0xff8844,.8);
+    sun.position.set(-50,100,50);
+    this.sc.add(sun);
+
+    this.createStarfield();
+    this.createPirateBase();
+
+    this.ship=this.createShip(0x00ff00,false);
+    this.ship.position.set(0,0,50);
+    this.sc.add(this.ship);
+
+    this.ca.position.set(0,20,80);
+    this.ca.lookAt(0,0,0);
+
+    window.addEventListener('keydown',e=>{
+      this.keys[e.code]=true;
+      if(e.code==='KeyQ')this.barrelRoll();
+      if(e.code==='KeyB')this.useBomb();
+    });
+    window.addEventListener('keyup',e=>this.keys[e.code]=false);
+    document.addEventListener('click',()=>{
+      if(!this.mouse.locked)document.body.requestPointerLock();
+      else this.fire();
+    });
+    document.addEventListener('pointerlockchange',()=>this.mouse.locked=!!document.pointerLockElement);
+    document.addEventListener('mousemove',e=>{
+      if(this.mouse.locked){
+        this.mouse.x+=e.movementX*.002;
+        this.mouse.y+=e.movementY*.002;
+        this.mouse.x=T.clamp(this.mouse.x,-1,1);
+        this.mouse.y=T.clamp(this.mouse.y,-1,1);
+      }
+    });
+
+    setTimeout(()=>$('level-title').style.opacity=1,500);
+    setTimeout(()=>$('level-title').style.opacity=0,2500);
+    setTimeout(()=>{
+      this.showRadio('🐸','Slippy here! The pirate base is heavily defended!');
+      this.started=true;
+    },3000);
+    setTimeout(()=>this.showRadio('🐸','Destroy the turrets first, then the main reactor!'),6000);
+
+    this.animate();
+  },
+
+  createShip(color,isEnemy=false){
+    const g=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.ConeGeometry(1.5,6,4),new THREE.MeshPhongMaterial({color:isEnemy?0x333333:0xcccccc}));
+    body.rotation.x=-Math.PI/2;body.rotation.y=Math.PI/4;g.add(body);
+    const wingMat=new THREE.MeshPhongMaterial({color});
+    const lw=new THREE.Mesh(new THREE.BoxGeometry(8,.2,2),wingMat);lw.position.set(-2,0,1);lw.rotation.z=.1;g.add(lw);
+    const rw=new THREE.Mesh(new THREE.BoxGeometry(8,.2,2),wingMat);rw.position.set(2,0,1);rw.rotation.z=-.1;g.add(rw);
+    const cockpit=new THREE.Mesh(new THREE.SphereGeometry(.8,8,8),new THREE.MeshPhongMaterial({color:isEnemy?0xff4400:0x00ff88,emissive:isEnemy?0x441100:0x004422}));
+    cockpit.position.z=-1;cockpit.scale.set(1,.5,1);g.add(cockpit);
+    for(let i=-1;i<=1;i+=2){
+      const eng=new THREE.Mesh(new THREE.CylinderGeometry(.3,.5,1.5),new THREE.MeshPhongMaterial({color:0x666666}));
+      eng.rotation.x=Math.PI/2;eng.position.set(i*1.5,-.3,3);g.add(eng);
+      const glow=new THREE.Mesh(new THREE.CylinderGeometry(.2,.4,.5),new THREE.MeshBasicMaterial({color:isEnemy?0xff6600:0x00aaff}));
+      glow.rotation.x=Math.PI/2;glow.position.set(i*1.5,-.3,3.8);glow.userData.isGlow=true;g.add(glow);
+    }
+    return g;
+  },
+
+  createStarfield(){
+    const geo=new THREE.BufferGeometry();
+    const pos=[];
+    for(let i=0;i<2000;i++)pos.push(T.rnd(-800,800),T.rnd(-400,400),T.rnd(-800,200));
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    this.sc.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:.8})));
+  },
+
+  createPirateBase(){
+    const base=new THREE.Group();
+
+    // Main structure
+    const hull=new THREE.Mesh(
+      new THREE.BoxGeometry(80,40,120),
+      new THREE.MeshPhongMaterial({color:0x444444})
+    );
+    hull.position.z=-100;
+    base.add(hull);
+
+    // Reactor (boss target)
+    this.reactor=new THREE.Mesh(
+      new THREE.SphereGeometry(15,16,16),
+      new THREE.MeshPhongMaterial({color:0xff4400,emissive:0x441100})
+    );
+    this.reactor.position.set(0,0,-100);
+    this.reactor.userData={hp:100};
+    base.add(this.reactor);
+
+    // Turrets
+    const turretPositions=[[-40,15,-60],[40,15,-60],[-40,-15,-60],[40,-15,-60],[-30,20,-140],[30,20,-140]];
+    turretPositions.forEach(p=>{
+      const turret=new THREE.Mesh(
+        new THREE.CylinderGeometry(3,4,8,8),
+        new THREE.MeshPhongMaterial({color:0x666666})
+      );
+      turret.position.set(...p);
+      turret.userData={hp:3,fireTimer:T.rnd(0,60)};
+      base.add(turret);
+      this.turrets.push(turret);
+
+      const barrel=new THREE.Mesh(
+        new THREE.CylinderGeometry(.5,.5,6),
+        new THREE.MeshPhongMaterial({color:0x888888})
+      );
+      barrel.rotation.x=Math.PI/2;
+      barrel.position.z=5;
+      turret.add(barrel);
+    });
+
+    // Data core (pickup after boss)
+    this.dataCore=new THREE.Mesh(
+      new THREE.OctahedronGeometry(4),
+      new THREE.MeshPhongMaterial({color:0x00ffff,emissive:0x004444})
+    );
+    this.dataCore.position.set(0,0,-100);
+    this.dataCore.visible=false;
+    base.add(this.dataCore);
+
+    this.sc.add(base);
+
+    // Spawn pirate fighters
+    for(let i=0;i<8;i++){
+      const enemy=this.createShip(0xff4400,true);
+      enemy.position.set(T.rnd(-60,60),T.rnd(-20,20),T.rnd(-80,-40));
+      enemy.userData={hp:2,fireTimer:T.rnd(0,80)};
+      this.sc.add(enemy);
+      this.enemies.push(enemy);
+    }
+  },
+
+  fire(){
+    if(this.complete||this.gameOver)return;
+    const bullet=new THREE.Mesh(new THREE.SphereGeometry(.3),new THREE.MeshBasicMaterial({color:0x00ff00}));
+    bullet.position.copy(this.ship.position);
+    bullet.position.z-=5;
+    const aimX=this.shipX*40,aimY=this.shipY*25;
+    bullet.userData={vel:T.v3(aimX*.012,-aimY*.012,-4),life:100};
+    this.sc.add(bullet);
+    this.bullets.push(bullet);
+  },
+
+  barrelRoll(){
+    if(this.barrelRolling||this.boost<20)return;
+    this.barrelRolling=true;this.barrelRollTimer=0;
+    this.boost-=20;this.invincible=30;
+  },
+
+  useBomb(){
+    if(this.bombs<=0||this.gameOver)return;
+    this.bombs--;
+    $('bombs').textContent='BOMBS: '+this.bombs;
+    this.enemies.forEach(e=>{if(e.userData.hp>0){e.userData.hp-=5;this.spawnExplosion(e.position,.5);}});
+    this.turrets.forEach(t=>{if(t.userData.hp>0){t.userData.hp-=2;this.spawnExplosion(t.position,.5);}});
+    this.enemyBullets.forEach(b=>{this.sc.remove(b);b.dead=true;});
+    this.enemyBullets=[];
+    document.body.style.background='#fff';
+    setTimeout(()=>document.body.style.background='#000',100);
+  },
+
+  takeDamage(amt){
+    if(this.invincible>0)return;
+    this.shield-=amt;this.invincible=30;
+    $('shield-fill').style.width=Math.max(0,this.shield)+'%';
+    if(this.shield<=0){
+      this.gameOver=true;
+      $('game-over').style.display='block';
+      this.showRadio('🐸','Fox! We lost the signal!');
+    }
+  },
+
+  spawnExplosion(pos,scale=1){
+    for(let i=0;i<18*scale;i++){
+      const p=new THREE.Mesh(new THREE.SphereGeometry(.4*scale),new THREE.MeshBasicMaterial({color:Math.random()>.5?0xff6600:0xffff00}));
+      p.position.copy(pos);
+      p.userData={vel:T.v3(T.rnd(-2,2)*scale,T.rnd(-2,2)*scale,T.rnd(-2,2)*scale),life:35};
+      this.sc.add(p);
+      this.particles.push(p);
+    }
+  },
+
+  showRadio(face,text){
+    $('radio-face').textContent=face;
+    $('radio-text').textContent=text;
+    $('radio').style.opacity=1;
+    setTimeout(()=>$('radio').style.opacity=0,4000);
+  },
+
+  update(){
+    if(this.complete||this.gameOver||!this.started)return;
+
+    let lx=this.keys.KeyA?-1:this.keys.KeyD?1:0;
+    let ly=this.keys.KeyW?-1:this.keys.KeyS?1:0;
+    this.shipTargetX=T.clamp(this.shipTargetX+lx*.03,-1,1);
+    this.shipTargetY=T.clamp(this.shipTargetY-ly*.03,-1,1);
+    this.shipX=T.lerp(this.shipX,this.shipTargetX,.1);
+    this.shipY=T.lerp(this.shipY,this.shipTargetY,.1);
+
+    this.ship.position.x=this.shipX*70;
+    this.ship.position.y=this.shipY*40;
+    this.ship.rotation.z=T.lerp(this.ship.rotation.z,-lx*.5,.1);
+    this.ship.rotation.x=T.lerp(this.ship.rotation.x,ly*.3,.1);
+
+    if(this.barrelRolling){
+      this.barrelRollTimer+=.25;
+      this.ship.rotation.z=this.barrelRollTimer;
+      if(this.barrelRollTimer>=Math.PI*2){this.barrelRolling=false;this.ship.rotation.z=0;}
+    }
+
+    // Enemies
+    const t=Date.now()*.001;
+    this.enemies.forEach(e=>{
+      if(e.userData.hp<=0)return;
+      const idx=this.enemies.indexOf(e);
+      e.position.x=T.lerp(e.position.x,Math.sin(t+idx)*50,.02);
+      e.position.y=T.lerp(e.position.y,Math.cos(t*.7+idx)*25,.02);
+      e.position.z=T.lerp(e.position.z,-30+Math.sin(t*.3)*20,.01);
+      const dir=this.ship.position.clone().sub(e.position);
+      e.rotation.y=Math.atan2(dir.x,dir.z);
+      e.userData.fireTimer--;
+      if(e.userData.fireTimer<=0){
+        e.userData.fireTimer=50+T.rnd(0,40);
+        this.enemyFire(e.position);
+      }
+      e.children.forEach(c=>{if(c.userData.isGlow)c.scale.z=.8+Math.random()*.4;});
+    });
+
+    // Turrets
+    this.turrets.forEach(turret=>{
+      if(turret.userData.hp<=0)return;
+      const dir=this.ship.position.clone().sub(turret.position);
+      turret.rotation.y=Math.atan2(dir.x,dir.z);
+      turret.userData.fireTimer--;
+      if(turret.userData.fireTimer<=0){
+        turret.userData.fireTimer=40+T.rnd(0,30);
+        this.enemyFire(turret.position);
+      }
+    });
+
+    // Reactor
+    if(this.reactor.userData.hp>0){
+      this.reactor.rotation.y+=.01;
+      this.reactor.rotation.x+=.005;
+    }
+
+    // Data core pickup
+    if(this.dataCore.visible&&!this.dataCollected){
+      this.dataCore.rotation.y+=.05;
+      if(this.ship.position.distanceTo(this.dataCore.position)<15){
+        this.dataCollected=true;
+        this.dataCore.visible=false;
+        this.score+=2000;
+        this.complete=true;
+        $('final-score').textContent=this.score;
+        $('complete').style.display='block';
+        this.showRadio('🐸','Data core secured! Mission complete!');
+      }
+    }
+
+    // Bullets
+    this.bullets.forEach(b=>{
+      b.position.add(b.userData.vel);
+      b.userData.life--;
+
+      // Hit enemies
+      this.enemies.forEach(e=>{
+        if(e.userData.hp>0&&b.position.distanceTo(e.position)<5){
+          e.userData.hp--;b.userData.life=0;
+          this.spawnExplosion(b.position,.4);
+          if(e.userData.hp<=0){
+            this.spawnExplosion(e.position,1);
+            this.sc.remove(e);
+            this.score+=200;
+            $('score').textContent=String(this.score).padStart(5,'0');
+          }
+        }
+      });
+
+      // Hit turrets
+      this.turrets.forEach(turret=>{
+        if(turret.userData.hp>0&&b.position.distanceTo(turret.position)<6){
+          turret.userData.hp--;b.userData.life=0;
+          this.spawnExplosion(b.position,.4);
+          if(turret.userData.hp<=0){
+            this.spawnExplosion(turret.position,1);
+            turret.visible=false;
+            this.score+=300;
+            $('score').textContent=String(this.score).padStart(5,'0');
+            this.showRadio('🐸','Turret destroyed!');
+          }
+        }
+      });
+
+      // Hit reactor (only when turrets down)
+      const turretsAlive=this.turrets.filter(t=>t.userData.hp>0).length;
+      if(turretsAlive===0&&this.reactor.userData.hp>0&&b.position.distanceTo(this.reactor.position)<18){
+        this.reactor.userData.hp-=2;b.userData.life=0;
+        this.spawnExplosion(b.position,.3);
+        this.score+=50;
+        $('score').textContent=String(this.score).padStart(5,'0');
+        if(this.reactor.userData.hp<=0){
+          this.spawnExplosion(this.reactor.position,2);
+          this.reactor.visible=false;
+          this.score+=1000;
+          this.showRadio('🐸','Reactor destroyed! Grab the data core!');
+          this.dataCore.visible=true;
+          $('objective').innerHTML='OBJECTIVE:<br>Collect the data core!';
+        }
+      }
+
+      if(b.userData.life<=0){this.sc.remove(b);b.dead=true;}
+    });
+    this.bullets=this.bullets.filter(b=>!b.dead);
+
+    // Enemy bullets
+    this.enemyBullets.forEach(b=>{
+      b.position.add(b.userData.vel);
+      b.userData.life--;
+      if(b.position.distanceTo(this.ship.position)<4){
+        this.takeDamage(12);
+        this.spawnExplosion(b.position,.3);
+        b.userData.life=0;
+      }
+      if(b.userData.life<=0){this.sc.remove(b);b.dead=true;}
+    });
+    this.enemyBullets=this.enemyBullets.filter(b=>!b.dead);
+
+    // Particles
+    this.particles.forEach(p=>{
+      p.position.add(p.userData.vel);
+      p.userData.life--;
+      p.scale.setScalar(p.userData.life/35);
+      if(p.userData.life<=0){this.sc.remove(p);p.dead=true;}
+    });
+    this.particles=this.particles.filter(p=>!p.dead);
+
+    this.boost=Math.min(100,this.boost+.1);
+    $('boost-fill').style.width=this.boost+'%';
+    if(this.invincible>0)this.invincible--;
+    this.ship.children.forEach(c=>{if(c.userData.isGlow)c.scale.z=.8+Math.random()*.4;});
+    if(this.keys.Space&&Math.random()<.1)this.fire();
+  },
+
+  enemyFire(pos){
+    const bullet=new THREE.Mesh(new THREE.SphereGeometry(.35),new THREE.MeshBasicMaterial({color:0xff4400}));
+    bullet.position.copy(pos);
+    const dir=this.ship.position.clone().sub(pos).normalize();
+    bullet.userData={vel:dir.multiplyScalar(2),life:100};
+    this.sc.add(bullet);
+    this.enemyBullets.push(bullet);
+  },
+
+  animate(){
+    requestAnimationFrame(()=>this.animate());
+    this.update();
+    this.ca.position.x=T.lerp(this.ca.position.x,this.ship.position.x*.15,.03);
+    this.ca.position.y=T.lerp(this.ca.position.y,20+this.ship.position.y*.1,.03);
+    this.ca.lookAt(this.ship.position.x*.3,this.ship.position.y*.3,-30);
+    if(this.invincible>0&&!this.gameOver)this.ship.visible=Math.floor(this.invincible/3)%2===0;
+    else if(!this.gameOver)this.ship.visible=true;
+    this.rn.render(this.sc,this.ca);
+  }
+};
+
+onload=()=>G.init();
+onresize=()=>{G.rn.setSize(innerWidth,innerHeight);G.ca.aspect=innerWidth/innerHeight;G.ca.updateProjectionMatrix()};
+</script></body></html>

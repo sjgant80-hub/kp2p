@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/gitfox/menu.html
+@desc GitFox - Main Menu Hub with P2P Global Chat
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitFox - Main Menu</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;color:#0f0;font-family:'Courier New',monospace;min-height:100vh;overflow-x:hidden}
+
+/* Starfield background */
+.stars{position:fixed;inset:0;z-index:0}
+.stars canvas{width:100%;height:100%}
+
+/* Header */
+.header{position:relative;z-index:10;text-align:center;padding:40px 20px 20px}
+.logo{font-size:72px;font-weight:bold;color:#0f0;text-shadow:0 0 30px #0f0,0 0 60px #0f0;letter-spacing:8px;animation:glow 2s ease-in-out infinite alternate}
+@keyframes glow{from{text-shadow:0 0 20px #0f0,0 0 40px #0f0}to{text-shadow:0 0 40px #0f0,0 0 80px #0f0,0 0 120px #080}}
+.subtitle{color:#0af;font-size:14px;margin-top:10px;letter-spacing:4px}
+.tagline{color:#888;font-size:12px;margin-top:5px}
+
+/* Main content */
+.main{position:relative;z-index:10;display:grid;grid-template-columns:1fr 350px;gap:30px;max-width:1200px;margin:30px auto;padding:0 20px}
+
+/* Menu section */
+.menu-section{background:rgba(0,20,10,.9);border:2px solid #0f0;border-radius:12px;padding:20px}
+.menu-section h2{color:#0f0;font-size:18px;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid #0f033}
+
+.level-grid{display:grid;gap:15px}
+.level-card{background:rgba(0,40,20,.8);border:2px solid #0a0;border-radius:8px;padding:15px;cursor:pointer;transition:all .2s;text-decoration:none;display:block}
+.level-card:hover{border-color:#0f0;background:rgba(0,60,30,.9);transform:translateX(5px)}
+.level-card.locked{opacity:.5;cursor:not-allowed;border-color:#333}
+.level-card.multiplayer{border-color:#0af}
+.level-card.multiplayer:hover{border-color:#0cf;background:rgba(0,40,60,.9)}
+
+.level-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.level-icon{font-size:28px}
+.level-title{font-size:16px;color:#0f0;font-weight:bold}
+.level-card.multiplayer .level-title{color:#0af}
+.level-subtitle{font-size:11px;color:#888}
+.level-desc{font-size:12px;color:#aaa;line-height:1.5}
+.level-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:auto}
+.level-badge.new{background:#0f0;color:#000}
+.level-badge.hot{background:#f60;color:#000}
+.level-badge.pvp{background:#f0f;color:#000}
+
+/* Chat section */
+.chat-section{background:rgba(0,20,40,.9);border:2px solid #0af;border-radius:12px;display:flex;flex-direction:column;max-height:500px}
+.chat-header{padding:15px;border-bottom:1px solid #0af3;display:flex;align-items:center;gap:10px}
+.chat-header h2{color:#0af;font-size:16px;flex:1}
+.chat-status{display:flex;align-items:center;gap:6px;font-size:11px}
+.chat-dot{width:8px;height:8px;border-radius:50%;background:#666}
+.chat-dot.on{background:#0f0}
+.chat-dot.pulse{background:#f90;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.5}}
+
+.chat-messages{flex:1;overflow-y:auto;padding:10px;min-height:200px}
+.chat-msg{margin-bottom:10px;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}}
+.chat-msg-meta{font-size:10px;color:#666;margin-bottom:2px}
+.chat-msg-text{font-size:12px;color:#ccc;background:rgba(0,40,60,.5);padding:6px 10px;border-radius:6px;display:inline-block;max-width:90%;word-break:break-word}
+.chat-msg.self .chat-msg-text{background:rgba(0,100,150,.5);color:#fff}
+.chat-msg.self{text-align:right}
+.chat-msg.system .chat-msg-text{background:transparent;color:#888;font-style:italic}
+
+.chat-input{display:flex;gap:8px;padding:10px;border-top:1px solid #0af3}
+.chat-input input{flex:1;background:#001020;border:1px solid #0af3;border-radius:6px;padding:8px 12px;color:#fff;font-size:12px;outline:none}
+.chat-input input:focus{border-color:#0af}
+.chat-input button{background:#0af;border:none;border-radius:6px;padding:8px 15px;color:#000;font-weight:bold;cursor:pointer;font-size:12px}
+.chat-input button:hover{background:#0cf}
+
+/* Players online */
+.players-section{background:rgba(0,20,40,.9);border:2px solid #0af;border-radius:12px;padding:15px;margin-top:15px}
+.players-section h3{color:#0af;font-size:14px;margin-bottom:10px}
+.player-list{display:flex;flex-wrap:wrap;gap:8px}
+.player-tag{background:rgba(0,60,80,.5);padding:4px 10px;border-radius:12px;font-size:11px;color:#0af}
+.player-tag.self{background:rgba(0,100,60,.5);color:#0f0}
+
+/* Music player */
+.music-section{background:rgba(40,20,0,.9);border:2px solid #f80;border-radius:12px;padding:15px;margin-top:15px}
+.music-section h3{color:#f80;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.music-controls{display:flex;gap:8px;align-items:center}
+.music-btn{background:#f80;border:none;border-radius:50%;width:36px;height:36px;color:#000;font-size:16px;cursor:pointer}
+.music-btn:hover{background:#fa0}
+.music-info{flex:1;font-size:11px;color:#ccc}
+.music-title{color:#f80;font-size:12px}
+.music-artist{color:#888}
+.volume-slider{width:80px;accent-color:#f80}
+
+/* Footer */
+.footer{position:relative;z-index:10;text-align:center;padding:30px;color:#666;font-size:11px}
+.footer a{color:#0af}
+
+@media(max-width:800px){
+  .main{grid-template-columns:1fr}
+  .logo{font-size:48px}
+}
+</style>
+</head>
+<body>
+
+<!-- Starfield -->
+<div class="stars"><canvas id="starCanvas"></canvas></div>
+
+<div class="header">
+  <div class="logo">GITFOX</div>
+  <div class="subtitle">SPACE COMBAT SQUADRON</div>
+  <div class="tagline">Defend the open source galaxy</div>
+</div>
+
+<div class="main">
+  <!-- Levels Menu -->
+  <div class="menu-section">
+    <h2>🎮 MISSIONS</h2>
+    <div class="level-grid">
+      <a href="level1.html" class="level-card">
+        <div class="level-header">
+          <span class="level-icon">🌟</span>
+          <div>
+            <div class="level-title">Level 1: Training</div>
+            <div class="level-subtitle">Corneria Academy</div>
+          </div>
+          <span class="level-badge new">NEW</span>
+        </div>
+        <div class="level-desc">Learn the basics of flight and combat. Take down training drones and prove your worth.</div>
+      </a>
+
+      <a href="level2.html" class="level-card">
+        <div class="level-header">
+          <span class="level-icon">🛸</span>
+          <div>
+            <div class="level-title">Level 2: First Contact</div>
+            <div class="level-subtitle">Asteroid Belt Alpha</div>
+          </div>
+        </div>
+        <div class="level-desc">Navigate the asteroid field and engage enemy scouts. Features P2P team comms!</div>
+      </a>
+
+      <a href="level3.html" class="level-card">
+        <div class="level-header">
+          <span class="level-icon">🏴‍☠️</span>
+          <div>
+            <div class="level-title">Level 3: Pirate Raid</div>
+            <div class="level-subtitle">Sector 7G</div>
+          </div>
+        </div>
+        <div class="level-desc">Space pirates have stolen critical data. Infiltrate their base and retrieve it.</div>
+      </a>
+
+      <a href="level5.html" class="level-card">
+        <div class="level-header">
+          <span class="level-icon">📦</span>
+          <div>
+            <div class="level-title">Level 5: GitFox vs Amazon</div>
+            <div class="level-subtitle">The Corporate Wars</div>
+          </div>
+          <span class="level-badge hot">BOSS</span>
+        </div>
+        <div class="level-desc">Team Amazon threatens the open source galaxy! Defeat Bezos and his elite squad.</div>
+      </a>
+
+      <div class="level-card locked">
+        <div class="level-header">
+          <span class="level-icon">🔒</span>
+          <div>
+            <div class="level-title">Level 6: Coming Soon</div>
+            <div class="level-subtitle">???</div>
+          </div>
+        </div>
+        <div class="level-desc">More missions coming soon...</div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:30px">🌐 MULTIPLAYER</h2>
+    <div class="level-grid">
+      <a href="index.html" class="level-card multiplayer">
+        <div class="level-header">
+          <span class="level-icon">⚔️</span>
+          <div>
+            <div class="level-title">P2P Arena</div>
+            <div class="level-subtitle">Global Dogfight</div>
+          </div>
+          <span class="level-badge pvp">PVP</span>
+        </div>
+        <div class="level-desc">Battle players worldwide via WebRTC P2P. No servers needed - true peer-to-peer combat!</div>
+      </a>
+
+      <a href="coop.html" class="level-card multiplayer">
+        <div class="level-header">
+          <span class="level-icon">🤝</span>
+          <div>
+            <div class="level-title">Co-op Campaign</div>
+            <div class="level-subtitle">Team Up</div>
+          </div>
+          <span class="level-badge new">NEW</span>
+        </div>
+        <div class="level-desc">Play campaign missions together with friends via P2P connection.</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Chat & Social -->
+  <div>
+    <div class="chat-section">
+      <div class="chat-header">
+        <h2>💬 Global Hangar Chat</h2>
+        <div class="chat-status">
+          <span class="chat-dot" id="chatDot"></span>
+          <span id="chatStatus">Connecting...</span>
+        </div>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200">
+        <button id="chatSend">Send</button>
+      </div>
+    </div>
+
+    <div class="players-section">
+      <h3>👥 Pilots Online (<span id="playerCount">1</span>)</h3>
+      <div class="player-list" id="playerList"></div>
+    </div>
+
+    <div class="music-section">
+      <h3>🎵 Hangar Radio</h3>
+      <div class="music-controls">
+        <button class="music-btn" id="musicToggle">▶</button>
+        <div class="music-info">
+          <div class="music-title" id="musicTitle">Space Ambient</div>
+          <div class="music-artist" id="musicArtist">GitFox Radio</div>
+        </div>
+        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="30">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  GitFox © 2024 | Powered by <a href="../p2p-global.html">Konomi P2P</a> | WebTorrent Tracker Protocol
+</div>
+
+<script type="module">
+// ============================================
+// STARFIELD BACKGROUND
+// ============================================
+const canvas = document.getElementById('starCanvas');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function initStars() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  stars = [];
+  for (let i = 0; i < 200; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 2,
+      speed: Math.random() * 0.5 + 0.1
+    });
+  }
+}
+
+function animateStars() {
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#fff';
+  stars.forEach(star => {
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+    ctx.fill();
+    star.y += star.speed;
+    if (star.y > canvas.height) {
+      star.y = 0;
+      star.x = Math.random() * canvas.width;
+    }
+  });
+  requestAnimationFrame(animateStars);
+}
+
+initStars();
+animateStars();
+window.addEventListener('resize', initStars);
+
+// ============================================
+// P2P CHAT (WebTorrent Tracker)
+// ============================================
+const TRACKER = 'wss://tracker.openwebtorrent.com';
+const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const ROOM = 'gitfox-hangar-global';
+const NUM_OFFERS = 5;
+
+const myId = '-GF0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6)))
+  .map(b => b.toString(16).padStart(2,'0')).join('');
+const myName = 'Pilot-' + myId.slice(-4);
+
+let ws = null;
+let infoHash = null;
+const dataChannels = new Map();
+const pendingOffers = new Map();
+const players = new Map();
+
+const $ = id => document.getElementById(id);
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Room hash
+async function roomToHash(name) {
+  const data = new TextEncoder().encode('gitfox:' + name);
+  const hash = await crypto.subtle.digest('SHA-1', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Generate offers
+async function generateOffers(count) {
+  const offers = [];
+  for (let i = 0; i < count; i++) {
+    const pc = new RTCPeerConnection(ICE);
+    const dc = pc.createDataChannel('chat');
+    const offerId = crypto.randomUUID();
+
+    await new Promise(resolve => {
+      pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+      pc.createOffer().then(o => pc.setLocalDescription(o));
+    });
+
+    offers.push({ offer_id: offerId, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+    pendingOffers.set(offerId, { pc, dc });
+    setupPeer(pc, dc, offerId);
+  }
+  return offers;
+}
+
+function setupPeer(pc, dc, id) {
+  dc.onopen = () => {
+    dataChannels.set(id, dc);
+    dc.send(JSON.stringify({ type: 'join', id: myId, name: myName }));
+    addSystemMsg('Connected to a pilot!');
+    updatePlayers();
+  };
+  dc.onclose = () => {
+    dataChannels.delete(id);
+    if (players.has(id)) {
+      addSystemMsg(`${players.get(id)} left the hangar`);
+      players.delete(id);
+    }
+    updatePlayers();
+  };
+  dc.onmessage = e => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'join' && msg.id !== myId) {
+        players.set(msg.id, msg.name);
+        updatePlayers();
+        // Send back our info
+        dc.send(JSON.stringify({ type: 'join', id: myId, name: myName }));
+      }
+      if (msg.type === 'chat' && msg.id !== myId) {
+        addChatMsg(msg.name, msg.text, false);
+      }
+    } catch (err) {}
+  };
+}
+
+async function handleOffer(msg) {
+  const pc = new RTCPeerConnection(ICE);
+  const peerId = msg.peer_id;
+
+  pc.ondatachannel = e => setupPeer(pc, e.channel, peerId);
+
+  await pc.setRemoteDescription(msg.offer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  await new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') resolve();
+    else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+  });
+
+  ws.send(JSON.stringify({
+    action: 'announce',
+    info_hash: infoHash,
+    peer_id: myId,
+    to_peer_id: peerId,
+    answer: { type: 'answer', sdp: pc.localDescription.sdp },
+    offer_id: msg.offer_id
+  }));
+}
+
+async function handleAnswer(msg) {
+  const pending = pendingOffers.get(msg.offer_id);
+  if (pending) await pending.pc.setRemoteDescription(msg.answer);
+}
+
+async function reannounce() {
+  if (ws?.readyState !== 1) return;
+  const offers = await generateOffers(NUM_OFFERS);
+  ws.send(JSON.stringify({
+    action: 'announce',
+    info_hash: infoHash,
+    peer_id: myId,
+    numwant: 20,
+    offers
+  }));
+}
+
+function broadcast(msg) {
+  const data = JSON.stringify(msg);
+  dataChannels.forEach(dc => {
+    if (dc.readyState === 'open') dc.send(data);
+  });
+}
+
+async function connect() {
+  infoHash = await roomToHash(ROOM);
+  $('chatDot').className = 'chat-dot pulse';
+  $('chatStatus').textContent = 'Connecting...';
+
+  const offers = await generateOffers(NUM_OFFERS);
+  ws = new WebSocket(TRACKER);
+
+  ws.onopen = () => {
+    $('chatDot').className = 'chat-dot on';
+    $('chatStatus').textContent = 'Online';
+    addSystemMsg('Connected to global hangar!');
+    ws.send(JSON.stringify({
+      action: 'announce',
+      info_hash: infoHash,
+      peer_id: myId,
+      numwant: 20,
+      uploaded: 0,
+      downloaded: 0,
+      left: 1,
+      offers
+    }));
+  };
+
+  ws.onmessage = async e => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.offer && msg.peer_id !== myId) await handleOffer(msg);
+      if (msg.answer && msg.offer_id) await handleAnswer(msg);
+      if (msg.interval) setTimeout(reannounce, msg.interval * 1000);
+    } catch (err) {}
+  };
+
+  ws.onerror = () => {
+    $('chatDot').className = 'chat-dot';
+    $('chatStatus').textContent = 'Error';
+  };
+
+  ws.onclose = () => {
+    $('chatDot').className = 'chat-dot pulse';
+    $('chatStatus').textContent = 'Reconnecting...';
+    setTimeout(connect, 5000);
+  };
+}
+
+// Chat UI
+function addChatMsg(name, text, isSelf = false) {
+  const div = document.createElement('div');
+  div.className = 'chat-msg' + (isSelf ? ' self' : '');
+  div.innerHTML = `
+    <div class="chat-msg-meta">${escapeHtml(name)}</div>
+    <div class="chat-msg-text">${escapeHtml(text)}</div>
+  `;
+  $('chatMessages').appendChild(div);
+  $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
+}
+
+function addSystemMsg(text) {
+  const div = document.createElement('div');
+  div.className = 'chat-msg system';
+  div.innerHTML = `<div class="chat-msg-text">${escapeHtml(text)}</div>`;
+  $('chatMessages').appendChild(div);
+  $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
+}
+
+function sendChat() {
+  const text = $('chatInput').value.trim();
+  if (!text) return;
+  $('chatInput').value = '';
+  addChatMsg(myName, text, true);
+  broadcast({ type: 'chat', id: myId, name: myName, text });
+}
+
+function updatePlayers() {
+  const count = players.size + 1;
+  $('playerCount').textContent = count;
+
+  let html = `<span class="player-tag self">${escapeHtml(myName)} (you)</span>`;
+  players.forEach(name => {
+    html += `<span class="player-tag">${escapeHtml(name)}</span>`;
+  });
+  $('playerList').innerHTML = html;
+}
+
+$('chatSend').onclick = sendChat;
+$('chatInput').onkeydown = e => { if (e.key === 'Enter') sendChat(); };
+
+// ============================================
+// MUSIC PLAYER
+// ============================================
+const tracks = [
+  { title: 'Space Ambient', artist: 'GitFox Radio', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+  { title: 'Nebula Dreams', artist: 'Cosmic Waves', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+  { title: 'Starfield', artist: 'Deep Space', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' }
+];
+
+let currentTrack = 0;
+let audio = null;
+let isPlaying = false;
+
+function initMusic() {
+  audio = new Audio();
+  audio.volume = 0.3;
+  audio.onended = () => nextTrack();
+  loadTrack(0);
+}
+
+function loadTrack(idx) {
+  currentTrack = idx % tracks.length;
+  const track = tracks[currentTrack];
+  audio.src = track.url;
+  $('musicTitle').textContent = track.title;
+  $('musicArtist').textContent = track.artist;
+}
+
+function toggleMusic() {
+  if (isPlaying) {
+    audio.pause();
+    $('musicToggle').textContent = '▶';
+  } else {
+    audio.play().catch(() => {});
+    $('musicToggle').textContent = '⏸';
+  }
+  isPlaying = !isPlaying;
+}
+
+function nextTrack() {
+  loadTrack(currentTrack + 1);
+  if (isPlaying) audio.play().catch(() => {});
+}
+
+$('musicToggle').onclick = toggleMusic;
+$('volumeSlider').oninput = e => { if (audio) audio.volume = e.target.value / 100; };
+
+// Init
+updatePlayers();
+connect();
+initMusic();
+addSystemMsg('Welcome to the GitFox Hangar!');
+addSystemMsg('Chat with pilots from around the world.');
+</script>
+</body>
+</html>

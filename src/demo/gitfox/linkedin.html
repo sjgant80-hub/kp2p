@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KP2P GitFox - LinkedIn Arena</title>
+    <meta property="og:title" content="KP2P GitFox - Multiplayer P2P Space Combat">
+    <meta property="og:description" content="Join the battle! Real-time multiplayer space combat powered by WebRTC P2P. No servers, just pilots.">
+    <meta property="og:type" content="website">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0077B5 0%, #004182 100%);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            overflow: hidden;
+        }
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        canvas { display: block; }
+
+        #lobby {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            color: #333;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 300;
+        }
+        #lobby h1 {
+            color: #0077B5;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        #lobby .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        #lobby .kp2p-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            color: #000;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+        #lobby input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #0077B5;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        #lobby input:focus {
+            outline: none;
+            border-color: #00a0dc;
+            box-shadow: 0 0 0 3px rgba(0,119,181,0.2);
+        }
+        #player-count {
+            background: #f3f6f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        #player-count .count {
+            font-size: 36px;
+            font-weight: bold;
+            color: #0077B5;
+        }
+        #player-count .label {
+            color: #666;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #0077B5;
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn-primary:hover {
+            background: #005885;
+            transform: scale(1.02);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: #0077B5;
+            border: 2px solid #0077B5;
+            padding: 12px 30px;
+            font-size: 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-secondary:hover {
+            background: #0077B5;
+            color: #fff;
+        }
+        #online-pilots {
+            text-align: left;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .pilot-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .pilot-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #0077B5, #00a0dc);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+        .pilot-name { flex: 1; font-weight: 500; }
+        .pilot-ready {
+            background: #00cc66;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .hud-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            min-width: 180px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .hud-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .hud-value {
+            color: #0077B5;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #shield-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        #shield-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0077B5, #00a0dc);
+            transition: width 0.2s;
+        }
+
+        #players-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 220px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        #players-panel h3 {
+            color: #0077B5;
+            font-size: 14px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        .player-entry {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+        }
+        .player-entry.self { background: #f0f7fb; margin: 0 -15px; padding: 8px 15px; }
+        .player-score {
+            margin-left: auto;
+            font-weight: bold;
+            color: #0077B5;
+        }
+
+        #chat-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 350px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        #chat-header {
+            background: #0077B5;
+            color: #fff;
+            padding: 10px 15px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        #chat-messages {
+            height: 120px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #fff;
+        }
+        .chat-msg {
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #333;
+        }
+        .chat-msg.system { color: #0077B5; font-style: italic; }
+        .chat-msg .name { font-weight: bold; color: #0077B5; }
+        #chat-input-area {
+            display: flex;
+            border-top: 1px solid #e0e0e0;
+        }
+        #chat-input {
+            flex: 1;
+            border: none;
+            padding: 12px;
+            font-size: 14px;
+        }
+        #chat-input:focus { outline: none; }
+        #chat-send {
+            background: #0077B5;
+            border: none;
+            color: #fff;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #kill-feed {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            z-index: 100;
+        }
+        .kill-entry {
+            background: rgba(255,255,255,0.9);
+            padding: 8px 15px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #333;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        #victory, #defeat {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.98);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        #victory h1 { color: #00cc66; font-size: 36px; }
+        #defeat h1 { color: #cc0000; font-size: 36px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-item {
+            background: #f3f6f8;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .stat-value { font-size: 28px; font-weight: bold; color: #0077B5; }
+        .stat-label { font-size: 12px; color: #666; }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            z-index: 100;
+        }
+        #controls-hint kbd {
+            background: #e0e0e0;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        #connection-status {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #00cc66;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 100;
+        }
+        #connection-status.connecting { background: #ffaa00; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="lobby">
+            <div class="kp2p-badge">Powered by KP2P WebRTC</div>
+            <h1>GitFox Arena</h1>
+            <p class="subtitle">Real-time P2P multiplayer space combat. No servers, just pilots.</p>
+
+            <input type="text" id="name-input" placeholder="Enter your pilot name" maxlength="20">
+
+            <div id="player-count">
+                <div class="count" id="pilot-count">0</div>
+                <div class="label">Pilots Online</div>
+            </div>
+
+            <div id="online-pilots"></div>
+
+            <button class="btn-primary" id="join-btn">Join the Battle</button>
+            <button class="btn-secondary" onclick="location.href='menu.html'">Back to Hangar</button>
+
+            <p style="margin-top:20px;font-size:11px;color:#999;">
+                Share this page to invite more pilots!<br>
+                Everyone on this page joins the same arena via P2P.
+            </p>
+        </div>
+
+        <div id="connection-status" class="connecting">Connecting to P2P Network...</div>
+
+        <div id="hud" style="display:none;">
+            <div class="hud-card">
+                <div class="hud-label">Shield</div>
+                <div id="shield-bar"><div id="shield-fill" style="width:100%"></div></div>
+            </div>
+            <div class="hud-card">
+                <div class="hud-label">Score</div>
+                <div class="hud-value" id="score">0</div>
+            </div>
+            <div class="hud-card">
+                <div class="hud-label">Kills</div>
+                <div class="hud-value" id="kills">0</div>
+            </div>
+        </div>
+
+        <div id="players-panel" style="display:none;">
+            <h3>Pilots in Arena</h3>
+            <div id="players-list"></div>
+        </div>
+
+        <div id="chat-panel" style="display:none;">
+            <div id="chat-header">Arena Chat</div>
+            <div id="chat-messages"></div>
+            <div id="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Type a message...">
+                <button id="chat-send">Send</button>
+            </div>
+        </div>
+
+        <div id="kill-feed"></div>
+
+        <div id="controls-hint" style="display:none;">
+            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &nbsp;
+            <kbd>Space</kbd> Fire &nbsp;
+            <kbd>Shift</kbd> Boost
+        </div>
+
+        <div id="victory">
+            <h1>Victory!</h1>
+            <p>You dominated the arena!</p>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="final-score">0</div>
+                    <div class="stat-label">Final Score</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="final-kills">0</div>
+                    <div class="stat-label">Total Kills</div>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="location.reload()">Play Again</button>
+            <button class="btn-secondary" onclick="location.href='menu.html'">Return to Hangar</button>
+        </div>
+
+        <div id="defeat">
+            <h1>Shot Down!</h1>
+            <p>You'll get them next time, pilot.</p>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="death-score">0</div>
+                    <div class="stat-label">Score</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="death-kills">0</div>
+                    <div class="stat-label">Kills</div>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="respawn()">Respawn</button>
+            <button class="btn-secondary" onclick="location.href='menu.html'">Leave Arena</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // P2P Configuration
+        const TRACKER = 'wss://tracker.openwebtorrent.com';
+        const ROOM = 'kp2p-gitfox-linkedin-global';
+        const myId = '-GF0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6)))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+
+        let myName = 'Pilot-' + myId.slice(-4);
+        let ws = null;
+        const peers = new Map();
+        const players = new Map();
+        let gameStarted = false;
+        let isAlive = true;
+
+        // Game state
+        let scene, camera, renderer;
+        let ship, remotePlayers = new Map();
+        let bullets = [], myBullets = [];
+        let shield = 100, score = 0, kills = 0;
+        const keys = {};
+        let lastSync = 0;
+        const SYNC_RATE = 50;
+
+        // XSS protection
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // SHA-1 hash
+        async function roomToHash(room) {
+            const data = new TextEncoder().encode('kp2p-' + room);
+            const hashBuf = await crypto.subtle.digest('SHA-1', data);
+            return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+        }
+
+        // WebRTC setup
+        async function generateOffers(n) {
+            const offers = [];
+            for (let i = 0; i < n; i++) {
+                const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+                const dc = pc.createDataChannel('data');
+                setupDataChannel(dc, pc, null);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await new Promise(r => {
+                    if (pc.iceGatheringState === 'complete') r();
+                    else pc.onicecandidate = e => { if (!e.candidate) r(); };
+                });
+                offers.push({ pc, offer_str: JSON.stringify(pc.localDescription) });
+            }
+            return offers;
+        }
+
+        function setupDataChannel(dc, pc, peerId) {
+            dc.onopen = () => {
+                if (peerId && !peers.has(peerId)) {
+                    peers.set(peerId, { pc, dc });
+                    addChat(`${escapeHtml(peerId.slice(-6))} connected`, '', true);
+                    sendPlayerInfo();
+                    updateConnectionStatus();
+                }
+            };
+            dc.onmessage = e => handleMessage(e.data, peerId);
+            dc.onclose = () => {
+                if (peerId) {
+                    peers.delete(peerId);
+                    players.delete(peerId);
+                    if (remotePlayers.has(peerId)) {
+                        scene.remove(remotePlayers.get(peerId));
+                        remotePlayers.delete(peerId);
+                    }
+                    updatePlayersList();
+                    updateLobbyList();
+                    addChat(`${escapeHtml(peerId.slice(-6))} left`, '', true);
+                    updateConnectionStatus();
+                }
+            };
+        }
+
+        async function handleOffer(peerId, offerStr) {
+            if (peers.has(peerId) || peerId === myId) return;
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            pc.ondatachannel = e => {
+                setupDataChannel(e.channel, pc, peerId);
+                peers.set(peerId, { pc, dc: e.channel });
+            };
+            await pc.setRemoteDescription(JSON.parse(offerStr));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await new Promise(r => {
+                if (pc.iceGatheringState === 'complete') r();
+                else pc.onicecandidate = e => { if (!e.candidate) r(); };
+            });
+            return JSON.stringify(pc.localDescription);
+        }
+
+        async function handleAnswer(peerId, answerStr, pc) {
+            if (pc.signalingState === 'have-local-offer') {
+                await pc.setRemoteDescription(JSON.parse(answerStr));
+            }
+        }
+
+        async function joinMesh() {
+            const infoHash = await roomToHash(ROOM);
+            ws = new WebSocket(TRACKER);
+            const pendingOffers = new Map();
+
+            ws.onopen = async () => {
+                document.getElementById('connection-status').textContent = 'Connected to P2P Network';
+                document.getElementById('connection-status').classList.remove('connecting');
+
+                const offers = await generateOffers(10);
+                offers.forEach((o, i) => pendingOffers.set(i, o));
+
+                ws.send(JSON.stringify({
+                    action: 'announce',
+                    info_hash: infoHash,
+                    peer_id: myId,
+                    event: 'started',
+                    numwant: 50,
+                    offers: offers.map((o, i) => ({ offer_id: i, offer: { sdp: o.offer_str } }))
+                }));
+            };
+
+            ws.onmessage = async e => {
+                const msg = JSON.parse(e.data);
+
+                if (msg.offer && msg.peer_id !== myId) {
+                    const answer = await handleOffer(msg.peer_id, msg.offer.sdp);
+                    if (answer) {
+                        ws.send(JSON.stringify({
+                            action: 'announce',
+                            info_hash: infoHash,
+                            peer_id: myId,
+                            to_peer_id: msg.peer_id,
+                            offer_id: msg.offer_id,
+                            answer: { sdp: answer }
+                        }));
+                    }
+                }
+
+                if (msg.answer && pendingOffers.has(msg.offer_id)) {
+                    const { pc } = pendingOffers.get(msg.offer_id);
+                    await handleAnswer(msg.peer_id, msg.answer.sdp, pc);
+                    pendingOffers.delete(msg.offer_id);
+                }
+            };
+
+            ws.onerror = () => {
+                document.getElementById('connection-status').textContent = 'Connection Error - Retrying...';
+                document.getElementById('connection-status').classList.add('connecting');
+            };
+
+            // Reannounce periodically
+            setInterval(async () => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    const offers = await generateOffers(5);
+                    offers.forEach((o, i) => pendingOffers.set(1000 + i, o));
+                    ws.send(JSON.stringify({
+                        action: 'announce',
+                        info_hash: infoHash,
+                        peer_id: myId,
+                        numwant: 50,
+                        offers: offers.map((o, i) => ({ offer_id: 1000 + i, offer: { sdp: o.offer_str } }))
+                    }));
+                }
+            }, 15000);
+        }
+
+        function broadcast(data) {
+            const msg = JSON.stringify(data);
+            peers.forEach(p => {
+                if (p.dc && p.dc.readyState === 'open') {
+                    try { p.dc.send(msg); } catch(e) {}
+                }
+            });
+        }
+
+        function sendPlayerInfo() {
+            broadcast({
+                type: 'player_info',
+                id: myId,
+                name: myName,
+                inGame: gameStarted
+            });
+        }
+
+        function updateConnectionStatus() {
+            const count = 1 + peers.size;
+            document.getElementById('pilot-count').textContent = count;
+            document.getElementById('connection-status').textContent = `${count} Pilot${count > 1 ? 's' : ''} Online`;
+        }
+
+        function handleMessage(data, peerId) {
+            try {
+                const msg = JSON.parse(data);
+
+                switch(msg.type) {
+                    case 'chat':
+                        addChat(msg.text, msg.name);
+                        break;
+
+                    case 'player_info':
+                        players.set(msg.id, {
+                            name: msg.name,
+                            shield: 100,
+                            score: 0,
+                            kills: 0,
+                            inGame: msg.inGame
+                        });
+                        updatePlayersList();
+                        updateLobbyList();
+                        updateConnectionStatus();
+                        // Echo back
+                        if (peerId) {
+                            const peer = peers.get(peerId);
+                            if (peer && peer.dc && peer.dc.readyState === 'open') {
+                                peer.dc.send(JSON.stringify({
+                                    type: 'player_info',
+                                    id: myId,
+                                    name: myName,
+                                    inGame: gameStarted
+                                }));
+                            }
+                        }
+                        break;
+
+                    case 'state':
+                        if (players.has(msg.id)) {
+                            const p = players.get(msg.id);
+                            Object.assign(p, msg);
+                            updateRemotePlayer(msg);
+                        }
+                        break;
+
+                    case 'bullet':
+                        createRemoteBullet(msg);
+                        break;
+
+                    case 'hit':
+                        if (msg.target === myId) {
+                            takeDamage(msg.damage, msg.attacker);
+                        }
+                        break;
+
+                    case 'kill':
+                        addKillFeed(msg.killer, msg.victim);
+                        break;
+
+                    case 'death':
+                        if (remotePlayers.has(msg.id)) {
+                            createExplosion(remotePlayers.get(msg.id).position);
+                        }
+                        break;
+                }
+            } catch(e) {}
+        }
+
+        // Chat functions
+        function addChat(text, name = '', isSystem = false) {
+            const msgs = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'chat-msg' + (isSystem ? ' system' : '');
+            if (isSystem) {
+                div.textContent = text;
+            } else {
+                div.innerHTML = `<span class="name">${escapeHtml(name)}:</span> ${escapeHtml(text)}`;
+            }
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+
+            // Keep only last 50 messages
+            while (msgs.children.length > 50) {
+                msgs.removeChild(msgs.firstChild);
+            }
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addChat(text, myName);
+            broadcast({ type: 'chat', text, name: myName });
+            input.value = '';
+        }
+
+        function updatePlayersList() {
+            if (!gameStarted) return;
+
+            const list = document.getElementById('players-list');
+            list.innerHTML = '';
+
+            // Sort by score
+            const allPlayers = [{ id: myId, name: myName, score, kills, shield }];
+            players.forEach((p, id) => {
+                if (p.inGame) allPlayers.push({ id, ...p });
+            });
+            allPlayers.sort((a, b) => b.score - a.score);
+
+            allPlayers.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'player-entry' + (p.id === myId ? ' self' : '');
+                div.innerHTML = `
+                    <span>${escapeHtml(p.name)}${p.id === myId ? ' (you)' : ''}</span>
+                    <span class="player-score">${p.score}</span>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function updateLobbyList() {
+            const list = document.getElementById('online-pilots');
+            list.innerHTML = '';
+
+            // Add self
+            const selfDiv = document.createElement('div');
+            selfDiv.className = 'pilot-item';
+            selfDiv.innerHTML = `
+                <div class="pilot-avatar">${myName.charAt(0).toUpperCase()}</div>
+                <div class="pilot-name">${escapeHtml(myName)} (you)</div>
+                <div class="pilot-ready">Ready</div>
+            `;
+            list.appendChild(selfDiv);
+
+            // Add others
+            players.forEach((p, id) => {
+                const div = document.createElement('div');
+                div.className = 'pilot-item';
+                div.innerHTML = `
+                    <div class="pilot-avatar">${p.name.charAt(0).toUpperCase()}</div>
+                    <div class="pilot-name">${escapeHtml(p.name)}</div>
+                    <div class="pilot-ready">Ready</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function addKillFeed(killer, victim) {
+            const feed = document.getElementById('kill-feed');
+            const div = document.createElement('div');
+            div.className = 'kill-entry';
+            div.innerHTML = `<b>${escapeHtml(killer)}</b> eliminated <b>${escapeHtml(victim)}</b>`;
+            feed.appendChild(div);
+
+            setTimeout(() => div.remove(), 5000);
+        }
+
+        // Game initialization
+        function initGame() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1628);
+            scene.fog = new THREE.Fog(0x0a1628, 100, 400);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 8, 20);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('game-container').insertBefore(renderer.domElement, document.getElementById('game-container').firstChild);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0x4477aa, 0.5);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(50, 100, 50);
+            scene.add(sun);
+
+            // Starfield
+            const starGeo = new THREE.BufferGeometry();
+            const starPos = [];
+            for (let i = 0; i < 3000; i++) {
+                starPos.push((Math.random() - 0.5) * 800);
+                starPos.push((Math.random() - 0.5) * 800);
+                starPos.push((Math.random() - 0.5) * 800);
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+            const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 }));
+            scene.add(stars);
+
+            // Create player ship
+            createShip();
+
+            // Grid floor for reference
+            const gridHelper = new THREE.GridHelper(200, 50, 0x0077B5, 0x004182);
+            gridHelper.position.y = -20;
+            scene.add(gridHelper);
+
+            // Controls
+            document.addEventListener('keydown', e => {
+                keys[e.key.toLowerCase()] = true;
+                if (e.key === ' ' && gameStarted && isAlive) {
+                    e.preventDefault();
+                    shoot();
+                }
+            });
+            document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function createShip() {
+            const group = new THREE.Group();
+
+            // Main body - Arwing style
+            const bodyGeo = new THREE.ConeGeometry(0.6, 3.5, 4);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0x0077B5, shininess: 100 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.rotation.x = Math.PI / 2;
+            group.add(body);
+
+            // Wings
+            const wingGeo = new THREE.BoxGeometry(5, 0.1, 1.2);
+            const wingMat = new THREE.MeshPhongMaterial({ color: 0x005885 });
+            const wings = new THREE.Mesh(wingGeo, wingMat);
+            wings.position.z = 0.8;
+            group.add(wings);
+
+            // Wing tips
+            const tipGeo = new THREE.ConeGeometry(0.2, 0.8, 4);
+            const tipMat = new THREE.MeshPhongMaterial({ color: 0x00a0dc });
+            [-2.5, 2.5].forEach(x => {
+                const tip = new THREE.Mesh(tipGeo, tipMat);
+                tip.position.set(x, 0, 0.8);
+                tip.rotation.x = -Math.PI / 2;
+                group.add(tip);
+            });
+
+            // Engine glow
+            const engineGeo = new THREE.SphereGeometry(0.4, 8, 8);
+            const engineMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+            const engine = new THREE.Mesh(engineGeo, engineMat);
+            engine.position.z = 1.8;
+            group.add(engine);
+
+            // Cockpit
+            const cockpitGeo = new THREE.SphereGeometry(0.4, 8, 8);
+            const cockpitMat = new THREE.MeshPhongMaterial({ color: 0x88ddff, transparent: true, opacity: 0.7 });
+            const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+            cockpit.position.z = -0.5;
+            cockpit.position.y = 0.2;
+            group.add(cockpit);
+
+            ship = group;
+            ship.position.set(0, 0, 0);
+            scene.add(ship);
+        }
+
+        function createRemoteShip(playerId) {
+            const group = new THREE.Group();
+
+            // Different color for other players
+            const hue = (parseInt(playerId.slice(-4), 16) % 360) / 360;
+            const color = new THREE.Color().setHSL(hue, 0.8, 0.5);
+
+            const bodyGeo = new THREE.ConeGeometry(0.6, 3.5, 4);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: color });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.rotation.x = Math.PI / 2;
+            group.add(body);
+
+            const wingGeo = new THREE.BoxGeometry(5, 0.1, 1.2);
+            const wingMat = new THREE.MeshPhongMaterial({ color: color.clone().multiplyScalar(0.7) });
+            const wings = new THREE.Mesh(wingGeo, wingMat);
+            wings.position.z = 0.8;
+            group.add(wings);
+
+            const engineGeo = new THREE.SphereGeometry(0.4, 8, 8);
+            const engineMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+            const engine = new THREE.Mesh(engineGeo, engineMat);
+            engine.position.z = 1.8;
+            group.add(engine);
+
+            // Name label
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            const name = players.get(playerId)?.name || 'Pilot';
+            ctx.fillText(name, 128, 40);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelMat = new THREE.SpriteMaterial({ map: texture });
+            const label = new THREE.Sprite(labelMat);
+            label.position.y = 2;
+            label.scale.set(4, 1, 1);
+            group.add(label);
+
+            scene.add(group);
+            remotePlayers.set(playerId, group);
+            return group;
+        }
+
+        function updateRemotePlayer(data) {
+            if (!gameStarted) return;
+
+            let remoteShip = remotePlayers.get(data.id);
+            if (!remoteShip) {
+                remoteShip = createRemoteShip(data.id);
+            }
+
+            // Smooth interpolation
+            remoteShip.position.lerp(new THREE.Vector3(data.x, data.y, data.z), 0.3);
+            remoteShip.rotation.x = data.rx || 0;
+            remoteShip.rotation.y = data.ry || 0;
+            remoteShip.rotation.z = data.rz || 0;
+        }
+
+        function shoot() {
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+            );
+            bullet.position.copy(ship.position);
+            bullet.position.z -= 2;
+
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(ship.quaternion);
+
+            bullet.userData = {
+                velocity: direction.multiplyScalar(3),
+                owner: myId,
+                life: 100
+            };
+
+            myBullets.push(bullet);
+            scene.add(bullet);
+
+            // Broadcast
+            broadcast({
+                type: 'bullet',
+                x: bullet.position.x,
+                y: bullet.position.y,
+                z: bullet.position.z,
+                vx: bullet.userData.velocity.x,
+                vy: bullet.userData.velocity.y,
+                vz: bullet.userData.velocity.z,
+                owner: myId
+            });
+        }
+
+        function createRemoteBullet(msg) {
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xff4444 })
+            );
+            bullet.position.set(msg.x, msg.y, msg.z);
+            bullet.userData = {
+                velocity: new THREE.Vector3(msg.vx, msg.vy, msg.vz),
+                owner: msg.owner,
+                life: 100
+            };
+            bullets.push(bullet);
+            scene.add(bullet);
+        }
+
+        function takeDamage(amount, attackerId) {
+            shield -= amount;
+            document.getElementById('shield-fill').style.width = Math.max(0, shield) + '%';
+
+            if (shield <= 0 && isAlive) {
+                isAlive = false;
+                createExplosion(ship.position);
+                ship.visible = false;
+
+                const attackerName = players.get(attackerId)?.name || 'Unknown';
+                broadcast({ type: 'kill', killer: attackerName, victim: myName });
+                broadcast({ type: 'death', id: myId });
+
+                addKillFeed(attackerName, myName);
+
+                document.getElementById('death-score').textContent = score;
+                document.getElementById('death-kills').textContent = kills;
+                document.getElementById('defeat').style.display = 'block';
+            }
+        }
+
+        function createExplosion(pos) {
+            for (let i = 0; i < 30; i++) {
+                const particle = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2 + Math.random() * 0.3, 4, 4),
+                    new THREE.MeshBasicMaterial({
+                        color: Math.random() > 0.5 ? 0xff8800 : 0xffff00
+                    })
+                );
+                particle.position.copy(pos);
+                particle.userData = {
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 3,
+                        (Math.random() - 0.5) * 3,
+                        (Math.random() - 0.5) * 3
+                    ),
+                    life: 40
+                };
+                scene.add(particle);
+
+                const animate = () => {
+                    particle.position.add(particle.userData.velocity);
+                    particle.userData.velocity.multiplyScalar(0.95);
+                    particle.userData.life--;
+                    particle.scale.multiplyScalar(0.95);
+
+                    if (particle.userData.life > 0) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        scene.remove(particle);
+                    }
+                };
+                animate();
+            }
+        }
+
+        function respawn() {
+            document.getElementById('defeat').style.display = 'none';
+            isAlive = true;
+            shield = 100;
+            ship.visible = true;
+            ship.position.set(
+                (Math.random() - 0.5) * 40,
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 40
+            );
+            document.getElementById('shield-fill').style.width = '100%';
+        }
+
+        function gameLoop() {
+            if (!gameStarted) {
+                renderer.render(scene, camera);
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            if (isAlive) {
+                // Ship controls
+                const speed = keys['shift'] ? 0.8 : 0.4;
+                if (keys['w'] || keys['arrowup']) ship.position.z -= speed;
+                if (keys['s'] || keys['arrowdown']) ship.position.z += speed;
+                if (keys['a'] || keys['arrowleft']) ship.position.x -= speed;
+                if (keys['d'] || keys['arrowright']) ship.position.x += speed;
+                if (keys['q']) ship.position.y += speed * 0.5;
+                if (keys['e']) ship.position.y -= speed * 0.5;
+
+                // Boundary
+                ship.position.x = Math.max(-80, Math.min(80, ship.position.x));
+                ship.position.y = Math.max(-40, Math.min(40, ship.position.y));
+                ship.position.z = Math.max(-80, Math.min(80, ship.position.z));
+
+                // Ship tilt
+                ship.rotation.z = (keys['a'] ? 0.4 : 0) + (keys['d'] ? -0.4 : 0);
+                ship.rotation.x = (keys['w'] ? -0.2 : 0) + (keys['s'] ? 0.2 : 0);
+
+                // Sync state
+                const now = Date.now();
+                if (now - lastSync > SYNC_RATE) {
+                    broadcast({
+                        type: 'state',
+                        id: myId,
+                        x: ship.position.x,
+                        y: ship.position.y,
+                        z: ship.position.z,
+                        rx: ship.rotation.x,
+                        ry: ship.rotation.y,
+                        rz: ship.rotation.z,
+                        shield, score, kills
+                    });
+                    lastSync = now;
+                }
+            }
+
+            // Update my bullets
+            for (let i = myBullets.length - 1; i >= 0; i--) {
+                const b = myBullets[i];
+                b.position.add(b.userData.velocity);
+                b.userData.life--;
+
+                if (b.userData.life <= 0) {
+                    scene.remove(b);
+                    myBullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check hits on remote players
+                remotePlayers.forEach((remoteShip, playerId) => {
+                    if (b.position.distanceTo(remoteShip.position) < 2) {
+                        broadcast({ type: 'hit', target: playerId, damage: 15, attacker: myId });
+                        scene.remove(b);
+                        myBullets.splice(i, 1);
+                        score += 10;
+                        document.getElementById('score').textContent = score;
+                    }
+                });
+            }
+
+            // Update remote bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.position.add(b.userData.velocity);
+                b.userData.life--;
+
+                if (b.userData.life <= 0) {
+                    scene.remove(b);
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check if hit me
+                if (isAlive && b.position.distanceTo(ship.position) < 2) {
+                    takeDamage(15, b.userData.owner);
+                    scene.remove(b);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Camera follow
+            camera.position.x = ship.position.x * 0.3;
+            camera.position.y = ship.position.y * 0.3 + 8;
+            camera.position.z = ship.position.z + 20;
+            camera.lookAt(ship.position);
+
+            updatePlayersList();
+            renderer.render(scene, camera);
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameStarted = true;
+            isAlive = true;
+
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('players-panel').style.display = 'block';
+            document.getElementById('chat-panel').style.display = 'block';
+            document.getElementById('controls-hint').style.display = 'block';
+
+            // Random spawn
+            ship.position.set(
+                (Math.random() - 0.5) * 40,
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 40
+            );
+
+            sendPlayerInfo();
+            addChat('You entered the arena!', '', true);
+        }
+
+        // Event bindings
+        document.getElementById('join-btn').onclick = () => {
+            const nameInput = document.getElementById('name-input');
+            if (nameInput.value.trim()) {
+                myName = nameInput.value.trim();
+            }
+            startGame();
+        };
+
+        document.getElementById('name-input').onkeypress = e => {
+            if (e.key === 'Enter') document.getElementById('join-btn').click();
+        };
+
+        document.getElementById('chat-input').onkeypress = e => {
+            if (e.key === 'Enter') sendChat();
+        };
+        document.getElementById('chat-send').onclick = sendChat;
+
+        // Initialize
+        initGame();
+        joinMesh();
+        gameLoop();
+
+        // Update lobby list periodically
+        setInterval(updateLobbyList, 2000);
+    </script>
+</body>
+</html>

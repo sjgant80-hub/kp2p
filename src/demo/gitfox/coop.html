@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitFox - Co-op Mission</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        canvas { display: block; }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .hud-item {
+            background: rgba(0,20,0,0.8);
+            border: 1px solid #0f0;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        #shield-bar, #boss-bar {
+            width: 200px;
+            height: 20px;
+            background: #111;
+            border: 1px solid #0f0;
+        }
+        #shield-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0a0, #0f0);
+            transition: width 0.2s;
+        }
+        #boss-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a00, #f00);
+            transition: width 0.2s;
+        }
+
+        #players-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,20,0,0.9);
+            border: 1px solid #0f0;
+            padding: 10px;
+            min-width: 200px;
+            z-index: 100;
+        }
+        #players-panel h3 {
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .player-entry {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 12px;
+        }
+        .player-entry.self { color: #0ff; }
+        .player-shield {
+            width: 50px;
+            height: 8px;
+            background: #111;
+            border: 1px solid #0a0;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .player-shield-fill {
+            height: 100%;
+            background: #0f0;
+        }
+
+        #chat-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 350px;
+            background: rgba(0,20,0,0.9);
+            border: 1px solid #0f0;
+            z-index: 100;
+        }
+        #chat-messages {
+            height: 120px;
+            overflow-y: auto;
+            padding: 8px;
+            font-size: 12px;
+        }
+        .chat-msg { margin-bottom: 4px; }
+        .chat-msg.system { color: #ff0; font-style: italic; }
+        .chat-msg.self { color: #0ff; }
+        #chat-input-area {
+            display: flex;
+            border-top: 1px solid #0f0;
+        }
+        #chat-input {
+            flex: 1;
+            background: #001100;
+            border: none;
+            color: #0f0;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 12px;
+        }
+        #chat-input:focus { outline: none; background: #002200; }
+        #chat-send {
+            background: #0a0;
+            border: none;
+            color: #000;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #radio {
+            position: absolute;
+            bottom: 150px;
+            left: 10px;
+            background: rgba(0,50,0,0.95);
+            border: 2px solid #0f0;
+            padding: 15px;
+            max-width: 400px;
+            z-index: 100;
+            display: none;
+        }
+        #radio-speaker { color: #0ff; font-weight: bold; }
+        #radio-text { margin-top: 5px; }
+
+        #boss-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(50,0,0,0.95);
+            border: 2px solid #f00;
+            padding: 20px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+        }
+        #boss-panel h2 { color: #f00; margin-bottom: 10px; }
+        #boss-health-display {
+            width: 300px;
+            height: 30px;
+            background: #300;
+            border: 2px solid #f00;
+            margin: 10px auto;
+        }
+        #boss-health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f00, #ff0);
+            transition: width 0.3s;
+        }
+
+        #victory, #defeat {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+        #victory h1 { color: #0f0; font-size: 48px; text-shadow: 0 0 20px #0f0; }
+        #defeat h1 { color: #f00; font-size: 48px; text-shadow: 0 0 20px #f00; }
+        .end-stats { margin: 20px 0; font-size: 18px; }
+        .btn {
+            background: #0a0;
+            border: 2px solid #0f0;
+            color: #fff;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 10px;
+        }
+        .btn:hover { background: #0f0; color: #000; }
+
+        #room-setup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,30,0,0.95);
+            border: 2px solid #0f0;
+            padding: 30px;
+            text-align: center;
+            z-index: 300;
+        }
+        #room-setup h2 { margin-bottom: 20px; }
+        #room-setup input {
+            background: #001100;
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 10px;
+            font-size: 16px;
+            font-family: inherit;
+            width: 200px;
+            margin: 10px;
+        }
+        #room-setup input:focus { outline: none; background: #002200; }
+        #player-count { margin: 15px 0; font-size: 14px; color: #0ff; }
+        #start-mission {
+            background: #050;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        #start-mission.ready {
+            background: #0a0;
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="room-setup">
+            <h2>CO-OP MISSION LOBBY</h2>
+            <p>Defend the convoy from the Hive Swarm!</p>
+            <div>
+                <input type="text" id="name-input" placeholder="Your callsign" maxlength="12">
+            </div>
+            <div>
+                <input type="text" id="room-input" placeholder="Room code (optional)" maxlength="20">
+            </div>
+            <div id="player-count">Waiting for players...</div>
+            <button class="btn" id="join-btn">Join Lobby</button>
+            <button class="btn" id="start-mission">Start Mission (need 2+)</button>
+            <p style="margin-top:15px;font-size:12px;color:#0a0;">Share your room code with friends!</p>
+        </div>
+
+        <div id="hud" style="display:none;">
+            <div class="hud-item">
+                <div>SHIELD</div>
+                <div id="shield-bar"><div id="shield-fill" style="width:100%"></div></div>
+            </div>
+            <div class="hud-item">SCORE: <span id="score">0</span></div>
+            <div class="hud-item">WAVE: <span id="wave">1</span> / 5</div>
+            <div class="hud-item">CONVOY: <span id="convoy-health">100</span>%</div>
+            <div class="hud-item" id="bomb-display">BOMBS: <span id="bombs">3</span></div>
+        </div>
+
+        <div id="players-panel" style="display:none;">
+            <h3>SQUADRON</h3>
+            <div id="players-list"></div>
+        </div>
+
+        <div id="chat-panel" style="display:none;">
+            <div id="chat-messages"></div>
+            <div id="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Team chat...">
+                <button id="chat-send">SEND</button>
+            </div>
+        </div>
+
+        <div id="radio">
+            <div><span id="radio-speaker">COMMAND</span>:</div>
+            <div id="radio-text"></div>
+        </div>
+
+        <div id="boss-panel">
+            <h2>HIVE QUEEN</h2>
+            <div id="boss-health-display"><div id="boss-health-fill" style="width:100%"></div></div>
+            <div id="boss-health-text">500 / 500 HP</div>
+        </div>
+
+        <div id="victory">
+            <h1>MISSION COMPLETE!</h1>
+            <div class="end-stats">
+                <div>Convoy Saved!</div>
+                <div>Team Score: <span id="team-score">0</span></div>
+                <div>Your Contribution: <span id="your-score">0</span></div>
+            </div>
+            <button class="btn" onclick="location.href='menu.html'">Return to Hangar</button>
+            <button class="btn" onclick="location.reload()">Play Again</button>
+        </div>
+
+        <div id="defeat">
+            <h1>CONVOY DESTROYED</h1>
+            <div class="end-stats">
+                <div>The Hive claimed the convoy...</div>
+                <div>Wave Reached: <span id="final-wave">1</span></div>
+            </div>
+            <button class="btn" onclick="location.reload()">Try Again</button>
+            <button class="btn" onclick="location.href='menu.html'">Return to Hangar</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // P2P Setup
+        const TRACKER = 'wss://tracker.openwebtorrent.com';
+        let ROOM = 'gitfox-coop-' + (new URLSearchParams(location.search).get('room') || 'default');
+        const myId = '-GF0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6)))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+
+        let myName = 'Pilot-' + myId.slice(-4);
+        let ws = null;
+        const peers = new Map();
+        const players = new Map();
+        let isHost = false;
+        let gameStarted = false;
+        let inLobby = true;
+
+        // Game state
+        let scene, camera, renderer;
+        let ship, bullets = [], enemies = [], convoy = [];
+        let shield = 100, score = 0, bombs = 3;
+        let wave = 1, enemiesRemaining = 0;
+        let convoyHealth = 100;
+        let bossActive = false, boss = null, bossHealth = 500;
+        const keys = {};
+
+        // Escape HTML for XSS protection
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // SHA-1 hash for room
+        async function roomToHash(room) {
+            const data = new TextEncoder().encode('gitfox-coop-' + room);
+            const hashBuf = await crypto.subtle.digest('SHA-1', data);
+            return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+        }
+
+        // WebRTC setup
+        async function generateOffers(n) {
+            const offers = [];
+            for (let i = 0; i < n; i++) {
+                const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+                const dc = pc.createDataChannel('data');
+                setupDataChannel(dc, pc, null);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await new Promise(r => {
+                    if (pc.iceGatheringState === 'complete') r();
+                    else pc.onicecandidate = e => { if (!e.candidate) r(); };
+                });
+                offers.push({ pc, offer_str: JSON.stringify(pc.localDescription) });
+            }
+            return offers;
+        }
+
+        function setupDataChannel(dc, pc, peerId) {
+            dc.onopen = () => {
+                if (peerId && !peers.has(peerId)) {
+                    peers.set(peerId, { pc, dc });
+                    addChat(`${escapeHtml(peerId.slice(-6))} connected`, '', true);
+                    sendPlayerInfo();
+                }
+            };
+            dc.onmessage = e => handleMessage(e.data, peerId);
+            dc.onclose = () => {
+                if (peerId) {
+                    peers.delete(peerId);
+                    players.delete(peerId);
+                    updatePlayersList();
+                    addChat(`${escapeHtml(peerId.slice(-6))} disconnected`, '', true);
+                }
+            };
+        }
+
+        async function handleOffer(peerId, offerStr) {
+            if (peers.has(peerId) || peerId === myId) return;
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            pc.ondatachannel = e => {
+                setupDataChannel(e.channel, pc, peerId);
+                peers.set(peerId, { pc, dc: e.channel });
+            };
+            await pc.setRemoteDescription(JSON.parse(offerStr));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await new Promise(r => {
+                if (pc.iceGatheringState === 'complete') r();
+                else pc.onicecandidate = e => { if (!e.candidate) r(); };
+            });
+            return JSON.stringify(pc.localDescription);
+        }
+
+        async function handleAnswer(peerId, answerStr, pc) {
+            if (pc.signalingState === 'have-local-offer') {
+                await pc.setRemoteDescription(JSON.parse(answerStr));
+                peers.set(peerId, { pc, dc: pc.createDataChannel ? null : peers.get(peerId)?.dc });
+            }
+        }
+
+        // Join mesh network
+        async function joinMesh() {
+            const infoHash = await roomToHash(ROOM);
+            ws = new WebSocket(TRACKER);
+            const pendingOffers = new Map();
+
+            ws.onopen = async () => {
+                const offers = await generateOffers(5);
+                offers.forEach((o, i) => pendingOffers.set(i, o));
+
+                ws.send(JSON.stringify({
+                    action: 'announce',
+                    info_hash: infoHash,
+                    peer_id: myId,
+                    event: 'started',
+                    numwant: 10,
+                    offers: offers.map((o, i) => ({ offer_id: i, offer: { sdp: o.offer_str } }))
+                }));
+            };
+
+            ws.onmessage = async e => {
+                const msg = JSON.parse(e.data);
+
+                if (msg.offer && msg.peer_id !== myId) {
+                    const answer = await handleOffer(msg.peer_id, msg.offer.sdp);
+                    if (answer) {
+                        ws.send(JSON.stringify({
+                            action: 'announce',
+                            info_hash: infoHash,
+                            peer_id: myId,
+                            to_peer_id: msg.peer_id,
+                            offer_id: msg.offer_id,
+                            answer: { sdp: answer }
+                        }));
+                    }
+                }
+
+                if (msg.answer && pendingOffers.has(msg.offer_id)) {
+                    const { pc } = pendingOffers.get(msg.offer_id);
+                    await handleAnswer(msg.peer_id, msg.answer.sdp, pc);
+                    pendingOffers.delete(msg.offer_id);
+                }
+            };
+
+            // Reannounce periodically
+            setInterval(async () => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    const offers = await generateOffers(3);
+                    offers.forEach((o, i) => pendingOffers.set(100 + i, o));
+                    ws.send(JSON.stringify({
+                        action: 'announce',
+                        info_hash: infoHash,
+                        peer_id: myId,
+                        numwant: 10,
+                        offers: offers.map((o, i) => ({ offer_id: 100 + i, offer: { sdp: o.offer_str } }))
+                    }));
+                }
+            }, 20000);
+        }
+
+        function broadcast(data) {
+            const msg = JSON.stringify(data);
+            peers.forEach(p => {
+                if (p.dc && p.dc.readyState === 'open') {
+                    p.dc.send(msg);
+                }
+            });
+        }
+
+        function sendPlayerInfo() {
+            broadcast({
+                type: 'player_info',
+                id: myId,
+                name: myName,
+                ready: true
+            });
+        }
+
+        function handleMessage(data, peerId) {
+            try {
+                const msg = JSON.parse(data);
+
+                switch(msg.type) {
+                    case 'chat':
+                        addChat(msg.text, msg.name);
+                        break;
+                    case 'player_info':
+                        players.set(msg.id, { name: msg.name, shield: 100, score: 0, ready: msg.ready });
+                        updatePlayersList();
+                        updateStartButton();
+                        // Echo back our info
+                        if (peerId) {
+                            const peer = peers.get(peerId);
+                            if (peer && peer.dc && peer.dc.readyState === 'open') {
+                                peer.dc.send(JSON.stringify({
+                                    type: 'player_info',
+                                    id: myId,
+                                    name: myName,
+                                    ready: true
+                                }));
+                            }
+                        }
+                        break;
+                    case 'player_state':
+                        if (players.has(msg.id)) {
+                            const p = players.get(msg.id);
+                            p.x = msg.x; p.y = msg.y; p.z = msg.z;
+                            p.rx = msg.rx; p.ry = msg.ry; p.rz = msg.rz;
+                            p.shield = msg.shield;
+                            p.score = msg.score;
+                        }
+                        updatePlayersList();
+                        break;
+                    case 'bullet':
+                        createRemoteBullet(msg);
+                        break;
+                    case 'start_game':
+                        if (inLobby) startGame();
+                        break;
+                    case 'enemy_hit':
+                        // Sync enemy damage
+                        if (msg.enemyIdx < enemies.length) {
+                            enemies[msg.enemyIdx].hp -= msg.damage;
+                        }
+                        break;
+                    case 'boss_hit':
+                        bossHealth -= msg.damage;
+                        updateBossDisplay();
+                        break;
+                    case 'convoy_hit':
+                        convoyHealth -= msg.damage;
+                        document.getElementById('convoy-health').textContent = Math.max(0, convoyHealth);
+                        break;
+                }
+            } catch(e) {}
+        }
+
+        // Chat functions
+        function addChat(text, name = '', isSystem = false) {
+            const msgs = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'chat-msg' + (isSystem ? ' system' : (name === myName ? ' self' : ''));
+            if (isSystem) {
+                div.textContent = '* ' + text;
+            } else {
+                div.innerHTML = `<b>${escapeHtml(name)}:</b> ${escapeHtml(text)}`;
+            }
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addChat(text, myName);
+            broadcast({ type: 'chat', text, name: myName });
+            input.value = '';
+        }
+
+        function updatePlayersList() {
+            const list = document.getElementById('players-list');
+            list.innerHTML = '';
+
+            // Add self
+            const selfDiv = document.createElement('div');
+            selfDiv.className = 'player-entry self';
+            selfDiv.innerHTML = `
+                <span>${escapeHtml(myName)} (you)</span>
+                <span><span class="player-shield"><span class="player-shield-fill" style="width:${shield}%"></span></span> ${score}</span>
+            `;
+            list.appendChild(selfDiv);
+
+            // Add other players
+            players.forEach((p, id) => {
+                const div = document.createElement('div');
+                div.className = 'player-entry';
+                div.innerHTML = `
+                    <span>${escapeHtml(p.name)}</span>
+                    <span><span class="player-shield"><span class="player-shield-fill" style="width:${p.shield || 100}%"></span></span> ${p.score || 0}</span>
+                `;
+                list.appendChild(div);
+            });
+
+            // Update player count in lobby
+            document.getElementById('player-count').textContent =
+                `Players in lobby: ${1 + players.size}`;
+        }
+
+        function updateStartButton() {
+            const btn = document.getElementById('start-mission');
+            if (players.size >= 1) { // Need at least 2 players (self + 1)
+                btn.classList.add('ready');
+                btn.textContent = 'Start Mission!';
+            } else {
+                btn.classList.remove('ready');
+                btn.textContent = 'Start Mission (need 2+)';
+            }
+        }
+
+        // Lobby setup
+        document.getElementById('join-btn').onclick = () => {
+            const nameInput = document.getElementById('name-input');
+            const roomInput = document.getElementById('room-input');
+
+            if (nameInput.value.trim()) {
+                myName = nameInput.value.trim();
+            }
+            if (roomInput.value.trim()) {
+                ROOM = 'gitfox-coop-' + roomInput.value.trim();
+            }
+
+            joinMesh();
+            players.set(myId, { name: myName, shield: 100, score: 0, ready: true });
+            updatePlayersList();
+            addChat('You joined the lobby', '', true);
+
+            document.getElementById('join-btn').disabled = true;
+            document.getElementById('join-btn').textContent = 'Joined!';
+        };
+
+        document.getElementById('start-mission').onclick = () => {
+            if (players.size >= 1) {
+                broadcast({ type: 'start_game' });
+                startGame();
+            }
+        };
+
+        document.getElementById('chat-input').onkeypress = e => {
+            if (e.key === 'Enter') sendChat();
+        };
+        document.getElementById('chat-send').onclick = sendChat;
+
+        // Game initialization
+        function initGame() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000510);
+            scene.fog = new THREE.Fog(0x000510, 100, 500);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // Lights
+            const ambient = new THREE.AmbientLight(0x333355);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffffcc, 1);
+            sun.position.set(50, 50, 50);
+            scene.add(sun);
+
+            // Stars
+            const starGeo = new THREE.BufferGeometry();
+            const starPos = [];
+            for (let i = 0; i < 2000; i++) {
+                starPos.push((Math.random() - 0.5) * 1000);
+                starPos.push((Math.random() - 0.5) * 1000);
+                starPos.push((Math.random() - 0.5) * 1000);
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+            const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 }));
+            scene.add(stars);
+
+            // Create player ship
+            createShip();
+
+            // Create convoy
+            createConvoy();
+
+            // Event listeners
+            document.addEventListener('keydown', e => {
+                keys[e.key.toLowerCase()] = true;
+                if (e.key === ' ') shoot();
+                if (e.key.toLowerCase() === 'b') useBomb();
+            });
+            document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function createShip() {
+            const group = new THREE.Group();
+
+            // Arwing-style body
+            const bodyGeo = new THREE.ConeGeometry(0.5, 3, 4);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0x4488ff });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.rotation.x = Math.PI / 2;
+            group.add(body);
+
+            // Wings
+            const wingGeo = new THREE.BoxGeometry(4, 0.1, 1);
+            const wingMat = new THREE.MeshPhongMaterial({ color: 0x3366cc });
+            const wings = new THREE.Mesh(wingGeo, wingMat);
+            wings.position.z = 0.5;
+            group.add(wings);
+
+            // Engine glow
+            const engineGeo = new THREE.SphereGeometry(0.3, 8, 8);
+            const engineMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const engine = new THREE.Mesh(engineGeo, engineMat);
+            engine.position.z = 1.5;
+            group.add(engine);
+
+            ship = group;
+            ship.position.set(0, 0, 0);
+            scene.add(ship);
+        }
+
+        function createConvoy() {
+            const convoyMat = new THREE.MeshPhongMaterial({ color: 0x88ff88 });
+
+            for (let i = 0; i < 3; i++) {
+                const convoyShip = new THREE.Group();
+
+                // Cargo container body
+                const bodyGeo = new THREE.BoxGeometry(3, 2, 6);
+                const body = new THREE.Mesh(bodyGeo, convoyMat);
+                convoyShip.add(body);
+
+                // Cockpit
+                const cockpitGeo = new THREE.SphereGeometry(1, 8, 8);
+                const cockpit = new THREE.Mesh(cockpitGeo, new THREE.MeshPhongMaterial({ color: 0x44aa44 }));
+                cockpit.position.z = -3;
+                convoyShip.add(cockpit);
+
+                convoyShip.position.set(-20 + i * 20, 0, 50);
+                convoyShip.userData = { idx: i };
+                convoy.push(convoyShip);
+                scene.add(convoyShip);
+            }
+        }
+
+        function spawnEnemies() {
+            const count = 5 + wave * 3;
+            enemiesRemaining = count;
+
+            for (let i = 0; i < count; i++) {
+                const enemy = new THREE.Group();
+
+                // Insectoid body
+                const bodyGeo = new THREE.SphereGeometry(0.8, 8, 8);
+                const bodyMat = new THREE.MeshPhongMaterial({ color: 0x880088 });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                enemy.add(body);
+
+                // Wings
+                const wingGeo = new THREE.BoxGeometry(2, 0.05, 0.5);
+                const wingMat = new THREE.MeshPhongMaterial({ color: 0xaa00aa, transparent: true, opacity: 0.7 });
+                const leftWing = new THREE.Mesh(wingGeo, wingMat);
+                leftWing.position.x = -1;
+                enemy.add(leftWing);
+                const rightWing = new THREE.Mesh(wingGeo, wingMat);
+                rightWing.position.x = 1;
+                enemy.add(rightWing);
+
+                enemy.position.set(
+                    (Math.random() - 0.5) * 80,
+                    (Math.random() - 0.5) * 40,
+                    -80 - Math.random() * 50
+                );
+                enemy.userData = { hp: 2, target: Math.floor(Math.random() * 3) };
+                enemies.push(enemy);
+                scene.add(enemy);
+            }
+
+            showRadio('COMMAND', `Wave ${wave} incoming! ${count} hostiles detected!`);
+        }
+
+        function spawnBoss() {
+            bossActive = true;
+            bossHealth = 500;
+
+            boss = new THREE.Group();
+
+            // Queen body
+            const bodyGeo = new THREE.SphereGeometry(4, 16, 16);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0xff00ff });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            boss.add(body);
+
+            // Mandibles
+            for (let i = -1; i <= 1; i += 2) {
+                const mandibleGeo = new THREE.ConeGeometry(0.5, 3, 4);
+                const mandible = new THREE.Mesh(mandibleGeo, new THREE.MeshPhongMaterial({ color: 0xcc00cc }));
+                mandible.position.set(i * 2, 0, -3);
+                mandible.rotation.x = -Math.PI / 4;
+                boss.add(mandible);
+            }
+
+            // Crown/crest
+            const crownGeo = new THREE.ConeGeometry(2, 3, 6);
+            const crown = new THREE.Mesh(crownGeo, new THREE.MeshPhongMaterial({ color: 0xff44ff }));
+            crown.position.y = 3;
+            boss.add(crown);
+
+            boss.position.set(0, 0, -100);
+            scene.add(boss);
+
+            document.getElementById('boss-panel').style.display = 'block';
+            showRadio('COMMAND', 'The Hive Queen has arrived! Focus fire!');
+        }
+
+        function shoot() {
+            if (!gameStarted) return;
+
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+            );
+            bullet.position.copy(ship.position);
+            bullet.userData = {
+                velocity: new THREE.Vector3(0, 0, -2),
+                owner: myId
+            };
+            bullets.push(bullet);
+            scene.add(bullet);
+
+            // Broadcast bullet
+            broadcast({
+                type: 'bullet',
+                x: bullet.position.x,
+                y: bullet.position.y,
+                z: bullet.position.z,
+                owner: myId
+            });
+        }
+
+        function createRemoteBullet(msg) {
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x00ffff })
+            );
+            bullet.position.set(msg.x, msg.y, msg.z);
+            bullet.userData = {
+                velocity: new THREE.Vector3(0, 0, -2),
+                owner: msg.owner
+            };
+            bullets.push(bullet);
+            scene.add(bullet);
+        }
+
+        function useBomb() {
+            if (bombs <= 0 || !gameStarted) return;
+            bombs--;
+            document.getElementById('bombs').textContent = bombs;
+
+            // Create explosion effect
+            const explosionGeo = new THREE.SphereGeometry(30, 16, 16);
+            const explosionMat = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.5
+            });
+            const explosion = new THREE.Mesh(explosionGeo, explosionMat);
+            explosion.position.copy(ship.position);
+            scene.add(explosion);
+
+            // Damage all enemies in range
+            enemies.forEach((enemy, idx) => {
+                const dist = enemy.position.distanceTo(ship.position);
+                if (dist < 30) {
+                    enemy.userData.hp -= 5;
+                    broadcast({ type: 'enemy_hit', enemyIdx: idx, damage: 5 });
+                }
+            });
+
+            // Damage boss if active
+            if (bossActive && boss) {
+                const dist = boss.position.distanceTo(ship.position);
+                if (dist < 40) {
+                    bossHealth -= 50;
+                    broadcast({ type: 'boss_hit', damage: 50 });
+                    updateBossDisplay();
+                }
+            }
+
+            // Fade out explosion
+            let opacity = 0.5;
+            const fadeInterval = setInterval(() => {
+                opacity -= 0.05;
+                explosionMat.opacity = opacity;
+                if (opacity <= 0) {
+                    scene.remove(explosion);
+                    clearInterval(fadeInterval);
+                }
+            }, 50);
+        }
+
+        function updateBossDisplay() {
+            const fill = document.getElementById('boss-health-fill');
+            const text = document.getElementById('boss-health-text');
+            fill.style.width = Math.max(0, (bossHealth / 500) * 100) + '%';
+            text.textContent = `${Math.max(0, bossHealth)} / 500 HP`;
+        }
+
+        function showRadio(speaker, text) {
+            const radio = document.getElementById('radio');
+            document.getElementById('radio-speaker').textContent = speaker;
+            document.getElementById('radio-text').textContent = text;
+            radio.style.display = 'block';
+            setTimeout(() => radio.style.display = 'none', 4000);
+        }
+
+        function createExplosion(pos) {
+            const particles = [];
+            for (let i = 0; i < 20; i++) {
+                const p = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2, 4, 4),
+                    new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff8800 : 0xffff00 })
+                );
+                p.position.copy(pos);
+                p.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2
+                );
+                p.userData.life = 30;
+                particles.push(p);
+                scene.add(p);
+            }
+
+            const interval = setInterval(() => {
+                particles.forEach((p, i) => {
+                    p.position.add(p.userData.velocity);
+                    p.userData.life--;
+                    if (p.userData.life <= 0) {
+                        scene.remove(p);
+                    }
+                });
+                if (particles.every(p => p.userData.life <= 0)) {
+                    clearInterval(interval);
+                }
+            }, 50);
+        }
+
+        function updateGame() {
+            if (!gameStarted) {
+                requestAnimationFrame(updateGame);
+                renderer.render(scene, camera);
+                return;
+            }
+
+            // Ship controls
+            const speed = 0.5;
+            if (keys['w'] || keys['arrowup']) ship.position.y += speed;
+            if (keys['s'] || keys['arrowdown']) ship.position.y -= speed;
+            if (keys['a'] || keys['arrowleft']) ship.position.x -= speed;
+            if (keys['d'] || keys['arrowright']) ship.position.x += speed;
+
+            // Clamp position
+            ship.position.x = Math.max(-40, Math.min(40, ship.position.x));
+            ship.position.y = Math.max(-20, Math.min(20, ship.position.y));
+
+            // Tilt ship based on movement
+            ship.rotation.z = keys['a'] ? 0.3 : (keys['d'] ? -0.3 : 0);
+            ship.rotation.x = keys['w'] ? -0.2 : (keys['s'] ? 0.2 : 0);
+
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.position.add(b.userData.velocity);
+
+                // Remove if too far
+                if (b.position.z < -200 || b.position.z > 50) {
+                    scene.remove(b);
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check enemy collisions
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    if (b.position.distanceTo(enemies[j].position) < 1.5) {
+                        enemies[j].userData.hp--;
+                        broadcast({ type: 'enemy_hit', enemyIdx: j, damage: 1 });
+
+                        if (enemies[j].userData.hp <= 0) {
+                            createExplosion(enemies[j].position);
+                            scene.remove(enemies[j]);
+                            enemies.splice(j, 1);
+                            enemiesRemaining--;
+                            score += 100;
+                            document.getElementById('score').textContent = score;
+                        }
+
+                        scene.remove(b);
+                        bullets.splice(i, 1);
+                        break;
+                    }
+                }
+
+                // Check boss collision
+                if (bossActive && boss && b.position.distanceTo(boss.position) < 5) {
+                    bossHealth -= 5;
+                    broadcast({ type: 'boss_hit', damage: 5 });
+                    updateBossDisplay();
+                    scene.remove(b);
+                    bullets.splice(i, 1);
+
+                    if (bossHealth <= 0) {
+                        createExplosion(boss.position);
+                        scene.remove(boss);
+                        bossActive = false;
+                        score += 5000;
+                        document.getElementById('score').textContent = score;
+                        victory();
+                    }
+                }
+            }
+
+            // Update enemies
+            enemies.forEach(enemy => {
+                // Move toward target convoy ship
+                const target = convoy[enemy.userData.target];
+                if (target) {
+                    const dir = target.position.clone().sub(enemy.position).normalize();
+                    enemy.position.add(dir.multiplyScalar(0.3));
+                    enemy.lookAt(target.position);
+
+                    // Attack convoy if close
+                    if (enemy.position.distanceTo(target.position) < 5) {
+                        convoyHealth -= 0.1;
+                        document.getElementById('convoy-health').textContent = Math.max(0, Math.floor(convoyHealth));
+                        broadcast({ type: 'convoy_hit', damage: 0.1 });
+
+                        if (convoyHealth <= 0) {
+                            defeat();
+                        }
+                    }
+                }
+
+                // Animate wings
+                enemy.children[1].rotation.z = Math.sin(Date.now() * 0.01) * 0.3;
+                enemy.children[2].rotation.z = -Math.sin(Date.now() * 0.01) * 0.3;
+            });
+
+            // Update boss
+            if (bossActive && boss) {
+                boss.position.z += 0.1;
+                if (boss.position.z > -30) boss.position.z = -30;
+
+                boss.rotation.y = Math.sin(Date.now() * 0.001) * 0.5;
+
+                // Boss attacks convoy periodically
+                if (Math.random() < 0.01) {
+                    convoyHealth -= 2;
+                    document.getElementById('convoy-health').textContent = Math.max(0, Math.floor(convoyHealth));
+                    broadcast({ type: 'convoy_hit', damage: 2 });
+
+                    if (convoyHealth <= 0) {
+                        defeat();
+                    }
+                }
+            }
+
+            // Check wave completion
+            if (enemiesRemaining <= 0 && enemies.length === 0 && !bossActive) {
+                wave++;
+                document.getElementById('wave').textContent = wave;
+
+                if (wave > 5) {
+                    spawnBoss();
+                } else {
+                    setTimeout(spawnEnemies, 2000);
+                }
+            }
+
+            // Sync state to peers
+            broadcast({
+                type: 'player_state',
+                id: myId,
+                x: ship.position.x,
+                y: ship.position.y,
+                z: ship.position.z,
+                rx: ship.rotation.x,
+                ry: ship.rotation.y,
+                rz: ship.rotation.z,
+                shield,
+                score
+            });
+
+            // Update camera
+            camera.position.x = ship.position.x * 0.3;
+            camera.position.y = ship.position.y * 0.3 + 5;
+            camera.lookAt(ship.position.x, ship.position.y, ship.position.z - 20);
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(updateGame);
+        }
+
+        function victory() {
+            gameStarted = false;
+
+            let teamScore = score;
+            players.forEach(p => teamScore += p.score || 0);
+
+            document.getElementById('team-score').textContent = teamScore;
+            document.getElementById('your-score').textContent = score;
+            document.getElementById('victory').style.display = 'block';
+            document.getElementById('boss-panel').style.display = 'none';
+        }
+
+        function defeat() {
+            gameStarted = false;
+            document.getElementById('final-wave').textContent = wave;
+            document.getElementById('defeat').style.display = 'block';
+            document.getElementById('boss-panel').style.display = 'none';
+        }
+
+        function startGame() {
+            inLobby = false;
+            gameStarted = true;
+
+            document.getElementById('room-setup').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('players-panel').style.display = 'block';
+            document.getElementById('chat-panel').style.display = 'block';
+
+            showRadio('COMMAND', 'Squadron, defend the convoy at all costs!');
+            setTimeout(spawnEnemies, 3000);
+        }
+
+        // Initialize
+        initGame();
+        updateGame();
+    </script>
+</body>
+</html>

@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/gitfox/level2.html
+@desc GitFox Level 2: First Contact - Asteroid field with P2P team comms
+-->
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitFox - Level 2: First Contact</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font:bold 14px monospace;color:#0f0}
+#c{position:fixed;inset:0}
+.hud{position:fixed;z-index:10;pointer-events:none}
+
+#shield-bar{top:20px;left:20px;width:200px;height:20px;border:2px solid #0f0;background:#001a00}
+#shield-fill{height:100%;background:linear-gradient(90deg,#f00,#ff0,#0f0);width:100%;transition:width .2s}
+#shield-label{top:22px;left:230px;color:#0f0;font-size:12px}
+
+#score{top:20px;right:20px;font-size:24px;color:#ff0;text-align:right}
+#enemies{top:55px;right:20px;font-size:14px;color:#f44}
+
+#level-title{top:80px;left:50%;transform:translateX(-50%);font-size:28px;color:#0af;text-shadow:0 0 20px #0af;opacity:0;transition:opacity 1s}
+
+/* P2P Team Comms */
+#comms{top:90px;left:20px;width:280px;background:rgba(0,20,40,.9);border:2px solid #0af;border-radius:8px;pointer-events:auto}
+#comms-header{padding:8px 12px;border-bottom:1px solid #0af3;display:flex;align-items:center;gap:8px;font-size:12px}
+#comms-header .dot{width:8px;height:8px;border-radius:50%;background:#666}
+#comms-header .dot.on{background:#0f0}
+#comms-header .dot.pulse{background:#f90;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.5}}
+#comms-messages{height:120px;overflow-y:auto;padding:8px;font-size:11px}
+.comms-msg{margin:4px 0;color:#aaa}
+.comms-msg.self{color:#0f0}
+.comms-msg.system{color:#666;font-style:italic}
+.comms-msg .name{color:#0af}
+#comms-input{display:flex;gap:6px;padding:8px;border-top:1px solid #0af3}
+#comms-input input{flex:1;background:#001020;border:1px solid #0af3;border-radius:4px;padding:6px 8px;color:#fff;font-size:11px;outline:none}
+#comms-input button{background:#0af;border:none;border-radius:4px;padding:6px 10px;color:#000;font-weight:bold;font-size:10px;cursor:pointer}
+
+#crosshair{top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px}
+
+#radio{bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,10,20,.95);border:2px solid #0af;border-radius:8px;padding:10px 20px;opacity:0;transition:opacity .5s}
+#radio-face{width:40px;height:40px;border:2px solid #08a;border-radius:50%;background:#001a2a;float:left;margin-right:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+#radio-text{color:#0af;font-size:13px;max-width:300px}
+
+#complete{top:50%;left:50%;transform:translate(-50%,-50%);font-size:32px;color:#0f0;text-shadow:0 0 20px #0f0;display:none;text-align:center}
+#complete a{color:#0af;font-size:14px;text-decoration:none;display:inline-block;margin-top:15px;padding:8px 16px;border:2px solid #0af;border-radius:8px}
+
+#game-over{top:50%;left:50%;transform:translate(-50%,-50%);font-size:40px;color:#f00;text-shadow:0 0 20px #f00;display:none}
+
+#controls{bottom:20px;right:20px;font-size:10px;color:#888;text-align:right}
+#back-link{bottom:20px;left:20px;pointer-events:auto}
+#back-link a{color:#0af;text-decoration:none;font-size:12px}
+</style></head><body>
+<canvas id="c"></canvas>
+
+<div class="hud" id="shield-bar"><div id="shield-fill"></div></div>
+<div class="hud" id="shield-label">SHIELD</div>
+<div class="hud" id="score">00000</div>
+<div class="hud" id="enemies">ENEMIES: 0</div>
+<div class="hud" id="level-title">LEVEL 2: FIRST CONTACT</div>
+
+<!-- P2P Team Comms -->
+<div class="hud" id="comms">
+  <div id="comms-header">
+    <span class="dot" id="commsDot"></span>
+    <span>TEAM COMMS</span>
+    <span style="margin-left:auto;color:#888" id="commsStatus">Connecting...</span>
+  </div>
+  <div id="comms-messages"></div>
+  <div id="comms-input">
+    <input type="text" id="commsText" placeholder="Team chat..." maxlength="100">
+    <button id="commsSend">Send</button>
+  </div>
+</div>
+
+<svg class="hud" id="crosshair" viewBox="0 0 60 60">
+  <circle cx="30" cy="30" r="25" stroke="#0f0" stroke-width="2" fill="none" opacity="0.5"/>
+  <line x1="30" y1="0" x2="30" y2="20" stroke="#0f0" stroke-width="2"/>
+  <line x1="30" y1="40" x2="30" y2="60" stroke="#0f0" stroke-width="2"/>
+  <line x1="0" y1="30" x2="20" y2="30" stroke="#0f0" stroke-width="2"/>
+  <line x1="40" y1="30" x2="60" y2="30" stroke="#0f0" stroke-width="2"/>
+  <circle cx="30" cy="30" r="3" fill="#0f0"/>
+</svg>
+
+<div class="hud" id="radio">
+  <div id="radio-face">🦅</div>
+  <div id="radio-text">Enemy scouts detected!</div>
+</div>
+
+<div class="hud" id="complete">
+  SECTOR CLEARED!<br>
+  <span style="font-size:16px;color:#0af">Score: <span id="final-score">0</span></span><br>
+  <a href="level3.html">Continue to Level 3 →</a><br>
+  <a href="menu.html">← Back to Menu</a>
+</div>
+
+<div class="hud" id="game-over">MISSION FAILED</div>
+
+<div class="hud" id="controls">WASD: Move | Click: Fire | Q: Barrel Roll | Enter: Chat</div>
+<div class="hud" id="back-link"><a href="menu.html">← Menu</a></div>
+
+<script type="module">
+// ============================================
+// P2P TEAM COMMS (WebTorrent Tracker)
+// ============================================
+const TRACKER = 'wss://tracker.openwebtorrent.com';
+const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const ROOM = 'gitfox-level2-comms';
+const NUM_OFFERS = 5;
+
+const myId = '-GF0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6)))
+  .map(b => b.toString(16).padStart(2,'0')).join('');
+const myName = 'Pilot-' + myId.slice(-4);
+
+let ws = null;
+let infoHash = null;
+const dataChannels = new Map();
+const pendingOffers = new Map();
+const teammates = new Map();
+
+const $ = id => document.getElementById(id);
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function roomToHash(name) {
+  const data = new TextEncoder().encode('gitfox:' + name);
+  const hash = await crypto.subtle.digest('SHA-1', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function generateOffers(count) {
+  const offers = [];
+  for (let i = 0; i < count; i++) {
+    const pc = new RTCPeerConnection(ICE);
+    const dc = pc.createDataChannel('comms');
+    const offerId = crypto.randomUUID();
+    await new Promise(resolve => {
+      pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+      pc.createOffer().then(o => pc.setLocalDescription(o));
+    });
+    offers.push({ offer_id: offerId, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+    pendingOffers.set(offerId, { pc, dc });
+    setupPeer(pc, dc, offerId);
+  }
+  return offers;
+}
+
+function setupPeer(pc, dc, id) {
+  dc.onopen = () => {
+    dataChannels.set(id, dc);
+    dc.send(JSON.stringify({ type: 'join', id: myId, name: myName }));
+    addCommsMsg('Teammate connected!', '', true);
+  };
+  dc.onclose = () => {
+    dataChannels.delete(id);
+    if (teammates.has(id)) {
+      addCommsMsg(`${teammates.get(id)} disconnected`, '', true);
+      teammates.delete(id);
+    }
+  };
+  dc.onmessage = e => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'join' && msg.id !== myId) {
+        teammates.set(msg.id, msg.name);
+        dc.send(JSON.stringify({ type: 'join', id: myId, name: myName }));
+      }
+      if (msg.type === 'chat' && msg.id !== myId) {
+        addCommsMsg(msg.text, msg.name, false);
+      }
+    } catch (err) {}
+  };
+}
+
+async function handleOffer(msg) {
+  const pc = new RTCPeerConnection(ICE);
+  pc.ondatachannel = e => setupPeer(pc, e.channel, msg.peer_id);
+  await pc.setRemoteDescription(msg.offer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') resolve();
+    else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+  });
+  ws.send(JSON.stringify({
+    action: 'announce', info_hash: infoHash, peer_id: myId,
+    to_peer_id: msg.peer_id, answer: { type: 'answer', sdp: pc.localDescription.sdp },
+    offer_id: msg.offer_id
+  }));
+}
+
+async function handleAnswer(msg) {
+  const p = pendingOffers.get(msg.offer_id);
+  if (p) await p.pc.setRemoteDescription(msg.answer);
+}
+
+async function reannounce() {
+  if (ws?.readyState !== 1) return;
+  const offers = await generateOffers(NUM_OFFERS);
+  ws.send(JSON.stringify({ action: 'announce', info_hash: infoHash, peer_id: myId, numwant: 10, offers }));
+}
+
+function broadcast(msg) {
+  const data = JSON.stringify(msg);
+  dataChannels.forEach(dc => { if (dc.readyState === 'open') dc.send(data); });
+}
+
+async function connectComms() {
+  infoHash = await roomToHash(ROOM);
+  $('commsDot').className = 'dot pulse';
+  $('commsStatus').textContent = 'Connecting...';
+  const offers = await generateOffers(NUM_OFFERS);
+  ws = new WebSocket(TRACKER);
+  ws.onopen = () => {
+    $('commsDot').className = 'dot on';
+    $('commsStatus').textContent = 'Online';
+    addCommsMsg('Team comms online!', '', true);
+    ws.send(JSON.stringify({
+      action: 'announce', info_hash: infoHash, peer_id: myId, numwant: 10,
+      uploaded: 0, downloaded: 0, left: 1, offers
+    }));
+  };
+  ws.onmessage = async e => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.offer && msg.peer_id !== myId) await handleOffer(msg);
+      if (msg.answer && msg.offer_id) await handleAnswer(msg);
+      if (msg.interval) setTimeout(reannounce, msg.interval * 1000);
+    } catch (err) {}
+  };
+  ws.onerror = () => { $('commsDot').className = 'dot'; $('commsStatus').textContent = 'Error'; };
+  ws.onclose = () => { $('commsDot').className = 'dot pulse'; $('commsStatus').textContent = 'Reconnecting...'; setTimeout(connectComms, 5000); };
+}
+
+function addCommsMsg(text, name = '', isSystem = false) {
+  const div = document.createElement('div');
+  div.className = 'comms-msg' + (isSystem ? ' system' : (name === myName ? ' self' : ''));
+  if (isSystem) {
+    div.textContent = text;
+  } else {
+    div.innerHTML = `<span class="name">${escapeHtml(name || 'Unknown')}:</span> ${escapeHtml(text)}`;
+  }
+  $('comms-messages').appendChild(div);
+  $('comms-messages').scrollTop = $('comms-messages').scrollHeight;
+}
+
+function sendComms() {
+  const text = $('commsText').value.trim();
+  if (!text) return;
+  $('commsText').value = '';
+  addCommsMsg(text, myName, false);
+  broadcast({ type: 'chat', id: myId, name: myName, text });
+}
+
+$('commsSend').onclick = sendComms;
+$('commsText').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); sendComms(); } };
+
+connectComms();
+
+// ============================================
+// GAME ENGINE
+// ============================================
+const T = { v3: (x,y,z) => new THREE.Vector3(x,y,z), rnd: (a,b) => a + Math.random() * (b-a), clamp: (v,a,b) => Math.max(a, Math.min(b, v)), lerp: (a,b,t) => a + (b-a) * t };
+
+const G = {
+  shield: 100,
+  score: 0,
+  enemiesLeft: 0,
+  totalEnemies: 15,
+  wave: 1,
+  complete: false,
+  gameOver: false,
+  barrelRolling: false,
+  barrelRollTimer: 0,
+  boost: 100,
+  invincible: 0,
+
+  enemies: [],
+  asteroids: [],
+  bullets: [],
+  enemyBullets: [],
+  particles: [],
+
+  mouse: { x: 0, y: 0, locked: false },
+  keys: {},
+  shipX: 0, shipY: 0,
+  shipTargetX: 0, shipTargetY: 0,
+
+  init() {
+    this.sc = new THREE.Scene();
+    this.ca = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 2000);
+    this.rn = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true });
+    this.rn.setSize(innerWidth, innerHeight);
+    this.rn.setClearColor(0x080818);
+
+    // Lighting
+    this.sc.add(new THREE.AmbientLight(0x334455, 0.5));
+    const sun = new THREE.DirectionalLight(0xffffee, 0.7);
+    sun.position.set(100, 50, 50);
+    this.sc.add(sun);
+
+    this.createStarfield();
+    this.createAsteroids();
+
+    // Player
+    this.ship = this.createShip(0x00ff00, false);
+    this.ship.position.set(0, 0, 0);
+    this.sc.add(this.ship);
+
+    this.ca.position.set(0, 15, 35);
+    this.ca.lookAt(0, 0, -20);
+
+    // Input
+    window.addEventListener('keydown', e => {
+      this.keys[e.code] = true;
+      if (e.code === 'KeyQ') this.barrelRoll();
+    });
+    window.addEventListener('keyup', e => this.keys[e.code] = false);
+    document.addEventListener('click', () => {
+      if (!this.mouse.locked) document.body.requestPointerLock();
+      else this.fire();
+    });
+    document.addEventListener('pointerlockchange', () => {
+      this.mouse.locked = !!document.pointerLockElement;
+    });
+    document.addEventListener('mousemove', e => {
+      if (this.mouse.locked) {
+        this.mouse.x += e.movementX * 0.002;
+        this.mouse.y += e.movementY * 0.002;
+        this.mouse.x = T.clamp(this.mouse.x, -1, 1);
+        this.mouse.y = T.clamp(this.mouse.y, -1, 1);
+      }
+    });
+
+    // Intro
+    setTimeout(() => $('level-title').style.opacity = 1, 500);
+    setTimeout(() => $('level-title').style.opacity = 0, 2500);
+    setTimeout(() => {
+      this.showRadio('🦅', 'Falco here. Enemy scouts entering the asteroid field!');
+      this.spawnWave();
+      this.started = true;
+    }, 3500);
+
+    this.animate();
+  },
+
+  createShip(color, isEnemy = false) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.ConeGeometry(1.5, 6, 4),
+      new THREE.MeshPhongMaterial({ color: isEnemy ? 0x333333 : 0xcccccc })
+    );
+    body.rotation.x = -Math.PI / 2;
+    body.rotation.y = Math.PI / 4;
+    g.add(body);
+
+    const wingMat = new THREE.MeshPhongMaterial({ color });
+    const lw = new THREE.Mesh(new THREE.BoxGeometry(8, 0.2, 2), wingMat);
+    lw.position.set(-2, 0, 1); lw.rotation.z = 0.1; g.add(lw);
+    const rw = new THREE.Mesh(new THREE.BoxGeometry(8, 0.2, 2), wingMat);
+    rw.position.set(2, 0, 1); rw.rotation.z = -0.1; g.add(rw);
+
+    const cockpit = new THREE.Mesh(
+      new THREE.SphereGeometry(0.8, 8, 8),
+      new THREE.MeshPhongMaterial({ color: isEnemy ? 0xff4400 : 0x00ff88, emissive: isEnemy ? 0x441100 : 0x004422 })
+    );
+    cockpit.position.z = -1; cockpit.scale.set(1, 0.5, 1); g.add(cockpit);
+
+    for (let i = -1; i <= 1; i += 2) {
+      const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x666666 }));
+      eng.rotation.x = Math.PI / 2; eng.position.set(i * 1.5, -0.3, 3); g.add(eng);
+      const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.4, 0.5), new THREE.MeshBasicMaterial({ color: isEnemy ? 0xff6600 : 0x00aaff }));
+      glow.rotation.x = Math.PI / 2; glow.position.set(i * 1.5, -0.3, 3.8); glow.userData.isGlow = true; g.add(glow);
+    }
+    return g;
+  },
+
+  createStarfield() {
+    const geo = new THREE.BufferGeometry();
+    const pos = [];
+    for (let i = 0; i < 2000; i++) {
+      pos.push(T.rnd(-800, 800), T.rnd(-400, 400), T.rnd(-800, 200));
+    }
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    this.sc.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 })));
+  },
+
+  createAsteroids() {
+    for (let i = 0; i < 30; i++) {
+      const size = T.rnd(5, 20);
+      const asteroid = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(size),
+        new THREE.MeshPhongMaterial({ color: 0x665544, flatShading: true })
+      );
+      asteroid.position.set(T.rnd(-200, 200), T.rnd(-80, 80), T.rnd(-300, -50));
+      asteroid.rotation.set(T.rnd(0, Math.PI), T.rnd(0, Math.PI), T.rnd(0, Math.PI));
+      asteroid.userData = { rotSpeed: T.rnd(0.001, 0.01) };
+      this.sc.add(asteroid);
+      this.asteroids.push(asteroid);
+    }
+  },
+
+  spawnWave() {
+    const count = 5 + this.wave * 2;
+    for (let i = 0; i < count; i++) {
+      const enemy = this.createShip(0xff4400, true);
+      enemy.position.set(T.rnd(-80, 80), T.rnd(-30, 30), T.rnd(-200, -100));
+      enemy.userData = { hp: 2, fireTimer: T.rnd(0, 60), state: 'approach' };
+      this.sc.add(enemy);
+      this.enemies.push(enemy);
+    }
+    this.enemiesLeft = this.enemies.filter(e => e.userData.hp > 0).length;
+    $('enemies').textContent = `ENEMIES: ${this.enemiesLeft}`;
+  },
+
+  fire() {
+    if (this.complete || this.gameOver) return;
+    const bullet = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3),
+      new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+    );
+    bullet.position.copy(this.ship.position);
+    bullet.position.z -= 5;
+    const aimX = this.shipX * 40;
+    const aimY = this.shipY * 25;
+    bullet.userData = { vel: T.v3(aimX * 0.015, -aimY * 0.015, -4), life: 80 };
+    this.sc.add(bullet);
+    this.bullets.push(bullet);
+  },
+
+  barrelRoll() {
+    if (this.barrelRolling || this.boost < 20) return;
+    this.barrelRolling = true;
+    this.barrelRollTimer = 0;
+    this.boost -= 20;
+    this.invincible = 30;
+  },
+
+  takeDamage(amt) {
+    if (this.invincible > 0) return;
+    this.shield -= amt;
+    this.invincible = 30;
+    $('shield-fill').style.width = Math.max(0, this.shield) + '%';
+    if (this.shield <= 0) {
+      this.gameOver = true;
+      $('game-over').style.display = 'block';
+      this.showRadio('🦅', 'Fox! No! We\'ve lost him...');
+    }
+  },
+
+  spawnExplosion(pos, scale = 1) {
+    for (let i = 0; i < 18 * scale; i++) {
+      const p = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4 * scale),
+        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff6600 : 0xffff00 })
+      );
+      p.position.copy(pos);
+      p.userData = { vel: T.v3(T.rnd(-2, 2) * scale, T.rnd(-2, 2) * scale, T.rnd(-2, 2) * scale), life: 35 };
+      this.sc.add(p);
+      this.particles.push(p);
+    }
+  },
+
+  showRadio(face, text) {
+    $('radio-face').textContent = face;
+    $('radio-text').textContent = text;
+    $('radio').style.opacity = 1;
+    setTimeout(() => $('radio').style.opacity = 0, 4000);
+  },
+
+  update() {
+    if (this.complete || this.gameOver || !this.started) return;
+
+    let lx = this.keys.KeyA ? -1 : this.keys.KeyD ? 1 : 0;
+    let ly = this.keys.KeyW ? -1 : this.keys.KeyS ? 1 : 0;
+
+    this.shipTargetX = T.clamp(this.shipTargetX + lx * 0.03, -1, 1);
+    this.shipTargetY = T.clamp(this.shipTargetY - ly * 0.03, -1, 1);
+    this.shipX = T.lerp(this.shipX, this.shipTargetX, 0.1);
+    this.shipY = T.lerp(this.shipY, this.shipTargetY, 0.1);
+
+    this.ship.position.x = this.shipX * 60;
+    this.ship.position.y = this.shipY * 35;
+    this.ship.rotation.z = T.lerp(this.ship.rotation.z, -lx * 0.5, 0.1);
+    this.ship.rotation.x = T.lerp(this.ship.rotation.x, ly * 0.3, 0.1);
+
+    if (this.barrelRolling) {
+      this.barrelRollTimer += 0.25;
+      this.ship.rotation.z = this.barrelRollTimer;
+      if (this.barrelRollTimer >= Math.PI * 2) {
+        this.barrelRolling = false;
+        this.ship.rotation.z = 0;
+      }
+    }
+
+    // Asteroids
+    this.asteroids.forEach(a => {
+      a.rotation.x += a.userData.rotSpeed;
+      a.rotation.y += a.userData.rotSpeed * 0.7;
+    });
+
+    // Enemies
+    const t = Date.now() * 0.001;
+    this.enemies.forEach(e => {
+      if (e.userData.hp <= 0) return;
+
+      if (e.userData.state === 'approach') {
+        e.position.z += 0.8;
+        if (e.position.z > -60) e.userData.state = 'attack';
+      } else {
+        // Attack pattern
+        const idx = this.enemies.indexOf(e);
+        e.position.x = T.lerp(e.position.x, Math.sin(t + idx) * 50, 0.02);
+        e.position.y = T.lerp(e.position.y, Math.cos(t * 0.7 + idx) * 25, 0.02);
+        e.position.z = T.lerp(e.position.z, -40 + Math.sin(t * 0.3) * 20, 0.01);
+
+        // Fire
+        e.userData.fireTimer--;
+        if (e.userData.fireTimer <= 0) {
+          e.userData.fireTimer = 40 + T.rnd(0, 40);
+          this.enemyFire(e);
+        }
+      }
+
+      // Look at player
+      const dir = this.ship.position.clone().sub(e.position);
+      e.rotation.y = Math.atan2(dir.x, dir.z);
+
+      // Engine glow
+      e.children.forEach(c => {
+        if (c.userData.isGlow) c.scale.z = 0.8 + Math.random() * 0.4;
+      });
+    });
+
+    // Player bullets
+    this.bullets.forEach(b => {
+      b.position.add(b.userData.vel);
+      b.userData.life--;
+
+      this.enemies.forEach(e => {
+        if (e.userData.hp > 0 && b.position.distanceTo(e.position) < 5) {
+          e.userData.hp--;
+          b.userData.life = 0;
+          this.spawnExplosion(b.position, 0.4);
+          if (e.userData.hp <= 0) {
+            this.spawnExplosion(e.position, 1);
+            this.sc.remove(e);
+            this.score += 150;
+            this.enemiesLeft = this.enemies.filter(en => en.userData.hp > 0).length;
+            $('enemies').textContent = `ENEMIES: ${this.enemiesLeft}`;
+            $('score').textContent = String(this.score).padStart(5, '0');
+
+            if (this.enemiesLeft === 0) {
+              if (this.wave >= 3) {
+                this.complete = true;
+                this.score += 1000;
+                $('final-score').textContent = this.score;
+                $('complete').style.display = 'block';
+                this.showRadio('🦅', 'Sector cleared! Outstanding work, Fox!');
+              } else {
+                this.wave++;
+                this.showRadio('🦅', `Wave ${this.wave} incoming! Stay sharp!`);
+                setTimeout(() => this.spawnWave(), 2000);
+              }
+            }
+          }
+        }
+      });
+
+      if (b.userData.life <= 0) { this.sc.remove(b); b.dead = true; }
+    });
+    this.bullets = this.bullets.filter(b => !b.dead);
+
+    // Enemy bullets
+    this.enemyBullets.forEach(b => {
+      b.position.add(b.userData.vel);
+      b.userData.life--;
+
+      if (b.position.distanceTo(this.ship.position) < 4) {
+        this.takeDamage(15);
+        this.spawnExplosion(b.position, 0.3);
+        b.userData.life = 0;
+      }
+
+      if (b.userData.life <= 0) { this.sc.remove(b); b.dead = true; }
+    });
+    this.enemyBullets = this.enemyBullets.filter(b => !b.dead);
+
+    // Particles
+    this.particles.forEach(p => {
+      p.position.add(p.userData.vel);
+      p.userData.life--;
+      p.scale.setScalar(p.userData.life / 35);
+      if (p.userData.life <= 0) { this.sc.remove(p); p.dead = true; }
+    });
+    this.particles = this.particles.filter(p => !p.dead);
+
+    this.boost = Math.min(100, this.boost + 0.12);
+    if (this.invincible > 0) this.invincible--;
+
+    this.ship.children.forEach(c => {
+      if (c.userData.isGlow) c.scale.z = 0.8 + Math.random() * 0.4;
+    });
+
+    if (this.keys.Space && Math.random() < 0.12) this.fire();
+  },
+
+  enemyFire(enemy) {
+    const bullet = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35),
+      new THREE.MeshBasicMaterial({ color: 0xff4400 })
+    );
+    bullet.position.copy(enemy.position);
+    const dir = this.ship.position.clone().sub(enemy.position).normalize();
+    bullet.userData = { vel: dir.multiplyScalar(2), life: 80 };
+    this.sc.add(bullet);
+    this.enemyBullets.push(bullet);
+  },
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    this.update();
+
+    this.ca.position.x = T.lerp(this.ca.position.x, this.ship.position.x * 0.15, 0.03);
+    this.ca.position.y = T.lerp(this.ca.position.y, 15 + this.ship.position.y * 0.1, 0.03);
+    this.ca.lookAt(this.ship.position.x * 0.3, this.ship.position.y * 0.3, -20);
+
+    if (this.invincible > 0 && !this.gameOver) {
+      this.ship.visible = Math.floor(this.invincible / 3) % 2 === 0;
+    } else if (!this.gameOver) {
+      this.ship.visible = true;
+    }
+
+    this.rn.render(this.sc, this.ca);
+  }
+};
+
+G.init();
+window.onresize = () => { G.rn.setSize(innerWidth, innerHeight); G.ca.aspect = innerWidth / innerHeight; G.ca.updateProjectionMatrix(); };
+</script></body></html>
