@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<!--
+KONOMI AUTH - Free Auth0/Clerk Killer
+User authentication. P2P sync. $0 forever.
+
+Usage:
+Login page: ?app=myapp
+Admin: ?app=myapp&admin=true
+Callback handler: Redirect to ?app=myapp&callback=true after auth
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Login</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #6366f1;
+      --success: #22c55e;
+      --bg: #f1f5f9;
+      --surface: #fff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --border: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .auth-container {
+      max-width: 400px;
+      width: 100%;
+    }
+
+    /* Auth Card */
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .auth-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .auth-logo {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .auth-header h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .auth-header p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* Tabs */
+    .auth-tabs {
+      display: flex;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      background: var(--bg);
+      border: none;
+      color: var(--text);
+    }
+
+    .auth-tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .submit-btn:hover {
+      background: #4f46e5;
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Divider */
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 24px 0;
+    }
+
+    .divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .divider-text {
+      padding: 0 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Social buttons */
+    .social-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .social-btn {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text);
+    }
+
+    .social-btn:hover {
+      background: var(--surface);
+      border-color: var(--primary);
+    }
+
+    .social-icon {
+      font-size: 18px;
+    }
+
+    /* Logged in view */
+    .logged-in-card {
+      text-align: center;
+    }
+
+    .user-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--primary);
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: white;
+    }
+
+    .user-name {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .user-email {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .logout-btn {
+      padding: 12px 24px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .logout-btn:hover {
+      background: var(--surface);
+    }
+
+    /* Admin Dashboard */
+    .admin-view {
+      max-width: 900px;
+      display: none;
+    }
+
+    .admin-view.active {
+      display: block;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .admin-header h1 {
+      font-size: 24px;
+    }
+
+    .admin-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .admin-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .admin-stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .admin-stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .admin-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .admin-section h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .status-badge.active {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+
+    .status-badge.inactive {
+      background: var(--bg);
+      color: var(--text-muted);
+    }
+
+    .error-message {
+      color: #ef4444;
+      font-size: 13px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth View -->
+  <div class="auth-container" id="auth-view">
+    <div class="auth-card" id="auth-form">
+      <div class="auth-header">
+        <div class="auth-logo">🔐</div>
+        <h1 id="app-name">Welcome</h1>
+        <p>Sign in to continue</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Sign In</button>
+        <button class="auth-tab" data-tab="register">Sign Up</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" required>
+        </div>
+        <div class="error-message" id="login-error">Invalid email or password</div>
+        <button type="submit" class="submit-btn">Sign In</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="register-form" style="display:none;">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="register-name" placeholder="Your name" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="register-email" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="register-password" placeholder="••••••••" minlength="6" required>
+        </div>
+        <div class="error-message" id="register-error">Email already registered</div>
+        <button type="submit" class="submit-btn">Create Account</button>
+      </form>
+
+      <div class="divider">
+        <span class="divider-line"></span>
+        <span class="divider-text">or continue with</span>
+        <span class="divider-line"></span>
+      </div>
+
+      <div class="social-btns">
+        <button class="social-btn" id="google-btn">
+          <span class="social-icon">🔷</span>
+          Continue with Google
+        </button>
+        <button class="social-btn" id="github-btn">
+          <span class="social-icon">🐙</span>
+          Continue with GitHub
+        </button>
+      </div>
+    </div>
+
+    <!-- Logged In Card -->
+    <div class="auth-card logged-in-card" id="logged-in" style="display:none;">
+      <div class="user-avatar" id="user-avatar">👤</div>
+      <div class="user-name" id="user-name">User</div>
+      <div class="user-email" id="user-email">user@example.com</div>
+      <button class="logout-btn" id="logout-btn">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Admin View -->
+  <div class="admin-view" id="admin-view">
+    <div class="admin-header">
+      <h1>👥 User Management</h1>
+      <button class="submit-btn" style="width:auto;padding:10px 20px;" id="export-users">📥 Export</button>
+    </div>
+
+    <div class="admin-stats">
+      <div class="admin-stat">
+        <div class="admin-stat-value" id="stat-users">0</div>
+        <div class="admin-stat-label">Total Users</div>
+      </div>
+      <div class="admin-stat">
+        <div class="admin-stat-value" id="stat-active">0</div>
+        <div class="admin-stat-label">Active Today</div>
+      </div>
+      <div class="admin-stat">
+        <div class="admin-stat-value" id="stat-new">0</div>
+        <div class="admin-stat-label">New This Week</div>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h2>Users</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Method</th>
+            <th>Joined</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="users-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Authentication stored locally
+  </div>
+
+  <script type="module">
+    const params = new URLSearchParams(location.search);
+    const APP_ID = params.get('app') || 'default';
+    const IS_ADMIN = params.get('admin') === 'true';
+    const REDIRECT = params.get('redirect');
+    const STORAGE_KEY = `konomi-auth:${APP_ID}`;
+    const SESSION_KEY = `konomi-auth-session:${APP_ID}`;
+
+    let users = [];
+    let currentUser = null;
+    let channel = null;
+
+    function loadData() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) users = JSON.parse(stored);
+
+        const session = localStorage.getItem(SESSION_KEY);
+        if (session) currentUser = JSON.parse(session);
+      } catch (e) {}
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    }
+
+    function saveSession() {
+      if (currentUser) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem(SESSION_KEY);
+      }
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-auth:${APP_ID}`);
+      channel.onmessage = (e) => {
+        if (e.data.type === 'user-registered') {
+          if (!users.find(u => u.id === e.data.user.id)) {
+            users.push(e.data.user);
+            saveData();
+            render();
+          }
+        } else if (e.data.type === 'user-login') {
+          // Update last login
+          const user = users.find(u => u.id === e.data.userId);
+          if (user) user.lastLogin = e.data.timestamp;
+          saveData();
+        }
+      };
+    }
+
+    function render() {
+      if (IS_ADMIN) {
+        renderAdmin();
+      } else if (currentUser) {
+        renderLoggedIn();
+      } else {
+        renderAuthForm();
+      }
+    }
+
+    function renderAuthForm() {
+      document.getElementById('auth-view').style.display = 'block';
+      document.getElementById('admin-view').classList.remove('active');
+      document.getElementById('auth-form').style.display = 'block';
+      document.getElementById('logged-in').style.display = 'none';
+      document.getElementById('app-name').textContent = APP_ID === 'default' ? 'Welcome' : `Sign in to ${APP_ID}`;
+    }
+
+    function renderLoggedIn() {
+      document.getElementById('auth-view').style.display = 'block';
+      document.getElementById('admin-view').classList.remove('active');
+      document.getElementById('auth-form').style.display = 'none';
+      document.getElementById('logged-in').style.display = 'block';
+
+      document.getElementById('user-avatar').textContent = getInitials(currentUser.name);
+      document.getElementById('user-name').textContent = currentUser.name;
+      document.getElementById('user-email').textContent = currentUser.email;
+    }
+
+    function renderAdmin() {
+      document.getElementById('auth-view').style.display = 'none';
+      document.getElementById('admin-view').classList.add('active');
+
+      const today = new Date().toDateString();
+      const weekAgo = Date.now() - 7 * 86400000;
+
+      const activeToday = users.filter(u => u.lastLogin && new Date(u.lastLogin).toDateString() === today).length;
+      const newThisWeek = users.filter(u => u.created >= weekAgo).length;
+
+      document.getElementById('stat-users').textContent = users.length;
+      document.getElementById('stat-active').textContent = activeToday;
+      document.getElementById('stat-new').textContent = newThisWeek;
+
+      document.getElementById('users-table').innerHTML = users.map(u => `
+        <tr>
+          <td>${escapeHtml(u.name)}</td>
+          <td>${escapeHtml(u.email)}</td>
+          <td>${u.method || 'email'}</td>
+          <td>${new Date(u.created).toLocaleDateString()}</td>
+          <td><span class="status-badge ${u.lastLogin && Date.now() - u.lastLogin < 86400000 ? 'active' : 'inactive'}">
+            ${u.lastLogin && Date.now() - u.lastLogin < 86400000 ? 'Active' : 'Inactive'}
+          </span></td>
+        </tr>
+      `).join('');
+    }
+
+    function hashPassword(password) {
+      // Simple hash for demo - use bcrypt in production
+      let hash = 0;
+      for (let i = 0; i < password.length; i++) {
+        const char = password.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return hash.toString(36);
+    }
+
+    function register(name, email, password) {
+      email = email.toLowerCase();
+
+      if (users.find(u => u.email === email)) {
+        document.getElementById('register-error').classList.add('show');
+        return false;
+      }
+
+      const user = {
+        id: crypto.randomUUID(),
+        name,
+        email,
+        passwordHash: hashPassword(password),
+        method: 'email',
+        created: Date.now(),
+        lastLogin: Date.now()
+      };
+
+      users.push(user);
+      saveData();
+      channel.postMessage({ type: 'user-registered', user: { ...user, passwordHash: undefined } });
+
+      currentUser = { id: user.id, name: user.name, email: user.email };
+      saveSession();
+
+      if (REDIRECT) {
+        location.href = REDIRECT;
+      } else {
+        render();
+      }
+
+      return true;
+    }
+
+    function login(email, password) {
+      email = email.toLowerCase();
+      const user = users.find(u => u.email === email && u.passwordHash === hashPassword(password));
+
+      if (!user) {
+        document.getElementById('login-error').classList.add('show');
+        return false;
+      }
+
+      user.lastLogin = Date.now();
+      saveData();
+      channel.postMessage({ type: 'user-login', userId: user.id, timestamp: Date.now() });
+
+      currentUser = { id: user.id, name: user.name, email: user.email };
+      saveSession();
+
+      if (REDIRECT) {
+        location.href = REDIRECT;
+      } else {
+        render();
+      }
+
+      return true;
+    }
+
+    function socialLogin(provider) {
+      // Demo: Create random user for social login
+      const name = `${provider} User`;
+      const email = `user${Date.now()}@${provider.toLowerCase()}.demo`;
+
+      let user = users.find(u => u.method === provider && u.email === email);
+
+      if (!user) {
+        user = {
+          id: crypto.randomUUID(),
+          name,
+          email,
+          method: provider,
+          created: Date.now(),
+          lastLogin: Date.now()
+        };
+        users.push(user);
+        saveData();
+        channel.postMessage({ type: 'user-registered', user });
+      } else {
+        user.lastLogin = Date.now();
+        saveData();
+      }
+
+      currentUser = { id: user.id, name: user.name, email: user.email };
+      saveSession();
+      render();
+    }
+
+    function logout() {
+      currentUser = null;
+      saveSession();
+      render();
+    }
+
+    function getInitials(name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Tab switching
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const isLogin = tab.dataset.tab === 'login';
+        document.getElementById('login-form').style.display = isLogin ? 'block' : 'none';
+        document.getElementById('register-form').style.display = isLogin ? 'none' : 'block';
+
+        document.getElementById('login-error').classList.remove('show');
+        document.getElementById('register-error').classList.remove('show');
+      });
+    });
+
+    // Login form
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      login(
+        document.getElementById('login-email').value,
+        document.getElementById('login-password').value
+      );
+    });
+
+    // Register form
+    document.getElementById('register-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      register(
+        document.getElementById('register-name').value,
+        document.getElementById('register-email').value,
+        document.getElementById('register-password').value
+      );
+    });
+
+    // Social buttons
+    document.getElementById('google-btn').addEventListener('click', () => socialLogin('Google'));
+    document.getElementById('github-btn').addEventListener('click', () => socialLogin('GitHub'));
+
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', logout);
+
+    // Export
+    document.getElementById('export-users')?.addEventListener('click', () => {
+      const csv = [
+        ['Name', 'Email', 'Method', 'Joined', 'Last Login'].join(','),
+        ...users.map(u => [
+          u.name,
+          u.email,
+          u.method || 'email',
+          new Date(u.created).toISOString(),
+          u.lastLogin ? new Date(u.lastLogin).toISOString() : ''
+        ].map(v => `"${v}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `users-${APP_ID}.csv`;
+      a.click();
+    });
+
+    // Init
+    loadData();
+    initP2P();
+    render();
+
+    document.title = IS_ADMIN ? 'User Management' : (currentUser ? 'Account' : 'Sign In');
+
+    // Export API for embedding
+    window.KonomiAuth = {
+      getUser: () => currentUser,
+      isLoggedIn: () => !!currentUser,
+      logout,
+      onAuthChange: (callback) => {
+        const handler = () => callback(currentUser);
+        window.addEventListener('storage', handler);
+        return () => window.removeEventListener('storage', handler);
+      }
+    };
+  </script>
+</body>
+</html>

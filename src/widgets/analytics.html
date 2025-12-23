@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<!--
+KONOMI ANALYTICS - Free Amplitude/Mixpanel Killer
+Privacy-first analytics. P2P sync. $0 forever.
+
+Usage:
+Dashboard: ?site=mysite&admin=true
+Tracking script: <script src="analytics.html?site=mysite&track=true"></script>
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Analytics</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #6366f1;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --bg: #f8fafc;
+      --surface: #fff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --border: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .time-selector {
+      display: flex;
+      gap: 8px;
+    }
+
+    .time-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .time-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .stat-change {
+      font-size: 13px;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-change.up { color: var(--success); }
+    .stat-change.down { color: #ef4444; }
+
+    /* Charts */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .chart-card h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    .chart {
+      height: 200px;
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .chart-bar {
+      flex: 1;
+      background: var(--primary);
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      transition: height 0.3s;
+      position: relative;
+    }
+
+    .chart-bar:hover {
+      background: #4f46e5;
+    }
+
+    .chart-bar:hover::after {
+      content: attr(data-value);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: var(--text);
+      color: var(--bg);
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .chart-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Lists */
+    .list-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .list-card h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .list-item:last-child {
+      border-bottom: none;
+    }
+
+    .list-item-name {
+      font-size: 14px;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .list-item-value {
+      font-weight: 600;
+    }
+
+    .list-item-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--bg);
+      border-radius: 4px;
+      margin: 0 12px;
+      overflow: hidden;
+    }
+
+    .list-item-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+
+    /* Tables */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      overflow-x: auto;
+    }
+
+    .table-card h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    /* Real-time indicator */
+    .realtime {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .realtime-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Export */
+    .export-btn {
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .export-btn:hover {
+      background: var(--bg);
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 <span id="site-name">Analytics</span></h1>
+    <div style="display:flex;gap:16px;align-items:center;">
+      <div class="realtime">
+        <span class="realtime-dot"></span>
+        <span id="realtime-count">0</span> online now
+      </div>
+      <div class="time-selector">
+        <button class="time-btn" data-range="today">Today</button>
+        <button class="time-btn active" data-range="7d">7 Days</button>
+        <button class="time-btn" data-range="30d">30 Days</button>
+      </div>
+      <button class="export-btn" id="export-btn">📥 Export</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Page Views</div>
+      <div class="stat-value" id="stat-views">0</div>
+      <div class="stat-change up" id="stat-views-change">↑ 0%</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unique Visitors</div>
+      <div class="stat-value" id="stat-visitors">0</div>
+      <div class="stat-change up" id="stat-visitors-change">↑ 0%</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg. Session</div>
+      <div class="stat-value" id="stat-session">0s</div>
+      <div class="stat-change" id="stat-session-change">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Bounce Rate</div>
+      <div class="stat-value" id="stat-bounce">0%</div>
+      <div class="stat-change" id="stat-bounce-change">—</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>Visitors Over Time</h3>
+      <div class="chart" id="visitors-chart"></div>
+      <div class="chart-labels">
+        <span id="chart-start">—</span>
+        <span id="chart-end">Today</span>
+      </div>
+    </div>
+    <div class="list-card">
+      <h3>Top Pages</h3>
+      <div id="top-pages"></div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="list-card">
+      <h3>Referrers</h3>
+      <div id="referrers"></div>
+    </div>
+    <div class="list-card">
+      <h3>Devices</h3>
+      <div id="devices"></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <h3>Recent Events</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Event</th>
+          <th>Page</th>
+          <th>Referrer</th>
+          <th>Device</th>
+        </tr>
+      </thead>
+      <tbody id="events-table"></tbody>
+    </table>
+  </div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Privacy-first analytics, no cookies required
+  </div>
+
+  <script type="module">
+    const params = new URLSearchParams(location.search);
+    const SITE_ID = params.get('site') || 'default';
+    const IS_ADMIN = params.get('admin') === 'true';
+    const IS_TRACK = params.get('track') === 'true';
+    const STORAGE_KEY = `konomi-analytics:${SITE_ID}`;
+
+    let analytics = {
+      events: [],
+      sessions: {}
+    };
+
+    let timeRange = '7d';
+    let channel = null;
+
+    // =========================================================================
+    // TRACKING MODE - Minimal script to embed
+    // =========================================================================
+
+    if (IS_TRACK) {
+      // Tracking pixel mode
+      const visitorId = localStorage.getItem('konomi-vid') || crypto.randomUUID();
+      localStorage.setItem('konomi-vid', visitorId);
+
+      const sessionId = sessionStorage.getItem('konomi-sid') || crypto.randomUUID();
+      sessionStorage.setItem('konomi-sid', sessionId);
+
+      const event = {
+        id: crypto.randomUUID(),
+        type: 'pageview',
+        page: location.pathname,
+        title: document.title,
+        referrer: document.referrer,
+        device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+        browser: getBrowser(),
+        visitorId,
+        sessionId,
+        timestamp: Date.now()
+      };
+
+      // Send via BroadcastChannel
+      const ch = new BroadcastChannel(`konomi-analytics:${SITE_ID}`);
+      ch.postMessage({ type: 'event', event });
+
+      // Also store locally
+      try {
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"events":[],"sessions":{}}');
+        stored.events.push(event);
+        stored.events = stored.events.slice(-10000); // Keep last 10k
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+      } catch (e) {}
+
+      // Track session duration
+      const startTime = Date.now();
+      window.addEventListener('beforeunload', () => {
+        const duration = Math.floor((Date.now() - startTime) / 1000);
+        const endEvent = {
+          id: crypto.randomUUID(),
+          type: 'session_end',
+          duration,
+          visitorId,
+          sessionId,
+          timestamp: Date.now()
+        };
+        ch.postMessage({ type: 'event', event: endEvent });
+      });
+
+      function getBrowser() {
+        const ua = navigator.userAgent;
+        if (ua.includes('Chrome')) return 'Chrome';
+        if (ua.includes('Firefox')) return 'Firefox';
+        if (ua.includes('Safari')) return 'Safari';
+        if (ua.includes('Edge')) return 'Edge';
+        return 'Other';
+      }
+
+      // Don't render dashboard in track mode
+      document.body.innerHTML = '';
+      document.body.style.display = 'none';
+    } else {
+
+    // =========================================================================
+    // DASHBOARD MODE
+    // =========================================================================
+
+    function loadAnalytics() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) analytics = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    function saveAnalytics() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(analytics));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-analytics:${SITE_ID}`);
+      channel.onmessage = (e) => {
+        if (e.data.type === 'event') {
+          if (!analytics.events.find(ev => ev.id === e.data.event.id)) {
+            analytics.events.push(e.data.event);
+            analytics.events = analytics.events.slice(-10000);
+            saveAnalytics();
+            render();
+          }
+        }
+      };
+    }
+
+    function getFilteredEvents() {
+      const now = Date.now();
+      const ranges = {
+        'today': 86400000,
+        '7d': 7 * 86400000,
+        '30d': 30 * 86400000
+      };
+      const cutoff = now - ranges[timeRange];
+      return analytics.events.filter(e => e.timestamp >= cutoff);
+    }
+
+    function render() {
+      document.getElementById('site-name').textContent = SITE_ID === 'default' ? 'Analytics' : `${SITE_ID} Analytics`;
+
+      const events = getFilteredEvents();
+      const pageviews = events.filter(e => e.type === 'pageview');
+      const uniqueVisitors = new Set(pageviews.map(e => e.visitorId)).size;
+      const sessions = events.filter(e => e.type === 'session_end');
+      const avgSession = sessions.length > 0
+        ? Math.round(sessions.reduce((a, e) => a + (e.duration || 0), 0) / sessions.length)
+        : 0;
+
+      // Calculate bounce rate (sessions with only 1 pageview)
+      const sessionPageviews = {};
+      pageviews.forEach(e => {
+        sessionPageviews[e.sessionId] = (sessionPageviews[e.sessionId] || 0) + 1;
+      });
+      const bounces = Object.values(sessionPageviews).filter(v => v === 1).length;
+      const bounceRate = Object.keys(sessionPageviews).length > 0
+        ? Math.round((bounces / Object.keys(sessionPageviews).length) * 100)
+        : 0;
+
+      // Stats
+      document.getElementById('stat-views').textContent = pageviews.length.toLocaleString();
+      document.getElementById('stat-visitors').textContent = uniqueVisitors.toLocaleString();
+      document.getElementById('stat-session').textContent = formatDuration(avgSession);
+      document.getElementById('stat-bounce').textContent = `${bounceRate}%`;
+
+      // Realtime (last 5 minutes)
+      const realtimeCutoff = Date.now() - 300000;
+      const realtimeVisitors = new Set(
+        pageviews.filter(e => e.timestamp >= realtimeCutoff).map(e => e.visitorId)
+      ).size;
+      document.getElementById('realtime-count').textContent = realtimeVisitors;
+
+      // Visitors chart
+      renderChart(pageviews);
+
+      // Top pages
+      renderTopList('top-pages', pageviews, 'page');
+
+      // Referrers
+      const withReferrer = pageviews.filter(e => e.referrer);
+      renderTopList('referrers', withReferrer, 'referrer', (r) => {
+        try { return new URL(r).hostname; } catch { return r; }
+      });
+
+      // Devices
+      renderTopList('devices', pageviews, 'device');
+
+      // Events table
+      renderEventsTable(events);
+    }
+
+    function renderChart(pageviews) {
+      const days = timeRange === 'today' ? 24 : timeRange === '7d' ? 7 : 30;
+      const buckets = Array(days).fill(0);
+      const now = Date.now();
+
+      pageviews.forEach(e => {
+        const age = now - e.timestamp;
+        const bucket = timeRange === 'today'
+          ? Math.floor(age / 3600000)
+          : Math.floor(age / 86400000);
+        if (bucket >= 0 && bucket < days) {
+          buckets[days - 1 - bucket]++;
+        }
+      });
+
+      const max = Math.max(...buckets, 1);
+      const chart = document.getElementById('visitors-chart');
+      chart.innerHTML = buckets.map((v, i) => `
+        <div class="chart-bar" style="height:${(v / max) * 100}%" data-value="${v}"></div>
+      `).join('');
+
+      document.getElementById('chart-start').textContent = timeRange === 'today' ? '24h ago' : `${days}d ago`;
+    }
+
+    function renderTopList(id, events, key, transform = (v) => v) {
+      const counts = {};
+      events.forEach(e => {
+        const val = transform(e[key] || 'Direct');
+        counts[val] = (counts[val] || 0) + 1;
+      });
+
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const max = sorted[0]?.[1] || 1;
+
+      document.getElementById(id).innerHTML = sorted.length === 0
+        ? '<p style="color:var(--text-muted);font-size:13px;">No data yet</p>'
+        : sorted.map(([name, count]) => `
+          <div class="list-item">
+            <span class="list-item-name">${escapeHtml(name)}</span>
+            <div class="list-item-bar">
+              <div class="list-item-bar-fill" style="width:${(count / max) * 100}%"></div>
+            </div>
+            <span class="list-item-value">${count}</span>
+          </div>
+        `).join('');
+    }
+
+    function renderEventsTable(events) {
+      const recent = events.slice(-50).reverse();
+      document.getElementById('events-table').innerHTML = recent.map(e => `
+        <tr>
+          <td>${formatTime(e.timestamp)}</td>
+          <td>${e.type}</td>
+          <td>${escapeHtml(e.page || '—')}</td>
+          <td>${escapeHtml(e.referrer ? new URL(e.referrer).hostname : 'Direct')}</td>
+          <td>${e.device || '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function formatDuration(seconds) {
+      if (seconds < 60) return `${seconds}s`;
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+      return `${Math.floor(seconds / 3600)}h`;
+    }
+
+    function formatTime(timestamp) {
+      const d = new Date(timestamp);
+      return d.toLocaleTimeString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Time selector
+    document.querySelectorAll('.time-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        timeRange = btn.dataset.range;
+        render();
+      });
+    });
+
+    // Export
+    document.getElementById('export-btn').addEventListener('click', () => {
+      const events = getFilteredEvents();
+      const csv = [
+        ['Timestamp', 'Type', 'Page', 'Referrer', 'Device', 'Visitor ID'].join(','),
+        ...events.map(e => [
+          new Date(e.timestamp).toISOString(),
+          e.type,
+          e.page || '',
+          e.referrer || '',
+          e.device || '',
+          e.visitorId
+        ].map(v => `"${v}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analytics-${SITE_ID}-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    });
+
+    // Generate sample data if empty
+    function generateSampleData() {
+      if (analytics.events.length > 0) return;
+
+      const pages = ['/', '/about', '/pricing', '/contact', '/blog', '/docs'];
+      const referrers = ['https://google.com', 'https://twitter.com', '', 'https://github.com'];
+      const devices = ['Desktop', 'Mobile', 'Desktop', 'Desktop', 'Mobile'];
+
+      for (let i = 0; i < 200; i++) {
+        const timestamp = Date.now() - Math.random() * 30 * 86400000;
+        analytics.events.push({
+          id: crypto.randomUUID(),
+          type: 'pageview',
+          page: pages[Math.floor(Math.random() * pages.length)],
+          referrer: referrers[Math.floor(Math.random() * referrers.length)],
+          device: devices[Math.floor(Math.random() * devices.length)],
+          visitorId: `v${Math.floor(Math.random() * 50)}`,
+          sessionId: `s${Math.floor(Math.random() * 100)}`,
+          timestamp
+        });
+      }
+      saveAnalytics();
+    }
+
+    // Init
+    loadAnalytics();
+    generateSampleData();
+    initP2P();
+    render();
+
+    // Auto-refresh
+    setInterval(render, 30000);
+
+    window.KonomiAnalytics = {
+      track: (eventType, data = {}) => {
+        const event = {
+          id: crypto.randomUUID(),
+          type: eventType,
+          ...data,
+          timestamp: Date.now()
+        };
+        analytics.events.push(event);
+        saveAnalytics();
+        channel.postMessage({ type: 'event', event });
+      },
+      getData: () => analytics
+    };
+
+    }
+  </script>
+</body>
+</html>

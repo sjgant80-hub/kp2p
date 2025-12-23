@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<!--
+KONOMI CRM - Free HubSpot/Salesforce Killer
+Contact management. P2P sync. $0 forever.
+
+Usage:
+?crm=my-business
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CRM</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #f97316;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --bg: #fff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --border: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      flex-shrink: 0;
+    }
+
+    .sidebar h1 {
+      font-size: 18px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+
+    .nav-item:hover {
+      background: var(--bg);
+    }
+
+    .nav-item.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      padding: 2px 8px;
+      background: var(--bg);
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .nav-item.active .nav-badge {
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* Main */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header h2 {
+      font-size: 20px;
+      flex: 1;
+    }
+
+    .header-btn {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .header-btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .search-box {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      width: 250px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Stats */
+    .stats {
+      display: flex;
+      gap: 16px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-card {
+      flex: 1;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 12px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Pipeline */
+    .pipeline {
+      display: flex;
+      gap: 16px;
+      padding: 24px;
+      overflow-x: auto;
+      flex: 1;
+    }
+
+    .pipeline-stage {
+      min-width: 280px;
+      background: var(--surface);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stage-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stage-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .stage-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .stage-value {
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .stage-cards {
+      flex: 1;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 200px;
+    }
+
+    .deal-card {
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .deal-card:hover {
+      border-color: var(--primary);
+    }
+
+    .deal-card.dragging {
+      opacity: 0.5;
+    }
+
+    .deal-name {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .deal-company {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .deal-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--success);
+    }
+
+    .deal-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Contacts Table */
+    .contacts-view {
+      display: none;
+      padding: 24px;
+    }
+
+    .contacts-view.active {
+      display: block;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--surface);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    tr:hover td {
+      background: var(--surface);
+    }
+
+    .contact-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .contact-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .contact-name {
+      font-weight: 500;
+    }
+
+    .contact-email {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-right: 4px;
+    }
+
+    .tag-lead { background: #dbeafe; color: #2563eb; }
+    .tag-customer { background: #dcfce7; color: #16a34a; }
+    .tag-vip { background: #fef3c7; color: #d97706; }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .modal-footer button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .modal-footer .save {
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+
+    .modal-footer .cancel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .powered-by {
+      padding: 16px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="sidebar">
+      <h1>🎯 CRM</h1>
+      <div class="nav-item active" data-view="pipeline">📊 Pipeline</div>
+      <div class="nav-item" data-view="contacts">👥 Contacts <span class="nav-badge" id="contact-count">0</span></div>
+      <div class="nav-item" data-view="deals">💰 Deals <span class="nav-badge" id="deal-count">0</span></div>
+
+      <div class="powered-by" style="margin-top:auto;">
+        Powered by <a href="#">Konomi</a>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="header">
+        <h2 id="view-title">Pipeline</h2>
+        <input type="text" class="search-box" id="search-input" placeholder="Search...">
+        <button class="header-btn" id="export-btn">📥 Export</button>
+        <button class="header-btn primary" id="add-btn">+ Add Contact</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-contacts">0</div>
+          <div class="stat-label">Total Contacts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-deals">0</div>
+          <div class="stat-label">Active Deals</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-value">$0</div>
+          <div class="stat-label">Pipeline Value</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-won">$0</div>
+          <div class="stat-label">Won This Month</div>
+        </div>
+      </div>
+
+      <!-- Pipeline View -->
+      <div class="pipeline" id="pipeline-view">
+        <div class="pipeline-stage" data-stage="lead">
+          <div class="stage-header">
+            <span class="stage-title">Lead</span>
+            <span class="stage-value" id="lead-value">$0</span>
+          </div>
+          <div class="stage-cards" id="stage-lead"></div>
+        </div>
+        <div class="pipeline-stage" data-stage="qualified">
+          <div class="stage-header">
+            <span class="stage-title">Qualified</span>
+            <span class="stage-value" id="qualified-value">$0</span>
+          </div>
+          <div class="stage-cards" id="stage-qualified"></div>
+        </div>
+        <div class="pipeline-stage" data-stage="proposal">
+          <div class="stage-header">
+            <span class="stage-title">Proposal</span>
+            <span class="stage-value" id="proposal-value">$0</span>
+          </div>
+          <div class="stage-cards" id="stage-proposal"></div>
+        </div>
+        <div class="pipeline-stage" data-stage="negotiation">
+          <div class="stage-header">
+            <span class="stage-title">Negotiation</span>
+            <span class="stage-value" id="negotiation-value">$0</span>
+          </div>
+          <div class="stage-cards" id="stage-negotiation"></div>
+        </div>
+        <div class="pipeline-stage" data-stage="won">
+          <div class="stage-header">
+            <span class="stage-title">Won 🎉</span>
+            <span class="stage-value" id="won-value">$0</span>
+          </div>
+          <div class="stage-cards" id="stage-won"></div>
+        </div>
+      </div>
+
+      <!-- Contacts View -->
+      <div class="contacts-view" id="contacts-view">
+        <table>
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Company</th>
+              <th>Phone</th>
+              <th>Tags</th>
+              <th>Added</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Add Contact</h3>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="input-name">
+          </div>
+          <div class="form-group">
+            <label>Company</label>
+            <input type="text" id="input-company">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="input-email">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="input-phone">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Deal Value</label>
+            <input type="number" id="input-value" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Stage</label>
+            <select id="input-stage">
+              <option value="lead">Lead</option>
+              <option value="qualified">Qualified</option>
+              <option value="proposal">Proposal</option>
+              <option value="negotiation">Negotiation</option>
+              <option value="won">Won</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="input-notes" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="modal-cancel">Cancel</button>
+        <button class="save" id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const params = new URLSearchParams(location.search);
+    const CRM_ID = params.get('crm') || 'default';
+    const STORAGE_KEY = `konomi-crm:${CRM_ID}`;
+
+    let contacts = [];
+    let currentView = 'pipeline';
+    let editingId = null;
+    let draggedDeal = null;
+    let channel = null;
+
+    function loadData() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) contacts = JSON.parse(stored);
+      } catch (e) {}
+
+      // Sample data
+      if (contacts.length === 0) {
+        contacts = [
+          { id: '1', name: 'John Smith', company: 'Acme Corp', email: 'john@acme.com', phone: '555-0100', value: 5000, stage: 'qualified', tags: ['lead'], created: Date.now() - 86400000 * 5 },
+          { id: '2', name: 'Sarah Johnson', company: 'TechStart', email: 'sarah@techstart.io', phone: '555-0101', value: 12000, stage: 'proposal', tags: ['vip'], created: Date.now() - 86400000 * 3 },
+          { id: '3', name: 'Mike Wilson', company: 'BigCo', email: 'mike@bigco.com', phone: '555-0102', value: 8000, stage: 'lead', tags: ['lead'], created: Date.now() - 86400000 }
+        ];
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(contacts));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-crm:${CRM_ID}`);
+      channel.onmessage = (e) => {
+        if (e.data.type === 'update') {
+          contacts = e.data.contacts;
+          saveData();
+          render();
+        }
+      };
+    }
+
+    function broadcast() {
+      channel.postMessage({ type: 'update', contacts });
+    }
+
+    function render() {
+      renderStats();
+      renderPipeline();
+      renderContacts();
+      document.getElementById('contact-count').textContent = contacts.length;
+      document.getElementById('deal-count').textContent = contacts.filter(c => c.value > 0).length;
+    }
+
+    function renderStats() {
+      const totalContacts = contacts.length;
+      const activeDeals = contacts.filter(c => c.stage !== 'won' && c.value > 0).length;
+      const pipelineValue = contacts.filter(c => c.stage !== 'won').reduce((sum, c) => sum + (c.value || 0), 0);
+
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      const wonThisMonth = contacts
+        .filter(c => c.stage === 'won' && c.wonDate >= monthStart)
+        .reduce((sum, c) => sum + (c.value || 0), 0);
+
+      document.getElementById('stat-contacts').textContent = totalContacts;
+      document.getElementById('stat-deals').textContent = activeDeals;
+      document.getElementById('stat-value').textContent = formatCurrency(pipelineValue);
+      document.getElementById('stat-won').textContent = formatCurrency(wonThisMonth);
+    }
+
+    function renderPipeline() {
+      const stages = ['lead', 'qualified', 'proposal', 'negotiation', 'won'];
+
+      stages.forEach(stage => {
+        const stageContacts = contacts.filter(c => c.stage === stage);
+        const stageValue = stageContacts.reduce((sum, c) => sum + (c.value || 0), 0);
+
+        document.getElementById(`${stage}-value`).textContent = formatCurrency(stageValue);
+
+        document.getElementById(`stage-${stage}`).innerHTML = stageContacts.map(c => `
+          <div class="deal-card" draggable="true" data-id="${c.id}">
+            <div class="deal-name">${escapeHtml(c.name)}</div>
+            <div class="deal-company">${escapeHtml(c.company || '—')}</div>
+            <div class="deal-value">${formatCurrency(c.value || 0)}</div>
+            <div class="deal-meta">${formatDate(c.created)}</div>
+          </div>
+        `).join('');
+      });
+
+      setupDragDrop();
+    }
+
+    function setupDragDrop() {
+      document.querySelectorAll('.deal-card').forEach(card => {
+        card.addEventListener('dragstart', () => {
+          draggedDeal = card.dataset.id;
+          card.classList.add('dragging');
+        });
+
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+        });
+
+        card.addEventListener('click', () => openEditModal(card.dataset.id));
+      });
+
+      document.querySelectorAll('.stage-cards').forEach(stage => {
+        stage.addEventListener('dragover', (e) => e.preventDefault());
+
+        stage.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const newStage = stage.id.replace('stage-', '');
+          const contact = contacts.find(c => c.id === draggedDeal);
+          if (contact) {
+            if (newStage === 'won' && contact.stage !== 'won') {
+              contact.wonDate = Date.now();
+            }
+            contact.stage = newStage;
+            saveData();
+            broadcast();
+            render();
+          }
+        });
+      });
+    }
+
+    function renderContacts() {
+      document.getElementById('contacts-table').innerHTML = contacts.map(c => `
+        <tr data-id="${c.id}" style="cursor:pointer;">
+          <td>
+            <div class="contact-info">
+              <div class="contact-avatar">${getInitials(c.name)}</div>
+              <div>
+                <div class="contact-name">${escapeHtml(c.name)}</div>
+                <div class="contact-email">${escapeHtml(c.email || '')}</div>
+              </div>
+            </div>
+          </td>
+          <td>${escapeHtml(c.company || '—')}</td>
+          <td>${escapeHtml(c.phone || '—')}</td>
+          <td>${(c.tags || []).map(t => `<span class="tag tag-${t}">${t}</span>`).join('')}</td>
+          <td>${formatDate(c.created)}</td>
+        </tr>
+      `).join('');
+
+      document.querySelectorAll('#contacts-table tr').forEach(row => {
+        row.addEventListener('click', () => openEditModal(row.dataset.id));
+      });
+    }
+
+    function openAddModal() {
+      editingId = null;
+      document.getElementById('modal-title').textContent = 'Add Contact';
+      document.getElementById('input-name').value = '';
+      document.getElementById('input-company').value = '';
+      document.getElementById('input-email').value = '';
+      document.getElementById('input-phone').value = '';
+      document.getElementById('input-value').value = '';
+      document.getElementById('input-stage').value = 'lead';
+      document.getElementById('input-notes').value = '';
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function openEditModal(id) {
+      const contact = contacts.find(c => c.id === id);
+      if (!contact) return;
+
+      editingId = id;
+      document.getElementById('modal-title').textContent = 'Edit Contact';
+      document.getElementById('input-name').value = contact.name || '';
+      document.getElementById('input-company').value = contact.company || '';
+      document.getElementById('input-email').value = contact.email || '';
+      document.getElementById('input-phone').value = contact.phone || '';
+      document.getElementById('input-value').value = contact.value || '';
+      document.getElementById('input-stage').value = contact.stage || 'lead';
+      document.getElementById('input-notes').value = contact.notes || '';
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function saveContact() {
+      const data = {
+        name: document.getElementById('input-name').value,
+        company: document.getElementById('input-company').value,
+        email: document.getElementById('input-email').value,
+        phone: document.getElementById('input-phone').value,
+        value: parseFloat(document.getElementById('input-value').value) || 0,
+        stage: document.getElementById('input-stage').value,
+        notes: document.getElementById('input-notes').value
+      };
+
+      if (!data.name) {
+        alert('Please enter a name');
+        return;
+      }
+
+      if (editingId) {
+        const contact = contacts.find(c => c.id === editingId);
+        Object.assign(contact, data);
+      } else {
+        contacts.push({
+          id: crypto.randomUUID(),
+          ...data,
+          tags: ['lead'],
+          created: Date.now()
+        });
+      }
+
+      saveData();
+      broadcast();
+      render();
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function formatCurrency(value) {
+      return '$' + value.toLocaleString();
+    }
+
+    function formatDate(timestamp) {
+      return new Date(timestamp).toLocaleDateString();
+    }
+
+    function getInitials(name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        currentView = item.dataset.view;
+
+        document.getElementById('pipeline-view').style.display = currentView === 'pipeline' ? 'flex' : 'none';
+        document.getElementById('contacts-view').classList.toggle('active', currentView === 'contacts');
+        document.getElementById('view-title').textContent = item.textContent.trim();
+      });
+    });
+
+    // Modal
+    document.getElementById('add-btn').addEventListener('click', openAddModal);
+    document.getElementById('modal-close').addEventListener('click', () => document.getElementById('modal').classList.remove('active'));
+    document.getElementById('modal-cancel').addEventListener('click', () => document.getElementById('modal').classList.remove('active'));
+    document.getElementById('modal-save').addEventListener('click', saveContact);
+
+    // Export
+    document.getElementById('export-btn').addEventListener('click', () => {
+      const csv = [
+        ['Name', 'Company', 'Email', 'Phone', 'Value', 'Stage', 'Created'].join(','),
+        ...contacts.map(c => [c.name, c.company, c.email, c.phone, c.value, c.stage, new Date(c.created).toISOString()].map(v => `"${v || ''}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contacts.csv';
+      a.click();
+    });
+
+    // Search
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      document.querySelectorAll('.deal-card, #contacts-table tr').forEach(el => {
+        const text = el.textContent.toLowerCase();
+        el.style.display = text.includes(query) ? '' : 'none';
+      });
+    });
+
+    // Init
+    loadData();
+    initP2P();
+    render();
+
+    window.KonomiCRM = { getContacts: () => contacts };
+  </script>
+</body>
+</html>

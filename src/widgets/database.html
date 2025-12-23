@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<!--
+KONOMI DATABASE - Free Airtable/Notion Database Killer
+Spreadsheet-like database. P2P sync. $0 forever.
+
+Usage:
+?db=my-database
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Database</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #8b5cf6;
+      --bg: #fff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --border: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+    }
+
+    .header h1 {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .header-btn:hover {
+      background: var(--surface);
+    }
+
+    .header-btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Toolbar */
+    .toolbar {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-box {
+      flex: 1;
+      max-width: 300px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .view-toggle {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .view-btn {
+      padding: 8px 12px;
+      border: none;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .view-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Table */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      min-width: 150px;
+    }
+
+    th {
+      background: var(--surface);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th:hover {
+      background: var(--border);
+    }
+
+    th .sort-icon {
+      margin-left: 4px;
+      opacity: 0.5;
+    }
+
+    td {
+      background: var(--bg);
+    }
+
+    tr:hover td {
+      background: var(--surface);
+    }
+
+    .cell-input {
+      width: 100%;
+      padding: 4px 8px;
+      border: 1px solid var(--primary);
+      border-radius: 4px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .add-row {
+      padding: 12px 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .add-row:hover {
+      background: var(--surface);
+      color: var(--primary);
+    }
+
+    .add-column {
+      min-width: 100px;
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .add-column:hover {
+      color: var(--primary);
+    }
+
+    /* Column header menu */
+    .column-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      padding: 8px;
+      z-index: 100;
+      min-width: 150px;
+      display: none;
+    }
+
+    .column-menu.active {
+      display: block;
+    }
+
+    .column-menu button {
+      width: 100%;
+      padding: 8px 12px;
+      text-align: left;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+      border-radius: 4px;
+      color: var(--text);
+    }
+
+    .column-menu button:hover {
+      background: var(--surface);
+    }
+
+    .column-menu button.danger {
+      color: #ef4444;
+    }
+
+    /* Cards view */
+    .cards-view {
+      display: none;
+      padding: 24px;
+    }
+
+    .cards-view.active {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .card-field {
+      margin-bottom: 12px;
+    }
+
+    .card-field-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .card-field-value {
+      font-size: 14px;
+    }
+
+    /* Type badges */
+    .type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .type-text { background: #dbeafe; color: #2563eb; }
+    .type-number { background: #dcfce7; color: #16a34a; }
+    .type-checkbox { background: #fef3c7; color: #d97706; }
+    .type-select { background: #f3e8ff; color: #9333ea; }
+
+    /* Checkbox cells */
+    .cell-checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    /* Select cells */
+    .cell-select {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      display: inline-block;
+    }
+
+    .select-option-1 { background: #fee2e2; color: #dc2626; }
+    .select-option-2 { background: #dcfce7; color: #16a34a; }
+    .select-option-3 { background: #dbeafe; color: #2563eb; }
+    .select-option-4 { background: #fef3c7; color: #d97706; }
+
+    .powered-by {
+      padding: 24px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🗃️ <span id="db-name">Database</span></h1>
+    <div class="header-actions">
+      <button class="header-btn" id="import-btn">📤 Import</button>
+      <button class="header-btn" id="export-btn">📥 Export</button>
+      <button class="header-btn primary" id="add-row-btn">+ Add Row</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Search...">
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="table">Table</button>
+      <button class="view-btn" data-view="cards">Cards</button>
+    </div>
+  </div>
+
+  <div class="table-container" id="table-view">
+    <table>
+      <thead id="table-head"></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="cards-view" id="cards-view"></div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Free database, no server required
+  </div>
+
+  <input type="file" id="file-input" accept=".csv,.json" style="display:none;">
+
+  <script type="module">
+    const params = new URLSearchParams(location.search);
+    const DB_ID = params.get('db') || 'default';
+    const STORAGE_KEY = `konomi-database:${DB_ID}`;
+
+    let db = {
+      name: DB_ID === 'default' ? 'My Database' : DB_ID,
+      columns: [
+        { id: 'name', name: 'Name', type: 'text' },
+        { id: 'status', name: 'Status', type: 'select', options: ['Active', 'Pending', 'Done', 'Archived'] },
+        { id: 'priority', name: 'Priority', type: 'number' },
+        { id: 'done', name: 'Done', type: 'checkbox' }
+      ],
+      rows: []
+    };
+
+    let editingCell = null;
+    let sortColumn = null;
+    let sortDirection = 'asc';
+    let searchQuery = '';
+    let currentView = 'table';
+    let channel = null;
+
+    function loadDB() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) db = JSON.parse(stored);
+      } catch (e) {}
+
+      // Sample data
+      if (db.rows.length === 0) {
+        db.rows = [
+          { id: '1', name: 'Project Alpha', status: 'Active', priority: 1, done: false },
+          { id: '2', name: 'Project Beta', status: 'Pending', priority: 2, done: false },
+          { id: '3', name: 'Project Gamma', status: 'Done', priority: 3, done: true }
+        ];
+      }
+    }
+
+    function saveDB() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-database:${DB_ID}`);
+      channel.onmessage = (e) => {
+        if (e.data.type === 'update') {
+          db = e.data.db;
+          saveDB();
+          render();
+        }
+      };
+    }
+
+    function broadcast() {
+      channel.postMessage({ type: 'update', db });
+    }
+
+    function getFilteredRows() {
+      let rows = [...db.rows];
+
+      // Filter
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        rows = rows.filter(row =>
+          db.columns.some(col => {
+            const val = row[col.id];
+            return val?.toString().toLowerCase().includes(q);
+          })
+        );
+      }
+
+      // Sort
+      if (sortColumn) {
+        rows.sort((a, b) => {
+          const aVal = a[sortColumn] ?? '';
+          const bVal = b[sortColumn] ?? '';
+          let cmp = 0;
+          if (typeof aVal === 'number' && typeof bVal === 'number') {
+            cmp = aVal - bVal;
+          } else {
+            cmp = aVal.toString().localeCompare(bVal.toString());
+          }
+          return sortDirection === 'asc' ? cmp : -cmp;
+        });
+      }
+
+      return rows;
+    }
+
+    function render() {
+      document.getElementById('db-name').textContent = db.name;
+
+      if (currentView === 'table') {
+        renderTable();
+      } else {
+        renderCards();
+      }
+    }
+
+    function renderTable() {
+      const rows = getFilteredRows();
+
+      // Header
+      document.getElementById('table-head').innerHTML = `
+        <tr>
+          ${db.columns.map(col => `
+            <th data-col="${col.id}" style="position:relative;">
+              ${escapeHtml(col.name)}
+              <span class="sort-icon">${sortColumn === col.id ? (sortDirection === 'asc' ? '↑' : '↓') : ''}</span>
+            </th>
+          `).join('')}
+          <th class="add-column" id="add-column-btn">+ Add</th>
+        </tr>
+      `;
+
+      // Body
+      document.getElementById('table-body').innerHTML = rows.map(row => `
+        <tr data-id="${row.id}">
+          ${db.columns.map(col => `
+            <td data-col="${col.id}" data-row="${row.id}">${renderCell(row, col)}</td>
+          `).join('')}
+          <td>
+            <button class="delete-row-btn" data-id="${row.id}" style="opacity:0.5;cursor:pointer;border:none;background:none;">🗑️</button>
+          </td>
+        </tr>
+      `).join('') + `
+        <tr class="add-row" id="add-row-inline">
+          <td colspan="${db.columns.length + 1}">+ Add row</td>
+        </tr>
+      `;
+
+      setupTableHandlers();
+    }
+
+    function renderCell(row, col) {
+      const value = row[col.id];
+
+      switch (col.type) {
+        case 'checkbox':
+          return `<input type="checkbox" class="cell-checkbox" ${value ? 'checked' : ''} data-row="${row.id}" data-col="${col.id}">`;
+
+        case 'select':
+          const optionIndex = (col.options?.indexOf(value) % 4) + 1;
+          return value ? `<span class="cell-select select-option-${optionIndex}">${escapeHtml(value)}</span>` : '—';
+
+        case 'number':
+          return value ?? '—';
+
+        default:
+          return escapeHtml(value) || '—';
+      }
+    }
+
+    function renderCards() {
+      const rows = getFilteredRows();
+      document.getElementById('cards-view').innerHTML = rows.map(row => `
+        <div class="card" data-id="${row.id}">
+          ${db.columns.map(col => `
+            <div class="card-field">
+              <div class="card-field-label">${escapeHtml(col.name)}</div>
+              <div class="card-field-value">${renderCell(row, col)}</div>
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+    }
+
+    function setupTableHandlers() {
+      // Column sorting
+      document.querySelectorAll('#table-head th[data-col]').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col;
+          if (sortColumn === col) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          } else {
+            sortColumn = col;
+            sortDirection = 'asc';
+          }
+          render();
+        });
+      });
+
+      // Cell editing
+      document.querySelectorAll('#table-body td[data-col]').forEach(td => {
+        td.addEventListener('dblclick', () => {
+          const rowId = td.dataset.row;
+          const colId = td.dataset.col;
+          const col = db.columns.find(c => c.id === colId);
+          const row = db.rows.find(r => r.id === rowId);
+
+          if (col.type === 'checkbox') return;
+
+          if (col.type === 'select') {
+            const options = col.options || [];
+            const currentIdx = options.indexOf(row[colId]);
+            const nextIdx = (currentIdx + 1) % options.length;
+            row[colId] = options[nextIdx];
+            saveDB();
+            broadcast();
+            render();
+            return;
+          }
+
+          const currentValue = row[colId] ?? '';
+          td.innerHTML = `<input type="${col.type === 'number' ? 'number' : 'text'}" class="cell-input" value="${escapeHtml(currentValue)}">`;
+          const input = td.querySelector('input');
+          input.focus();
+          input.select();
+
+          const save = () => {
+            row[colId] = col.type === 'number' ? parseFloat(input.value) || 0 : input.value;
+            saveDB();
+            broadcast();
+            render();
+          };
+
+          input.addEventListener('blur', save);
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') save();
+            if (e.key === 'Escape') render();
+          });
+        });
+      });
+
+      // Checkboxes
+      document.querySelectorAll('.cell-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const row = db.rows.find(r => r.id === cb.dataset.row);
+          row[cb.dataset.col] = cb.checked;
+          saveDB();
+          broadcast();
+        });
+      });
+
+      // Delete row
+      document.querySelectorAll('.delete-row-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          db.rows = db.rows.filter(r => r.id !== btn.dataset.id);
+          saveDB();
+          broadcast();
+          render();
+        });
+      });
+
+      // Add row inline
+      document.getElementById('add-row-inline')?.addEventListener('click', addRow);
+
+      // Add column
+      document.getElementById('add-column-btn')?.addEventListener('click', addColumn);
+    }
+
+    function addRow() {
+      const newRow = { id: crypto.randomUUID() };
+      db.columns.forEach(col => {
+        newRow[col.id] = col.type === 'checkbox' ? false : col.type === 'number' ? 0 : '';
+      });
+      db.rows.push(newRow);
+      saveDB();
+      broadcast();
+      render();
+    }
+
+    function addColumn() {
+      const name = prompt('Column name:');
+      if (!name) return;
+
+      const type = prompt('Type (text, number, checkbox, select):') || 'text';
+      const col = {
+        id: name.toLowerCase().replace(/\s+/g, '_'),
+        name,
+        type
+      };
+
+      if (type === 'select') {
+        const options = prompt('Options (comma separated):');
+        col.options = options?.split(',').map(o => o.trim()) || ['Option 1', 'Option 2'];
+      }
+
+      db.columns.push(col);
+      db.rows.forEach(row => {
+        row[col.id] = col.type === 'checkbox' ? false : col.type === 'number' ? 0 : '';
+      });
+
+      saveDB();
+      broadcast();
+      render();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text ?? '';
+      return div.innerHTML;
+    }
+
+    // Search
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      render();
+    });
+
+    // View toggle
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = btn.dataset.view;
+        document.getElementById('table-view').style.display = currentView === 'table' ? 'block' : 'none';
+        document.getElementById('cards-view').classList.toggle('active', currentView === 'cards');
+        render();
+      });
+    });
+
+    // Add row button
+    document.getElementById('add-row-btn').addEventListener('click', addRow);
+
+    // Export
+    document.getElementById('export-btn').addEventListener('click', () => {
+      const headers = db.columns.map(c => c.name);
+      const rows = db.rows.map(row => db.columns.map(col => row[col.id] ?? ''));
+      const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${db.name}.csv`;
+      a.click();
+    });
+
+    // Import
+    document.getElementById('import-btn').addEventListener('click', () => {
+      document.getElementById('file-input').click();
+    });
+
+    document.getElementById('file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          if (file.name.endsWith('.json')) {
+            db = JSON.parse(ev.target.result);
+          } else {
+            // CSV
+            const lines = ev.target.result.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g, '')));
+            const headers = lines[0];
+            db.columns = headers.map(h => ({ id: h.toLowerCase().replace(/\s+/g, '_'), name: h, type: 'text' }));
+            db.rows = lines.slice(1).map((row, i) => {
+              const obj = { id: crypto.randomUUID() };
+              headers.forEach((h, j) => obj[h.toLowerCase().replace(/\s+/g, '_')] = row[j]);
+              return obj;
+            });
+          }
+          saveDB();
+          broadcast();
+          render();
+        } catch (err) {
+          alert('Failed to import: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Init
+    loadDB();
+    initP2P();
+    render();
+    document.title = `${db.name} | Database`;
+
+    window.KonomiDatabase = {
+      getDB: () => db,
+      addRow,
+      query: (filter) => db.rows.filter(filter)
+    };
+  </script>
+</body>
+</html>

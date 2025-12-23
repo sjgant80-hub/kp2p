@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<!--
+KONOMI VIDEO - Free Loom/Vidyard Killer
+Screen recording & video messages. P2P sharing. $0 forever.
+
+Usage:
+?room=shared-videos
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Video Messages</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #ef4444;
+      --success: #22c55e;
+      --bg: #000;
+      --surface: #111;
+      --border: #333;
+      --text: #fff;
+      --text-muted: #888;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-btn {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .header-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* Recording Interface */
+    .recorder {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .preview-container {
+      position: relative;
+      background: var(--surface);
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      margin-bottom: 24px;
+    }
+
+    .preview-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .recording-indicator {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .recording-indicator.active {
+      display: flex;
+    }
+
+    .recording-dot {
+      width: 12px;
+      height: 12px;
+      background: var(--primary);
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .timer {
+      font-family: monospace;
+    }
+
+    .cam-preview {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      width: 150px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+
+    .cam-preview video {
+      width: 100%;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .control-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+    }
+
+    .control-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .record-btn {
+      background: var(--primary);
+      color: white;
+    }
+
+    .record-btn.recording {
+      background: white;
+      color: var(--primary);
+    }
+
+    .stop-btn {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      color: var(--text);
+    }
+
+    .source-selector {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .source-btn {
+      padding: 12px 24px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .source-btn.active {
+      border-color: var(--primary);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Video Gallery */
+    .gallery {
+      padding: 24px;
+    }
+
+    .gallery h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .video-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .video-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .video-thumbnail {
+      aspect-ratio: 16/9;
+      background: #222;
+      position: relative;
+    }
+
+    .video-thumbnail video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .video-duration {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      padding: 4px 8px;
+      background: rgba(0,0,0,0.8);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .play-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .video-card:hover .play-overlay {
+      opacity: 1;
+    }
+
+    .play-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .video-info {
+      padding: 12px;
+    }
+
+    .video-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .video-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Player Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      max-width: 900px;
+      width: 90%;
+    }
+
+    .modal-video {
+      width: 100%;
+      border-radius: 12px;
+    }
+
+    .modal-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+    }
+
+    .modal-title {
+      font-size: 16px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .modal-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .modal-btn:hover {
+      background: var(--border);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 32px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 64px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .powered-by {
+      text-align: center;
+      padding: 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎬 <span id="room-name">Video Messages</span></h1>
+    <div class="header-actions">
+      <button class="header-btn" id="toggle-view">📚 Gallery</button>
+    </div>
+  </div>
+
+  <!-- Recorder -->
+  <div class="recorder" id="recorder">
+    <div class="preview-container">
+      <video class="preview-video" id="preview-video" autoplay muted playsinline></video>
+      <div class="recording-indicator" id="recording-indicator">
+        <span class="recording-dot"></span>
+        <span class="timer" id="timer">00:00</span>
+      </div>
+      <div class="cam-preview" id="cam-preview" style="display:none;">
+        <video id="cam-video" autoplay muted playsinline></video>
+      </div>
+    </div>
+
+    <div class="source-selector">
+      <button class="source-btn active" data-source="camera">📷 Camera</button>
+      <button class="source-btn" data-source="screen">🖥️ Screen</button>
+      <button class="source-btn" data-source="both">📷+🖥️ Both</button>
+    </div>
+
+    <div class="controls">
+      <button class="control-btn stop-btn" id="stop-btn" style="display:none;">⏹️</button>
+      <button class="control-btn record-btn" id="record-btn">⏺️</button>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div class="gallery" id="gallery" style="display:none;">
+    <h2>Your Videos</h2>
+    <div class="video-grid" id="video-grid"></div>
+  </div>
+
+  <!-- Player Modal -->
+  <div class="modal" id="player-modal">
+    <button class="modal-close" id="modal-close">×</button>
+    <div class="modal-content">
+      <video class="modal-video" id="modal-video" controls></video>
+      <div class="modal-controls">
+        <span class="modal-title" id="modal-title">Video</span>
+        <div class="modal-actions">
+          <button class="modal-btn" id="copy-link-btn">🔗 Copy Link</button>
+          <button class="modal-btn" id="download-btn">⬇️ Download</button>
+          <button class="modal-btn" id="delete-btn" style="color:#ef4444;">🗑️ Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Video messages stored in your browser
+  </div>
+
+  <script type="module">
+    const params = new URLSearchParams(location.search);
+    const ROOM_ID = params.get('room') || 'default';
+    const STORAGE_KEY = `konomi-video:${ROOM_ID}`;
+
+    let videos = [];
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let cameraStream = null;
+    let screenStream = null;
+    let currentSource = 'camera';
+    let isRecording = false;
+    let startTime = null;
+    let timerInterval = null;
+    let selectedVideo = null;
+    let showGallery = false;
+    let channel = null;
+
+    function loadVideos() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) videos = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    function saveVideos() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(videos));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-video:${ROOM_ID}`);
+      channel.onmessage = (e) => {
+        if (e.data.type === 'new-video') {
+          if (!videos.find(v => v.id === e.data.video.id)) {
+            videos.push(e.data.video);
+            saveVideos();
+            renderGallery();
+          }
+        } else if (e.data.type === 'delete-video') {
+          videos = videos.filter(v => v.id !== e.data.id);
+          saveVideos();
+          renderGallery();
+        }
+      };
+    }
+
+    async function setupCamera() {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: true
+        });
+        document.getElementById('preview-video').srcObject = cameraStream;
+      } catch (e) {
+        console.error('Camera access denied:', e);
+        alert('Please allow camera access to record videos');
+      }
+    }
+
+    async function setupScreen() {
+      try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: 1920, height: 1080 },
+          audio: true
+        });
+        document.getElementById('preview-video').srcObject = screenStream;
+      } catch (e) {
+        console.error('Screen share denied:', e);
+      }
+    }
+
+    async function setupBoth() {
+      try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: 1920, height: 1080 },
+          audio: true
+        });
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 320, height: 240 },
+          audio: true
+        });
+
+        document.getElementById('preview-video').srcObject = screenStream;
+        document.getElementById('cam-video').srcObject = cameraStream;
+        document.getElementById('cam-preview').style.display = 'block';
+      } catch (e) {
+        console.error('Setup failed:', e);
+      }
+    }
+
+    function startRecording() {
+      const stream = document.getElementById('preview-video').srcObject;
+      if (!stream) return;
+
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = saveRecording;
+
+      mediaRecorder.start();
+      isRecording = true;
+      startTime = Date.now();
+
+      document.getElementById('record-btn').classList.add('recording');
+      document.getElementById('record-btn').innerHTML = '⏸️';
+      document.getElementById('stop-btn').style.display = 'flex';
+      document.getElementById('recording-indicator').classList.add('active');
+
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        clearInterval(timerInterval);
+
+        document.getElementById('record-btn').classList.remove('recording');
+        document.getElementById('record-btn').innerHTML = '⏺️';
+        document.getElementById('stop-btn').style.display = 'none';
+        document.getElementById('recording-indicator').classList.remove('active');
+        document.getElementById('timer').textContent = '00:00';
+      }
+    }
+
+    function saveRecording() {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const title = prompt('Video title:', `Recording ${new Date().toLocaleString()}`);
+        if (!title) return;
+
+        const video = {
+          id: crypto.randomUUID(),
+          title,
+          dataUrl: reader.result,
+          duration: Math.floor((Date.now() - startTime) / 1000),
+          created: Date.now()
+        };
+
+        videos.unshift(video);
+        saveVideos();
+        renderGallery();
+
+        channel.postMessage({ type: 'new-video', video });
+        alert('Video saved!');
+      };
+
+      reader.readAsDataURL(blob);
+    }
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+      const secs = (elapsed % 60).toString().padStart(2, '0');
+      document.getElementById('timer').textContent = `${mins}:${secs}`;
+    }
+
+    function formatDuration(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('video-grid');
+
+      if (videos.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1;">
+            <div class="empty-state-icon">🎬</div>
+            <h3>No videos yet</h3>
+            <p>Record your first video to get started</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = videos.map(v => `
+        <div class="video-card" data-id="${v.id}">
+          <div class="video-thumbnail">
+            <video src="${v.dataUrl}" preload="metadata"></video>
+            <span class="video-duration">${formatDuration(v.duration)}</span>
+            <div class="play-overlay">
+              <div class="play-btn">▶</div>
+            </div>
+          </div>
+          <div class="video-info">
+            <div class="video-title">${escapeHtml(v.title)}</div>
+            <div class="video-meta">${new Date(v.created).toLocaleDateString()}</div>
+          </div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.video-card').forEach(card => {
+        card.addEventListener('click', () => openPlayer(card.dataset.id));
+      });
+    }
+
+    function openPlayer(id) {
+      selectedVideo = videos.find(v => v.id === id);
+      if (!selectedVideo) return;
+
+      document.getElementById('modal-video').src = selectedVideo.dataUrl;
+      document.getElementById('modal-title').textContent = selectedVideo.title;
+      document.getElementById('player-modal').classList.add('active');
+    }
+
+    function closePlayer() {
+      document.getElementById('player-modal').classList.remove('active');
+      document.getElementById('modal-video').pause();
+    }
+
+    function downloadVideo() {
+      if (!selectedVideo) return;
+      const a = document.createElement('a');
+      a.href = selectedVideo.dataUrl;
+      a.download = `${selectedVideo.title}.webm`;
+      a.click();
+    }
+
+    function deleteVideo() {
+      if (!selectedVideo) return;
+      if (!confirm('Delete this video?')) return;
+
+      videos = videos.filter(v => v.id !== selectedVideo.id);
+      saveVideos();
+      renderGallery();
+      channel.postMessage({ type: 'delete-video', id: selectedVideo.id });
+      closePlayer();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Source selector
+    document.querySelectorAll('.source-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSource = btn.dataset.source;
+
+        // Stop existing streams
+        if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+        if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+        document.getElementById('cam-preview').style.display = 'none';
+
+        if (currentSource === 'camera') await setupCamera();
+        else if (currentSource === 'screen') await setupScreen();
+        else await setupBoth();
+      });
+    });
+
+    // Record button
+    document.getElementById('record-btn').addEventListener('click', () => {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    });
+
+    // Stop button
+    document.getElementById('stop-btn').addEventListener('click', stopRecording);
+
+    // Toggle view
+    document.getElementById('toggle-view').addEventListener('click', () => {
+      showGallery = !showGallery;
+      document.getElementById('recorder').style.display = showGallery ? 'none' : 'block';
+      document.getElementById('gallery').style.display = showGallery ? 'block' : 'none';
+      document.getElementById('toggle-view').textContent = showGallery ? '📹 Record' : '📚 Gallery';
+    });
+
+    // Modal
+    document.getElementById('modal-close').addEventListener('click', closePlayer);
+    document.getElementById('player-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'player-modal') closePlayer();
+    });
+    document.getElementById('download-btn').addEventListener('click', downloadVideo);
+    document.getElementById('delete-btn').addEventListener('click', deleteVideo);
+    document.getElementById('copy-link-btn').addEventListener('click', () => {
+      navigator.clipboard.writeText(location.href);
+      alert('Link copied!');
+    });
+
+    // Init
+    loadVideos();
+    initP2P();
+    setupCamera();
+    renderGallery();
+
+    document.getElementById('room-name').textContent = ROOM_ID === 'default' ? 'Video Messages' : ROOM_ID;
+    document.title = `${ROOM_ID} | Videos`;
+
+    window.KonomiVideo = { getVideos: () => videos };
+  </script>
+</body>
+</html>

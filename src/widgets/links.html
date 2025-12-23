@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<!--
+KONOMI LINKS - Free Linktree Killer
+Bio link pages. P2P sync. $0 forever.
+
+Usage:
+?user=yourname
+?user=yourname&edit=true (edit mode)
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Links</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #8b5cf6;
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #333;
+      --text: #fff;
+      --text-muted: #888;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    .profile {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #ec4899);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin: 0 auto 16px;
+    }
+
+    .profile h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .profile p {
+      color: var(--text-muted);
+      font-size: 14px;
+      max-width: 300px;
+    }
+
+    .links {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .link {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .link:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .link-icon {
+      font-size: 24px;
+      margin-right: 16px;
+    }
+
+    .link-content {
+      flex: 1;
+    }
+
+    .link-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .link-url {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .link-arrow {
+      color: var(--text-muted);
+    }
+
+    /* Edit Mode */
+    .edit-panel {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 32px;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: none;
+    }
+
+    .edit-panel.active {
+      display: block;
+    }
+
+    .edit-panel h3 {
+      margin-bottom: 16px;
+      font-size: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .link-editor {
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .link-editor input {
+      margin-bottom: 8px;
+    }
+
+    .link-editor-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .link-editor-actions button {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .link-editor-actions .save {
+      background: var(--primary);
+      color: white;
+    }
+
+    .link-editor-actions .delete {
+      background: #dc2626;
+      color: white;
+    }
+
+    .add-link-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .socials {
+      display: flex;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .social {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 20px;
+      transition: all 0.2s;
+    }
+
+    .social:hover {
+      border-color: var(--primary);
+      transform: scale(1.1);
+    }
+
+    .theme-picker {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .theme-option {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+
+    .theme-option.selected {
+      border-color: white;
+    }
+
+    .powered-by {
+      margin-top: auto;
+      padding-top: 48px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* Themes */
+    body.theme-dark { --bg: #0f0f0f; --surface: #1a1a1a; --border: #333; }
+    body.theme-purple { --bg: #1a1025; --surface: #2d1f3d; --border: #4a3660; --primary: #a855f7; }
+    body.theme-blue { --bg: #0c1929; --surface: #132f4c; --border: #1e4976; --primary: #3b82f6; }
+    body.theme-green { --bg: #0f1f1a; --surface: #1a3329; --border: #2d5a43; --primary: #22c55e; }
+    body.theme-pink { --bg: #1f0f1a; --surface: #3d1f33; --border: #5c2d4a; --primary: #ec4899; }
+  </style>
+</head>
+<body class="theme-dark">
+  <div class="profile">
+    <div class="avatar" id="avatar">👤</div>
+    <h1 id="display-name">Your Name</h1>
+    <p id="bio">Add a bio to tell people about yourself</p>
+  </div>
+
+  <div class="links" id="links"></div>
+
+  <div class="socials" id="socials"></div>
+
+  <div class="edit-panel" id="edit-panel">
+    <h3>Edit Profile</h3>
+
+    <div class="form-group">
+      <label>Display Name</label>
+      <input type="text" id="edit-name" placeholder="Your Name">
+    </div>
+
+    <div class="form-group">
+      <label>Bio</label>
+      <textarea id="edit-bio" rows="2" placeholder="Tell people about yourself"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Avatar Emoji</label>
+      <input type="text" id="edit-avatar" placeholder="👤" maxlength="2">
+    </div>
+
+    <h3 style="margin-top:24px;">Links</h3>
+    <div id="link-editors"></div>
+    <button class="add-link-btn" id="add-link-btn">+ Add Link</button>
+
+    <h3 style="margin-top:24px;">Theme</h3>
+    <div class="theme-picker">
+      <div class="theme-option selected" data-theme="dark" style="background:#1a1a1a;"></div>
+      <div class="theme-option" data-theme="purple" style="background:#2d1f3d;"></div>
+      <div class="theme-option" data-theme="blue" style="background:#132f4c;"></div>
+      <div class="theme-option" data-theme="green" style="background:#1a3329;"></div>
+      <div class="theme-option" data-theme="pink" style="background:#3d1f33;"></div>
+    </div>
+  </div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a>
+  </div>
+
+  <script type="module">
+    const params = new URLSearchParams(location.search);
+    const USER_ID = params.get('user') || 'default';
+    const EDIT_MODE = params.get('edit') === 'true';
+    const STORAGE_KEY = `konomi-links:${USER_ID}`;
+
+    let profile = {
+      name: USER_ID === 'default' ? 'Your Name' : USER_ID,
+      bio: 'Add a bio to tell people about yourself',
+      avatar: '👤',
+      theme: 'dark',
+      links: [
+        { title: 'My Website', url: 'https://example.com', icon: '🌐' },
+        { title: 'Twitter', url: 'https://twitter.com', icon: '🐦' },
+        { title: 'GitHub', url: 'https://github.com', icon: '💻' }
+      ]
+    };
+
+    let channel = null;
+
+    function loadProfile() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) profile = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    function saveProfile() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-links:${USER_ID}`);
+      channel.onmessage = (e) => {
+        if (e.data.type === 'update') {
+          profile = e.data.profile;
+          saveProfile();
+          render();
+        }
+      };
+    }
+
+    function broadcast() {
+      channel.postMessage({ type: 'update', profile });
+    }
+
+    function render() {
+      document.body.className = `theme-${profile.theme}`;
+      document.getElementById('avatar').textContent = profile.avatar;
+      document.getElementById('display-name').textContent = profile.name;
+      document.getElementById('bio').textContent = profile.bio;
+
+      const linksEl = document.getElementById('links');
+      linksEl.innerHTML = profile.links.map((link, i) => `
+        <a href="${escapeHtml(link.url)}" class="link" target="_blank" rel="noopener">
+          <span class="link-icon">${link.icon || '🔗'}</span>
+          <div class="link-content">
+            <div class="link-title">${escapeHtml(link.title)}</div>
+            <div class="link-url">${escapeHtml(link.url.replace(/^https?:\/\//, ''))}</div>
+          </div>
+          <span class="link-arrow">→</span>
+        </a>
+      `).join('');
+
+      document.querySelectorAll('.theme-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.theme === profile.theme);
+      });
+
+      if (EDIT_MODE) renderEditors();
+    }
+
+    function renderEditors() {
+      document.getElementById('edit-name').value = profile.name;
+      document.getElementById('edit-bio').value = profile.bio;
+      document.getElementById('edit-avatar').value = profile.avatar;
+
+      const editorsEl = document.getElementById('link-editors');
+      editorsEl.innerHTML = profile.links.map((link, i) => `
+        <div class="link-editor" data-index="${i}">
+          <input type="text" value="${escapeHtml(link.icon || '🔗')}" placeholder="Icon" class="link-icon-input" style="width:60px;margin-right:8px;">
+          <input type="text" value="${escapeHtml(link.title)}" placeholder="Title" class="link-title-input">
+          <input type="url" value="${escapeHtml(link.url)}" placeholder="https://..." class="link-url-input">
+          <div class="link-editor-actions">
+            <button class="save" data-index="${i}">Save</button>
+            <button class="delete" data-index="${i}">Delete</button>
+          </div>
+        </div>
+      `).join('');
+
+      // Attach handlers
+      editorsEl.querySelectorAll('.save').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = parseInt(btn.dataset.index);
+          const editor = btn.closest('.link-editor');
+          profile.links[i] = {
+            icon: editor.querySelector('.link-icon-input').value,
+            title: editor.querySelector('.link-title-input').value,
+            url: editor.querySelector('.link-url-input').value
+          };
+          saveProfile();
+          broadcast();
+          render();
+        });
+      });
+
+      editorsEl.querySelectorAll('.delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = parseInt(btn.dataset.index);
+          profile.links.splice(i, 1);
+          saveProfile();
+          broadcast();
+          render();
+        });
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Edit mode setup
+    if (EDIT_MODE) {
+      document.getElementById('edit-panel').classList.add('active');
+
+      document.getElementById('edit-name').addEventListener('input', (e) => {
+        profile.name = e.target.value;
+        saveProfile();
+        broadcast();
+        render();
+      });
+
+      document.getElementById('edit-bio').addEventListener('input', (e) => {
+        profile.bio = e.target.value;
+        saveProfile();
+        broadcast();
+        render();
+      });
+
+      document.getElementById('edit-avatar').addEventListener('input', (e) => {
+        profile.avatar = e.target.value || '👤';
+        saveProfile();
+        broadcast();
+        render();
+      });
+
+      document.getElementById('add-link-btn').addEventListener('click', () => {
+        profile.links.push({ title: 'New Link', url: 'https://', icon: '🔗' });
+        saveProfile();
+        broadcast();
+        render();
+      });
+
+      document.querySelectorAll('.theme-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          profile.theme = opt.dataset.theme;
+          saveProfile();
+          broadcast();
+          render();
+        });
+      });
+    }
+
+    // Init
+    loadProfile();
+    initP2P();
+    render();
+    document.title = `${profile.name} | Links`;
+
+    window.KonomiLinks = { getProfile: () => profile };
+  </script>
+</body>
+</html>

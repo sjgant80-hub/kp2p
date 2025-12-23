@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<!--
+KONOMI FILES - Free Dropbox/Google Drive Killer
+File sharing. P2P sync. $0 forever.
+
+Usage:
+?folder=shared-folder
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Files</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #3b82f6;
+      --bg: #fff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --border: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+    }
+
+    .header h1 {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-btn {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .header-btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .toolbar {
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .breadcrumb-item {
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .breadcrumb-item:hover {
+      color: var(--primary);
+    }
+
+    .breadcrumb-item.active {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .breadcrumb-sep {
+      color: var(--text-muted);
+    }
+
+    .view-toggle {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+    }
+
+    .view-btn {
+      padding: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
+    }
+
+    .view-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 3px dashed var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      text-align: center;
+      margin: 24px;
+      transition: all 0.2s;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .drop-zone-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .drop-zone h3 {
+      margin-bottom: 8px;
+    }
+
+    .drop-zone p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* File Grid */
+    .files-container {
+      padding: 24px;
+    }
+
+    .files-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .file-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .file-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .file-card.selected {
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .file-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .file-name {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .file-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* List View */
+    .files-list {
+      display: none;
+    }
+
+    .files-list.active {
+      display: block;
+    }
+
+    .files-grid.hidden {
+      display: none;
+    }
+
+    .file-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .file-row:hover {
+      background: var(--surface);
+    }
+
+    .file-row-icon {
+      font-size: 24px;
+      margin-right: 12px;
+    }
+
+    .file-row-info {
+      flex: 1;
+    }
+
+    .file-row-name {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .file-row-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .file-row-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .file-row-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .file-row-btn:hover {
+      background: var(--surface);
+    }
+
+    .file-row-btn.danger {
+      color: #ef4444;
+      border-color: #ef4444;
+    }
+
+    /* Preview Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg);
+      border-radius: 16px;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow: auto;
+    }
+
+    .modal-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .modal-body {
+      padding: 24px;
+      text-align: center;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 8px;
+    }
+
+    .preview-text {
+      text-align: left;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 14px;
+      max-height: 60vh;
+      overflow: auto;
+      background: var(--surface);
+      padding: 16px;
+      border-radius: 8px;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* Storage indicator */
+    .storage-info {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .storage-bar {
+      height: 8px;
+      background: var(--surface);
+      border-radius: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .storage-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 64px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .powered-by {
+      text-align: center;
+      padding: 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📁 <span id="folder-name">Files</span></h1>
+    <div class="header-actions">
+      <button class="header-btn" id="new-folder-btn">📁 New Folder</button>
+      <button class="header-btn primary" id="upload-btn">⬆️ Upload</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="breadcrumb" id="breadcrumb">
+      <span class="breadcrumb-item active">Home</span>
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="grid" title="Grid">▦</button>
+      <button class="view-btn" data-view="list" title="List">☰</button>
+    </div>
+  </div>
+
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-zone-icon">📤</div>
+    <h3>Drop files here</h3>
+    <p>or click Upload to select files</p>
+  </div>
+
+  <div class="files-container">
+    <div class="files-grid" id="files-grid"></div>
+    <div class="files-list" id="files-list"></div>
+  </div>
+
+  <div class="storage-info">
+    <div>Storage: <span id="storage-used">0 KB</span> used (stored in browser)</div>
+    <div class="storage-bar">
+      <div class="storage-bar-fill" id="storage-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal" id="preview-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span id="preview-name">File</span>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body" id="preview-body"></div>
+      <div class="modal-footer">
+        <button class="header-btn" id="download-btn">⬇️ Download</button>
+        <button class="header-btn danger" id="delete-btn" style="color:#ef4444;">🗑️ Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" multiple style="display:none;">
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Files stored in your browser, synced P2P
+  </div>
+
+  <script type="module">
+    const params = new URLSearchParams(location.search);
+    const FOLDER_ID = params.get('folder') || 'default';
+    const STORAGE_KEY = `konomi-files:${FOLDER_ID}`;
+
+    let files = [];
+    let currentPath = [];
+    let currentView = 'grid';
+    let selectedFile = null;
+    let channel = null;
+
+    function loadFiles() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) files = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    function saveFiles() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-files:${FOLDER_ID}`);
+      channel.onmessage = (e) => {
+        if (e.data.type === 'update') {
+          files = e.data.files;
+          saveFiles();
+          render();
+        }
+      };
+    }
+
+    function broadcast() {
+      channel.postMessage({ type: 'update', files });
+    }
+
+    function getCurrentFiles() {
+      let current = files;
+      for (const dir of currentPath) {
+        const folder = current.find(f => f.name === dir && f.type === 'folder');
+        if (folder) current = folder.children || [];
+      }
+      return current;
+    }
+
+    function render() {
+      document.getElementById('folder-name').textContent = FOLDER_ID === 'default' ? 'Files' : FOLDER_ID;
+
+      renderBreadcrumb();
+      renderFiles();
+      renderStorage();
+    }
+
+    function renderBreadcrumb() {
+      const breadcrumb = document.getElementById('breadcrumb');
+      breadcrumb.innerHTML = `
+        <span class="breadcrumb-item ${currentPath.length === 0 ? 'active' : ''}" data-path="">Home</span>
+        ${currentPath.map((dir, i) => `
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-item ${i === currentPath.length - 1 ? 'active' : ''}" data-path="${currentPath.slice(0, i + 1).join('/')}">${dir}</span>
+        `).join('')}
+      `;
+
+      breadcrumb.querySelectorAll('.breadcrumb-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const path = item.dataset.path;
+          currentPath = path ? path.split('/') : [];
+          render();
+        });
+      });
+    }
+
+    function renderFiles() {
+      const currentFiles = getCurrentFiles();
+      const grid = document.getElementById('files-grid');
+      const list = document.getElementById('files-list');
+
+      if (currentFiles.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1;">
+            <div class="empty-state-icon">📂</div>
+            <h3>No files yet</h3>
+            <p>Upload files or create a folder</p>
+          </div>
+        `;
+        list.innerHTML = '';
+        return;
+      }
+
+      // Sort: folders first, then by name
+      const sorted = [...currentFiles].sort((a, b) => {
+        if (a.type === 'folder' && b.type !== 'folder') return -1;
+        if (b.type === 'folder' && a.type !== 'folder') return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      grid.innerHTML = sorted.map(file => `
+        <div class="file-card" data-id="${file.id}">
+          <div class="file-icon">${getIcon(file)}</div>
+          <div class="file-name">${escapeHtml(file.name)}</div>
+          <div class="file-meta">${file.type === 'folder' ? `${file.children?.length || 0} items` : formatSize(file.size)}</div>
+        </div>
+      `).join('');
+
+      list.innerHTML = sorted.map(file => `
+        <div class="file-row" data-id="${file.id}">
+          <span class="file-row-icon">${getIcon(file)}</span>
+          <div class="file-row-info">
+            <div class="file-row-name">${escapeHtml(file.name)}</div>
+            <div class="file-row-meta">${file.type === 'folder' ? `${file.children?.length || 0} items` : formatSize(file.size)} • ${formatDate(file.created)}</div>
+          </div>
+          <div class="file-row-actions">
+            ${file.type !== 'folder' ? '<button class="file-row-btn download-btn">⬇️</button>' : ''}
+            <button class="file-row-btn danger delete-btn">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+
+      // Event handlers
+      document.querySelectorAll('.file-card, .file-row').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.file-row-btn')) return;
+          handleFileClick(el.dataset.id);
+        });
+      });
+
+      document.querySelectorAll('.download-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.closest('.file-row').dataset.id;
+          downloadFile(id);
+        });
+      });
+
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.closest('.file-row').dataset.id;
+          deleteFile(id);
+        });
+      });
+    }
+
+    function handleFileClick(id) {
+      const currentFiles = getCurrentFiles();
+      const file = currentFiles.find(f => f.id === id);
+
+      if (file.type === 'folder') {
+        currentPath.push(file.name);
+        render();
+      } else {
+        openPreview(file);
+      }
+    }
+
+    function openPreview(file) {
+      selectedFile = file;
+      document.getElementById('preview-name').textContent = file.name;
+      const body = document.getElementById('preview-body');
+
+      if (file.dataUrl) {
+        if (file.mime?.startsWith('image/')) {
+          body.innerHTML = `<img src="${file.dataUrl}" class="preview-image">`;
+        } else if (file.mime?.startsWith('text/') || file.name.match(/\.(txt|md|json|js|css|html)$/i)) {
+          const text = atob(file.dataUrl.split(',')[1]);
+          body.innerHTML = `<pre class="preview-text">${escapeHtml(text)}</pre>`;
+        } else {
+          body.innerHTML = `
+            <div style="padding:48px;">
+              <div style="font-size:64px;margin-bottom:16px;">${getIcon(file)}</div>
+              <p>${escapeHtml(file.name)}</p>
+              <p style="color:var(--text-muted);font-size:14px;margin-top:8px;">${formatSize(file.size)}</p>
+            </div>
+          `;
+        }
+      }
+
+      document.getElementById('preview-modal').classList.add('active');
+    }
+
+    function downloadFile(id) {
+      const currentFiles = getCurrentFiles();
+      const file = currentFiles.find(f => f.id === id);
+      if (!file || !file.dataUrl) return;
+
+      const a = document.createElement('a');
+      a.href = file.dataUrl;
+      a.download = file.name;
+      a.click();
+    }
+
+    function deleteFile(id) {
+      if (!confirm('Delete this file?')) return;
+
+      const removeFromList = (list) => {
+        const idx = list.findIndex(f => f.id === id);
+        if (idx !== -1) {
+          list.splice(idx, 1);
+          return true;
+        }
+        for (const item of list) {
+          if (item.type === 'folder' && item.children) {
+            if (removeFromList(item.children)) return true;
+          }
+        }
+        return false;
+      };
+
+      removeFromList(files);
+      saveFiles();
+      broadcast();
+      render();
+      document.getElementById('preview-modal').classList.remove('active');
+    }
+
+    function uploadFiles(fileList) {
+      for (const file of fileList) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const newFile = {
+            id: crypto.randomUUID(),
+            name: file.name,
+            type: 'file',
+            mime: file.type,
+            size: file.size,
+            dataUrl: e.target.result,
+            created: Date.now()
+          };
+
+          let current = files;
+          for (const dir of currentPath) {
+            const folder = current.find(f => f.name === dir && f.type === 'folder');
+            if (folder) {
+              folder.children = folder.children || [];
+              current = folder.children;
+            }
+          }
+          current.push(newFile);
+
+          saveFiles();
+          broadcast();
+          render();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function createFolder() {
+      const name = prompt('Folder name:');
+      if (!name) return;
+
+      const folder = {
+        id: crypto.randomUUID(),
+        name,
+        type: 'folder',
+        children: [],
+        created: Date.now()
+      };
+
+      let current = files;
+      for (const dir of currentPath) {
+        const f = current.find(f => f.name === dir && f.type === 'folder');
+        if (f) {
+          f.children = f.children || [];
+          current = f.children;
+        }
+      }
+      current.push(folder);
+
+      saveFiles();
+      broadcast();
+      render();
+    }
+
+    function renderStorage() {
+      const totalSize = JSON.stringify(files).length;
+      const maxSize = 5 * 1024 * 1024; // 5MB localStorage limit estimate
+      const percent = Math.min((totalSize / maxSize) * 100, 100);
+
+      document.getElementById('storage-used').textContent = formatSize(totalSize);
+      document.getElementById('storage-bar').style.width = `${percent}%`;
+    }
+
+    function getIcon(file) {
+      if (file.type === 'folder') return '📁';
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const icons = {
+        pdf: '📕', doc: '📄', docx: '📄',
+        xls: '📊', xlsx: '📊', csv: '📊',
+        ppt: '📽️', pptx: '📽️',
+        jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', svg: '🖼️', webp: '🖼️',
+        mp3: '🎵', wav: '🎵', ogg: '🎵',
+        mp4: '🎬', mov: '🎬', avi: '🎬', webm: '🎬',
+        zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦',
+        js: '📜', ts: '📜', py: '📜', rb: '📜', go: '📜', rs: '📜',
+        html: '🌐', css: '🎨', json: '📋',
+        md: '📝', txt: '📝'
+      };
+      return icons[ext] || '📄';
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function formatDate(timestamp) {
+      return new Date(timestamp).toLocaleDateString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Event handlers
+    document.getElementById('upload-btn').addEventListener('click', () => {
+      document.getElementById('file-input').click();
+    });
+
+    document.getElementById('file-input').addEventListener('change', (e) => {
+      uploadFiles(e.target.files);
+      e.target.value = '';
+    });
+
+    document.getElementById('new-folder-btn').addEventListener('click', createFolder);
+
+    // Drag & drop
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      uploadFiles(e.dataTransfer.files);
+    });
+
+    dropZone.addEventListener('click', () => {
+      document.getElementById('file-input').click();
+    });
+
+    // View toggle
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = btn.dataset.view;
+        document.getElementById('files-grid').classList.toggle('hidden', currentView !== 'grid');
+        document.getElementById('files-list').classList.toggle('active', currentView === 'list');
+      });
+    });
+
+    // Modal
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('preview-modal').classList.remove('active');
+    });
+
+    document.getElementById('download-btn').addEventListener('click', () => {
+      if (selectedFile) downloadFile(selectedFile.id);
+    });
+
+    document.getElementById('delete-btn').addEventListener('click', () => {
+      if (selectedFile) deleteFile(selectedFile.id);
+    });
+
+    document.getElementById('preview-modal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal')) {
+        document.getElementById('preview-modal').classList.remove('active');
+      }
+    });
+
+    // Init
+    loadFiles();
+    initP2P();
+    render();
+    document.title = `${FOLDER_ID} | Files`;
+
+    window.KonomiFiles = { getFiles: () => files, upload: uploadFiles };
+  </script>
+</body>
+</html>
