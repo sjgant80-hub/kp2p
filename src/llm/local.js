@@ -4,35 +4,39 @@
  *
  * ARCHITECTURE:
  * - Runs entirely in browser via WebGPU
- * - Models cached in IndexedDB
- * - No external API calls
+ * - Models cached in IndexedDB OR loaded from repo
+ * - No external API calls needed
  * - Works on GitHub Pages
  *
  * REQUIREMENTS:
  * - Browser with WebGPU support (Chrome 113+, Edge 113+)
  * - ~2-4GB RAM for small models
- * - First load downloads model (~500MB-2GB)
+ *
+ * LOCAL MODEL SETUP:
+ *   bash scripts/setup-model.sh
  */
 
 // WebLLM from CDN
 const WEBLLM_CDN = 'https://esm.run/@mlc-ai/web-llm';
 
-// Available models (small ones for browser)
-export const MODELS = {
-  // Tiny models (~500MB)
-  'TinyLlama-1.1B': 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
+// Local model base URL (relative to page)
+const LOCAL_MODEL_URL = '../../models/tinyllama/';
 
-  // Small but capable (~1-2GB)
+// Available models
+export const MODELS = {
+  // Repo-hosted model (use this if you ran setup-model.sh)
+  'TinyLlama-Local': { local: true, path: LOCAL_MODEL_URL },
+
+  // CDN models (downloaded from HuggingFace on first use)
+  'TinyLlama-1.1B': 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
   'Phi-3-mini': 'Phi-3-mini-4k-instruct-q4f16_1-MLC',
   'Qwen2-1.5B': 'Qwen2-1.5B-Instruct-q4f16_1-MLC',
   'Gemma-2B': 'gemma-2b-it-q4f16_1-MLC',
-
-  // Larger models (~2-4GB) - better quality
   'Llama-3.2-3B': 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
   'Mistral-7B': 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
 };
 
-// Default model (smallest, fastest to load)
+// Default model
 export const DEFAULT_MODEL = 'TinyLlama-1.1B';
 
 /**
@@ -68,7 +72,7 @@ export async function checkWebGPU() {
 export class LocalLLM {
   constructor(options = {}) {
     this.modelId = options.model || DEFAULT_MODEL;
-    this.modelName = MODELS[this.modelId] || this.modelId;
+    this.modelConfig = MODELS[this.modelId];
     this.engine = null;
     this.loading = false;
     this.ready = false;
@@ -78,7 +82,20 @@ export class LocalLLM {
   }
 
   /**
-   * Load model (downloads on first use, cached after)
+   * Check if local model is available
+   */
+  async checkLocalModel() {
+    if (!this.modelConfig?.local) return false;
+    try {
+      const res = await fetch(this.modelConfig.path + 'mlc-chat-config.json', { method: 'HEAD' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Load model (from repo or downloads on first use)
    */
   async load() {
     if (this.ready) return;
@@ -98,16 +115,47 @@ export class LocalLLM {
       // Dynamic import WebLLM
       const webllm = await import(WEBLLM_CDN);
 
-      // Create engine with progress callback
-      this.engine = await webllm.CreateMLCEngine(this.modelName, {
-        initProgressCallback: (progress) => {
-          this.onProgress({
-            stage: 'download',
-            message: progress.text,
-            progress: progress.progress,
+      // Check if using local model
+      if (this.modelConfig?.local) {
+        const localAvailable = await this.checkLocalModel();
+        if (localAvailable) {
+          this.onProgress({ stage: 'init', message: 'Loading from local repo...' });
+
+          // Use local model path
+          this.engine = await webllm.CreateMLCEngine(this.modelConfig.path, {
+            initProgressCallback: (progress) => {
+              this.onProgress({
+                stage: 'load',
+                message: progress.text,
+                progress: progress.progress,
+              });
+            },
           });
-        },
-      });
+        } else {
+          // Fallback to CDN
+          this.onProgress({ stage: 'init', message: 'Local model not found, using CDN...' });
+          this.engine = await webllm.CreateMLCEngine('TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC', {
+            initProgressCallback: (progress) => {
+              this.onProgress({
+                stage: 'download',
+                message: progress.text,
+                progress: progress.progress,
+              });
+            },
+          });
+        }
+      } else {
+        // Use CDN model
+        this.engine = await webllm.CreateMLCEngine(this.modelConfig, {
+          initProgressCallback: (progress) => {
+            this.onProgress({
+              stage: 'download',
+              message: progress.text,
+              progress: progress.progress,
+            });
+          },
+        });
+      }
 
       this.ready = true;
       this.loading = false;
