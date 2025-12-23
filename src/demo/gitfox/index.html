@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/gitfox/index.html
+@desc GitFox - Multiplayer P2P Space Combat via WebTorrent tracker
+      Real-time dogfighting across the globe!
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GitFox - Multiplayer P2P Space Combat</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font:bold 14px monospace;color:#0f0}
+#c{position:fixed;inset:0}
+.hud{position:fixed;z-index:10;pointer-events:none}
+
+/* Connection status */
+#connection{top:20px;left:50%;transform:translateX(-50%);background:rgba(0,20,40,.9);border:2px solid #0af;border-radius:8px;padding:8px 20px;font-size:12px}
+#connection .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#666;margin-right:8px;vertical-align:middle}
+#connection .dot.on{background:#0f0}
+#connection .dot.pulse{background:#f90;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.5}}
+
+/* Player stats */
+#shield-bar{top:60px;left:20px;width:200px;height:20px;border:2px solid #0f0;background:#001a00}
+#shield-fill{height:100%;background:linear-gradient(90deg,#f00,#ff0,#0f0);width:100%;transition:width .2s}
+#shield-label{top:62px;left:230px;color:#0f0;font-size:12px}
+
+#boost-bar{top:90px;left:20px;width:150px;height:12px;border:2px solid #08f;background:#001020}
+#boost-fill{height:100%;background:#08f;width:100%}
+#boost-label{top:90px;left:180px;color:#08f;font-size:11px}
+
+#score{top:60px;right:20px;font-size:24px;color:#ff0;text-align:right}
+#kills{top:90px;right:20px;font-size:14px;color:#f80}
+
+/* Player list */
+#players{bottom:100px;right:20px;background:rgba(0,20,40,.8);border:1px solid #0af;border-radius:6px;padding:10px;font-size:11px;min-width:150px}
+#players-title{color:#0af;margin-bottom:8px;font-size:12px}
+.player-entry{margin:4px 0;display:flex;align-items:center;gap:8px}
+.player-dot{width:8px;height:8px;border-radius:50%}
+.player-name{flex:1}
+.player-score{color:#ff0}
+
+/* Crosshair */
+#crosshair{top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px}
+
+/* Kill feed */
+#killfeed{top:120px;left:20px;font-size:12px;max-width:300px}
+.kill-entry{margin:4px 0;opacity:1;transition:opacity 1s}
+.kill-entry.fade{opacity:0}
+
+/* Game messages */
+#message{top:40%;left:50%;transform:translateX(-50%);font-size:32px;color:#fff;text-shadow:0 0 20px #0af;opacity:0;transition:opacity .5s;text-align:center}
+
+/* Lobby */
+#lobby{position:fixed;inset:0;background:rgba(0,10,20,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+#lobby.hidden{display:none}
+#lobby h1{font-size:48px;color:#0f0;text-shadow:0 0 30px #0f0;margin-bottom:10px}
+#lobby h2{font-size:18px;color:#0af;margin-bottom:40px}
+#lobby input{padding:12px 20px;font-size:16px;background:#001a2a;border:2px solid #0af;border-radius:8px;color:#fff;width:300px;margin-bottom:20px;text-align:center}
+#lobby button{padding:15px 40px;font-size:18px;background:#0f0;border:none;border-radius:8px;color:#000;font-weight:bold;cursor:pointer;margin:10px}
+#lobby button:hover{background:#0c0}
+#lobby .team-select{display:flex;gap:20px;margin:20px 0}
+#lobby .team-btn{padding:20px 30px;border:3px solid;border-radius:12px;cursor:pointer;transition:all .2s}
+#lobby .team-btn.gitfox{border-color:#0f0;background:rgba(0,255,0,.1)}
+#lobby .team-btn.gitfox:hover,.team-btn.gitfox.selected{background:rgba(0,255,0,.3)}
+#lobby .team-btn.amazon{border-color:#f60;background:rgba(255,102,0,.1)}
+#lobby .team-btn.amazon:hover,.team-btn.amazon.selected{background:rgba(255,102,0,.3)}
+#lobby .team-icon{font-size:36px}
+#lobby .team-name{font-size:14px;margin-top:8px}
+#lobby .waiting{color:#888;font-size:14px;margin-top:20px}
+#lobby .player-count{color:#0af;font-size:16px;margin-top:10px}
+
+/* Controls help */
+#controls{bottom:20px;right:20px;font-size:10px;color:#888;text-align:right}
+</style>
+</head>
+<body>
+
+<!-- Lobby -->
+<div id="lobby">
+  <h1>GITFOX</h1>
+  <h2>Multiplayer P2P Space Combat</h2>
+  <input type="text" id="nameInput" placeholder="Enter your callsign..." maxlength="12">
+  <input type="text" id="roomInput" placeholder="Room code (or leave empty for random)" maxlength="20">
+  <div class="team-select">
+    <div class="team-btn gitfox selected" data-team="gitfox">
+      <div class="team-icon">🦊</div>
+      <div class="team-name">Team GitFox</div>
+    </div>
+    <div class="team-btn amazon" data-team="amazon">
+      <div class="team-icon">📦</div>
+      <div class="team-name">Team Amazon</div>
+    </div>
+  </div>
+  <button id="joinBtn">LAUNCH</button>
+  <div class="player-count" id="lobbyStatus">Connecting to tracker...</div>
+  <div class="waiting" id="lobbyWaiting"></div>
+</div>
+
+<!-- Game Canvas -->
+<canvas id="c"></canvas>
+
+<!-- HUD -->
+<div class="hud" id="connection">
+  <span class="dot" id="connDot"></span>
+  <span id="connStatus">Connecting...</span>
+  <span id="connPeers" style="margin-left:15px;color:#0af">0 players</span>
+</div>
+
+<div class="hud" id="shield-bar"><div id="shield-fill"></div></div>
+<div class="hud" id="shield-label">SHIELD</div>
+
+<div class="hud" id="boost-bar"><div id="boost-fill"></div></div>
+<div class="hud" id="boost-label">BOOST</div>
+
+<div class="hud" id="score">00000</div>
+<div class="hud" id="kills">KILLS: 0</div>
+
+<div class="hud" id="killfeed"></div>
+
+<svg class="hud" id="crosshair" viewBox="0 0 60 60">
+  <circle cx="30" cy="30" r="25" stroke="#0f0" stroke-width="2" fill="none" opacity="0.5"/>
+  <line x1="30" y1="0" x2="30" y2="20" stroke="#0f0" stroke-width="2"/>
+  <line x1="30" y1="40" x2="30" y2="60" stroke="#0f0" stroke-width="2"/>
+  <line x1="0" y1="30" x2="20" y2="30" stroke="#0f0" stroke-width="2"/>
+  <line x1="40" y1="30" x2="60" y2="30" stroke="#0f0" stroke-width="2"/>
+  <circle cx="30" cy="30" r="3" fill="#0f0"/>
+</svg>
+
+<div class="hud" id="players">
+  <div id="players-title">PLAYERS</div>
+  <div id="players-list"></div>
+</div>
+
+<div class="hud" id="message"></div>
+
+<div class="hud" id="controls">
+  WASD: Move | Mouse: Aim<br>
+  Click: Fire | Q: Barrel Roll<br>
+  Space: Rapid Fire
+</div>
+
+<script type="module">
+// ============================================
+// WEBTORRENT P2P NETWORKING
+// ============================================
+const TRACKER = 'wss://tracker.openwebtorrent.com';
+const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const NUM_OFFERS = 5;
+const SYNC_RATE = 50; // ms between state syncs
+
+// Generate peer ID - 20 bytes for WebTorrent
+const myId = '-GF0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6)))
+  .map(b => b.toString(16).padStart(2,'0')).join('');
+
+// Network state
+let ws = null;
+let infoHash = null;
+let currentRoom = '';
+const dataChannels = new Map();
+const pendingOffers = new Map();
+const remotePlayers = new Map();
+
+// Local player state
+let myName = 'Fox-' + myId.slice(-4);
+let myTeam = 'gitfox';
+let inGame = false;
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+const $ = id => document.getElementById(id);
+const T = {
+  v3: (x,y,z) => new THREE.Vector3(x,y,z),
+  rnd: (a,b) => a + Math.random() * (b-a),
+  clamp: (v,a,b) => Math.max(a, Math.min(b, v)),
+  lerp: (a,b,t) => a + (b-a) * t
+};
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Room name to info_hash
+async function roomToHash(name) {
+  const data = new TextEncoder().encode('gitfox:' + name);
+  const hash = await crypto.subtle.digest('SHA-1', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ============================================
+// P2P NETWORKING
+// ============================================
+async function generateOffers(count) {
+  const offers = [];
+  for (let i = 0; i < count; i++) {
+    const pc = new RTCPeerConnection(ICE);
+    const dc = pc.createDataChannel('game');
+    const offerId = crypto.randomUUID();
+
+    await new Promise(resolve => {
+      pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+      pc.createOffer().then(o => pc.setLocalDescription(o));
+    });
+
+    offers.push({
+      offer_id: offerId,
+      offer: { type: 'offer', sdp: pc.localDescription.sdp }
+    });
+    pendingOffers.set(offerId, { pc, dc });
+    setupPeerConnection(pc, dc, offerId);
+  }
+  return offers;
+}
+
+function setupPeerConnection(pc, dc, id) {
+  dc.onopen = () => {
+    console.log('Peer connected:', id.slice(0,8));
+    dataChannels.set(id, dc);
+    updatePlayerCount();
+
+    // Send our player info
+    sendToPeer(dc, {
+      type: 'join',
+      id: myId,
+      name: myName,
+      team: myTeam
+    });
+  };
+
+  dc.onclose = () => {
+    console.log('Peer disconnected:', id.slice(0,8));
+    dataChannels.delete(id);
+
+    // Remove from game
+    const player = remotePlayers.get(id);
+    if (player) {
+      if (player.ship) G.sc.remove(player.ship);
+      remotePlayers.delete(id);
+      addKillFeed(`${player.name} disconnected`);
+    }
+    updatePlayerCount();
+    updatePlayerList();
+  };
+
+  dc.onmessage = e => {
+    try {
+      const msg = JSON.parse(e.data);
+      handleNetworkMessage(id, msg);
+    } catch (err) {
+      console.error('Message error:', err);
+    }
+  };
+}
+
+async function handleOffer(msg) {
+  const pc = new RTCPeerConnection(ICE);
+  const peerId = msg.peer_id;
+
+  pc.ondatachannel = e => {
+    const dc = e.channel;
+    setupPeerConnection(pc, dc, peerId);
+  };
+
+  await pc.setRemoteDescription(msg.offer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  await new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') resolve();
+    else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+  });
+
+  ws.send(JSON.stringify({
+    action: 'announce',
+    info_hash: infoHash,
+    peer_id: myId,
+    to_peer_id: peerId,
+    answer: { type: 'answer', sdp: pc.localDescription.sdp },
+    offer_id: msg.offer_id
+  }));
+}
+
+async function handleAnswer(msg) {
+  const pending = pendingOffers.get(msg.offer_id);
+  if (!pending) return;
+  await pending.pc.setRemoteDescription(msg.answer);
+}
+
+async function reannounce() {
+  if (ws?.readyState !== 1) return;
+  const offers = await generateOffers(NUM_OFFERS);
+  ws.send(JSON.stringify({
+    action: 'announce',
+    info_hash: infoHash,
+    peer_id: myId,
+    numwant: 20,
+    offers: offers
+  }));
+}
+
+function broadcast(msg) {
+  const data = JSON.stringify(msg);
+  for (const dc of dataChannels.values()) {
+    if (dc.readyState === 'open') dc.send(data);
+  }
+}
+
+function sendToPeer(dc, msg) {
+  if (dc.readyState === 'open') {
+    dc.send(JSON.stringify(msg));
+  }
+}
+
+async function joinRoom(roomName) {
+  if (ws) ws.close();
+  dataChannels.clear();
+  pendingOffers.clear();
+
+  currentRoom = roomName || 'gitfox-arena';
+  infoHash = await roomToHash(currentRoom);
+
+  $('connDot').className = 'dot pulse';
+  $('connStatus').textContent = 'Connecting...';
+  $('lobbyStatus').textContent = 'Connecting to tracker...';
+
+  const offers = await generateOffers(NUM_OFFERS);
+
+  ws = new WebSocket(TRACKER);
+
+  ws.onopen = () => {
+    console.log('Connected to tracker');
+    $('connDot').className = 'dot on';
+    $('connStatus').textContent = 'Connected';
+    $('lobbyStatus').textContent = 'Connected! Waiting for players...';
+
+    ws.send(JSON.stringify({
+      action: 'announce',
+      info_hash: infoHash,
+      peer_id: myId,
+      numwant: 20,
+      uploaded: 0,
+      downloaded: 0,
+      left: 1,
+      offers: offers
+    }));
+  };
+
+  ws.onmessage = async (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+
+      if (msg.offer && msg.peer_id !== myId) {
+        await handleOffer(msg);
+      }
+
+      if (msg.answer && msg.offer_id) {
+        await handleAnswer(msg);
+      }
+
+      if (msg.interval) {
+        setTimeout(() => reannounce(), msg.interval * 1000);
+      }
+    } catch (err) {
+      console.error('Tracker error:', err);
+    }
+  };
+
+  ws.onerror = () => {
+    $('connDot').className = 'dot';
+    $('connStatus').textContent = 'Error';
+    $('lobbyStatus').textContent = 'Connection error - retrying...';
+  };
+
+  ws.onclose = () => {
+    $('connDot').className = 'dot pulse';
+    $('connStatus').textContent = 'Reconnecting...';
+    setTimeout(() => joinRoom(currentRoom), 5000);
+  };
+}
+
+// ============================================
+// NETWORK MESSAGE HANDLERS
+// ============================================
+function handleNetworkMessage(peerId, msg) {
+  switch (msg.type) {
+    case 'join':
+      // New player joined
+      if (!remotePlayers.has(msg.id)) {
+        const player = {
+          id: msg.id,
+          name: msg.name,
+          team: msg.team,
+          x: 0, y: 0, z: 100,
+          rx: 0, ry: 0, rz: 0,
+          shield: 100,
+          score: 0,
+          kills: 0,
+          ship: null,
+          lastUpdate: Date.now()
+        };
+
+        // Create ship for this player
+        if (inGame) {
+          player.ship = G.createShip(msg.team === 'gitfox' ? 0x00ff00 : 0xff6600, msg.team === 'amazon');
+          player.ship.position.set(T.rnd(-50,50), T.rnd(-20,20), T.rnd(-100,-50));
+          G.sc.add(player.ship);
+        }
+
+        remotePlayers.set(msg.id, player);
+        addKillFeed(`${msg.name} joined the battle!`);
+        showMessage(`${msg.name} joined!`);
+      }
+      updatePlayerList();
+      updatePlayerCount();
+
+      // Send our info back
+      broadcast({
+        type: 'join',
+        id: myId,
+        name: myName,
+        team: myTeam
+      });
+      break;
+
+    case 'state':
+      // Player state update
+      const player = remotePlayers.get(msg.id);
+      if (player) {
+        player.x = msg.x;
+        player.y = msg.y;
+        player.z = msg.z;
+        player.rx = msg.rx;
+        player.ry = msg.ry;
+        player.rz = msg.rz;
+        player.shield = msg.shield;
+        player.score = msg.score;
+        player.kills = msg.kills;
+        player.lastUpdate = Date.now();
+      }
+      break;
+
+    case 'fire':
+      // Remote player fired
+      if (inGame) {
+        G.spawnRemoteBullet(msg);
+      }
+      break;
+
+    case 'hit':
+      // We got hit
+      if (msg.targetId === myId && inGame) {
+        G.takeDamage(msg.damage, msg.attackerId);
+      }
+      break;
+
+    case 'kill':
+      // Someone got killed
+      addKillFeed(`${msg.killerName} eliminated ${msg.victimName}`);
+      updatePlayerList();
+      break;
+
+    case 'respawn':
+      // Player respawned
+      const p = remotePlayers.get(msg.id);
+      if (p) {
+        p.shield = 100;
+        if (p.ship) {
+          p.ship.visible = true;
+        }
+      }
+      break;
+  }
+}
+
+// ============================================
+// UI FUNCTIONS
+// ============================================
+function updatePlayerCount() {
+  const count = dataChannels.size + 1;
+  $('connPeers').textContent = count + ' player' + (count !== 1 ? 's' : '');
+  $('lobbyStatus').textContent = `${count} player${count !== 1 ? 's' : ''} in room`;
+}
+
+function updatePlayerList() {
+  const list = $('players-list');
+  let html = '';
+
+  // Add self
+  const teamColor = myTeam === 'gitfox' ? '#0f0' : '#f60';
+  html += `<div class="player-entry">
+    <span class="player-dot" style="background:${teamColor}"></span>
+    <span class="player-name" style="color:${teamColor}">${escapeHtml(myName)} (you)</span>
+    <span class="player-score">${G?.score || 0}</span>
+  </div>`;
+
+  // Add remote players
+  remotePlayers.forEach(p => {
+    const color = p.team === 'gitfox' ? '#0f0' : '#f60';
+    html += `<div class="player-entry">
+      <span class="player-dot" style="background:${color}"></span>
+      <span class="player-name" style="color:${color}">${escapeHtml(p.name)}</span>
+      <span class="player-score">${p.score}</span>
+    </div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+function addKillFeed(text) {
+  const feed = $('killfeed');
+  const entry = document.createElement('div');
+  entry.className = 'kill-entry';
+  entry.textContent = text;
+  feed.appendChild(entry);
+
+  setTimeout(() => entry.classList.add('fade'), 4000);
+  setTimeout(() => entry.remove(), 5000);
+
+  // Keep only last 5
+  while (feed.children.length > 5) {
+    feed.firstChild.remove();
+  }
+}
+
+function showMessage(text, duration = 2000) {
+  const msg = $('message');
+  msg.textContent = text;
+  msg.style.opacity = 1;
+  setTimeout(() => msg.style.opacity = 0, duration);
+}
+
+// ============================================
+// GAME ENGINE
+// ============================================
+const G = {
+  shield: 100,
+  boost: 100,
+  score: 0,
+  kills: 0,
+  invincible: 0,
+  barrelRolling: false,
+  barrelRollTimer: 0,
+  respawnTimer: 0,
+  dead: false,
+
+  bullets: [],
+  remoteBullets: [],
+  particles: [],
+
+  shipX: 0,
+  shipY: 0,
+  shipTargetX: 0,
+  shipTargetY: 0,
+
+  mouse: { x: 0, y: 0, locked: false },
+  keys: {},
+
+  init() {
+    this.sc = new THREE.Scene();
+    this.ca = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 3000);
+    this.rn = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true });
+    this.rn.setSize(innerWidth, innerHeight);
+    this.rn.setClearColor(0x050510);
+
+    // Lighting
+    this.sc.add(new THREE.AmbientLight(0x222244, 0.5));
+    const sun = new THREE.DirectionalLight(0xffffee, 0.8);
+    sun.position.set(100, 50, 50);
+    this.sc.add(sun);
+
+    // Environment
+    this.createStarfield();
+    this.createStation();
+    this.createPlanet();
+    this.createArena();
+
+    // Player ship
+    this.ship = this.createShip(myTeam === 'gitfox' ? 0x00ff00 : 0xff6600, myTeam === 'amazon');
+    this.ship.position.set(0, 0, 0);
+    this.sc.add(this.ship);
+
+    // Create ships for existing remote players
+    remotePlayers.forEach(p => {
+      p.ship = this.createShip(p.team === 'gitfox' ? 0x00ff00 : 0xff6600, p.team === 'amazon');
+      p.ship.position.set(p.x, p.y, p.z);
+      this.sc.add(p.ship);
+    });
+
+    // Camera
+    this.ca.position.set(0, 20, 40);
+    this.ca.lookAt(0, 0, -30);
+
+    // Input
+    window.addEventListener('keydown', e => {
+      this.keys[e.code] = true;
+      if (e.code === 'KeyQ' || e.code === 'ShiftLeft') this.barrelRoll();
+    });
+    window.addEventListener('keyup', e => this.keys[e.code] = false);
+
+    document.addEventListener('click', () => {
+      if (!this.mouse.locked) {
+        document.body.requestPointerLock();
+      } else {
+        this.fire();
+      }
+    });
+
+    document.addEventListener('pointerlockchange', () => {
+      this.mouse.locked = !!document.pointerLockElement;
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (this.mouse.locked) {
+        this.mouse.x += e.movementX * 0.002;
+        this.mouse.y += e.movementY * 0.002;
+        this.mouse.x = T.clamp(this.mouse.x, -1, 1);
+        this.mouse.y = T.clamp(this.mouse.y, -1, 1);
+      }
+    });
+
+    // State sync loop
+    setInterval(() => this.syncState(), SYNC_RATE);
+
+    // Start game
+    inGame = true;
+    showMessage('BATTLE START!', 3000);
+
+    // Announce join
+    broadcast({
+      type: 'join',
+      id: myId,
+      name: myName,
+      team: myTeam
+    });
+
+    this.animate();
+  },
+
+  createShip(color, isEnemy = false) {
+    const g = new THREE.Group();
+
+    const body = new THREE.Mesh(
+      new THREE.ConeGeometry(1.5, 6, 4),
+      new THREE.MeshPhongMaterial({ color: isEnemy ? 0x333333 : 0xcccccc })
+    );
+    body.rotation.x = -Math.PI / 2;
+    body.rotation.y = Math.PI / 4;
+    g.add(body);
+
+    const wingGeo = new THREE.BoxGeometry(8, 0.2, 2);
+    const wingMat = new THREE.MeshPhongMaterial({ color });
+
+    const leftWing = new THREE.Mesh(wingGeo, wingMat);
+    leftWing.position.set(-2, 0, 1);
+    leftWing.rotation.z = 0.1;
+    g.add(leftWing);
+
+    const rightWing = new THREE.Mesh(wingGeo, wingMat);
+    rightWing.position.set(2, 0, 1);
+    rightWing.rotation.z = -0.1;
+    g.add(rightWing);
+
+    if (isEnemy) {
+      const finGeo = new THREE.BoxGeometry(0.5, 6, 2);
+      const leftFin = new THREE.Mesh(finGeo, wingMat);
+      leftFin.position.set(-4, 0, 1);
+      g.add(leftFin);
+      const rightFin = new THREE.Mesh(finGeo, wingMat);
+      rightFin.position.set(4, 0, 1);
+      g.add(rightFin);
+    }
+
+    const cockpit = new THREE.Mesh(
+      new THREE.SphereGeometry(0.8, 8, 8),
+      new THREE.MeshPhongMaterial({
+        color: isEnemy ? 0xff4400 : 0x00ff88,
+        emissive: isEnemy ? 0x441100 : 0x004422
+      })
+    );
+    cockpit.position.z = -1;
+    cockpit.scale.set(1, 0.5, 1);
+    g.add(cockpit);
+
+    for (let i = -1; i <= 1; i += 2) {
+      const eng = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.3, 0.5, 1.5),
+        new THREE.MeshPhongMaterial({ color: 0x666666 })
+      );
+      eng.rotation.x = Math.PI / 2;
+      eng.position.set(i * 1.5, -0.3, 3);
+      g.add(eng);
+
+      const glow = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.4, 0.5),
+        new THREE.MeshBasicMaterial({ color: isEnemy ? 0xff6600 : 0x00aaff })
+      );
+      glow.rotation.x = Math.PI / 2;
+      glow.position.set(i * 1.5, -0.3, 3.8);
+      glow.userData.isGlow = true;
+      g.add(glow);
+    }
+
+    return g;
+  },
+
+  createStarfield() {
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = [];
+    for (let i = 0; i < 3000; i++) {
+      starPos.push(T.rnd(-1000, 1000), T.rnd(-500, 500), T.rnd(-1000, 500));
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+    this.starField = new THREE.Points(
+      starGeo,
+      new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 })
+    );
+    this.sc.add(this.starField);
+  },
+
+  createStation() {
+    const g = new THREE.Group();
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(80, 8, 8, 32),
+      new THREE.MeshPhongMaterial({ color: 0x445566 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    g.add(ring);
+
+    const hub = new THREE.Mesh(
+      new THREE.CylinderGeometry(15, 15, 40, 16),
+      new THREE.MeshPhongMaterial({ color: 0x556677 })
+    );
+    g.add(hub);
+
+    for (let i = 0; i < 4; i++) {
+      const spoke = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 4, 70),
+        new THREE.MeshPhongMaterial({ color: 0x445566 })
+      );
+      spoke.rotation.y = i * Math.PI / 2;
+      spoke.position.x = Math.cos(i * Math.PI / 2) * 35;
+      spoke.position.z = Math.sin(i * Math.PI / 2) * 35;
+      g.add(spoke);
+    }
+
+    g.position.set(0, 50, -300);
+    g.rotation.x = 0.3;
+    this.station = g;
+    this.sc.add(g);
+  },
+
+  createPlanet() {
+    const planet = new THREE.Mesh(
+      new THREE.SphereGeometry(200, 32, 32),
+      new THREE.MeshPhongMaterial({ color: 0x2244aa })
+    );
+    planet.position.set(-100, -350, -200);
+    this.sc.add(planet);
+
+    const atmo = new THREE.Mesh(
+      new THREE.SphereGeometry(210, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.2 })
+    );
+    atmo.position.copy(planet.position);
+    this.sc.add(atmo);
+  },
+
+  createArena() {
+    // Arena boundaries (visual markers)
+    const boundaryMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.1,
+      side: THREE.DoubleSide
+    });
+
+    // Floor grid
+    const gridHelper = new THREE.GridHelper(400, 20, 0x004444, 0x002222);
+    gridHelper.position.y = -100;
+    this.sc.add(gridHelper);
+  },
+
+  fire() {
+    if (this.dead) return;
+
+    const bullet = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3),
+      new THREE.MeshBasicMaterial({ color: myTeam === 'gitfox' ? 0x00ff00 : 0xff6600 })
+    );
+    bullet.position.copy(this.ship.position);
+    bullet.position.z -= 5;
+
+    const aimX = this.shipX * 40;
+    const aimY = this.shipY * 25;
+    const vel = T.v3(aimX * 0.015, -aimY * 0.015, -4);
+
+    bullet.userData = {
+      vel,
+      life: 80,
+      ownerId: myId,
+      team: myTeam
+    };
+
+    this.sc.add(bullet);
+    this.bullets.push(bullet);
+
+    // Broadcast fire
+    broadcast({
+      type: 'fire',
+      id: myId,
+      team: myTeam,
+      x: bullet.position.x,
+      y: bullet.position.y,
+      z: bullet.position.z,
+      vx: vel.x,
+      vy: vel.y,
+      vz: vel.z
+    });
+  },
+
+  spawnRemoteBullet(msg) {
+    const bullet = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3),
+      new THREE.MeshBasicMaterial({ color: msg.team === 'gitfox' ? 0x00ff00 : 0xff6600 })
+    );
+    bullet.position.set(msg.x, msg.y, msg.z);
+    bullet.userData = {
+      vel: T.v3(msg.vx, msg.vy, msg.vz),
+      life: 80,
+      ownerId: msg.id,
+      team: msg.team
+    };
+    this.sc.add(bullet);
+    this.remoteBullets.push(bullet);
+  },
+
+  barrelRoll() {
+    if (this.barrelRolling || this.boost < 20 || this.dead) return;
+    this.barrelRolling = true;
+    this.barrelRollTimer = 0;
+    this.boost -= 20;
+    this.invincible = 30;
+  },
+
+  takeDamage(amt, attackerId) {
+    if (this.invincible > 0 || this.dead) return;
+
+    this.shield -= amt;
+    this.invincible = 30;
+    $('shield-fill').style.width = Math.max(0, this.shield) + '%';
+
+    if (this.shield <= 0) {
+      this.die(attackerId);
+    }
+  },
+
+  die(killerId) {
+    this.dead = true;
+    this.respawnTimer = 180; // 3 seconds
+    this.spawnExplosion(this.ship.position, 1.5);
+    this.ship.visible = false;
+
+    // Find killer name
+    let killerName = 'Unknown';
+    if (killerId) {
+      const killer = remotePlayers.get(killerId);
+      if (killer) {
+        killerName = killer.name;
+        killer.kills++;
+        killer.score += 100;
+      }
+    }
+
+    // Broadcast kill
+    broadcast({
+      type: 'kill',
+      victimId: myId,
+      victimName: myName,
+      killerId: killerId,
+      killerName: killerName
+    });
+
+    addKillFeed(`${killerName} eliminated ${myName}`);
+    showMessage('DESTROYED!', 2000);
+  },
+
+  respawn() {
+    this.dead = false;
+    this.shield = 100;
+    this.invincible = 120;
+    this.ship.position.set(T.rnd(-50, 50), T.rnd(-20, 20), T.rnd(0, 50));
+    this.ship.visible = true;
+    this.shipX = 0;
+    this.shipY = 0;
+    this.shipTargetX = 0;
+    this.shipTargetY = 0;
+    $('shield-fill').style.width = '100%';
+
+    broadcast({
+      type: 'respawn',
+      id: myId
+    });
+
+    showMessage('RESPAWNED!', 1500);
+  },
+
+  spawnExplosion(pos, scale = 1) {
+    for (let i = 0; i < 25 * scale; i++) {
+      const p = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5 * scale),
+        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff6600 : 0xffff00 })
+      );
+      p.position.copy(pos);
+      p.userData = {
+        vel: T.v3(T.rnd(-2, 2) * scale, T.rnd(-2, 2) * scale, T.rnd(-2, 2) * scale),
+        life: 50
+      };
+      this.sc.add(p);
+      this.particles.push(p);
+    }
+  },
+
+  addScore(pts) {
+    this.score += pts;
+    $('score').textContent = String(this.score).padStart(5, '0');
+  },
+
+  syncState() {
+    if (!inGame || this.dead) return;
+
+    broadcast({
+      type: 'state',
+      id: myId,
+      x: this.ship.position.x,
+      y: this.ship.position.y,
+      z: this.ship.position.z,
+      rx: this.ship.rotation.x,
+      ry: this.ship.rotation.y,
+      rz: this.ship.rotation.z,
+      shield: this.shield,
+      score: this.score,
+      kills: this.kills
+    });
+  },
+
+  update() {
+    if (this.dead) {
+      this.respawnTimer--;
+      if (this.respawnTimer <= 0) {
+        this.respawn();
+      }
+      return;
+    }
+
+    // Movement
+    let lx = this.keys.KeyA ? -1 : this.keys.KeyD ? 1 : 0;
+    let ly = this.keys.KeyW ? -1 : this.keys.KeyS ? 1 : 0;
+
+    this.shipTargetX = T.clamp(this.shipTargetX + lx * 0.03, -1, 1);
+    this.shipTargetY = T.clamp(this.shipTargetY - ly * 0.03, -1, 1);
+
+    this.shipX = T.lerp(this.shipX, this.shipTargetX, 0.1);
+    this.shipY = T.lerp(this.shipY, this.shipTargetY, 0.1);
+
+    this.ship.position.x = this.shipX * 80;
+    this.ship.position.y = this.shipY * 50;
+
+    this.ship.rotation.z = T.lerp(this.ship.rotation.z, -lx * 0.5, 0.1);
+    this.ship.rotation.x = T.lerp(this.ship.rotation.x, ly * 0.3, 0.1);
+
+    // Barrel roll
+    if (this.barrelRolling) {
+      this.barrelRollTimer += 0.25;
+      this.ship.rotation.z = this.barrelRollTimer;
+      if (this.barrelRollTimer >= Math.PI * 2) {
+        this.barrelRolling = false;
+        this.ship.rotation.z = 0;
+      }
+    }
+
+    // Update station
+    if (this.station) {
+      this.station.rotation.y += 0.001;
+    }
+
+    // Update remote players
+    remotePlayers.forEach(p => {
+      if (p.ship) {
+        p.ship.position.x = T.lerp(p.ship.position.x, p.x, 0.15);
+        p.ship.position.y = T.lerp(p.ship.position.y, p.y, 0.15);
+        p.ship.position.z = T.lerp(p.ship.position.z, p.z, 0.15);
+        p.ship.rotation.x = T.lerp(p.ship.rotation.x, p.rx, 0.1);
+        p.ship.rotation.y = T.lerp(p.ship.rotation.y, p.ry, 0.1);
+        p.ship.rotation.z = T.lerp(p.ship.rotation.z, p.rz, 0.1);
+
+        // Engine glow
+        p.ship.children.forEach(c => {
+          if (c.userData.isGlow) {
+            c.scale.z = 0.8 + Math.random() * 0.4;
+          }
+        });
+      }
+    });
+
+    // Update my bullets
+    this.bullets.forEach(b => {
+      b.position.add(b.userData.vel);
+      b.userData.life--;
+
+      // Check hits on remote players
+      remotePlayers.forEach(p => {
+        if (p.team !== myTeam && p.ship && b.position.distanceTo(p.ship.position) < 6) {
+          // Hit!
+          broadcast({
+            type: 'hit',
+            targetId: p.id,
+            attackerId: myId,
+            damage: 15
+          });
+          b.userData.life = 0;
+          this.spawnExplosion(b.position, 0.3);
+          this.addScore(10);
+        }
+      });
+
+      if (b.userData.life <= 0) {
+        this.sc.remove(b);
+        b.dead = true;
+      }
+    });
+    this.bullets = this.bullets.filter(b => !b.dead);
+
+    // Update remote bullets
+    this.remoteBullets.forEach(b => {
+      b.position.add(b.userData.vel);
+      b.userData.life--;
+
+      // Check if hit me
+      if (b.userData.team !== myTeam && b.position.distanceTo(this.ship.position) < 5) {
+        this.takeDamage(15, b.userData.ownerId);
+        this.spawnExplosion(b.position, 0.3);
+        b.userData.life = 0;
+      }
+
+      if (b.userData.life <= 0) {
+        this.sc.remove(b);
+        b.dead = true;
+      }
+    });
+    this.remoteBullets = this.remoteBullets.filter(b => !b.dead);
+
+    // Update particles
+    this.particles.forEach(p => {
+      p.position.add(p.userData.vel);
+      p.userData.life--;
+      p.scale.setScalar(p.userData.life / 50);
+      if (p.userData.life <= 0) {
+        this.sc.remove(p);
+        p.dead = true;
+      }
+    });
+    this.particles = this.particles.filter(p => !p.dead);
+
+    // Boost regen
+    this.boost = Math.min(100, this.boost + 0.1);
+    $('boost-fill').style.width = this.boost + '%';
+
+    if (this.invincible > 0) this.invincible--;
+
+    // Engine glow
+    this.ship.children.forEach(c => {
+      if (c.userData.isGlow) {
+        c.scale.z = 0.8 + Math.random() * 0.4;
+      }
+    });
+
+    // Rapid fire
+    if (this.keys.Space && Math.random() < 0.15) {
+      this.fire();
+    }
+
+    // Update kills display
+    $('kills').textContent = 'KILLS: ' + this.kills;
+  },
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+
+    this.update();
+
+    // Camera follow
+    this.ca.position.x = T.lerp(this.ca.position.x, this.ship.position.x * 0.2, 0.03);
+    this.ca.position.y = T.lerp(this.ca.position.y, 20 + this.ship.position.y * 0.15, 0.03);
+    this.ca.lookAt(this.ship.position.x * 0.5, this.ship.position.y * 0.5, -30);
+
+    // Invincibility flash
+    if (this.invincible > 0 && !this.dead) {
+      this.ship.visible = Math.floor(this.invincible / 3) % 2 === 0;
+    } else if (!this.dead) {
+      this.ship.visible = true;
+    }
+
+    updatePlayerList();
+    this.rn.render(this.sc, this.ca);
+  }
+};
+
+// ============================================
+// LOBBY & INITIALIZATION
+// ============================================
+function initLobby() {
+  // Team selection
+  document.querySelectorAll('.team-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      myTeam = btn.dataset.team;
+    };
+  });
+
+  // Join button
+  $('joinBtn').onclick = () => {
+    myName = $('nameInput').value.trim() || 'Fox-' + myId.slice(-4);
+    const room = $('roomInput').value.trim();
+
+    $('lobby').classList.add('hidden');
+
+    // Join room if different
+    if (room && room !== currentRoom) {
+      joinRoom(room);
+    }
+
+    // Start game
+    G.init();
+  };
+
+  // Enter key to join
+  $('nameInput').onkeydown = e => {
+    if (e.key === 'Enter') $('joinBtn').click();
+  };
+  $('roomInput').onkeydown = e => {
+    if (e.key === 'Enter') $('joinBtn').click();
+  };
+
+  // Start connecting immediately
+  joinRoom('gitfox-arena');
+}
+
+// Resize handler
+window.onresize = () => {
+  if (G.rn) {
+    G.rn.setSize(innerWidth, innerHeight);
+    G.ca.aspect = innerWidth / innerHeight;
+    G.ca.updateProjectionMatrix();
+  }
+};
+
+// Start
+initLobby();
+</script>
+</body>
+</html>
