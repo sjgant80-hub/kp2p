@@ -318,11 +318,44 @@
   </div>
 
   <script type="module">
-    import { LocalLLM, checkWebGPU, MODELS, DEFAULT_MODEL } from '../llm/local.js';
+    import { LocalLLM, checkWebGPU, RECOMMENDED_MODELS, DEFAULT_MODEL, getAvailableModels } from '../llm/local.js';
 
     const $ = id => document.getElementById(id);
     let llm = null;
     let isGenerating = false;
+
+    // Populate model select with recommended models
+    function populateModels() {
+      const select = $('modelSelect');
+      select.innerHTML = '';
+
+      const groups = {
+        tiny: { label: 'Tiny (100-300MB)', models: [] },
+        small: { label: 'Small (500MB-1GB)', models: [] },
+        medium: { label: 'Medium (1-2GB)', models: [] },
+        large: { label: 'Large (3-5GB)', models: [] },
+      };
+
+      for (const model of RECOMMENDED_MODELS) {
+        if (groups[model.size]) {
+          groups[model.size].models.push(model);
+        }
+      }
+
+      for (const [size, group] of Object.entries(groups)) {
+        if (group.models.length === 0) continue;
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = group.label;
+        for (const model of group.models) {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.textContent = model.name;
+          if (model.id === DEFAULT_MODEL) option.selected = true;
+          optgroup.appendChild(option);
+        }
+        select.appendChild(optgroup);
+      }
+    }
 
     // Check WebGPU on load
     async function initGPU() {
@@ -458,6 +491,7 @@
     $('input').onkeydown = (e) => { if (e.key === 'Enter') send(); };
 
     // Init
+    populateModels();
     initGPU();
   </script>
 </body>

@@ -384,10 +384,43 @@ Load a model to get started!</div>
 
   <script type="module">
     import { Agent } from '../llm/agent.js';
-    import { checkWebGPU } from '../llm/local.js';
+    import { checkWebGPU, RECOMMENDED_MODELS, DEFAULT_MODEL } from '../llm/local.js';
 
     const $ = id => document.getElementById(id);
     let agent = null;
+
+    // Populate model select with recommended models
+    function populateModels() {
+      const select = $('modelSelect');
+      select.innerHTML = '';
+
+      const groups = {
+        tiny: { label: 'Tiny (Fast)', models: [] },
+        small: { label: 'Small', models: [] },
+        medium: { label: 'Medium', models: [] },
+        large: { label: 'Large (Best)', models: [] },
+      };
+
+      for (const model of RECOMMENDED_MODELS) {
+        if (groups[model.size]) {
+          groups[model.size].models.push(model);
+        }
+      }
+
+      for (const [size, group] of Object.entries(groups)) {
+        if (group.models.length === 0) continue;
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = group.label;
+        for (const model of group.models) {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.textContent = model.name;
+          if (model.id === DEFAULT_MODEL) option.selected = true;
+          optgroup.appendChild(option);
+        }
+        select.appendChild(optgroup);
+      }
+    }
 
     // === UI HELPERS ===
     function addMessage(role, content) {
@@ -615,7 +648,8 @@ Load a model to get started!</div>
       }
     };
 
-    // Initial WebGPU check
+    // Initialize
+    populateModels();
     checkWebGPU().then(result => {
       if (!result.supported) {
         $('statusText').textContent = 'WebGPU not available';

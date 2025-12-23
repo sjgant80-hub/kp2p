@@ -2,49 +2,29 @@
  * @file src/llm/local.js
  * @desc Local LLM runtime using WebLLM (browser-native, no API keys)
  *
- * ARCHITECTURE:
- * - Runs entirely in browser via WebGPU
- * - Models cached in IndexedDB
- * - No external API calls needed
- * - Works on GitHub Pages (must be HTTPS)
+ * Uses WebLLM's prebuilt model list dynamically - no hardcoding needed.
+ * Models are downloaded from HuggingFace on first use and cached.
  *
  * REQUIREMENTS:
  * - Browser with WebGPU support (Chrome 113+, Edge 113+)
  * - HTTPS (for Cache API)
- * - ~2-8GB RAM depending on model size
  */
 
 // WebLLM from CDN
 const WEBLLM_CDN = 'https://esm.run/@mlc-ai/web-llm';
 
-// Available models - VERIFIED WebLLM model IDs (Dec 2024)
-// Source: https://github.com/mlc-ai/web-llm/blob/main/src/config.ts
-export const MODELS = {
-  // Tiny (~100-300MB download)
-  'SmolLM2-135M': 'SmolLM2-135M-Instruct-q0f16-MLC',
-  'SmolLM2-360M': 'SmolLM2-360M-Instruct-q4f16_1-MLC',
-  'Qwen2.5-0.5B': 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+// Cache for WebLLM module
+let webllmModule = null;
 
-  // Small (~500MB-1GB)
-  'TinyLlama-1.1B': 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
-  'Qwen2.5-1.5B': 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
-  'SmolLM2-1.7B': 'SmolLM2-1.7B-Instruct-q4f16_1-MLC',
-  'Gemma-2B': 'gemma-2b-it-q4f16_1-MLC',
-
-  // Medium (~1-2GB)
-  'Llama-3.2-1B': 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
-  'Llama-3.2-3B': 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
-  'Qwen2.5-3B': 'Qwen2.5-3B-Instruct-q4f16_1-MLC',
-  'Phi-3.5-mini': 'Phi-3.5-mini-instruct-q4f16_1-MLC',
-
-  // Large (~3-5GB)
-  'Mistral-7B': 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
-  'Qwen2.5-7B': 'Qwen2.5-7B-Instruct-q4f16_1-MLC',
-  'Llama-3.1-8B': 'Llama-3.1-8B-Instruct-q4f16_1-MLC-1k',
-};
-
-// Default model (tiny, fast download)
-export const DEFAULT_MODEL = 'SmolLM2-360M';
+/**
+ * Get WebLLM module (cached)
+ */
+async function getWebLLM() {
+  if (!webllmModule) {
+    webllmModule = await import(WEBLLM_CDN);
+  }
+  return webllmModule;
+}
 
 /**
  * Check if WebGPU is available
@@ -60,21 +40,17 @@ export async function checkWebGPU() {
       return { supported: false, error: 'No WebGPU adapter found' };
     }
 
-    // requestAdapterInfo may not exist in older browsers
     let adapterInfo = 'WebGPU Adapter';
     try {
       if (adapter.requestAdapterInfo) {
         const info = await adapter.requestAdapterInfo();
         adapterInfo = (info.vendor || '') + ' ' + (info.architecture || '');
       }
-    } catch (e) {
-      // Ignore - use default
-    }
+    } catch (e) {}
 
     return {
       supported: true,
       adapter: adapterInfo.trim() || 'WebGPU Adapter',
-      device: 'WebGPU Device',
     };
   } catch (err) {
     return { supported: false, error: err.message };
@@ -82,43 +58,84 @@ export async function checkWebGPU() {
 }
 
 /**
+ * Get list of available models from WebLLM
+ */
+export async function getAvailableModels() {
+  try {
+    const webllm = await getWebLLM();
+    const config = webllm.prebuiltAppConfig;
+
+    if (!config || !config.model_list) {
+      throw new Error('Could not load model list');
+    }
+
+    // Filter and categorize models
+    const models = config.model_list
+      .filter(m => m.model_id && !m.model_id.includes('embed')) // Skip embedding models
+      .map(m => ({
+        id: m.model_id,
+        name: m.model_id.replace(/-MLC.*$/, '').replace(/-q[0-9].*$/, ''),
+        size: estimateSize(m.model_id),
+        vram: m.vram_required_MB || 0,
+      }));
+
+    // Group by size
+    return {
+      tiny: models.filter(m => m.size === 'tiny'),
+      small: models.filter(m => m.size === 'small'),
+      medium: models.filter(m => m.size === 'medium'),
+      large: models.filter(m => m.size === 'large'),
+      all: models,
+    };
+  } catch (e) {
+    console.error('Failed to get models:', e);
+    return { tiny: [], small: [], medium: [], large: [], all: [] };
+  }
+}
+
+/**
+ * Estimate model size category
+ */
+function estimateSize(modelId) {
+  const id = modelId.toLowerCase();
+  if (id.includes('135m') || id.includes('360m') || id.includes('0.5b') || id.includes('0.6b')) return 'tiny';
+  if (id.includes('1b') || id.includes('1.1b') || id.includes('1.5b') || id.includes('1.6b') || id.includes('1.7b') || id.includes('2b')) return 'small';
+  if (id.includes('3b') || id.includes('4b')) return 'medium';
+  return 'large';
+}
+
+/**
+ * Recommended models (known to work well)
+ */
+export const RECOMMENDED_MODELS = [
+  { id: 'SmolLM2-360M-Instruct-q4f16_1-MLC', name: 'SmolLM2 360M', size: 'tiny' },
+  { id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC', name: 'Qwen2.5 0.5B', size: 'tiny' },
+  { id: 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC', name: 'TinyLlama 1.1B', size: 'small' },
+  { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', name: 'Qwen2.5 1.5B', size: 'small' },
+  { id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', name: 'Llama 3.2 1B', size: 'small' },
+  { id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC', name: 'Llama 3.2 3B', size: 'medium' },
+  { id: 'Phi-3.5-mini-instruct-q4f16_1-MLC', name: 'Phi 3.5 Mini', size: 'medium' },
+  { id: 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC', name: 'Mistral 7B', size: 'large' },
+];
+
+export const DEFAULT_MODEL = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
+
+/**
  * Local LLM instance
  */
 export class LocalLLM {
   constructor(options = {}) {
     this.modelId = options.model || DEFAULT_MODEL;
-    this.modelConfig = MODELS[this.modelId];
-
-    // Validate model exists
-    if (!this.modelConfig) {
-      console.warn(`Model "${this.modelId}" not found, using default: ${DEFAULT_MODEL}`);
-      this.modelId = DEFAULT_MODEL;
-      this.modelConfig = MODELS[DEFAULT_MODEL];
-    }
-
     this.engine = null;
     this.loading = false;
     this.ready = false;
     this.onProgress = options.onProgress || (() => {});
     this.onReady = options.onReady || (() => {});
-    this.systemPrompt = options.systemPrompt || 'You are a helpful AI assistant running locally in the browser.';
+    this.systemPrompt = options.systemPrompt || 'You are a helpful AI assistant.';
   }
 
   /**
-   * Check if local model is available
-   */
-  async checkLocalModel() {
-    if (!this.modelConfig?.local) return false;
-    try {
-      const res = await fetch(this.modelConfig.path + 'mlc-chat-config.json', { method: 'HEAD' });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Load model (from repo or downloads on first use)
+   * Load model
    */
   async load() {
     if (this.ready) return;
@@ -133,60 +150,33 @@ export class LocalLLM {
         throw new Error(gpu.error);
       }
 
-      this.onProgress({ stage: 'init', message: 'Initializing WebLLM...' });
+      this.onProgress({ stage: 'init', message: 'Initializing WebLLM...', progress: 0 });
 
-      // Dynamic import WebLLM
-      const webllm = await import(WEBLLM_CDN);
+      const webllm = await getWebLLM();
 
-      // Check if using local model
-      if (this.modelConfig?.local) {
-        const localAvailable = await this.checkLocalModel();
-        if (localAvailable) {
-          this.onProgress({ stage: 'init', message: 'Loading from local repo...' });
+      this.onProgress({ stage: 'init', message: `Loading ${this.modelId}...`, progress: 0.1 });
 
-          // Use local model path
-          this.engine = await webllm.CreateMLCEngine(this.modelConfig.path, {
-            initProgressCallback: (progress) => {
-              this.onProgress({
-                stage: 'load',
-                message: progress.text,
-                progress: progress.progress,
-              });
-            },
+      // Create engine with the model ID directly
+      this.engine = await webllm.CreateMLCEngine(this.modelId, {
+        initProgressCallback: (progress) => {
+          this.onProgress({
+            stage: 'download',
+            message: progress.text || 'Loading...',
+            progress: progress.progress || 0,
+            text: progress.text,
           });
-        } else {
-          // Fallback to CDN
-          this.onProgress({ stage: 'init', message: 'Local model not found, using CDN...' });
-          this.engine = await webllm.CreateMLCEngine('TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC', {
-            initProgressCallback: (progress) => {
-              this.onProgress({
-                stage: 'download',
-                message: progress.text,
-                progress: progress.progress,
-              });
-            },
-          });
-        }
-      } else {
-        // Use CDN model
-        this.engine = await webllm.CreateMLCEngine(this.modelConfig, {
-          initProgressCallback: (progress) => {
-            this.onProgress({
-              stage: 'download',
-              message: progress.text,
-              progress: progress.progress,
-            });
-          },
-        });
-      }
+        },
+      });
 
       this.ready = true;
       this.loading = false;
+      this.onProgress({ stage: 'ready', message: 'Ready', progress: 1 });
       this.onReady();
 
       return true;
     } catch (err) {
       this.loading = false;
+      console.error('Model load error:', err);
       throw err;
     }
   }
@@ -204,23 +194,36 @@ export class LocalLLM {
       { role: 'user', content: prompt },
     ];
 
-    // Add conversation history if provided
     if (options.history) {
       messages.splice(1, 0, ...options.history);
     }
 
     const response = await this.engine.chat.completions.create({
       messages,
-      max_tokens: options.maxTokens || 512,
-      temperature: options.temperature || 0.7,
-      top_p: options.topP || 0.95,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 512,
       stream: false,
     });
 
-    return {
-      text: response.choices[0].message.content,
-      usage: response.usage,
-    };
+    return response.choices[0]?.message?.content || '';
+  }
+
+  /**
+   * Chat with message history
+   */
+  async chat(messages, options = {}) {
+    if (!this.ready) {
+      await this.load();
+    }
+
+    const response = await this.engine.chat.completions.create({
+      messages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 512,
+      stream: false,
+    });
+
+    return response.choices[0]?.message?.content || '';
   }
 
   /**
@@ -236,72 +239,31 @@ export class LocalLLM {
       { role: 'user', content: prompt },
     ];
 
-    if (options.history) {
-      messages.splice(1, 0, ...options.history);
-    }
-
     const stream = await this.engine.chat.completions.create({
       messages,
-      max_tokens: options.maxTokens || 512,
-      temperature: options.temperature || 0.7,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 512,
       stream: true,
     });
 
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content;
-      if (delta) {
-        yield delta;
-      }
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) yield content;
     }
   }
 
   /**
-   * Get model info
-   */
-  getInfo() {
-    return {
-      modelId: this.modelId,
-      modelName: this.modelName,
-      ready: this.ready,
-      loading: this.loading,
-    };
-  }
-
-  /**
-   * Unload model (free memory)
+   * Unload model
    */
   async unload() {
     if (this.engine) {
-      await this.engine.unload();
+      try {
+        await this.engine.unload();
+      } catch (e) {}
       this.engine = null;
-      this.ready = false;
     }
+    this.ready = false;
   }
-}
-
-/**
- * Create LLM with sandbox integration
- */
-export function createSandboxedLLM(options = {}) {
-  const llm = new LocalLLM(options);
-
-  // Sandboxed system prompt
-  llm.systemPrompt = `You are an AI assistant running locally in a sandboxed browser environment.
-
-CAPABILITIES (allowed):
-- Respond to user questions
-- Help with coding, writing, analysis
-- Use provided tools: memory_get, memory_set, compute, send_message
-
-RESTRICTIONS (blocked):
-- Cannot access the internet (no fetch, no external APIs)
-- Cannot access files (no filesystem)
-- Cannot execute arbitrary code (no eval)
-- Cannot access credentials or secrets
-
-Always be helpful within these constraints. If asked to do something outside your capabilities, explain what you can and cannot do.`;
-
-  return llm;
 }
 
 export default LocalLLM;
