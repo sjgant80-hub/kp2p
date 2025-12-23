@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<!--
+KONOMI WHITEBOARD - Free Miro/FigJam Killer
+Infinite canvas, real-time collaboration. $0 forever.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konomi Whiteboard</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      gap: 4px;
+      z-index: 100;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+
+    .tool {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .tool:hover {
+      background: #0f3460;
+    }
+
+    .tool.active {
+      background: #e94560;
+    }
+
+    .divider {
+      width: 1px;
+      background: #0f3460;
+      margin: 4px 8px;
+    }
+
+    .color-picker {
+      display: flex;
+      gap: 4px;
+    }
+
+    .color {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.2s;
+    }
+
+    .color:hover {
+      transform: scale(1.2);
+    }
+
+    .color.active {
+      border-color: white;
+    }
+
+    /* Canvas */
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      cursor: crosshair;
+    }
+
+    /* Users */
+    .users {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      gap: -8px;
+      z-index: 100;
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      border: 2px solid #1a1a2e;
+      margin-left: -8px;
+    }
+
+    .user-avatar:first-child {
+      margin-left: 0;
+    }
+
+    /* Remote cursors */
+    .remote-cursor {
+      position: absolute;
+      pointer-events: none;
+      z-index: 50;
+      transition: left 0.1s, top 0.1s;
+    }
+
+    .cursor-pointer {
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 12px solid currentColor;
+      transform: rotate(-45deg);
+    }
+
+    .cursor-name {
+      position: absolute;
+      left: 12px;
+      top: 8px;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      color: white;
+    }
+
+    /* Zoom controls */
+    .zoom-controls {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 4px;
+      display: flex;
+      gap: 4px;
+      z-index: 100;
+    }
+
+    .zoom-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      color: white;
+    }
+
+    .zoom-btn:hover {
+      background: #0f3460;
+    }
+
+    .zoom-level {
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* Status */
+    .status {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      font-size: 11px;
+      color: #666;
+      z-index: 100;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #22c55e;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="tool active" data-tool="pen" title="Pen">✏️</button>
+    <button class="tool" data-tool="eraser" title="Eraser">🧹</button>
+    <button class="tool" data-tool="rect" title="Rectangle">⬜</button>
+    <button class="tool" data-tool="circle" title="Circle">⭕</button>
+    <button class="tool" data-tool="text" title="Text">📝</button>
+    <button class="tool" data-tool="select" title="Select">👆</button>
+
+    <div class="divider"></div>
+
+    <div class="color-picker">
+      <div class="color active" style="background:#e94560" data-color="#e94560"></div>
+      <div class="color" style="background:#0f3460" data-color="#0f3460"></div>
+      <div class="color" style="background:#22c55e" data-color="#22c55e"></div>
+      <div class="color" style="background:#3b82f6" data-color="#3b82f6"></div>
+      <div class="color" style="background:#f59e0b" data-color="#f59e0b"></div>
+      <div class="color" style="background:#ffffff" data-color="#ffffff"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="tool" id="clear-btn" title="Clear">🗑️</button>
+    <button class="tool" id="save-btn" title="Save">💾</button>
+  </div>
+
+  <div class="users" id="users"></div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="zoom-controls">
+    <button class="zoom-btn" id="zoom-out">−</button>
+    <span class="zoom-level" id="zoom-level">100%</span>
+    <button class="zoom-btn" id="zoom-in">+</button>
+  </div>
+
+  <div class="status">
+    <span class="status-dot"></span>
+    <span id="status">Syncing...</span>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KONOMI WHITEBOARD - Zero-cost collaborative canvas
+    // =========================================================================
+
+    const params = new URLSearchParams(location.search);
+    const ROOM_ID = params.get('room') || 'konomi-whiteboard';
+    const USER_NAME = params.get('name') || 'Anonymous';
+    const COLORS = ['#e94560', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'];
+    const EMOJIS = ['😀','😎','🤖','👻','🐱','🦊'];
+
+    // State
+    let myId = crypto.randomUUID();
+    let myColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    let myEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    let currentTool = 'pen';
+    let currentColor = '#e94560';
+    let strokeWidth = 3;
+    let isDrawing = false;
+    let lastX = 0, lastY = 0;
+    let strokes = [];
+    let shapes = [];
+    let zoom = 1;
+    let panX = 0, panY = 0;
+    let peers = new Map();
+    let channel = null;
+
+    // Canvas
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      render();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // =========================================================================
+    // P2P Sync
+    // =========================================================================
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-whiteboard:${ROOM_ID}`);
+
+      channel.onmessage = (e) => {
+        const msg = e.data;
+
+        switch (msg.type) {
+          case 'stroke':
+            strokes.push(msg.stroke);
+            render();
+            break;
+          case 'cursor':
+            updateRemoteCursor(msg.userId, msg.x, msg.y, msg.name, msg.color);
+            break;
+          case 'join':
+            peers.set(msg.userId, { name: msg.name, emoji: msg.emoji, color: msg.color });
+            updateUsers();
+            channel.postMessage({ type: 'presence', userId: myId, name: USER_NAME, emoji: myEmoji, color: myColor });
+            channel.postMessage({ type: 'sync-response', strokes, shapes });
+            break;
+          case 'presence':
+            if (!peers.has(msg.userId)) {
+              peers.set(msg.userId, { name: msg.name, emoji: msg.emoji, color: msg.color });
+              updateUsers();
+            }
+            break;
+          case 'sync-response':
+            if (strokes.length === 0) {
+              strokes = msg.strokes || [];
+              shapes = msg.shapes || [];
+              render();
+            }
+            break;
+          case 'clear':
+            strokes = [];
+            shapes = [];
+            render();
+            break;
+          case 'leave':
+            peers.delete(msg.userId);
+            updateUsers();
+            removeRemoteCursor(msg.userId);
+            break;
+        }
+      };
+
+      // Join
+      channel.postMessage({ type: 'join', userId: myId, name: USER_NAME, emoji: myEmoji, color: myColor });
+
+      // Self
+      peers.set(myId, { name: USER_NAME, emoji: myEmoji, color: myColor });
+      updateUsers();
+
+      // Leave on close
+      window.addEventListener('beforeunload', () => {
+        channel.postMessage({ type: 'leave', userId: myId });
+      });
+
+      document.getElementById('status').textContent = `Connected to ${ROOM_ID}`;
+    }
+
+    // =========================================================================
+    // Drawing
+    // =========================================================================
+
+    function startDrawing(e) {
+      if (currentTool === 'select') return;
+
+      isDrawing = true;
+      const { x, y } = getMousePos(e);
+      lastX = x;
+      lastY = y;
+
+      if (currentTool === 'pen' || currentTool === 'eraser') {
+        strokes.push({
+          id: crypto.randomUUID(),
+          tool: currentTool,
+          color: currentTool === 'eraser' ? '#1a1a2e' : currentColor,
+          width: currentTool === 'eraser' ? 20 : strokeWidth,
+          points: [{ x, y }]
+        });
+      }
+    }
+
+    function draw(e) {
+      const { x, y } = getMousePos(e);
+
+      // Broadcast cursor
+      channel.postMessage({ type: 'cursor', userId: myId, x, y, name: USER_NAME, color: myColor });
+
+      if (!isDrawing) return;
+
+      if (currentTool === 'pen' || currentTool === 'eraser') {
+        const stroke = strokes[strokes.length - 1];
+        stroke.points.push({ x, y });
+
+        // Draw line segment
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        lastX = x;
+        lastY = y;
+      }
+    }
+
+    function stopDrawing() {
+      if (isDrawing && (currentTool === 'pen' || currentTool === 'eraser')) {
+        const stroke = strokes[strokes.length - 1];
+        channel.postMessage({ type: 'stroke', stroke });
+      }
+      isDrawing = false;
+    }
+
+    function getMousePos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left - panX) / zoom,
+        y: (clientY - rect.top - panY) / zoom
+      };
+    }
+
+    // =========================================================================
+    // Render
+    // =========================================================================
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Background
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw grid
+      ctx.save();
+      ctx.translate(panX, panY);
+      ctx.scale(zoom, zoom);
+
+      drawGrid();
+
+      // Draw all strokes
+      strokes.forEach(stroke => {
+        if (stroke.points.length < 2) return;
+
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+        for (let i = 1; i < stroke.points.length; i++) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = stroke.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+
+    function drawGrid() {
+      const gridSize = 50;
+      ctx.strokeStyle = '#252540';
+      ctx.lineWidth = 1;
+
+      const startX = Math.floor(-panX / zoom / gridSize) * gridSize;
+      const startY = Math.floor(-panY / zoom / gridSize) * gridSize;
+      const endX = startX + canvas.width / zoom + gridSize * 2;
+      const endY = startY + canvas.height / zoom + gridSize * 2;
+
+      for (let x = startX; x < endX; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, endY);
+        ctx.stroke();
+      }
+
+      for (let y = startY; y < endY; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+        ctx.stroke();
+      }
+    }
+
+    // =========================================================================
+    // Remote Cursors
+    // =========================================================================
+
+    function updateRemoteCursor(userId, x, y, name, color) {
+      let cursor = document.getElementById(`cursor-${userId}`);
+
+      if (!cursor) {
+        cursor = document.createElement('div');
+        cursor.id = `cursor-${userId}`;
+        cursor.className = 'remote-cursor';
+        cursor.innerHTML = `
+          <div class="cursor-pointer" style="color:${color}"></div>
+          <div class="cursor-name" style="background:${color}">${name}</div>
+        `;
+        document.body.appendChild(cursor);
+      }
+
+      cursor.style.left = (x * zoom + panX) + 'px';
+      cursor.style.top = (y * zoom + panY) + 'px';
+    }
+
+    function removeRemoteCursor(userId) {
+      const cursor = document.getElementById(`cursor-${userId}`);
+      if (cursor) cursor.remove();
+    }
+
+    // =========================================================================
+    // Users
+    // =========================================================================
+
+    function updateUsers() {
+      const usersEl = document.getElementById('users');
+      usersEl.innerHTML = '';
+
+      peers.forEach((peer, id) => {
+        const avatar = document.createElement('div');
+        avatar.className = 'user-avatar';
+        avatar.style.background = peer.color;
+        avatar.textContent = peer.emoji;
+        avatar.title = peer.name;
+        usersEl.appendChild(avatar);
+      });
+    }
+
+    // =========================================================================
+    // Tools
+    // =========================================================================
+
+    document.querySelectorAll('.tool[data-tool]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        currentTool = btn.dataset.tool;
+        canvas.style.cursor = currentTool === 'select' ? 'default' : 'crosshair';
+      });
+    });
+
+    document.querySelectorAll('.color').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.color').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        currentColor = btn.dataset.color;
+      });
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      if (confirm('Clear the whiteboard?')) {
+        strokes = [];
+        shapes = [];
+        render();
+        channel.postMessage({ type: 'clear' });
+      }
+    });
+
+    document.getElementById('save-btn').addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = `whiteboard-${Date.now()}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+
+    // Zoom
+    document.getElementById('zoom-in').addEventListener('click', () => {
+      zoom = Math.min(zoom * 1.2, 5);
+      document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
+      render();
+    });
+
+    document.getElementById('zoom-out').addEventListener('click', () => {
+      zoom = Math.max(zoom / 1.2, 0.1);
+      document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
+      render();
+    });
+
+    // Wheel zoom
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      zoom = Math.max(0.1, Math.min(5, zoom * delta));
+      document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
+      render();
+    }, { passive: false });
+
+    // =========================================================================
+    // Event Listeners
+    // =========================================================================
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+    canvas.addEventListener('touchend', stopDrawing);
+
+    // =========================================================================
+    // Init
+    // =========================================================================
+
+    initP2P();
+    render();
+
+    // Export
+    window.KonomiWhiteboard = {
+      clear: () => { strokes = []; shapes = []; render(); },
+      getStrokes: () => strokes,
+      export: () => canvas.toDataURL()
+    };
+  </script>
+</body>
+</html>

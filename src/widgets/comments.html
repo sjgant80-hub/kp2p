@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<!--
+KONOMI COMMENTS - Free Disqus Killer
+Embed on any page. No ads. No tracking. $0 forever.
+
+Usage:
+<iframe src="https://yoursite.com/konomi/comments.html?page=my-article"
+        style="width:100%;height:400px;border:none;"></iframe>
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Comments</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #3b82f6;
+      --bg: #fff;
+      --surface: #f9fafb;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-muted: #6b7280;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111;
+        --surface: #1f1f1f;
+        --border: #333;
+        --text: #f9fafb;
+        --text-muted: #9ca3af;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 14px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .comment-count {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .compose {
+      margin-bottom: 24px;
+    }
+
+    .compose-header {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .compose input[type="text"] {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .compose textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .compose textarea:focus,
+    .compose input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .compose-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .compose-footer small {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .compose button {
+      padding: 8px 16px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .compose button:hover {
+      opacity: 0.9;
+    }
+
+    .comments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .comment {
+      padding: 12px;
+      background: var(--surface);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .comment-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .comment-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .comment-meta {
+      flex: 1;
+    }
+
+    .comment-author {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .comment-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .comment-body {
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .comment-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .comment-action {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .comment-action:hover {
+      color: var(--primary);
+    }
+
+    .empty {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* Replies */
+    .replies {
+      margin-top: 12px;
+      margin-left: 24px;
+      padding-left: 12px;
+      border-left: 2px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .reply {
+      padding: 8px;
+      background: var(--bg);
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>Comments</h2>
+    <span class="comment-count" id="count">0 comments</span>
+  </div>
+
+  <div class="compose">
+    <div class="compose-header">
+      <input type="text" id="name" placeholder="Your name">
+    </div>
+    <textarea id="comment" placeholder="Write a comment..."></textarea>
+    <div class="compose-footer">
+      <small>💬 Comments sync P2P - no server, no tracking</small>
+      <button id="submit">Post Comment</button>
+    </div>
+  </div>
+
+  <div class="comments-list" id="comments">
+    <div class="empty" id="empty">
+      <div class="empty-icon">💭</div>
+      <div>No comments yet</div>
+      <div style="font-size:12px;margin-top:4px;">Be the first to comment!</div>
+    </div>
+  </div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Free, private, decentralized
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KONOMI COMMENTS - Zero-cost commenting system
+    // =========================================================================
+
+    // Config
+    const params = new URLSearchParams(location.search);
+    const PAGE_ID = params.get('page') || location.pathname || 'default';
+    const STORAGE_KEY = `konomi-comments:${PAGE_ID}`;
+    const EMOJIS = ['😀','😎','🤓','🧑‍💻','👨‍🎨','👩‍🔬','🦸','🧙','👽','🤖'];
+
+    // State
+    let comments = [];
+    let channel = null;
+
+    // DOM
+    const nameInput = document.getElementById('name');
+    const commentInput = document.getElementById('comment');
+    const submitBtn = document.getElementById('submit');
+    const commentsEl = document.getElementById('comments');
+    const emptyEl = document.getElementById('empty');
+    const countEl = document.getElementById('count');
+
+    // =========================================================================
+    // Storage + P2P Sync
+    // =========================================================================
+
+    function loadComments() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          comments = JSON.parse(stored);
+        }
+      } catch (e) {}
+      renderComments();
+    }
+
+    function saveComments() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(comments));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-comments:${PAGE_ID}`);
+
+      channel.onmessage = (e) => {
+        const msg = e.data;
+        if (msg.type === 'comment') {
+          // Check if we already have it
+          if (!comments.find(c => c.id === msg.comment.id)) {
+            comments.push(msg.comment);
+            comments.sort((a, b) => b.timestamp - a.timestamp);
+            saveComments();
+            renderComments();
+          }
+        } else if (msg.type === 'sync-request') {
+          // Someone wants our comments
+          channel.postMessage({ type: 'sync-response', comments });
+        } else if (msg.type === 'sync-response') {
+          // Merge their comments with ours
+          msg.comments.forEach(c => {
+            if (!comments.find(existing => existing.id === c.id)) {
+              comments.push(c);
+            }
+          });
+          comments.sort((a, b) => b.timestamp - a.timestamp);
+          saveComments();
+          renderComments();
+        }
+      };
+
+      // Request sync from other tabs/windows
+      channel.postMessage({ type: 'sync-request' });
+    }
+
+    // =========================================================================
+    // Comment Functions
+    // =========================================================================
+
+    function addComment() {
+      const name = nameInput.value.trim() || 'Anonymous';
+      const text = commentInput.value.trim();
+
+      if (!text) return;
+
+      const comment = {
+        id: crypto.randomUUID(),
+        name,
+        emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+        text,
+        timestamp: Date.now(),
+        likes: 0,
+        replies: []
+      };
+
+      comments.unshift(comment);
+      saveComments();
+      renderComments();
+
+      // Broadcast
+      channel.postMessage({ type: 'comment', comment });
+
+      // Clear input
+      commentInput.value = '';
+
+      // Save name for next time
+      localStorage.setItem('konomi-comments-name', name);
+    }
+
+    function likeComment(id) {
+      const comment = comments.find(c => c.id === id);
+      if (comment) {
+        comment.likes++;
+        saveComments();
+        renderComments();
+      }
+    }
+
+    function formatTime(timestamp) {
+      const diff = Date.now() - timestamp;
+      const mins = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      if (days < 7) return `${days}d ago`;
+      return new Date(timestamp).toLocaleDateString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderComments() {
+      // Update count
+      countEl.textContent = `${comments.length} comment${comments.length !== 1 ? 's' : ''}`;
+
+      // Clear and render
+      commentsEl.innerHTML = '';
+
+      if (comments.length === 0) {
+        commentsEl.appendChild(emptyEl);
+        return;
+      }
+
+      comments.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'comment';
+        div.innerHTML = `
+          <div class="comment-header">
+            <div class="comment-avatar">${c.emoji}</div>
+            <div class="comment-meta">
+              <div class="comment-author">${escapeHtml(c.name)}</div>
+              <div class="comment-time">${formatTime(c.timestamp)}</div>
+            </div>
+          </div>
+          <div class="comment-body">${escapeHtml(c.text)}</div>
+          <div class="comment-actions">
+            <button class="comment-action" onclick="window.likeComment('${c.id}')">
+              ❤️ ${c.likes || 0}
+            </button>
+            <button class="comment-action">
+              ↩️ Reply
+            </button>
+          </div>
+        `;
+        commentsEl.appendChild(div);
+      });
+    }
+
+    // =========================================================================
+    // Event Handlers
+    // =========================================================================
+
+    submitBtn.addEventListener('click', addComment);
+
+    commentInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.metaKey) {
+        addComment();
+      }
+    });
+
+    // Expose for onclick handlers
+    window.likeComment = likeComment;
+
+    // =========================================================================
+    // Init
+    // =========================================================================
+
+    // Load saved name
+    const savedName = localStorage.getItem('konomi-comments-name');
+    if (savedName) {
+      nameInput.value = savedName;
+    }
+
+    loadComments();
+    initP2P();
+
+    // Export
+    window.KonomiComments = {
+      addComment,
+      getComments: () => comments,
+      clear: () => {
+        comments = [];
+        saveComments();
+        renderComments();
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<!--
+KONOMI FORMS - Free Typeform/Formspree Killer
+Create forms, responses sync P2P to admin. $0 forever.
+
+Usage:
+1. Open this page as admin to see responses
+2. Embed form on your site
+3. Responses appear in real-time
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konomi Forms</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #8b5cf6;
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #252525;
+      --border: #333;
+      --text: #fff;
+      --text-muted: #888;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    /* Form Builder */
+    .builder {
+      display: none;
+      gap: 24px;
+    }
+
+    .builder.active {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+    }
+
+    .fields-list {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .field-item {
+      padding: 12px;
+      background: var(--surface2);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .field-item .drag-handle {
+      color: var(--text-muted);
+      cursor: grab;
+    }
+
+    .field-item .field-label {
+      flex: 1;
+    }
+
+    .field-item .field-type {
+      font-size: 11px;
+      padding: 2px 8px;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+
+    .add-field {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .add-field button {
+      flex: 1;
+      padding: 10px;
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .add-field button:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .preview {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .preview h3 {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .preview-form input,
+    .preview-form textarea,
+    .preview-form select {
+      width: 100%;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    .preview-form label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+
+    .preview-form button {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* Responses */
+    .responses {
+      display: none;
+    }
+
+    .responses.active {
+      display: block;
+    }
+
+    .responses-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .responses-header h2 {
+      font-size: 16px;
+    }
+
+    .export-btn {
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .export-btn:hover {
+      border-color: var(--primary);
+    }
+
+    .responses-table {
+      width: 100%;
+      background: var(--surface);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .responses-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .responses-table th,
+    .responses-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .responses-table th {
+      background: var(--surface2);
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .responses-table td {
+      font-size: 13px;
+    }
+
+    .response-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .no-responses {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-muted);
+    }
+
+    .no-responses-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    /* Live indicator */
+    .live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--success);
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Embed code */
+    .embed-section {
+      margin-top: 24px;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 12px;
+    }
+
+    .embed-section h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    .embed-code {
+      background: var(--bg);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      user-select: all;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📝 Konomi Forms</h1>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span>Live sync</span>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-tab="responses">Responses</button>
+          <button class="tab" data-tab="builder">Builder</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Responses View -->
+    <div class="responses active" id="responses-view">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Total Responses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-today">0</div>
+          <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-rate">0%</div>
+          <div class="stat-label">This Week</div>
+        </div>
+      </div>
+
+      <div class="responses-header">
+        <h2>All Responses</h2>
+        <button class="export-btn" id="export-btn">📥 Export CSV</button>
+      </div>
+
+      <div class="responses-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="responses-body">
+          </tbody>
+        </table>
+        <div class="no-responses" id="no-responses">
+          <div class="no-responses-icon">📭</div>
+          <div>No responses yet</div>
+          <div style="font-size:12px;margin-top:8px;">Responses will appear here in real-time</div>
+        </div>
+      </div>
+
+      <div class="embed-section">
+        <h3>Embed Code</h3>
+        <div class="embed-code" id="embed-code">
+&lt;iframe src="https://yourdomain.com/widgets/form-embed.html?form=default"
+        style="width:100%;height:400px;border:none;"&gt;&lt;/iframe&gt;
+        </div>
+      </div>
+    </div>
+
+    <!-- Builder View -->
+    <div class="builder" id="builder-view">
+      <div class="fields-list">
+        <h3 style="font-size:14px;margin-bottom:16px;">Form Fields</h3>
+        <div id="fields-container">
+          <div class="field-item">
+            <span class="drag-handle">⋮⋮</span>
+            <span class="field-label">Name</span>
+            <span class="field-type">text</span>
+          </div>
+          <div class="field-item">
+            <span class="drag-handle">⋮⋮</span>
+            <span class="field-label">Email</span>
+            <span class="field-type">email</span>
+          </div>
+          <div class="field-item">
+            <span class="drag-handle">⋮⋮</span>
+            <span class="field-label">Message</span>
+            <span class="field-type">textarea</span>
+          </div>
+        </div>
+        <div class="add-field">
+          <button>+ Text</button>
+          <button>+ Email</button>
+          <button>+ Number</button>
+          <button>+ Textarea</button>
+        </div>
+      </div>
+
+      <div class="preview">
+        <h3>Preview</h3>
+        <form class="preview-form" id="preview-form">
+          <label>Name</label>
+          <input type="text" placeholder="Your name">
+
+          <label>Email</label>
+          <input type="email" placeholder="you@example.com">
+
+          <label>Message</label>
+          <textarea placeholder="Your message..." rows="4"></textarea>
+
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KONOMI FORMS - Zero-cost form backend
+    // =========================================================================
+
+    const params = new URLSearchParams(location.search);
+    const FORM_ID = params.get('form') || 'default';
+    const STORAGE_KEY = `konomi-forms:${FORM_ID}`;
+
+    // State
+    let responses = [];
+    let channel = null;
+
+    // DOM
+    const responsesBody = document.getElementById('responses-body');
+    const noResponses = document.getElementById('no-responses');
+    const statTotal = document.getElementById('stat-total');
+    const statToday = document.getElementById('stat-today');
+    const statRate = document.getElementById('stat-rate');
+    const exportBtn = document.getElementById('export-btn');
+
+    // =========================================================================
+    // Data
+    // =========================================================================
+
+    function loadResponses() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          responses = JSON.parse(stored);
+        }
+      } catch (e) {}
+      renderResponses();
+    }
+
+    function saveResponses() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(responses));
+    }
+
+    function addResponse(data) {
+      responses.unshift({
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        ...data
+      });
+      saveResponses();
+      renderResponses();
+    }
+
+    // =========================================================================
+    // P2P Sync
+    // =========================================================================
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-forms:${FORM_ID}`);
+
+      channel.onmessage = (e) => {
+        const msg = e.data;
+        if (msg.type === 'submission') {
+          addResponse(msg.data);
+        } else if (msg.type === 'sync-request') {
+          channel.postMessage({ type: 'sync-response', responses });
+        } else if (msg.type === 'sync-response') {
+          msg.responses.forEach(r => {
+            if (!responses.find(existing => existing.id === r.id)) {
+              responses.push(r);
+            }
+          });
+          responses.sort((a, b) => b.timestamp - a.timestamp);
+          saveResponses();
+          renderResponses();
+        }
+      };
+
+      channel.postMessage({ type: 'sync-request' });
+    }
+
+    // =========================================================================
+    // Render
+    // =========================================================================
+
+    function renderResponses() {
+      // Stats
+      statTotal.textContent = responses.length;
+
+      const today = new Date().setHours(0,0,0,0);
+      const todayCount = responses.filter(r => r.timestamp >= today).length;
+      statToday.textContent = todayCount;
+
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const weekCount = responses.filter(r => r.timestamp >= weekAgo).length;
+      statRate.textContent = weekCount;
+
+      // Table
+      if (responses.length === 0) {
+        noResponses.style.display = 'block';
+        responsesBody.innerHTML = '';
+        return;
+      }
+
+      noResponses.style.display = 'none';
+      responsesBody.innerHTML = responses.map(r => `
+        <tr>
+          <td>
+            <div class="response-time">${formatTime(r.timestamp)}</div>
+          </td>
+          <td>${escapeHtml(r.name || '-')}</td>
+          <td>${escapeHtml(r.email || '-')}</td>
+          <td>${escapeHtml(r.message || '-')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function formatTime(ts) {
+      return new Date(ts).toLocaleString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // =========================================================================
+    // Export
+    // =========================================================================
+
+    function exportCSV() {
+      const headers = ['timestamp', 'name', 'email', 'message'];
+      const csv = [
+        headers.join(','),
+        ...responses.map(r =>
+          headers.map(h => `"${(r[h] || '').toString().replace(/"/g, '""')}"`).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `form-responses-${FORM_ID}-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    exportBtn.addEventListener('click', exportCSV);
+
+    // =========================================================================
+    // Tabs
+    // =========================================================================
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        document.getElementById('responses-view').classList.toggle('active', tab.dataset.tab === 'responses');
+        document.getElementById('builder-view').classList.toggle('active', tab.dataset.tab === 'builder');
+      });
+    });
+
+    // =========================================================================
+    // Preview Form Submit
+    // =========================================================================
+
+    document.getElementById('preview-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+        name: form.querySelector('input[type="text"]').value,
+        email: form.querySelector('input[type="email"]').value,
+        message: form.querySelector('textarea').value
+      };
+
+      addResponse(data);
+      channel.postMessage({ type: 'submission', data });
+      form.reset();
+      alert('Response submitted!');
+    });
+
+    // =========================================================================
+    // Init
+    // =========================================================================
+
+    loadResponses();
+    initP2P();
+
+    // Demo: Add fake responses if empty
+    if (responses.length === 0 && params.get('demo') === '1') {
+      [
+        { name: 'John Doe', email: 'john@example.com', message: 'Great product!', timestamp: Date.now() - 3600000 },
+        { name: 'Jane Smith', email: 'jane@example.com', message: 'How do I get started?', timestamp: Date.now() - 7200000 },
+        { name: 'Bob Wilson', email: 'bob@example.com', message: 'Interested in enterprise plan', timestamp: Date.now() - 86400000 }
+      ].forEach(r => responses.push({ id: crypto.randomUUID(), ...r }));
+      saveResponses();
+      renderResponses();
+    }
+  </script>
+</body>
+</html>
