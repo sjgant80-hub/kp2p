@@ -510,7 +510,10 @@ export class VM {
   _onVfsChange() {
     // VFS changed locally, would broadcast incremental updates
     // For now, full sync on timer is simpler
-    this.stats.files = this.vfs.inodes.size;
+    // Guard: may be called during VFS init before this.vfs is assigned
+    if (this.vfs) {
+      this.stats.files = this.vfs.inodes.size;
+    }
   }
 
   // === TIMERS ===
