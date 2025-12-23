@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<!--
+@file test/p2p-qr.html
+@desc P2P via QR codes - scan to connect
+@size ~200 tokens
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P QR Connect</title>
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box }
+    body { font-family:system-ui,sans-serif;background:#0a0a1a;color:#fff;min-height:100vh;display:flex;flex-direction:column }
+    .container { max-width:500px;margin:0 auto;padding:20px;width:100% }
+    h1 { font-size:1.5rem;margin-bottom:8px;text-align:center }
+    .sub { color:#666;text-align:center;margin-bottom:24px;font-size:14px }
+    .step { background:#12122a;border-radius:12px;padding:20px;margin-bottom:16px }
+    .step h2 { font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:8px }
+    .step-num { background:#4facfe;color:#000;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px }
+    .btn { padding:12px 24px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;width:100% }
+    .btn.primary { background:#4facfe;color:#000 }
+    .btn:disabled { opacity:0.5;cursor:not-allowed }
+    .qr-container { display:flex;justify-content:center;margin:16px 0 }
+    #qrcode { background:#fff;padding:16px;border-radius:8px }
+    #qrcode canvas { display:block }
+    .scanner { width:100%;aspect-ratio:1;background:#000;border-radius:8px;overflow:hidden;position:relative }
+    .scanner video { width:100%;height:100%;object-fit:cover }
+    .scanner-overlay { position:absolute;inset:0;display:flex;align-items:center;justify-content:center }
+    .scanner-frame { width:70%;height:70%;border:3px solid #4facfe;border-radius:12px }
+    .status { padding:12px;border-radius:8px;text-align:center;margin-top:16px;font-size:13px }
+    .status.waiting { background:#f9022a;color:#fff }
+    .status.success { background:#00ff8833;color:#00ff88 }
+    .hidden { display:none }
+    .chat { flex:1;display:flex;flex-direction:column;max-width:500px;margin:0 auto;width:100% }
+    .messages { flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:200px }
+    .msg { max-width:80%;padding:10px 14px;border-radius:12px;font-size:14px }
+    .msg.mine { background:#4facfe;color:#000;align-self:flex-end }
+    .msg.theirs { background:#222;align-self:flex-start }
+    .msg.system { background:transparent;color:#666;font-size:12px;align-self:center }
+    .input-area { padding:16px;display:flex;gap:12px }
+    input[type=text] { flex:1;padding:12px 16px;border:none;border-radius:24px;background:#222;color:#fff;font-size:14px;outline:none }
+    .input-area button { padding:12px 24px;border:none;border-radius:24px;background:#4facfe;color:#000;font-weight:600;cursor:pointer }
+    .tabs { display:flex;gap:8px;margin-bottom:16px }
+    .tab { flex:1;padding:12px;border:none;border-radius:8px;background:#1a1a2e;color:#888;cursor:pointer;font-size:14px }
+    .tab.active { background:#4facfe;color:#000 }
+  </style>
+</head>
+<body>
+  <!-- Setup Phase -->
+  <div class="container" id="setup">
+    <h1>QR P2P Connect</h1>
+    <p class="sub">Scan QR codes to connect. No typing needed!</p>
+
+    <div class="tabs">
+      <button class="tab active" id="tabShow">Show QR</button>
+      <button class="tab" id="tabScan">Scan QR</button>
+    </div>
+
+    <div class="step" id="showMode">
+      <h2><span class="step-num">1</span> Show This QR Code</h2>
+      <p style="color:#888;font-size:13px;margin-bottom:12px">Let your friend scan this with their camera:</p>
+      <div class="qr-container">
+        <div id="qrcode"></div>
+      </div>
+      <div class="status waiting" id="showStatus">Waiting for scan...</div>
+    </div>
+
+    <div class="step hidden" id="scanMode">
+      <h2><span class="step-num">1</span> Scan Their QR Code</h2>
+      <div class="scanner">
+        <video id="video" autoplay playsinline></video>
+        <div class="scanner-overlay">
+          <div class="scanner-frame"></div>
+        </div>
+      </div>
+      <div class="status" id="scanStatus">Point camera at QR code</div>
+    </div>
+
+    <div class="step hidden" id="step2">
+      <h2><span class="step-num">2</span> Show Response QR</h2>
+      <p style="color:#888;font-size:13px;margin-bottom:12px">Now let them scan this:</p>
+      <div class="qr-container">
+        <div id="qrcode2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Phase -->
+  <div class="chat hidden" id="chatUI">
+    <div style="padding:16px;background:#12122a;text-align:center;border-bottom:1px solid #333">
+      <span style="color:#00ff88">●</span> Connected via QR!
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <input type="text" id="msgInput" placeholder="Type a message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <!-- QR Code library (qrcode-generator, MIT license, minified) -->
+  <script>
+    var qrcode=function(){var a=function(t,r){var n=t,i=d[r],o=null,s=0,a=null,f=[],c={},g=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e++){r[e]=new Array(t);for(var n=0;n<t;n++)r[e][n]=null}return r}(s=4*n+17);x(0,0);x(s-7,0);x(0,s-7);T();E();b(t,r);7<=n&&A(t);null==a&&(a=w(n,i,f)),M(a,r)},u=function(t,r){var e=-1;null==o&&g(t,e);for(var n=document.createElement("canvas"),i=r||2,u=n.getContext("2d"),a=i*s,f=i*s,c=0;c<f;c++)for(var l=0;l<a;l++){var h=o[Math.floor(l/i)][Math.floor(c/i)];u.fillStyle=h?"#000":"#fff";u.fillRect(l,c,1,1)}return n},l=function(t,r){for(var e=1,n=h(t);n<r;)e++,n=h(t=e);return t};c.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=new v(t);break;case"Alphanumeric":e=new m(t);break;case"Byte":e=new p(t);break;default:throw"mode:"+r}f.push(e);a=null};c.isDark=function(t,r){if(t<0||s<=t||r<0||s<=r)throw t+","+r;return o[t][r]};c.getModuleCount=function(){return s};c.make=function(){g(!1,0)};c.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="border:0;border-collapse:collapse;">';for(var n=0;n<s;n++){e+="<tr>";for(var i=0;i<s;i++)e+='<td style="border:0;width:'+t+"px;height:"+t+"px;background:"+(o[n][i]?"#000":"#fff")+';"></td>';e+="</tr>"}return e+="</table>"};c.createSvgTag=function(t,r){t=t||2;for(var e='<svg width="'+s*t+'" height="'+s*t+'" xmlns="http://www.w3.org/2000/svg">',n=0;n<s;n++)for(var i=0;i<s;i++)o[n][i]&&(e+='<rect x="'+i*t+'" y="'+n*t+'" width="'+t+'" height="'+t+'" fill="#000"/>');return e+="</svg>"};c.createImgTag=function(t,r,e){t=t||2;r=void 0===r?4*t:r;var n=u(!1,t),i=n.toDataURL("image/png");return'<img src="'+i+'" width="'+n.width+'" height="'+n.height+'"'+(e?' alt="'+e+'"':"")+"/>"};c.createDataURL=function(t){return u(!1,t||2).toDataURL("image/png")};c.createCanvas=function(t){return u(!1,t||2)};c.renderTo2dContext=function(t,r){r=r||2;for(var e=0;e<s;e++)for(var n=0;n<s;n++){var i=o[e][n];t.fillStyle=i?"#000":"#fff";t.fillRect(n*r,e*r,r,r)}};return c;function x(t,r){for(var e=-1;e<=7;e++)if(!(t+e<=-1||s<=t+e))for(var n=-1;n<=7;n++)r+n<=-1||s<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)}function T(){for(var t=8;t<s-8;t++)null==o[t][6]&&(o[t][6]=t%2==0),null==o[6][t]&&(o[6][t]=t%2==0)}function E(){for(var t=y.getPatternPosition(n),r=0;r<t.length;r++)for(var e=0;e<t.length;e++){var i=t[r],u=t[e];if(null==o[i][u])for(var a=-2;a<=2;a++)for(var f=-2;f<=2;f++)o[i+a][u+f]=-2==a||2==a||-2==f||2==f||0==a&&0==f}}function A(t){for(var r=y.getBCHTypeNumber(n),e=0;e<18;e++){var i=!t&&1==(r>>e&1);o[Math.floor(e/3)][e%3+s-8-3]=i;o[e%3+s-8-3][Math.floor(e/3)]=i}}function b(t,r){for(var e=i<<3|r,n=y.getBCHTypeInfo(e),u=0;u<15;u++){var a=!t&&1==(n>>u&1);u<6?o[u][8]=a:u<8?o[u+1][8]=a:o[s-15+u][8]=a;u<8?o[8][s-u-1]=a:u<9?o[8][15-u-1+1]=a:o[8][15-u-1]=a}o[s-8][8]=!t}function M(t,r){for(var e=-1,n=s-1,i=7,u=0,a=y.getMaskFunction(r),f=s-1;0<f;f-=2)for(6==f&&f--;;){for(var c=0;c<2;c++)if(null==o[n][f-c]){var l=!1;u<t.length&&(l=1==(t[u]>>>i&1));a(n,f-c)&&(l=!l);o[n][f-c]=l;if(-1==--i){u++;i=7}}if((n+=e)<0||s<=n){n-=e;e=-e;break}}}function h(t){for(var r=e(t),n=0,i=0;i<f.length;i++){var u=f[i];n+=4;n+=y.getLengthInBits(u.getMode(),t);n+=u.getLength()}return n<=8*r}function w(t,r,e){for(var n=1;n<41;n++){if(h(n)){t=n;break}}var i=B(r,t),u=8*(function(t,r){var e=d[r],n=y.getErrorCorrectPolynomial(e.ec[t]);for(var i=new Array(e.dcdata[t]),u=0;u<i.length;u++)i[u]=new Array(e.dataCount[t]);for(var a=0,f=0;f<e.rsBlock[t].length;f++)for(var c=e.rsBlock[t][f],l=0;l<c[0];l++){var h=e.dataCount[t]-c[1],g=c[1];i[a]=new Array(g);for(var v=0;v<g;v++)i[a][v]=0;a++}var m=a,p=0;a=0;for(var w=0;w<e.length;w++){var x=0,T=e[w];for(w+1<e.length&&(x=e[w+1]-T);0<x;){if(p<i[a].length){i[a][p]=T&255;T>>=8;x--}else{a++;if(a>=m){a=0;p++}}}}for(var E=0,A=new Array(m),b=0;b<m;b++){A[b]=new k(i[b],n.length-1);for(var M=A[b].multiply(n);M.getLength()<e.ecdata[t];)M=new k([0],0).multiply(M);A[b]=M;E+=A[b].getLength()}var D=new Array(E);for(var B=0,S=0;S<e.ecdata[t];S++)for(var C=0;C<m;C++)S<A[C].getLength()&&(D[B++]=A[C].getAt(S));return D}(t,i))+i.length,a=new Array(u);for(var f=0,c=0;c<e.length;c++){var l=e[c];switch(l.getMode()){case 1:S(a,f,4,1);S(a,f+=4,y.getLengthInBits(1,t),l.getLength());f+=y.getLengthInBits(1,t);for(var h=0;h<l.getLength()-2;h+=3)S(a,f,10,C(l.getData().substring(h,h+3)));l.getLength()%3==1?S(a,f+=10*(Math.floor(l.getLength()/3)),4,C(l.getData().substring(h,h+1))):l.getLength()%3==2&&S(a,f+=10*(Math.floor(l.getLength()/3)),7,C(l.getData().substring(h,h+2)));f+=10*Math.floor(l.getLength()/3)+[0,4,7][l.getLength()%3];break;case 2:S(a,f,4,2);S(a,f+=4,y.getLengthInBits(2,t),l.getLength());f+=y.getLengthInBits(2,t);for(h=0;h<l.getLength()-1;h+=2)S(a,f,11,45*D(l.getData().charAt(h))+D(l.getData().charAt(h+1)));l.getLength()%2==1&&S(a,f+=11*Math.floor(l.getLength()/2),6,D(l.getData().charAt(h)));f+=11*Math.floor(l.getLength()/2)+[0,6][l.getLength()%2];break;case 4:S(a,f,4,4);S(a,f+=4,y.getLengthInBits(4,t),l.getLength());f+=y.getLengthInBits(4,t);for(h=0;h<l.getLength();h++)S(a,f,8,l.getData().charCodeAt(h)),f+=8}}for(f<=8*u-4&&S(a,f,4,0);f%8!=0;)S(a,f++,1,0);for(;f<8*u;)S(a,f,8,236),8<=(f+=8)&&S(a,f,8,17),f+=8;return a}function B(t,r){return d[t].dataCount[r]}function e(t){return d[d.length>t?t:d.length-1].dataCount[t]}function S(t,r,e,n){for(var i=0;i<e;i++)t[r+i]=n>>>(e-1-i)&1}function C(t){for(var r=0,e=0;e<t.length;e++)r=10*r+("0".charCodeAt(0)<=t.charCodeAt(e)&&t.charCodeAt(e)<="9".charCodeAt(0)?t.charCodeAt(e)-"0".charCodeAt(0):0);return r}function D(t){var r=t.charCodeAt(0);return"0".charCodeAt(0)<=r&&r<="9".charCodeAt(0)?r-"0".charCodeAt(0):"A".charCodeAt(0)<=r&&r<="Z".charCodeAt(0)?r-"A".charCodeAt(0)+10:" $%*+-./:".indexOf(t)}};function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e++;for(var n=new Array(t.length-e+r),i=0;i<t.length-e;i++)n[i]=t[i+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),i=0;i<n.getLength();i++)for(var o=0;o<t.getLength();o++)r[i+o]^=u.gexp(u.glog(n.getAt(i))+u.glog(t.getAt(o)));return new k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=u.glog(n.getAt(0))-u.glog(t.getAt(0)),e=new Array(n.getLength()),i=0;i<n.getLength();i++)e[i]=n.getAt(i);for(i=0;i<t.getLength();i++)e[i]^=u.gexp(u.glog(t.getAt(i))+r);return new k(e,0).mod(t)}};return n}var u={glog:function(t){if(t<1)throw"glog("+t+")";return u.LOG_TABLE[t]},gexp:function(t){for(;t<0;)t+=255;for(;256<=t;)t-=255;return u.EXP_TABLE[t]},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)};for(var n=0;n<8;n++)u.EXP_TABLE[n]=1<<n;for(n=8;n<256;n++)u.EXP_TABLE[n]=u.EXP_TABLE[n-4]^u.EXP_TABLE[n-5]^u.EXP_TABLE[n-6]^u.EXP_TABLE[n-8];for(n=0;n<255;n++)u.LOG_TABLE[u.EXP_TABLE[n]]=n;var y={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],G15:1335,G18:7973,G15_MASK:21522,getBCHTypeInfo:function(t){for(var r=t<<10;0<=y.getBCHDigit(r)-y.getBCHDigit(y.G15);)r^=y.G15<<y.getBCHDigit(r)-y.getBCHDigit(y.G15);return(t<<10|r)^y.G15_MASK},getBCHTypeNumber:function(t){for(var r=t<<12;0<=y.getBCHDigit(r)-y.getBCHDigit(y.G18);)r^=y.G18<<y.getBCHDigit(r)-y.getBCHDigit(y.G18);return t<<12|r},getBCHDigit:function(t){for(var r=0;0!=t;)r++,t>>>=1;return r},getPatternPosition:function(t){return y.PATTERN_POSITION_TABLE[t-1]},getMaskFunction:function(t){switch(t){case 0:return function(t,r){return(t+r)%2==0};case 1:return function(t,r){return t%2==0};case 2:return function(t,r){return r%3==0};case 3:return function(t,r){return(t+r)%3==0};case 4:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case 5:return function(t,r){return t*r%2+t*r%3==0};case 6:return function(t,r){return(t*r%2+t*r%3)%2==0};case 7:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},getErrorCorrectPolynomial:function(t){for(var r=new k([1],0),e=0;e<t;e++)r=r.multiply(new k([1,u.gexp(e)],0));return r},getLengthInBits:function(t,r){if(1<=r&&r<10)switch(t){case 1:return 10;case 2:return 9;case 4:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case 1:return 12;case 2:return 11;case 4:return 16;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case 1:return 14;case 2:return 13;case 4:return 16;default:throw"mode:"+t}}}},d=[null,{ec:[1],dataCount:[19],dcdata:[19],ecdata:[7],rsBlock:[[1,[26,19]]]},{ec:[1],dataCount:[34],dcdata:[34],ecdata:[10],rsBlock:[[1,[44,34]]]},{ec:[1],dataCount:[55],dcdata:[55],ecdata:[15],rsBlock:[[1,[70,55]]]},{ec:[1],dataCount:[80],dcdata:[80],ecdata:[20],rsBlock:[[1,[100,80]]]},{ec:[1],dataCount:[108],dcdata:[108],ecdata:[26],rsBlock:[[1,[134,108]]]},{ec:[1],dataCount:[136],dcdata:[136],ecdata:[18],rsBlock:[[2,[86,68]]]},{ec:[1],dataCount:[156],dcdata:[156],ecdata:[20],rsBlock:[[2,[98,78]]]},{ec:[1],dataCount:[194],dcdata:[194],ecdata:[24],rsBlock:[[2,[121,97]]]},{ec:[1],dataCount:[232],dcdata:[232],ecdata:[30],rsBlock:[[2,[146,116]]]},{ec:[1],dataCount:[274],dcdata:[274],ecdata:[18],rsBlock:[[2,[86,68],[2,87,69]]]},{ec:[1],dataCount:[324],dcdata:[324],ecdata:[20],rsBlock:[[4,[101,81]]]},{ec:[1],dataCount:[370],dcdata:[370],ecdata:[24],rsBlock:[[2,[116,92],[2,117,93]]]},{ec:[1],dataCount:[428],dcdata:[428],ecdata:[26],rsBlock:[[4,[133,107]]]},{ec:[1],dataCount:[461],dcdata:[461],ecdata:[30],rsBlock:[[3,[145,115],[1,146,116]]]},{ec:[1],dataCount:[523],dcdata:[523],ecdata:[22],rsBlock:[[5,[109,87],[1,110,88]]]},{ec:[1],dataCount:[589],dcdata:[589],ecdata:[24],rsBlock:[[5,[122,98],[1,123,99]]]},{ec:[1],dataCount:[647],dcdata:[647],ecdata:[28],rsBlock:[[1,[135,107],[5,136,108]]]},{ec:[1],dataCount:[721],dcdata:[721],ecdata:[30],rsBlock:[[5,[150,120],[1,151,121]]]},{ec:[1],dataCount:[795],dcdata:[795],ecdata:[28],rsBlock:[[3,[141,113],[4,142,114]]]},{ec:[1],dataCount:[861],dcdata:[861],ecdata:[28],rsBlock:[[3,[135,107],[5,136,108]]]},{ec:[1],dataCount:[932],dcdata:[932],ecdata:[28],rsBlock:[[4,[144,116],[4,145,117]]]},{ec:[1],dataCount:[1006],dcdata:[1006],ecdata:[28],rsBlock:[[2,[139,111],[7,140,112]]]},{ec:[1],dataCount:[1094],dcdata:[1094],ecdata:[30],rsBlock:[[4,[151,121],[5,152,122]]]},{ec:[1],dataCount:[1174],dcdata:[1174],ecdata:[30],rsBlock:[[6,[147,117],[4,148,118]]]},{ec:[1],dataCount:[1276],dcdata:[1276],ecdata:[26],rsBlock:[[8,[132,106],[4,133,107]]]},{ec:[1],dataCount:[1370],dcdata:[1370],ecdata:[28],rsBlock:[[10,[142,114],[2,143,115]]]},{ec:[1],dataCount:[1468],dcdata:[1468],ecdata:[30],rsBlock:[[8,[152,122],[4,153,123]]]},{ec:[1],dataCount:[1531],dcdata:[1531],ecdata:[30],rsBlock:[[3,[147,117],[10,148,118]]]},{ec:[1],dataCount:[1631],dcdata:[1631],ecdata:[30],rsBlock:[[7,[146,116],[7,147,117]]]},{ec:[1],dataCount:[1735],dcdata:[1735],ecdata:[30],rsBlock:[[5,[145,115],[10,146,116]]]},{ec:[1],dataCount:[1843],dcdata:[1843],ecdata:[30],rsBlock:[[13,[145,115],[3,146,116]]]},{ec:[1],dataCount:[1955],dcdata:[1955],ecdata:[30],rsBlock:[[17,[145,115]]]},{ec:[1],dataCount:[2071],dcdata:[2071],ecdata:[30],rsBlock:[[17,[145,115],[1,146,116]]]},{ec:[1],dataCount:[2191],dcdata:[2191],ecdata:[30],rsBlock:[[13,[145,115],[6,146,116]]]},{ec:[1],dataCount:[2306],dcdata:[2306],ecdata:[30],rsBlock:[[12,[151,121],[7,152,122]]]},{ec:[1],dataCount:[2434],dcdata:[2434],ecdata:[30],rsBlock:[[6,[151,121],[14,152,122]]]},{ec:[1],dataCount:[2566],dcdata:[2566],ecdata:[30],rsBlock:[[17,[152,122],[4,153,123]]]},{ec:[1],dataCount:[2702],dcdata:[2702],ecdata:[30],rsBlock:[[4,[152,122],[18,153,123]]]},{ec:[1],dataCount:[2812],dcdata:[2812],ecdata:[30],rsBlock:[[20,[147,117],[4,148,118]]]}];function v(t){this.getData=function(){return t};this.getLength=function(){return t.length};this.getMode=function(){return 1}}function m(t){this.getData=function(){return t};this.getLength=function(){return t.length};this.getMode=function(){return 2}}function p(t){var r=[];for(var e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?(r.push(192|n>>6),r.push(128|63&n)):n<55296||57344<=n?(r.push(224|n>>12),r.push(128|n>>6&63),r.push(128|63&n)):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18),r.push(128|n>>12&63),r.push(128|n>>6&63),r.push(128|63&n))}this.getData=function(){return r};this.getLength=function(){return r.length};this.getMode=function(){return 4}}return a}();
+  </script>
+
+  <script>
+    const $ = id => document.getElementById(id)
+    const CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+
+    let pc = null
+    let dc = null
+    let isCreator = true
+    let scannerStream = null
+
+    function compress(str) {
+      return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    }
+
+    function decompress(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/')
+      while (str.length % 4) str += '='
+      return atob(str)
+    }
+
+    function generateQR(container, data) {
+      const qr = qrcode(0, 'L')
+      qr.addData(data)
+      qr.make()
+      container.innerHTML = qr.createImgTag(4)
+    }
+
+    function showChat() {
+      $('setup').classList.add('hidden')
+      $('chatUI').classList.remove('hidden')
+      stopScanner()
+      addMsg('Connected! Start chatting.', true)
+    }
+
+    function addMsg(text, isSystem = false, isMine = false) {
+      const div = document.createElement('div')
+      div.className = 'msg ' + (isSystem ? 'system' : isMine ? 'mine' : 'theirs')
+      div.textContent = text
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function setupDataChannel(channel) {
+      dc = channel
+      dc.onopen = () => showChat()
+      dc.onmessage = (e) => addMsg(e.data)
+      dc.onclose = () => addMsg('Disconnected', true)
+    }
+
+    // Tab switching
+    $('tabShow').onclick = () => {
+      $('tabShow').classList.add('active')
+      $('tabScan').classList.remove('active')
+      $('showMode').classList.remove('hidden')
+      $('scanMode').classList.add('hidden')
+      stopScanner()
+      if (!pc) createOffer()
+    }
+
+    $('tabScan').onclick = () => {
+      $('tabScan').classList.add('active')
+      $('tabShow').classList.remove('active')
+      $('scanMode').classList.remove('hidden')
+      $('showMode').classList.add('hidden')
+      isCreator = false
+      startScanner()
+    }
+
+    // Create offer and show QR
+    async function createOffer() {
+      pc = new RTCPeerConnection(CONFIG)
+      const channel = pc.createDataChannel('chat')
+      setupDataChannel(channel)
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate === null) {
+          const sdp = compress(JSON.stringify(pc.localDescription))
+          generateQR($('qrcode'), 'O:' + sdp)
+        }
+      }
+
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+    }
+
+    // Handle scanned offer
+    async function handleOffer(sdpData) {
+      $('scanStatus').textContent = 'Got offer, generating response...'
+      $('scanStatus').className = 'status success'
+
+      pc = new RTCPeerConnection(CONFIG)
+      pc.ondatachannel = (e) => setupDataChannel(e.channel)
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate === null) {
+          const sdp = compress(JSON.stringify(pc.localDescription))
+          generateQR($('qrcode2'), 'A:' + sdp)
+          $('step2').classList.remove('hidden')
+          stopScanner()
+        }
+      }
+
+      const offer = JSON.parse(decompress(sdpData))
+      await pc.setRemoteDescription(offer)
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+    }
+
+    // Handle scanned answer
+    async function handleAnswer(sdpData) {
+      $('showStatus').textContent = 'Got response, connecting...'
+      $('showStatus').className = 'status success'
+
+      const answer = JSON.parse(decompress(sdpData))
+      await pc.setRemoteDescription(answer)
+    }
+
+    // QR Scanner using camera
+    async function startScanner() {
+      try {
+        scannerStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        })
+        $('video').srcObject = scannerStream
+
+        // Use BarcodeDetector API if available
+        if ('BarcodeDetector' in window) {
+          const detector = new BarcodeDetector({ formats: ['qr_code'] })
+          scanLoop(detector)
+        } else {
+          $('scanStatus').textContent = 'QR scanning not supported. Use link mode.'
+          $('scanStatus').className = 'status waiting'
+        }
+      } catch (err) {
+        $('scanStatus').textContent = 'Camera access denied'
+        $('scanStatus').className = 'status waiting'
+      }
+    }
+
+    async function scanLoop(detector) {
+      if (!scannerStream) return
+
+      try {
+        const video = $('video')
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          const codes = await detector.detect(video)
+          for (const code of codes) {
+            const data = code.rawValue
+            if (data.startsWith('O:')) {
+              await handleOffer(data.slice(2))
+              return
+            } else if (data.startsWith('A:')) {
+              await handleAnswer(data.slice(2))
+              return
+            }
+          }
+        }
+      } catch (err) {}
+
+      requestAnimationFrame(() => scanLoop(detector))
+    }
+
+    function stopScanner() {
+      if (scannerStream) {
+        scannerStream.getTracks().forEach(t => t.stop())
+        scannerStream = null
+      }
+    }
+
+    // Chat
+    $('sendBtn').onclick = () => {
+      const text = $('msgInput').value.trim()
+      if (text && dc?.readyState === 'open') {
+        dc.send(text)
+        addMsg(text, false, true)
+        $('msgInput').value = ''
+      }
+    }
+    $('msgInput').onkeydown = (e) => { if (e.key === 'Enter') $('sendBtn').click() }
+
+    // Auto-start with show mode
+    createOffer()
+  </script>
+</body>
+</html>
