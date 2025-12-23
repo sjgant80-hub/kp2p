@@ -110,10 +110,12 @@ export class VFS {
     this.fdTable = new Map();
     this.nextFd = 3;  // 0=stdin, 1=stdout, 2=stderr
     this.cwd = '/';
-    this.onSync = options.onSync || (() => {});
     this.storageKey = options.storageKey || 'kp2p-vfs';
+    this._initializing = true;  // Prevent sync during init
+    this.onSync = options.onSync || (() => {});
 
     this._init();
+    this._initializing = false;  // Init complete, sync allowed
   }
 
   /**
@@ -487,6 +489,9 @@ export class VFS {
    * Sync to storage
    */
   _sync() {
+    // Skip sync during initialization to prevent callback issues
+    if (this._initializing) return;
+
     try {
       const snapshot = this.export();
       localStorage.setItem(this.storageKey, JSON.stringify(snapshot));
