@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/local-llm-demo.html
+@desc Demo: Browser-native LLM via WebGPU (no API keys)
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Local LLM Demo</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      padding: 16px 24px;
+      background: #12122a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header h1 { font-size: 1.25rem; color: #4facfe; }
+    .header .status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .dot.ready { background: #00ff88; }
+    .dot.loading { background: #ffcc00; animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    .container {
+      flex: 1;
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .sidebar {
+      width: 280px;
+      background: #12122a;
+      border-right: 1px solid #333;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .model-select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      background: #0a0a1a;
+      border: 1px solid #333;
+      color: #fff;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #4facfe; color: #000; }
+    .btn-danger { background: #ff4444; color: #fff; }
+
+    .progress {
+      background: #0a0a1a;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+    .progress-bar {
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: #4facfe;
+      transition: width 0.3s;
+    }
+
+    .info-box {
+      background: #0a0a1a;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .info-box .label { color: #888; }
+    .info-box .value { color: #fff; font-family: monospace; }
+
+    .capability {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 12px;
+    }
+    .capability.allowed { color: #00ff88; }
+    .capability.blocked { color: #ff4444; }
+
+    .chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .msg {
+      max-width: 80%;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    .msg.user { margin-left: auto; align-items: flex-end; }
+    .msg.assistant { margin-right: auto; align-items: flex-start; }
+    .msg-content {
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .msg.user .msg-content {
+      background: #4facfe;
+      color: #000;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.assistant .msg-content {
+      background: #1a1a2e;
+      border-bottom-left-radius: 4px;
+    }
+    .msg-meta {
+      font-size: 10px;
+      color: #666;
+      margin-top: 4px;
+      padding: 0 8px;
+    }
+    .msg.streaming .msg-content::after {
+      content: '▋';
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .input-area {
+      padding: 16px 24px;
+      background: #12122a;
+      border-top: 1px solid #333;
+      display: flex;
+      gap: 12px;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 14px 18px;
+      border: none;
+      border-radius: 24px;
+      background: #0a0a1a;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    .input-area input:focus { background: #1a1a2e; }
+    .input-area button {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 24px;
+      background: #4facfe;
+      color: #000;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .gpu-warning {
+      background: #ff444433;
+      border: 1px solid #ff4444;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .gpu-ok {
+      background: #00ff8833;
+      border: 1px solid #00ff88;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #333; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🧠 Local LLM</h1>
+    <span style="color:#888;font-size:13px">Browser-native AI via WebGPU</span>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Not loaded</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <h2>Model</h2>
+      <select class="model-select" id="modelSelect">
+        <option value="TinyLlama-1.1B">TinyLlama 1.1B (~500MB)</option>
+        <option value="Qwen2-1.5B">Qwen2 1.5B (~1GB)</option>
+        <option value="Phi-3-mini">Phi-3 Mini (~2GB)</option>
+        <option value="Gemma-2B">Gemma 2B (~1.5GB)</option>
+        <option value="Llama-3.2-3B">Llama 3.2 3B (~2GB)</option>
+      </select>
+
+      <button class="btn btn-primary" id="loadBtn">Load Model</button>
+      <button class="btn btn-danger" id="unloadBtn" disabled>Unload</button>
+
+      <div class="progress" id="progress" style="display:none">
+        <div id="progressText">Loading...</div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:24px">GPU Status</h2>
+      <div id="gpuStatus">Checking...</div>
+
+      <h2 style="margin-top:24px">How It Works</h2>
+      <div class="info-box">
+        <div><span class="label">Runtime:</span> <span class="value">WebLLM + WebGPU</span></div>
+        <div><span class="label">Location:</span> <span class="value">100% in browser</span></div>
+        <div><span class="label">API Keys:</span> <span class="value">None needed</span></div>
+        <div><span class="label">Cache:</span> <span class="value">IndexedDB</span></div>
+      </div>
+
+      <h2>Capabilities</h2>
+      <div class="capability allowed">✓ Text generation</div>
+      <div class="capability allowed">✓ Conversation</div>
+      <div class="capability allowed">✓ Runs offline (after load)</div>
+      <div class="capability allowed">✓ Private (no data sent)</div>
+      <div class="capability blocked">✗ No internet access</div>
+      <div class="capability blocked">✗ No file access</div>
+      <div class="capability blocked">✗ No code execution</div>
+    </div>
+
+    <div class="chat">
+      <div class="messages" id="messages">
+        <div class="msg assistant">
+          <div class="msg-content">
+            Welcome! I'm a local LLM running entirely in your browser via WebGPU. No API keys needed, no data sent to servers.
+
+            Click <b>Load Model</b> to get started. First load will download the model (~500MB-2GB), then it's cached locally.
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" id="input" placeholder="Type a message..." disabled />
+        <button id="sendBtn" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { LocalLLM, checkWebGPU, MODELS, DEFAULT_MODEL } from '../llm/local.js';
+
+    const $ = id => document.getElementById(id);
+    let llm = null;
+    let isGenerating = false;
+
+    // Check WebGPU on load
+    async function initGPU() {
+      const gpu = await checkWebGPU();
+      const container = $('gpuStatus');
+
+      if (gpu.supported) {
+        container.innerHTML = `
+          <div class="gpu-ok">
+            ✓ WebGPU available<br>
+            <span style="color:#888">${gpu.adapter}</span>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="gpu-warning">
+            ⚠️ WebGPU not available<br>
+            <span style="color:#888">${gpu.error}</span><br><br>
+            Try Chrome 113+ or Edge 113+
+          </div>
+        `;
+        $('loadBtn').disabled = true;
+      }
+    }
+
+    function setStatus(status, ready = false, loading = false) {
+      $('statusText').textContent = status;
+      $('statusDot').className = 'dot' + (ready ? ' ready' : loading ? ' loading' : '');
+    }
+
+    function addMessage(content, role = 'assistant', streaming = false) {
+      const div = document.createElement('div');
+      div.className = `msg ${role}` + (streaming ? ' streaming' : '');
+      div.innerHTML = `
+        <div class="msg-content">${content}</div>
+        <div class="msg-meta">${role === 'user' ? 'You' : 'Local LLM'} · ${new Date().toLocaleTimeString()}</div>
+      `;
+      $('messages').appendChild(div);
+      $('messages').scrollTop = $('messages').scrollHeight;
+      return div;
+    }
+
+    function updateMessage(div, content, done = false) {
+      div.querySelector('.msg-content').textContent = content;
+      if (done) div.classList.remove('streaming');
+      $('messages').scrollTop = $('messages').scrollHeight;
+    }
+
+    // Load model
+    $('loadBtn').onclick = async () => {
+      const modelId = $('modelSelect').value;
+      $('loadBtn').disabled = true;
+      $('progress').style.display = 'block';
+      setStatus('Loading...', false, true);
+
+      try {
+        llm = new LocalLLM({
+          model: modelId,
+          onProgress: (p) => {
+            $('progressText').textContent = p.message || 'Loading...';
+            if (p.progress !== undefined) {
+              $('progressBar').style.width = (p.progress * 100) + '%';
+            }
+          },
+          onReady: () => {
+            setStatus('Ready', true);
+            $('progress').style.display = 'none';
+            $('unloadBtn').disabled = false;
+            $('input').disabled = false;
+            $('sendBtn').disabled = false;
+            $('input').focus();
+            addMessage(`Model loaded: <b>${modelId}</b>. I'm ready to chat!`);
+          },
+        });
+
+        await llm.load();
+      } catch (err) {
+        setStatus('Error: ' + err.message);
+        $('progress').style.display = 'none';
+        $('loadBtn').disabled = false;
+        addMessage(`Error loading model: ${err.message}`, 'assistant');
+      }
+    };
+
+    // Unload model
+    $('unloadBtn').onclick = async () => {
+      if (llm) {
+        await llm.unload();
+        llm = null;
+      }
+      setStatus('Not loaded');
+      $('loadBtn').disabled = false;
+      $('unloadBtn').disabled = true;
+      $('input').disabled = true;
+      $('sendBtn').disabled = true;
+      addMessage('Model unloaded. Memory freed.');
+    };
+
+    // Send message
+    async function send() {
+      if (!llm?.ready || isGenerating) return;
+
+      const text = $('input').value.trim();
+      if (!text) return;
+
+      $('input').value = '';
+      $('sendBtn').disabled = true;
+      isGenerating = true;
+
+      addMessage(text, 'user');
+      const responseDiv = addMessage('', 'assistant', true);
+
+      try {
+        let fullResponse = '';
+
+        // Stream response
+        for await (const chunk of llm.stream(text)) {
+          fullResponse += chunk;
+          updateMessage(responseDiv, fullResponse);
+        }
+
+        updateMessage(responseDiv, fullResponse, true);
+      } catch (err) {
+        updateMessage(responseDiv, 'Error: ' + err.message, true);
+      }
+
+      isGenerating = false;
+      $('sendBtn').disabled = false;
+      $('input').focus();
+    }
+
+    $('sendBtn').onclick = send;
+    $('input').onkeydown = (e) => { if (e.key === 'Enter') send(); };
+
+    // Init
+    initGPU();
+  </script>
+</body>
+</html>
