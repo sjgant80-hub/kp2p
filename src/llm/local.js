@@ -53,13 +53,21 @@ export async function checkWebGPU() {
       return { supported: false, error: 'No WebGPU adapter found' };
     }
 
-    const device = await adapter.requestDevice();
-    const info = await adapter.requestAdapterInfo();
+    // requestAdapterInfo may not exist in older browsers
+    let adapterInfo = 'WebGPU Adapter';
+    try {
+      if (adapter.requestAdapterInfo) {
+        const info = await adapter.requestAdapterInfo();
+        adapterInfo = (info.vendor || '') + ' ' + (info.architecture || '');
+      }
+    } catch (e) {
+      // Ignore - use default
+    }
 
     return {
       supported: true,
-      adapter: info.vendor + ' ' + info.architecture,
-      device: info.description || 'WebGPU Device',
+      adapter: adapterInfo.trim() || 'WebGPU Adapter',
+      device: 'WebGPU Device',
     };
   } catch (err) {
     return { supported: false, error: err.message };
