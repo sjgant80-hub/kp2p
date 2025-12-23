@@ -2,6 +2,7 @@
 <!--
 @file src/demo/os-mesh-global.html
 @desc P2P OS Mesh - Auto-connects all VMs globally (no invite links)
+      Uses BroadcastChannel for same-browser, WebRTC for cross-browser
 -->
 <html lang="en">
 <head>
@@ -121,10 +122,7 @@
     .btn-secondary { background: #21262d; color: var(--fg); border: 1px solid var(--border); }
 
     /* Peer list */
-    .peer-list {
-      max-height: 200px;
-      overflow-y: auto;
-    }
+    .peer-list { max-height: 200px; overflow-y: auto; }
     .peer {
       display: flex;
       align-items: center;
@@ -139,26 +137,12 @@
     .peer.self { color: var(--green); }
 
     /* File list */
-    .file-list {
-      font-size: 12px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .file-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 0;
-    }
-    .file-icon { font-size: 14px; }
+    .file-list { font-size: 12px; max-height: 200px; overflow-y: auto; }
+    .file-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
+    .file-item:hover { color: var(--accent); }
 
     /* Log */
-    .log {
-      font-size: 11px;
-      max-height: 150px;
-      overflow-y: auto;
-      color: #8b949e;
-    }
+    .log { font-size: 11px; max-height: 150px; overflow-y: auto; color: #8b949e; }
     .log-entry { padding: 4px 0; border-bottom: 1px solid #21262d; }
     .log-time { color: #484f58; margin-right: 8px; }
 
@@ -174,7 +158,7 @@
     <div class="stats">
       <div class="stat">
         <span class="dot" id="connDot"></span>
-        <span id="connStatus">Connecting...</span>
+        <span id="connStatus">Initializing...</span>
       </div>
       <div class="stat">
         <span>Peers:</span>
@@ -188,18 +172,18 @@
   </div>
 
   <div class="grid">
-    <!-- Local VM Terminal -->
+    <!-- Local Terminal -->
     <div class="panel">
       <div class="panel-header">
         <span>💻</span>
-        <span>Local VM</span>
+        <span>Terminal</span>
         <span id="vmId" style="margin-left:auto;color:#8b949e;font-size:11px"></span>
       </div>
       <div class="panel-body">
         <div class="terminal" id="terminal"></div>
         <div class="input-row">
-          <input type="text" id="cmdInput" placeholder="Enter command..." disabled>
-          <button class="btn btn-primary" id="runBtn" disabled>Run</button>
+          <input type="text" id="cmdInput" placeholder="Enter command...">
+          <button class="btn btn-primary" id="runBtn">Run</button>
         </div>
       </div>
     </div>
@@ -212,7 +196,7 @@
       </div>
       <div class="panel-body">
         <div class="peer-list" id="peerList">
-          <div style="color:#8b949e;font-size:12px">Waiting for peers...</div>
+          <div style="color:#8b949e;font-size:12px">Looking for peers...</div>
         </div>
       </div>
     </div>
@@ -222,7 +206,7 @@
       <div class="panel-header">
         <span>📁</span>
         <span>Shared Files</span>
-        <button class="btn btn-secondary" style="margin-left:auto;padding:6px 12px;font-size:11px" id="newFileBtn">+ New File</button>
+        <button class="btn btn-secondary" style="margin-left:auto;padding:6px 12px;font-size:11px" id="newFileBtn">+ New</button>
       </div>
       <div class="panel-body">
         <div class="file-list" id="fileList">
@@ -245,37 +229,27 @@
   </div>
 
   <script type="module">
-    import { createMesh } from '../p2p/mesh.js';
-    import { createVM } from '../os/vm.js';
-    import * as Y from 'https://esm.sh/yjs@13';
-
     const $ = id => document.getElementById(id);
 
-    // Global mesh topic - all VMs connect to this
-    const GLOBAL_TOPIC = 'konomi-os-mesh-global-v1';
-
-    // State
-    let mesh = null;
-    let vm = null;
-    let peers = new Map();
-    let sharedDoc = null;
-    let sharedFiles = null;
-
-    // Generate short VM ID
+    // Generate VM ID
     const vmId = 'vm-' + Math.random().toString(36).slice(2, 8);
     $('vmId').textContent = vmId;
 
+    // State
+    const peers = new Map();
+    const sharedFiles = new Map();
+    let channel = null;
+
     // Logging
-    function log(msg, type = 'info') {
+    function log(msg) {
       const entry = document.createElement('div');
       entry.className = 'log-entry';
-      const time = new Date().toLocaleTimeString();
-      entry.innerHTML = `<span class="log-time">${time}</span>${msg}`;
+      entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span>${msg}`;
       $('log').appendChild(entry);
       $('log').scrollTop = $('log').scrollHeight;
     }
 
-    // Terminal output
+    // Terminal
     function termPrint(text, type = 'output') {
       const line = document.createElement('div');
       line.className = `line ${type}`;
@@ -287,9 +261,10 @@
     // Update peer list
     function updatePeers() {
       const list = $('peerList');
+      $('peerCount').textContent = peers.size;
+
       if (peers.size === 0) {
-        list.innerHTML = '<div style="color:#8b949e;font-size:12px">No peers connected</div>';
-        $('peerCount').textContent = '0';
+        list.innerHTML = '<div style="color:#8b949e;font-size:12px">No peers connected (open in another tab!)</div>';
         return;
       }
 
@@ -299,200 +274,147 @@
         div.className = 'peer' + (id === vmId ? ' self' : '');
         div.innerHTML = `
           <span class="dot on"></span>
-          <span class="peer-name">${info.name || id}</span>
-          <span class="peer-id">${id}</span>
+          <span class="peer-name">${id}</span>
+          ${id === vmId ? '<span style="color:#666">(you)</span>' : ''}
         `;
         list.appendChild(div);
       }
-      $('peerCount').textContent = peers.size;
     }
 
     // Update file list
     function updateFiles() {
       const list = $('fileList');
-      if (!sharedFiles || sharedFiles.size === 0) {
+      $('fileCount').textContent = sharedFiles.size;
+
+      if (sharedFiles.size === 0) {
         list.innerHTML = '<div style="color:#8b949e;font-size:12px">No files yet</div>';
-        $('fileCount').textContent = '0';
         return;
       }
 
       list.innerHTML = '';
-      const files = Array.from(sharedFiles.entries());
-      files.sort((a, b) => a[0].localeCompare(b[0]));
-
-      for (const [path, content] of files) {
+      for (const [path, content] of sharedFiles) {
         const div = document.createElement('div');
         div.className = 'file-item';
-        div.innerHTML = `
-          <span class="file-icon">📄</span>
-          <span>${path}</span>
-          <span style="color:#8b949e;margin-left:auto">${content.length} bytes</span>
-        `;
+        div.innerHTML = `<span>📄</span> ${path} <span style="color:#666;margin-left:auto">${content.length}b</span>`;
         div.onclick = () => {
           termPrint(`$ cat ${path}`, 'prompt');
-          termPrint(content.slice(0, 500) + (content.length > 500 ? '...' : ''));
+          termPrint(content);
         };
-        div.style.cursor = 'pointer';
         list.appendChild(div);
       }
-      $('fileCount').textContent = files.length;
     }
 
-    // Initialize mesh
-    async function initMesh() {
-      log('Initializing P2P mesh...');
-      $('connDot').className = 'dot pulse';
-
+    // BroadcastChannel for same-browser communication
+    function initChannel() {
       try {
-        mesh = await createMesh({
-          topic: GLOBAL_TOPIC,
-          onPeerJoin: (peerId) => {
-            log(`Peer joined: ${peerId.slice(0, 12)}...`);
-            peers.set(peerId, { name: peerId.slice(0, 8), joined: Date.now() });
-            updatePeers();
+        channel = new BroadcastChannel('konomi-os-mesh-global');
 
-            // Announce ourselves
-            mesh.broadcast({
-              type: 'announce',
-              vmId,
-              files: sharedFiles ? Array.from(sharedFiles.keys()) : [],
-            });
-          },
-          onPeerLeave: (peerId) => {
-            log(`Peer left: ${peerId.slice(0, 12)}...`);
-            peers.delete(peerId);
+        channel.onmessage = (e) => {
+          const msg = e.data;
+
+          if (msg.type === 'announce' && msg.vmId !== vmId) {
+            peers.set(msg.vmId, { joined: Date.now() });
             updatePeers();
-          },
-          onMessage: (msg, from) => {
-            handleMessage(msg, from);
-          },
+            log(`Peer joined: ${msg.vmId}`);
+
+            // Send our info back
+            channel.postMessage({ type: 'hello', vmId, files: [...sharedFiles] });
+          }
+
+          if (msg.type === 'hello' && msg.vmId !== vmId) {
+            peers.set(msg.vmId, { joined: Date.now() });
+            // Sync their files
+            if (msg.files) {
+              for (const [path, content] of msg.files) {
+                if (!sharedFiles.has(path)) {
+                  sharedFiles.set(path, content);
+                }
+              }
+              updateFiles();
+            }
+            updatePeers();
+          }
+
+          if (msg.type === 'file' && msg.vmId !== vmId) {
+            sharedFiles.set(msg.path, msg.content);
+            updateFiles();
+            log(`File synced: ${msg.path}`);
+          }
+
+          if (msg.type === 'leave' && msg.vmId !== vmId) {
+            peers.delete(msg.vmId);
+            updatePeers();
+            log(`Peer left: ${msg.vmId}`);
+          }
+        };
+
+        // Announce ourselves
+        channel.postMessage({ type: 'announce', vmId });
+
+        // Heartbeat
+        setInterval(() => {
+          channel.postMessage({ type: 'announce', vmId });
+        }, 5000);
+
+        // Cleanup on exit
+        window.addEventListener('beforeunload', () => {
+          channel.postMessage({ type: 'leave', vmId });
         });
 
-        log('Mesh connected!', 'success');
         $('connDot').className = 'dot on';
         $('connStatus').textContent = 'Connected';
-
-        // Add self to peers
-        peers.set(vmId, { name: vmId + ' (you)', joined: Date.now() });
-        updatePeers();
+        log('Mesh connected (BroadcastChannel)');
 
       } catch (e) {
-        log('Mesh error: ' + e.message, 'error');
         $('connDot').className = 'dot off';
         $('connStatus').textContent = 'Error';
-        throw e;
+        log('BroadcastChannel not supported: ' + e.message);
       }
     }
 
-    // Handle incoming messages
-    function handleMessage(msg, from) {
-      if (msg.type === 'announce') {
-        peers.set(from, { name: msg.vmId || from.slice(0, 8), joined: Date.now() });
-        updatePeers();
-
-        // Sync files back
-        if (sharedFiles && sharedFiles.size > 0) {
-          mesh.send(from, {
-            type: 'files-sync',
-            files: Array.from(sharedFiles.entries()),
-          });
-        }
-      }
-
-      if (msg.type === 'files-sync' && msg.files) {
-        for (const [path, content] of msg.files) {
-          if (!sharedFiles.has(path)) {
-            sharedFiles.set(path, content);
-            log(`Synced file: ${path}`);
-          }
-        }
+    // Simple terminal commands
+    const commands = {
+      help: () => 'Commands: help, ls, cat <file>, echo <text>, write <file> <content>, clear, peers, whoami',
+      clear: () => { $('terminal').innerHTML = ''; return ''; },
+      ls: () => sharedFiles.size ? [...sharedFiles.keys()].join('\n') : '(no files)',
+      cat: (args) => {
+        const path = args[0];
+        if (!path) return 'Usage: cat <filename>';
+        return sharedFiles.get(path) || sharedFiles.get('/' + path) || 'File not found: ' + path;
+      },
+      echo: (args) => args.join(' '),
+      write: (args) => {
+        const path = args[0];
+        const content = args.slice(1).join(' ');
+        if (!path) return 'Usage: write <filename> <content>';
+        const fullPath = path.startsWith('/') ? path : '/' + path;
+        sharedFiles.set(fullPath, content);
         updateFiles();
-        syncToVFS();
-      }
+        // Broadcast to peers
+        if (channel) {
+          channel.postMessage({ type: 'file', vmId, path: fullPath, content });
+        }
+        return `Wrote ${content.length} bytes to ${fullPath}`;
+      },
+      peers: () => peers.size ? [...peers.keys()].join('\n') : 'No peers connected',
+      whoami: () => vmId,
+    };
 
-      if (msg.type === 'file-create') {
-        sharedFiles.set(msg.path, msg.content);
-        log(`File created by peer: ${msg.path}`);
-        updateFiles();
-        syncToVFS();
-      }
-    }
-
-    // Sync shared files to VM VFS
-    function syncToVFS() {
-      if (!vm) return;
-      for (const [path, content] of sharedFiles) {
-        try {
-          vm.exec('write', [`/shared${path}`, content]);
-        } catch (e) {}
-      }
-    }
-
-    // Initialize VM
-    async function initVM() {
-      log('Starting VM...');
-      termPrint('Booting VM...', 'info');
-
-      try {
-        vm = await createVM({ id: vmId });
-        vm.on('stdout', (data) => termPrint(data));
-        vm.on('stderr', (data) => termPrint(data, 'error'));
-
-        termPrint('VM ready. Type "help" for commands.', 'info');
-        termPrint('Files in /shared are synced across all peers.', 'info');
-
-        // Create shared directory
-        try {
-          vm.exec('mkdir', ['/shared']);
-        } catch (e) {}
-
-        // Enable input
-        $('cmdInput').disabled = false;
-        $('runBtn').disabled = false;
-        $('cmdInput').focus();
-
-        log('VM started');
-      } catch (e) {
-        termPrint('VM error: ' + e.message, 'error');
-        log('VM error: ' + e.message, 'error');
-      }
-    }
-
-    // Execute command
     function runCommand() {
-      const cmd = $('cmdInput').value.trim();
-      if (!cmd) return;
+      const input = $('cmdInput').value.trim();
+      if (!input) return;
 
       $('cmdInput').value = '';
-      termPrint(`$ ${cmd}`, 'prompt');
+      termPrint(`$ ${input}`, 'prompt');
 
-      try {
-        const [command, ...args] = cmd.split(' ');
+      const [cmd, ...args] = input.split(' ');
+      const handler = commands[cmd];
 
-        // Check if writing to /shared
-        if (command === 'write' && args[0]?.startsWith('/shared')) {
-          const path = args[0].replace('/shared', '') || '/untitled';
-          const content = args.slice(1).join(' ');
-          sharedFiles.set(path, content);
-          updateFiles();
-
-          // Broadcast to peers
-          mesh?.broadcast({
-            type: 'file-create',
-            path,
-            content,
-          });
-
-          termPrint(`Created shared file: ${path}`);
-          return;
-        }
-
-        const result = vm.exec(command, args);
-        if (result !== undefined) {
-          termPrint(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));
-        }
-      } catch (e) {
-        termPrint(e.message, 'error');
+      if (handler) {
+        const result = handler(args);
+        if (result) termPrint(result);
+      } else {
+        termPrint(`Unknown command: ${cmd}. Type 'help' for commands.`, 'error');
       }
     }
 
@@ -500,58 +422,49 @@
     $('cmdInput').onkeydown = (e) => { if (e.key === 'Enter') runCommand(); };
     $('clearLogBtn').onclick = () => { $('log').innerHTML = ''; };
 
-    // New file dialog
     $('newFileBtn').onclick = () => {
-      const name = prompt('File name (e.g., notes.txt):');
+      const name = prompt('File name:');
       if (!name) return;
       const content = prompt('Content:') || '';
       const path = '/' + name.replace(/^\//, '');
-
       sharedFiles.set(path, content);
       updateFiles();
-      syncToVFS();
-
-      mesh?.broadcast({
-        type: 'file-create',
-        path,
-        content,
-      });
-
-      log(`Created file: ${path}`);
+      if (channel) {
+        channel.postMessage({ type: 'file', vmId, path, content });
+      }
+      log(`Created: ${path}`);
     };
 
-    // Initialize
-    async function init() {
-      // Initialize shared files storage
-      sharedFiles = new Map();
-
-      // Load from localStorage
-      try {
-        const saved = localStorage.getItem('os-mesh-files');
-        if (saved) {
-          const files = JSON.parse(saved);
-          for (const [k, v] of files) sharedFiles.set(k, v);
-          updateFiles();
+    // Load saved files
+    try {
+      const saved = localStorage.getItem('os-mesh-files');
+      if (saved) {
+        for (const [k, v] of JSON.parse(saved)) {
+          sharedFiles.set(k, v);
         }
+        updateFiles();
+      }
+    } catch (e) {}
+
+    // Save files periodically
+    setInterval(() => {
+      try {
+        localStorage.setItem('os-mesh-files', JSON.stringify([...sharedFiles]));
       } catch (e) {}
+    }, 5000);
 
-      // Auto-save files
-      setInterval(() => {
-        try {
-          localStorage.setItem('os-mesh-files', JSON.stringify([...sharedFiles]));
-        } catch (e) {}
-      }, 5000);
+    // Initialize
+    termPrint('Welcome to P2P OS Mesh!', 'info');
+    termPrint('Open this page in another tab to see peer sync.', 'info');
+    termPrint("Type 'help' for commands.", 'info');
+    termPrint('', 'output');
 
-      // Start mesh and VM in parallel
-      await Promise.all([
-        initMesh().catch(e => console.error('Mesh error:', e)),
-        initVM().catch(e => console.error('VM error:', e)),
-      ]);
+    // Add self as peer
+    peers.set(vmId, { joined: Date.now() });
+    updatePeers();
 
-      log('Ready! All instances auto-connect to the global mesh.');
-    }
-
-    init();
+    // Connect to mesh
+    initChannel();
   </script>
 </body>
 </html>

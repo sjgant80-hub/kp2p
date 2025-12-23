@@ -221,6 +221,7 @@
       <select id="modelSelect"></select>
       <button class="btn btn-primary" id="loadBtn">Load Model</button>
       <button class="btn btn-danger" id="unloadBtn" disabled>Unload</button>
+      <button class="btn btn-secondary" id="testBtn" title="Test without model">Test</button>
 
       <div class="progress-box" id="progressBox">
         <div class="progress-text" id="progressText">Loading...</div>
@@ -418,6 +419,23 @@ Load a model to get started!</div>
       $('unloadBtn').disabled = true;
       $('loadBtn').disabled = false;
       $('modelSelect').disabled = false;
+    };
+
+    // Test mode (no model, just echo)
+    $('testBtn').onclick = () => {
+      $('statusDot').className = 'dot on';
+      $('statusText').textContent = 'Test Mode';
+      $('input').disabled = false;
+      $('sendBtn').disabled = false;
+      $('testBtn').disabled = true;
+      addMessage('assistant', 'Test mode enabled! Type anything - I\'ll echo it back. (No AI model loaded)');
+
+      // Create fake agent for testing
+      agent = {
+        chat: async (msg) => `[Echo] ${msg}`,
+        destroy: async () => {},
+        clearHistory: () => {},
+      };
     };
 
     // Send message

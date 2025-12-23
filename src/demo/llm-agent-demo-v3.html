@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/llm-agent-demo-v3.html
+@desc LLM Agent v3 - Visual agent with iframe preview
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LLM Agent v3 - Visual</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg: #0a0a1a;
+      --bg2: #12122a;
+      --fg: #e0e0e0;
+      --accent: #4facfe;
+      --accent2: #00ff88;
+      --border: #333;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .header h1 { font-size: 1rem; color: var(--accent); }
+    .badge { padding: 3px 8px; background: #1a3a2a; color: var(--accent2); border-radius: 10px; font-size: 10px; font-weight: 600; }
+    .status { margin-left: auto; font-size: 12px; display: flex; align-items: center; gap: 6px; color: #888; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .dot.on { background: var(--accent2); }
+    .dot.loading { background: #ffcc00; animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    /* Main layout */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Left panel - Chat */
+    .chat-panel {
+      width: 50%;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+    }
+
+    /* Model selector */
+    .model-bar {
+      padding: 10px 16px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .model-bar select {
+      flex: 1;
+      padding: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+    }
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-sm { padding: 6px 10px; font-size: 11px; }
+
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      display: none;
+    }
+    .progress-bar.active { display: block; }
+    .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+    /* Messages */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .message {
+      max-width: 85%;
+      margin-bottom: 12px;
+    }
+    .message.user { margin-left: auto; }
+    .message.assistant { margin-right: auto; }
+    .msg-content {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message.user .msg-content {
+      background: var(--accent);
+      color: #000;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant .msg-content {
+      background: #1a1a2e;
+      border-bottom-left-radius: 4px;
+    }
+    .msg-content.streaming { border-right: 2px solid var(--accent); animation: blink 0.8s infinite; }
+    @keyframes blink { 50% { border-color: transparent; } }
+
+    .tool-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: #1a2a1a;
+      border: 1px solid #2a4a2a;
+      border-radius: 6px;
+      font-size: 11px;
+      margin: 6px 0;
+    }
+
+    /* Input */
+    .input-area {
+      padding: 12px 16px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+    .input-row { display: flex; gap: 8px; }
+    .input-row textarea {
+      flex: 1;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 20px;
+      background: var(--bg);
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      resize: none;
+      outline: none;
+      max-height: 100px;
+    }
+    .input-row button {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .suggestions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .suggestion {
+      padding: 5px 10px;
+      background: #1a1a2e;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .suggestion:hover { border-color: var(--accent); }
+
+    /* Right panel - Preview */
+    .preview-panel {
+      width: 50%;
+      display: flex;
+      flex-direction: column;
+      background: #000;
+    }
+    .preview-header {
+      padding: 10px 16px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+    .preview-header .title { color: var(--accent); flex: 1; }
+    .preview-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .preview-tab {
+      padding: 4px 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: #888;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .preview-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    .preview-frame {
+      flex: 1;
+      border: none;
+      background: #fff;
+    }
+
+    .preview-code {
+      flex: 1;
+      padding: 16px;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      overflow: auto;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .preview-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 14px;
+      text-align: center;
+      padding: 40px;
+    }
+
+    /* Resize handle */
+    .resize-handle {
+      width: 4px;
+      background: var(--border);
+      cursor: col-resize;
+      transition: background 0.2s;
+    }
+    .resize-handle:hover { background: var(--accent); }
+
+    @media (max-width: 800px) {
+      .main { flex-direction: column; }
+      .chat-panel, .preview-panel { width: 100%; height: 50%; }
+      .chat-panel { border-right: none; border-bottom: 1px solid var(--border); }
+      .resize-handle { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎨 Visual Agent</h1>
+    <span class="badge">v3</span>
+    <span style="color:#666;font-size:11px">HTML Preview + Charts</span>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Not loaded</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+      <div class="model-bar">
+        <select id="modelSelect"></select>
+        <button class="btn btn-primary" id="loadBtn">Load</button>
+        <button class="btn btn-secondary" id="unloadBtn" disabled>Unload</button>
+        <button class="btn btn-secondary" id="testBtn">Test</button>
+      </div>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="messages" id="messages">
+        <div class="message assistant">
+          <div class="msg-content">Hi! I'm a visual AI agent. I can create HTML pages, charts, and visual outputs.
+
+Try asking me to:
+🎨 Create a colorful landing page
+📊 Show a chart of some data
+🖼️ Design a simple UI
+📝 Format data as a table
+
+Load a model to get started!</div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <textarea id="input" placeholder="Describe what you want to see..." rows="1" disabled></textarea>
+          <button id="sendBtn" disabled>➤</button>
+        </div>
+        <div class="suggestions">
+          <span class="suggestion" data-msg="Create a colorful hello world page with animation">🎨 Hello World</span>
+          <span class="suggestion" data-msg="Show a pie chart: Chrome 65%, Safari 19%, Firefox 8%, Other 8%">📊 Pie Chart</span>
+          <span class="suggestion" data-msg="Create a bar chart of sales: Q1 $45k, Q2 $52k, Q3 $49k, Q4 $61k">📈 Bar Chart</span>
+          <span class="suggestion" data-msg="Design a simple login form with username and password">📝 Login Form</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="resize-handle" id="resizeHandle"></div>
+
+    <!-- Preview Panel -->
+    <div class="preview-panel">
+      <div class="preview-header">
+        <span>🖼️</span>
+        <span class="title" id="previewTitle">Preview</span>
+        <div class="preview-tabs">
+          <button class="preview-tab active" data-view="preview">Preview</button>
+          <button class="preview-tab" data-view="code">Code</button>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="clearPreviewBtn">Clear</button>
+        <button class="btn btn-secondary btn-sm" id="downloadBtn">Download</button>
+      </div>
+
+      <iframe class="preview-frame" id="previewFrame" sandbox="allow-scripts"></iframe>
+      <pre class="preview-code" id="previewCode"></pre>
+      <div class="preview-empty" id="previewEmpty">
+        <div>
+          <div style="font-size:48px;margin-bottom:16px">🖼️</div>
+          <div>Visual output will appear here</div>
+          <div style="font-size:12px;margin-top:8px;color:#555">Ask the agent to create HTML, charts, or visual content</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { AgentV3 } from '../llm/agent-v3.js';
+    import { checkWebGPU, RECOMMENDED_MODELS, DEFAULT_MODEL } from '../llm/local.js';
+
+    const $ = id => document.getElementById(id);
+    let agent = null;
+    let currentMsgEl = null;
+    let currentHTML = '';
+
+    // Populate models
+    function populateModels() {
+      const select = $('modelSelect');
+      const groups = { tiny: [], small: [], medium: [], large: [] };
+      for (const m of RECOMMENDED_MODELS) {
+        if (groups[m.size]) groups[m.size].push(m);
+      }
+      const labels = { tiny: 'Tiny', small: 'Small', medium: 'Medium', large: 'Large' };
+      for (const [size, models] of Object.entries(groups)) {
+        if (!models.length) continue;
+        const og = document.createElement('optgroup');
+        og.label = labels[size];
+        for (const m of models) {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          if (m.id === DEFAULT_MODEL) opt.selected = true;
+          og.appendChild(opt);
+        }
+        select.appendChild(og);
+      }
+    }
+
+    // Render HTML to preview
+    function renderPreview(html, title) {
+      currentHTML = html;
+      $('previewEmpty').style.display = 'none';
+      $('previewFrame').style.display = 'block';
+      $('previewCode').textContent = html;
+      $('previewTitle').textContent = title || 'Preview';
+
+      // Render to iframe
+      const frame = $('previewFrame');
+      const doc = frame.contentDocument || frame.contentWindow.document;
+      doc.open();
+      doc.write(html);
+      doc.close();
+    }
+
+    // Tab switching
+    document.querySelectorAll('.preview-tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const view = tab.dataset.view;
+        $('previewFrame').style.display = view === 'preview' ? 'block' : 'none';
+        $('previewCode').style.display = view === 'code' ? 'block' : 'none';
+      };
+    });
+
+    // Clear preview
+    $('clearPreviewBtn').onclick = () => {
+      currentHTML = '';
+      $('previewEmpty').style.display = 'flex';
+      $('previewFrame').style.display = 'none';
+      $('previewCode').textContent = '';
+      $('previewTitle').textContent = 'Preview';
+    };
+
+    // Download HTML
+    $('downloadBtn').onclick = () => {
+      if (!currentHTML) return;
+      const blob = new Blob([currentHTML], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'output.html';
+      a.click();
+    };
+
+    // Add message
+    function addMessage(role, content, streaming = false) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.innerHTML = `<div class="msg-content${streaming ? ' streaming' : ''}">${escapeHtml(content)}</div>`;
+      $('messages').appendChild(div);
+      $('messages').scrollTop = $('messages').scrollHeight;
+      return div;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Load model
+    $('loadBtn').onclick = async () => {
+      const modelId = $('modelSelect').value;
+      $('loadBtn').disabled = true;
+      $('modelSelect').disabled = true;
+      $('statusDot').className = 'dot loading';
+      $('statusText').textContent = 'Loading...';
+      $('progressBar').classList.add('active');
+
+      try {
+        const gpu = await checkWebGPU();
+        if (!gpu.supported) throw new Error(gpu.error);
+
+        agent = new AgentV3({
+          onToken: (token) => {
+            if (currentMsgEl) {
+              const content = currentMsgEl.querySelector('.msg-content');
+              content.textContent += token;
+              $('messages').scrollTop = $('messages').scrollHeight;
+            }
+          },
+          onToolStart: (call) => {
+            const badge = document.createElement('div');
+            badge.className = 'tool-badge';
+            badge.innerHTML = `${call.name === 'render_html' ? '🎨' : '🔧'} ${call.name}...`;
+            $('messages').appendChild(badge);
+          },
+          onToolEnd: ({ name, result }) => {
+            const badges = document.querySelectorAll('.tool-badge');
+            if (badges.length) {
+              const last = badges[badges.length - 1];
+              last.innerHTML = `✓ ${name}`;
+            }
+          },
+          onRender: ({ type, content, title }) => {
+            renderPreview(content, title || (type === 'chart' ? 'Chart' : 'HTML Preview'));
+          },
+        });
+
+        await agent.init(modelId, (p) => {
+          $('progressFill').style.width = ((p.progress || 0) * 100) + '%';
+        });
+
+        $('statusDot').className = 'dot on';
+        $('statusText').textContent = 'Ready';
+        $('progressBar').classList.remove('active');
+        $('input').disabled = false;
+        $('sendBtn').disabled = false;
+        $('unloadBtn').disabled = false;
+
+        addMessage('assistant', 'Model loaded! Ask me to create something visual.');
+      } catch (e) {
+        $('statusDot').className = 'dot';
+        $('statusText').textContent = 'Error';
+        addMessage('assistant', 'Error: ' + e.message);
+        $('loadBtn').disabled = false;
+        $('modelSelect').disabled = false;
+        $('progressBar').classList.remove('active');
+      }
+    };
+
+    // Unload
+    $('unloadBtn').onclick = async () => {
+      if (agent) await agent.destroy();
+      agent = null;
+      $('statusDot').className = 'dot';
+      $('statusText').textContent = 'Not loaded';
+      $('input').disabled = true;
+      $('sendBtn').disabled = true;
+      $('unloadBtn').disabled = true;
+      $('loadBtn').disabled = false;
+      $('modelSelect').disabled = false;
+    };
+
+    // Test mode - demo rendering without model
+    $('testBtn').onclick = () => {
+      $('statusDot').className = 'dot on';
+      $('statusText').textContent = 'Test Mode';
+      $('input').disabled = false;
+      $('sendBtn').disabled = false;
+      $('testBtn').disabled = true;
+
+      addMessage('assistant', 'Test mode! Try: "show chart", "hello world page", or type anything.');
+
+      // Demo agent that renders sample content
+      agent = {
+        chat: async (msg) => {
+          const lower = msg.toLowerCase();
+          if (lower.includes('chart') || lower.includes('pie')) {
+            const html = `<!DOCTYPE html><html><body style="background:#1a1a2e;color:#fff;font-family:sans-serif;padding:20px"><h2 style="color:#4facfe">Sample Pie Chart</h2><div style="width:150px;height:150px;border-radius:50%;background:conic-gradient(#4facfe 0deg 180deg, #00ff88 180deg 270deg, #fa709a 270deg 360deg);margin:20px 0"></div><p>Blue: 50% | Green: 25% | Pink: 25%</p></body></html>`;
+            renderPreview(html, 'Demo Chart');
+            return 'Here\'s a sample pie chart!';
+          }
+          if (lower.includes('hello') || lower.includes('page')) {
+            const html = `<!DOCTYPE html><html><body style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;margin:0"><div style="text-align:center"><h1 style="font-size:3em;margin:0">Hello World!</h1><p style="opacity:0.8">Welcome to the visual agent</p></div></body></html>`;
+            renderPreview(html, 'Hello World');
+            return 'Created a colorful hello world page!';
+          }
+          return `[Test mode] You said: "${msg}". Try "show chart" or "hello world page" to see rendering.`;
+        },
+        destroy: async () => {},
+        clearHistory: () => {},
+      };
+    };
+
+    // Send message
+    async function send() {
+      const msg = $('input').value.trim();
+      if (!msg || !agent) return;
+
+      $('input').value = '';
+      $('input').style.height = 'auto';
+      $('input').disabled = true;
+      $('sendBtn').disabled = true;
+
+      addMessage('user', msg);
+      currentMsgEl = addMessage('assistant', '', true);
+
+      try {
+        await agent.chat(msg);
+      } catch (e) {
+        currentMsgEl.querySelector('.msg-content').textContent = 'Error: ' + e.message;
+      }
+
+      currentMsgEl.querySelector('.msg-content').classList.remove('streaming');
+      currentMsgEl = null;
+      $('input').disabled = false;
+      $('sendBtn').disabled = false;
+      $('input').focus();
+    }
+
+    $('sendBtn').onclick = send;
+    $('input').onkeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    };
+    $('input').oninput = () => {
+      $('input').style.height = 'auto';
+      $('input').style.height = Math.min($('input').scrollHeight, 100) + 'px';
+    };
+
+    // Suggestions
+    document.querySelectorAll('.suggestion').forEach(el => {
+      el.onclick = () => {
+        if (!$('input').disabled) {
+          $('input').value = el.dataset.msg;
+          $('input').focus();
+        }
+      };
+    });
+
+    // Resize handle
+    let isResizing = false;
+    $('resizeHandle').onmousedown = (e) => {
+      isResizing = true;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    };
+    document.onmousemove = (e) => {
+      if (!isResizing) return;
+      const container = document.querySelector('.main');
+      const pct = (e.clientX / container.offsetWidth) * 100;
+      document.querySelector('.chat-panel').style.width = pct + '%';
+      document.querySelector('.preview-panel').style.width = (100 - pct) + '%';
+    };
+    document.onmouseup = () => {
+      isResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    // Init
+    populateModels();
+    checkWebGPU().then(r => {
+      if (!r.supported) {
+        $('statusText').textContent = 'No WebGPU';
+        $('loadBtn').disabled = true;
+        addMessage('assistant', `WebGPU not available: ${r.error}`);
+      }
+    });
+  </script>
+</body>
+</html>
