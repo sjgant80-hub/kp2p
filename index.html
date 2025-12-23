@@ -489,35 +489,29 @@ addTodo('Share with friends')`
       iframe.sandbox = 'allow-scripts allow-same-origin'
       iframe.style.cssText = 'width:100%;height:100%;border:none;background:#fff'
 
-      const html = `<!DOCTYPE html>
-<html><head><style>body{font-family:system-ui;padding:20px;background:#1a1a2e;color:#fff}</style></head>
-<body>
-<script type="module">
-const _log = console.log.bind(console)
-const _error = console.error.bind(console)
-const _warn = console.warn.bind(console)
-
-console.log = (...args) => {
-  parent.postMessage({ type: 'log', level: 'info', args: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') }, '*')
-  _log(...args)
-}
-console.error = (...args) => {
-  parent.postMessage({ type: 'log', level: 'error', args: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') }, '*')
-  _error(...args)
-}
-console.warn = (...args) => {
-  parent.postMessage({ type: 'log', level: 'warn', args: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') }, '*')
-  _warn(...args)
-}
-console.clear = () => parent.postMessage({ type: 'clear' }, '*')
-
-try {
-${code}
-} catch (e) {
-  console.error('Error:', e.message)
-}
-<\/script>
-</body></html>`
+      const html = '<!DOCTYPE html>' +
+'<html><head><style>body{font-family:system-ui;padding:20px;background:#1a1a2e;color:#fff}</style></head>' +
+'<body>' +
+'<scr' + 'ipt type="module">' +
+'const _log = console.log.bind(console);' +
+'const _error = console.error.bind(console);' +
+'const _warn = console.warn.bind(console);' +
+'console.log = (...args) => {' +
+'  parent.postMessage({ type: "log", level: "info", args: args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ") }, "*");' +
+'  _log(...args);' +
+'};' +
+'console.error = (...args) => {' +
+'  parent.postMessage({ type: "log", level: "error", args: args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ") }, "*");' +
+'  _error(...args);' +
+'};' +
+'console.warn = (...args) => {' +
+'  parent.postMessage({ type: "log", level: "warn", args: args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ") }, "*");' +
+'  _warn(...args);' +
+'};' +
+'console.clear = () => parent.postMessage({ type: "clear" }, "*");' +
+'try {' + code + '} catch (e) { console.error("Error:", e.message); }' +
+'</scr' + 'ipt>' +
+'</body></html>'
 
       iframe.srcdoc = html
       els.demoArea.insertBefore(iframe, els.demoArea.firstChild)
@@ -598,11 +592,7 @@ ${code}
 
     // Copy quick start
     els.copyQuickStart.onclick = () => {
-      copyToClipboard(`<script type="module">
-import{injectP2P}from'konomi-p2p'
-const p2p=await injectP2P()
-console.log(p2p.invite())
-</script>`)
+      copyToClipboard('<scr' + 'ipt type="module">\nimport{injectP2P}from\'konomi-p2p\'\nconst p2p=await injectP2P()\nconsole.log(p2p.invite())\n</scr' + 'ipt>')
       els.copyQuickStart.textContent = '✓'
       setTimeout(() => els.copyQuickStart.textContent = 'Copy', 2000)
     }
