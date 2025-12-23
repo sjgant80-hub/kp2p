@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<!--
+KONOMI POLLS - Free Slido/Typeform Polls Killer
+Real-time voting. P2P sync. $0 forever.
+
+Usage:
+View poll: ?poll=my-poll-id
+Create new: ?create=true
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Poll</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #8b5cf6;
+      --primary-dark: #7c3aed;
+      --bg: #fff;
+      --surface: #f9fafb;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-muted: #6b7280;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111;
+        --surface: #1a1a1a;
+        --border: #333;
+        --text: #f9fafb;
+        --text-muted: #9ca3af;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* Poll Display */
+    .poll-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .poll-question {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .poll-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .poll-option {
+      position: relative;
+      padding: 16px 20px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      overflow: hidden;
+    }
+
+    .poll-option:hover:not(.voted) {
+      border-color: var(--primary);
+    }
+
+    .poll-option.selected {
+      border-color: var(--primary);
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    .poll-option.voted {
+      cursor: default;
+    }
+
+    .option-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: rgba(139, 92, 246, 0.15);
+      transition: width 0.5s ease;
+      z-index: 0;
+    }
+
+    .option-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .option-text {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .option-votes {
+      font-size: 14px;
+      color: var(--text-muted);
+      display: none;
+    }
+
+    .voted .option-votes {
+      display: block;
+    }
+
+    .poll-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .total-votes {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .share-btn {
+      padding: 6px 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .share-btn:hover {
+      background: var(--primary-dark);
+    }
+
+    /* Create Poll Form */
+    .create-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .create-form h2 {
+      margin-bottom: 20px;
+      font-size: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .option-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .option-input-row input {
+      flex: 1;
+    }
+
+    .remove-option {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      border-radius: 8px;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .remove-option:hover {
+      background: #fef2f2;
+    }
+
+    .add-option-btn {
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .add-option-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .poll-type-toggle {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .poll-type-option {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .poll-type-option.active {
+      border-color: var(--primary);
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    .poll-type-option:hover:not(.active) {
+      border-color: var(--text-muted);
+    }
+
+    .create-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .create-btn:hover {
+      background: var(--primary-dark);
+    }
+
+    /* Rating Poll */
+    .rating-options {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .rating-option {
+      width: 56px;
+      height: 56px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .rating-option:hover:not(.voted) {
+      border-color: var(--primary);
+      transform: scale(1.1);
+    }
+
+    .rating-option.selected {
+      border-color: var(--primary);
+      background: var(--primary);
+    }
+
+    .rating-result {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .rating-average {
+      font-size: 48px;
+      font-weight: 700;
+    }
+
+    .rating-count {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state h2 {
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .empty-btn {
+      padding: 12px 24px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* Polls List */
+    .polls-list {
+      margin-top: 32px;
+    }
+
+    .polls-list h3 {
+      margin-bottom: 16px;
+      font-size: 16px;
+    }
+
+    .poll-item {
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .poll-item:hover {
+      border-color: var(--primary);
+    }
+
+    .poll-item-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .poll-item-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      background: var(--text);
+      color: var(--bg);
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Poll View -->
+  <div id="poll-view" style="display:none;">
+    <div class="poll-card" id="poll-card">
+      <div class="poll-question" id="poll-question"></div>
+      <div id="poll-content"></div>
+      <div class="poll-meta">
+        <div class="total-votes">
+          <span class="live-dot"></span>
+          <span id="vote-count">0 votes</span>
+        </div>
+        <button class="share-btn" id="share-btn">📋 Copy Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create View -->
+  <div id="create-view" style="display:none;">
+    <div class="header">
+      <h1>Create a Poll</h1>
+      <p>Free, real-time, P2P powered</p>
+    </div>
+
+    <div class="create-form">
+      <div class="form-group">
+        <label>Poll Type</label>
+        <div class="poll-type-toggle">
+          <div class="poll-type-option active" data-type="choice">📊 Multiple Choice</div>
+          <div class="poll-type-option" data-type="rating">⭐ Rating</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Question</label>
+        <input type="text" id="question-input" placeholder="What do you want to ask?">
+      </div>
+
+      <div class="form-group" id="options-group">
+        <label>Options</label>
+        <div class="options-list" id="options-list">
+          <div class="option-input-row">
+            <input type="text" class="option-input" placeholder="Option 1">
+            <button class="remove-option">×</button>
+          </div>
+          <div class="option-input-row">
+            <input type="text" class="option-input" placeholder="Option 2">
+            <button class="remove-option">×</button>
+          </div>
+        </div>
+        <button class="add-option-btn" id="add-option">+ Add Option</button>
+      </div>
+
+      <button class="create-btn" id="create-poll-btn">Create Poll</button>
+    </div>
+
+    <div class="polls-list" id="polls-list">
+      <h3>Your Recent Polls</h3>
+      <div id="recent-polls"></div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div id="empty-view" style="display:none;">
+    <div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <h2>Poll Not Found</h2>
+      <p>This poll doesn't exist or has been deleted</p>
+      <button class="empty-btn" id="create-new-btn">Create New Poll</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Link copied!</div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Free polls, no server required
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KONOMI POLLS - Zero-cost polling
+    // =========================================================================
+
+    const params = new URLSearchParams(location.search);
+    const POLL_ID = params.get('poll');
+    const CREATE_MODE = params.get('create') === 'true' || !POLL_ID;
+    const VOTER_ID = localStorage.getItem('konomi-voter-id') || crypto.randomUUID();
+    localStorage.setItem('konomi-voter-id', VOTER_ID);
+
+    // State
+    let currentPoll = null;
+    let pollType = 'choice';
+    let channel = null;
+
+    // DOM
+    const pollView = document.getElementById('poll-view');
+    const createView = document.getElementById('create-view');
+    const emptyView = document.getElementById('empty-view');
+    const toast = document.getElementById('toast');
+
+    // =========================================================================
+    // Storage & P2P
+    // =========================================================================
+
+    function loadPoll(id) {
+      try {
+        const stored = localStorage.getItem(`konomi-poll:${id}`);
+        return stored ? JSON.parse(stored) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function savePoll(poll) {
+      localStorage.setItem(`konomi-poll:${poll.id}`, JSON.stringify(poll));
+      updateRecentPolls(poll);
+    }
+
+    function updateRecentPolls(poll) {
+      let recent = JSON.parse(localStorage.getItem('konomi-polls-recent') || '[]');
+      recent = recent.filter(p => p.id !== poll.id);
+      recent.unshift({ id: poll.id, question: poll.question, votes: getTotalVotes(poll) });
+      recent = recent.slice(0, 10);
+      localStorage.setItem('konomi-polls-recent', JSON.stringify(recent));
+    }
+
+    function initP2P(pollId) {
+      channel = new BroadcastChannel(`konomi-poll:${pollId}`);
+
+      channel.onmessage = (e) => {
+        const msg = e.data;
+        if (msg.type === 'vote') {
+          if (currentPoll && !currentPoll.votes[msg.optionIndex]?.includes(msg.voterId)) {
+            if (!currentPoll.votes[msg.optionIndex]) {
+              currentPoll.votes[msg.optionIndex] = [];
+            }
+            currentPoll.votes[msg.optionIndex].push(msg.voterId);
+            savePoll(currentPoll);
+            renderPoll();
+          }
+        } else if (msg.type === 'poll-created') {
+          currentPoll = msg.poll;
+          savePoll(currentPoll);
+        } else if (msg.type === 'sync-request') {
+          if (currentPoll) {
+            channel.postMessage({ type: 'sync-response', poll: currentPoll });
+          }
+        } else if (msg.type === 'sync-response') {
+          if (msg.poll && (!currentPoll || getTotalVotes(msg.poll) > getTotalVotes(currentPoll))) {
+            currentPoll = msg.poll;
+            savePoll(currentPoll);
+            renderPoll();
+          }
+        }
+      };
+
+      channel.postMessage({ type: 'sync-request' });
+    }
+
+    function getTotalVotes(poll) {
+      if (!poll || !poll.votes) return 0;
+      if (poll.type === 'rating') {
+        return poll.votes.reduce((sum, arr) => sum + (arr?.length || 0), 0);
+      }
+      return Object.values(poll.votes).reduce((sum, arr) => sum + (arr?.length || 0), 0);
+    }
+
+    // =========================================================================
+    // Poll Rendering
+    // =========================================================================
+
+    function renderPoll() {
+      if (!currentPoll) return;
+
+      document.getElementById('poll-question').textContent = currentPoll.question;
+
+      const hasVoted = hasUserVoted();
+      const totalVotes = getTotalVotes(currentPoll);
+      document.getElementById('vote-count').textContent = `${totalVotes} vote${totalVotes !== 1 ? 's' : ''}`;
+
+      if (currentPoll.type === 'rating') {
+        renderRatingPoll(hasVoted, totalVotes);
+      } else {
+        renderChoicePoll(hasVoted, totalVotes);
+      }
+    }
+
+    function renderChoicePoll(hasVoted, totalVotes) {
+      const container = document.getElementById('poll-content');
+      container.innerHTML = '<div class="poll-options" id="poll-options"></div>';
+      const optionsEl = document.getElementById('poll-options');
+
+      currentPoll.options.forEach((option, index) => {
+        const votes = currentPoll.votes[index]?.length || 0;
+        const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+        const isSelected = currentPoll.votes[index]?.includes(VOTER_ID);
+
+        const div = document.createElement('div');
+        div.className = `poll-option${hasVoted ? ' voted' : ''}${isSelected ? ' selected' : ''}`;
+        div.innerHTML = `
+          <div class="option-bar" style="width:${hasVoted ? percent : 0}%"></div>
+          <div class="option-content">
+            <span class="option-text">${escapeHtml(option)}</span>
+            <span class="option-votes">${votes} (${percent}%)</span>
+          </div>
+        `;
+
+        if (!hasVoted) {
+          div.addEventListener('click', () => vote(index));
+        }
+
+        optionsEl.appendChild(div);
+      });
+    }
+
+    function renderRatingPoll(hasVoted, totalVotes) {
+      const container = document.getElementById('poll-content');
+      const ratings = ['1', '2', '3', '4', '5'];
+
+      let html = '<div class="rating-options">';
+      ratings.forEach((r, i) => {
+        const isSelected = currentPoll.votes[i]?.includes(VOTER_ID);
+        html += `<div class="rating-option${hasVoted ? ' voted' : ''}${isSelected ? ' selected' : ''}" data-rating="${i}">${r}⭐</div>`;
+      });
+      html += '</div>';
+
+      if (hasVoted && totalVotes > 0) {
+        const sum = ratings.reduce((acc, r, i) => {
+          return acc + (parseInt(r) * (currentPoll.votes[i]?.length || 0));
+        }, 0);
+        const avg = (sum / totalVotes).toFixed(1);
+
+        html += `
+          <div class="rating-result">
+            <div class="rating-average">${avg}</div>
+            <div class="rating-count">Average rating from ${totalVotes} votes</div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+
+      if (!hasVoted) {
+        container.querySelectorAll('.rating-option').forEach(el => {
+          el.addEventListener('click', () => vote(parseInt(el.dataset.rating)));
+        });
+      }
+    }
+
+    function hasUserVoted() {
+      if (!currentPoll?.votes) return false;
+      return Object.values(currentPoll.votes).some(arr => arr?.includes(VOTER_ID));
+    }
+
+    function vote(optionIndex) {
+      if (hasUserVoted()) return;
+
+      if (!currentPoll.votes[optionIndex]) {
+        currentPoll.votes[optionIndex] = [];
+      }
+      currentPoll.votes[optionIndex].push(VOTER_ID);
+      savePoll(currentPoll);
+      renderPoll();
+
+      channel.postMessage({ type: 'vote', optionIndex, voterId: VOTER_ID });
+    }
+
+    // =========================================================================
+    // Create Poll
+    // =========================================================================
+
+    function setupCreateForm() {
+      // Poll type toggle
+      document.querySelectorAll('.poll-type-option').forEach(el => {
+        el.addEventListener('click', () => {
+          document.querySelectorAll('.poll-type-option').forEach(e => e.classList.remove('active'));
+          el.classList.add('active');
+          pollType = el.dataset.type;
+          document.getElementById('options-group').style.display =
+            pollType === 'rating' ? 'none' : 'block';
+        });
+      });
+
+      // Add option
+      document.getElementById('add-option').addEventListener('click', addOptionRow);
+
+      // Remove option handlers
+      setupRemoveHandlers();
+
+      // Create poll
+      document.getElementById('create-poll-btn').addEventListener('click', createPoll);
+
+      // Render recent polls
+      renderRecentPolls();
+    }
+
+    function addOptionRow() {
+      const list = document.getElementById('options-list');
+      const count = list.children.length + 1;
+      const row = document.createElement('div');
+      row.className = 'option-input-row';
+      row.innerHTML = `
+        <input type="text" class="option-input" placeholder="Option ${count}">
+        <button class="remove-option">×</button>
+      `;
+      list.appendChild(row);
+      setupRemoveHandlers();
+    }
+
+    function setupRemoveHandlers() {
+      document.querySelectorAll('.remove-option').forEach(btn => {
+        btn.onclick = () => {
+          if (document.querySelectorAll('.option-input-row').length > 2) {
+            btn.parentElement.remove();
+          }
+        };
+      });
+    }
+
+    function createPoll() {
+      const question = document.getElementById('question-input').value.trim();
+      if (!question) {
+        alert('Please enter a question');
+        return;
+      }
+
+      let options = [];
+      if (pollType === 'choice') {
+        options = [...document.querySelectorAll('.option-input')]
+          .map(el => el.value.trim())
+          .filter(v => v);
+
+        if (options.length < 2) {
+          alert('Please add at least 2 options');
+          return;
+        }
+      } else {
+        options = ['1', '2', '3', '4', '5'];
+      }
+
+      const poll = {
+        id: generatePollId(),
+        question,
+        options,
+        type: pollType,
+        votes: {},
+        created: Date.now()
+      };
+
+      currentPoll = poll;
+      savePoll(poll);
+
+      // Start P2P for this poll
+      initP2P(poll.id);
+      channel.postMessage({ type: 'poll-created', poll });
+
+      // Navigate to poll
+      const newUrl = `${location.pathname}?poll=${poll.id}`;
+      history.pushState({}, '', newUrl);
+
+      createView.style.display = 'none';
+      pollView.style.display = 'block';
+      renderPoll();
+
+      showToast('Poll created!');
+    }
+
+    function generatePollId() {
+      return Math.random().toString(36).substring(2, 10);
+    }
+
+    function renderRecentPolls() {
+      const recent = JSON.parse(localStorage.getItem('konomi-polls-recent') || '[]');
+      const container = document.getElementById('recent-polls');
+
+      if (recent.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No polls yet</p>';
+        return;
+      }
+
+      container.innerHTML = recent.map(p => `
+        <div class="poll-item" data-id="${p.id}">
+          <div class="poll-item-title">${escapeHtml(p.question)}</div>
+          <div class="poll-item-meta">${p.votes || 0} votes</div>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.poll-item').forEach(el => {
+        el.addEventListener('click', () => {
+          location.search = `?poll=${el.dataset.id}`;
+        });
+      });
+    }
+
+    // =========================================================================
+    // Utilities
+    // =========================================================================
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // =========================================================================
+    // Event Handlers
+    // =========================================================================
+
+    document.getElementById('share-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(location.href);
+      showToast('Link copied!');
+    });
+
+    document.getElementById('create-new-btn')?.addEventListener('click', () => {
+      location.search = '?create=true';
+    });
+
+    // =========================================================================
+    // Init
+    // =========================================================================
+
+    if (POLL_ID) {
+      currentPoll = loadPoll(POLL_ID);
+
+      if (currentPoll) {
+        pollView.style.display = 'block';
+        initP2P(POLL_ID);
+        renderPoll();
+      } else {
+        // Try to get from others
+        initP2P(POLL_ID);
+        setTimeout(() => {
+          if (!currentPoll) {
+            emptyView.style.display = 'block';
+          }
+        }, 1000);
+      }
+    } else {
+      createView.style.display = 'block';
+      setupCreateForm();
+    }
+
+    // Export
+    window.KonomiPolls = {
+      getPoll: () => currentPoll,
+      vote,
+      create: (question, options, type = 'choice') => {
+        currentPoll = {
+          id: generatePollId(),
+          question,
+          options,
+          type,
+          votes: {},
+          created: Date.now()
+        };
+        savePoll(currentPoll);
+        return currentPoll;
+      }
+    };
+  </script>
+</body>
+</html>

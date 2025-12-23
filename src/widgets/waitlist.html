@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<!--
+KONOMI WAITLIST - Free LaunchList/Waitlist.me Killer
+Viral waitlists with referrals. P2P sync. $0 forever.
+
+Usage:
+Signup page: ?list=my-product
+Admin view:  ?list=my-product&admin=true
+Referral:    ?list=my-product&ref=abc123
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Join Waitlist</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --primary: #8b5cf6;
+      --primary-dark: #7c3aed;
+      --success: #22c55e;
+      --bg: #fff;
+      --surface: #f9fafb;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-muted: #6b7280;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f0f;
+        --surface: #1a1a1a;
+        --border: #333;
+        --text: #f9fafb;
+        --text-muted: #9ca3af;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 480px;
+      width: 100%;
+    }
+
+    /* Signup View */
+    .signup-card {
+      text-align: center;
+      padding: 40px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    .signup-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+
+    .signup-card h1 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .signup-card p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .signup-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .signup-form input {
+      padding: 14px 18px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      font-size: 16px;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+
+    .signup-form input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .signup-btn {
+      padding: 16px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .signup-btn:hover {
+      background: var(--primary-dark);
+    }
+
+    .signup-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .signup-count {
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .signup-count strong {
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    /* Success View */
+    .success-card {
+      text-align: center;
+      padding: 40px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    .success-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+
+    .success-card h1 {
+      font-size: 28px;
+      margin-bottom: 12px;
+      color: var(--success);
+    }
+
+    .success-card p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .position-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 24px;
+      background: var(--bg);
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+
+    .position-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .position-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: left;
+    }
+
+    /* Referral Section */
+    .referral-section {
+      margin-top: 24px;
+      padding: 20px;
+      background: var(--bg);
+      border-radius: 12px;
+    }
+
+    .referral-section h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .referral-section p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .referral-link-box {
+      display: flex;
+      gap: 8px;
+    }
+
+    .referral-link-box input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .copy-btn {
+      padding: 10px 16px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .referral-stats {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 16px;
+    }
+
+    .referral-stat {
+      text-align: center;
+    }
+
+    .referral-stat-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .referral-stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Leaderboard */
+    .leaderboard {
+      margin-top: 24px;
+      padding: 20px;
+      background: var(--bg);
+      border-radius: 12px;
+    }
+
+    .leaderboard h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .leaderboard-item:last-child {
+      border-bottom: none;
+    }
+
+    .leaderboard-rank {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .leaderboard-rank.gold { background: #fef3c7; color: #92400e; }
+    .leaderboard-rank.silver { background: #f1f5f9; color: #475569; }
+    .leaderboard-rank.bronze { background: #fed7aa; color: #9a3412; }
+
+    .leaderboard-email {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .leaderboard-referrals {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Admin View */
+    .admin-card {
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .admin-header h1 {
+      font-size: 24px;
+    }
+
+    .admin-stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .admin-stat {
+      flex: 1;
+      padding: 16px;
+      background: var(--bg);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .admin-stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .admin-stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .admin-btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .admin-btn:hover {
+      background: var(--surface);
+    }
+
+    .admin-btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .entries-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .entries-table th,
+    .entries-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .entries-table th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .entries-table tr:hover td {
+      background: var(--bg);
+    }
+
+    .entries-scroll {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      background: var(--text);
+      color: var(--bg);
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Signup View -->
+    <div id="signup-view" style="display:none;">
+      <div class="signup-card">
+        <div class="signup-icon">🚀</div>
+        <h1 id="list-title">Join the Waitlist</h1>
+        <p id="list-description">Be the first to know when we launch. Get early access and exclusive perks.</p>
+        <div class="signup-form">
+          <input type="email" id="email-input" placeholder="Enter your email">
+          <input type="text" id="name-input" placeholder="Your name (optional)">
+          <button class="signup-btn" id="join-btn">Join Waitlist</button>
+        </div>
+        <div class="signup-count">
+          <strong id="total-count">0</strong> people already on the list
+        </div>
+      </div>
+    </div>
+
+    <!-- Success View -->
+    <div id="success-view" style="display:none;">
+      <div class="success-card">
+        <div class="success-icon">🎉</div>
+        <h1>You're on the list!</h1>
+        <p>We'll let you know when it's your turn</p>
+
+        <div class="position-badge">
+          <span class="position-number" id="user-position">#1</span>
+          <div class="position-label">
+            Your position<br>on the waitlist
+          </div>
+        </div>
+
+        <div class="referral-section">
+          <h3>📈 Move up the list!</h3>
+          <p>Share your unique link. Each signup gets you +1 spot ahead.</p>
+          <div class="referral-link-box">
+            <input type="text" id="referral-link" readonly>
+            <button class="copy-btn" id="copy-btn">Copy</button>
+          </div>
+          <div class="referral-stats">
+            <div class="referral-stat">
+              <div class="referral-stat-number" id="referral-count">0</div>
+              <div class="referral-stat-label">Referrals</div>
+            </div>
+            <div class="referral-stat">
+              <div class="referral-stat-number" id="spots-moved">0</div>
+              <div class="referral-stat-label">Spots Moved</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="leaderboard">
+          <h3>🏆 Top Referrers</h3>
+          <div id="leaderboard"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin View -->
+    <div id="admin-view" style="display:none;">
+      <div class="admin-card">
+        <div class="admin-header">
+          <h1>📋 Waitlist Admin</h1>
+        </div>
+
+        <div class="admin-stats">
+          <div class="admin-stat">
+            <div class="admin-stat-number" id="admin-total">0</div>
+            <div class="admin-stat-label">Total Signups</div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-number" id="admin-referrals">0</div>
+            <div class="admin-stat-label">From Referrals</div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-number" id="admin-today">0</div>
+            <div class="admin-stat-label">Today</div>
+          </div>
+        </div>
+
+        <div class="admin-actions">
+          <button class="admin-btn primary" id="export-csv">📥 Export CSV</button>
+          <button class="admin-btn" id="clear-list">🗑️ Clear List</button>
+        </div>
+
+        <div class="entries-scroll">
+          <table class="entries-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Referrals</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody id="entries-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied!</div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Free viral waitlists, no server required
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KONOMI WAITLIST - Zero-cost viral waitlists
+    // =========================================================================
+
+    const params = new URLSearchParams(location.search);
+    const LIST_ID = params.get('list') || 'default';
+    const IS_ADMIN = params.get('admin') === 'true';
+    const REFERRER = params.get('ref');
+    const STORAGE_KEY = `konomi-waitlist:${LIST_ID}`;
+    const USER_KEY = `konomi-waitlist-user:${LIST_ID}`;
+
+    // State
+    let entries = [];
+    let currentUser = null;
+    let channel = null;
+
+    // DOM
+    const signupView = document.getElementById('signup-view');
+    const successView = document.getElementById('success-view');
+    const adminView = document.getElementById('admin-view');
+    const toast = document.getElementById('toast');
+
+    // =========================================================================
+    // Storage & P2P
+    // =========================================================================
+
+    function loadData() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          entries = JSON.parse(stored);
+        }
+        const user = localStorage.getItem(USER_KEY);
+        if (user) {
+          currentUser = JSON.parse(user);
+        }
+      } catch (e) {}
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function saveUser() {
+      localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-waitlist:${LIST_ID}`);
+
+      channel.onmessage = (e) => {
+        const msg = e.data;
+        if (msg.type === 'signup') {
+          if (!entries.find(en => en.id === msg.entry.id)) {
+            entries.push(msg.entry);
+            saveData();
+            render();
+          }
+        } else if (msg.type === 'sync-request') {
+          channel.postMessage({ type: 'sync-response', entries });
+        } else if (msg.type === 'sync-response') {
+          msg.entries.forEach(en => {
+            const existing = entries.find(e => e.id === en.id);
+            if (!existing) {
+              entries.push(en);
+            } else if (en.referrals > existing.referrals) {
+              existing.referrals = en.referrals;
+            }
+          });
+          saveData();
+          render();
+        }
+      };
+
+      channel.postMessage({ type: 'sync-request' });
+    }
+
+    // =========================================================================
+    // Rendering
+    // =========================================================================
+
+    function render() {
+      if (IS_ADMIN) {
+        renderAdmin();
+      } else if (currentUser) {
+        renderSuccess();
+      } else {
+        renderSignup();
+      }
+    }
+
+    function renderSignup() {
+      signupView.style.display = 'block';
+      document.getElementById('total-count').textContent = entries.length;
+    }
+
+    function renderSuccess() {
+      successView.style.display = 'block';
+
+      // Calculate position (lower = better, based on referrals)
+      const sorted = [...entries].sort((a, b) => {
+        if (b.referrals !== a.referrals) return b.referrals - a.referrals;
+        return a.timestamp - b.timestamp;
+      });
+
+      const position = sorted.findIndex(e => e.id === currentUser.id) + 1;
+      document.getElementById('user-position').textContent = `#${position}`;
+
+      // Referral link
+      const referralUrl = `${location.origin}${location.pathname}?list=${LIST_ID}&ref=${currentUser.refCode}`;
+      document.getElementById('referral-link').value = referralUrl;
+
+      // Referral stats
+      const userEntry = entries.find(e => e.id === currentUser.id);
+      const referralCount = userEntry?.referrals || 0;
+      document.getElementById('referral-count').textContent = referralCount;
+      document.getElementById('spots-moved').textContent = referralCount;
+
+      // Leaderboard
+      renderLeaderboard();
+    }
+
+    function renderLeaderboard() {
+      const top = [...entries]
+        .sort((a, b) => b.referrals - a.referrals)
+        .slice(0, 5);
+
+      const container = document.getElementById('leaderboard');
+
+      if (top.length === 0 || top.every(e => e.referrals === 0)) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;">No referrals yet. Be the first!</p>';
+        return;
+      }
+
+      container.innerHTML = top.map((e, i) => {
+        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        const emailMasked = e.email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+        return `
+          <div class="leaderboard-item">
+            <div class="leaderboard-rank ${rankClass}">${i + 1}</div>
+            <div class="leaderboard-email">${emailMasked}</div>
+            <div class="leaderboard-referrals">${e.referrals} refs</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAdmin() {
+      adminView.style.display = 'block';
+
+      const today = new Date().toDateString();
+      const todayCount = entries.filter(e => new Date(e.timestamp).toDateString() === today).length;
+      const referralCount = entries.filter(e => e.referredBy).length;
+
+      document.getElementById('admin-total').textContent = entries.length;
+      document.getElementById('admin-referrals').textContent = referralCount;
+      document.getElementById('admin-today').textContent = todayCount;
+
+      // Entries table
+      const tbody = document.getElementById('entries-body');
+      tbody.innerHTML = entries
+        .sort((a, b) => b.referrals - a.referrals || a.timestamp - b.timestamp)
+        .map((e, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(e.email)}</td>
+            <td>${escapeHtml(e.name || '-')}</td>
+            <td>${e.referrals}</td>
+            <td>${new Date(e.timestamp).toLocaleDateString()}</td>
+          </tr>
+        `).join('');
+    }
+
+    // =========================================================================
+    // Actions
+    // =========================================================================
+
+    function joinWaitlist() {
+      const email = document.getElementById('email-input').value.trim();
+      const name = document.getElementById('name-input').value.trim();
+
+      if (!email || !email.includes('@')) {
+        alert('Please enter a valid email');
+        return;
+      }
+
+      // Check if already signed up
+      if (entries.find(e => e.email.toLowerCase() === email.toLowerCase())) {
+        alert('This email is already on the waitlist');
+        return;
+      }
+
+      const refCode = generateRefCode();
+
+      const entry = {
+        id: crypto.randomUUID(),
+        email,
+        name,
+        refCode,
+        referredBy: REFERRER || null,
+        referrals: 0,
+        timestamp: Date.now()
+      };
+
+      // Credit referrer
+      if (REFERRER) {
+        const referrer = entries.find(e => e.refCode === REFERRER);
+        if (referrer) {
+          referrer.referrals++;
+        }
+      }
+
+      entries.push(entry);
+      currentUser = { id: entry.id, email, refCode };
+
+      saveData();
+      saveUser();
+      channel.postMessage({ type: 'signup', entry });
+
+      render();
+      showToast('Welcome to the waitlist!');
+    }
+
+    function exportCSV() {
+      const headers = ['Position', 'Email', 'Name', 'Referrals', 'Referred By', 'Joined'];
+      const rows = entries
+        .sort((a, b) => b.referrals - a.referrals || a.timestamp - b.timestamp)
+        .map((e, i) => [
+          i + 1,
+          e.email,
+          e.name || '',
+          e.referrals,
+          e.referredBy || '',
+          new Date(e.timestamp).toISOString()
+        ]);
+
+      const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `waitlist-${LIST_ID}-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+      showToast('CSV exported!');
+    }
+
+    function clearList() {
+      if (confirm('Are you sure? This cannot be undone.')) {
+        entries = [];
+        saveData();
+        render();
+        showToast('List cleared');
+      }
+    }
+
+    // =========================================================================
+    // Utilities
+    // =========================================================================
+
+    function generateRefCode() {
+      return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // =========================================================================
+    // Event Handlers
+    // =========================================================================
+
+    document.getElementById('join-btn').addEventListener('click', joinWaitlist);
+
+    document.getElementById('email-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') joinWaitlist();
+    });
+
+    document.getElementById('copy-btn').addEventListener('click', () => {
+      const link = document.getElementById('referral-link').value;
+      navigator.clipboard.writeText(link);
+      showToast('Link copied!');
+    });
+
+    if (IS_ADMIN) {
+      document.getElementById('export-csv').addEventListener('click', exportCSV);
+      document.getElementById('clear-list').addEventListener('click', clearList);
+    }
+
+    // =========================================================================
+    // Init
+    // =========================================================================
+
+    // Set list title
+    if (LIST_ID !== 'default') {
+      document.getElementById('list-title').textContent = `Join ${LIST_ID}`;
+      document.title = `${LIST_ID} - Waitlist`;
+    }
+
+    loadData();
+    initP2P();
+    render();
+
+    // Export API
+    window.KonomiWaitlist = {
+      getEntries: () => entries,
+      getPosition: (email) => {
+        const sorted = [...entries].sort((a, b) => {
+          if (b.referrals !== a.referrals) return b.referrals - a.referrals;
+          return a.timestamp - b.timestamp;
+        });
+        return sorted.findIndex(e => e.email === email) + 1;
+      },
+      addEntry: (email, name) => {
+        if (entries.find(e => e.email === email)) return null;
+        const entry = {
+          id: crypto.randomUUID(),
+          email,
+          name,
+          refCode: generateRefCode(),
+          referredBy: null,
+          referrals: 0,
+          timestamp: Date.now()
+        };
+        entries.push(entry);
+        saveData();
+        channel.postMessage({ type: 'signup', entry });
+        return entry;
+      }
+    };
+  </script>
+</body>
+</html>

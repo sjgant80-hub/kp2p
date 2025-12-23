@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<!--
+KONOMI STATUS - Free Statuspage.io/BetterStack Killer
+Status page that syncs P2P. No server cost. $0 forever.
+
+Usage:
+Public view: ?page=my-service
+Admin mode:  ?page=my-service&admin=true
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>System Status</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --operational: #22c55e;
+      --degraded: #f59e0b;
+      --outage: #ef4444;
+      --maintenance: #3b82f6;
+      --bg: #fff;
+      --surface: #f9fafb;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-muted: #6b7280;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f0f;
+        --surface: #1a1a1a;
+        --border: #333;
+        --text: #f9fafb;
+        --text-muted: #9ca3af;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .overall-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .overall-status.operational {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--operational);
+    }
+
+    .overall-status.degraded {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--degraded);
+    }
+
+    .overall-status.outage {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--outage);
+    }
+
+    .overall-status.maintenance {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--maintenance);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Services List */
+    .services {
+      margin-bottom: 32px;
+    }
+
+    .services h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .service {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+
+    .service-info {
+      flex: 1;
+    }
+
+    .service-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .service-description {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .service-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .service-status.operational { color: var(--operational); }
+    .service-status.degraded { color: var(--degraded); }
+    .service-status.outage { color: var(--outage); }
+    .service-status.maintenance { color: var(--maintenance); }
+
+    /* Uptime Bar */
+    .uptime-section {
+      margin-bottom: 32px;
+    }
+
+    .uptime-section h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .uptime-bar {
+      display: flex;
+      gap: 2px;
+      height: 32px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .uptime-day {
+      flex: 1;
+      background: var(--operational);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .uptime-day:hover {
+      opacity: 0.8;
+    }
+
+    .uptime-day.degraded { background: var(--degraded); }
+    .uptime-day.outage { background: var(--outage); }
+    .uptime-day.maintenance { background: var(--maintenance); }
+    .uptime-day.no-data { background: var(--border); }
+
+    .uptime-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 10px;
+      background: var(--text);
+      color: var(--bg);
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
+
+    .uptime-day:hover .uptime-tooltip {
+      opacity: 1;
+    }
+
+    .uptime-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .uptime-percent {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    /* Incidents */
+    .incidents {
+      margin-bottom: 32px;
+    }
+
+    .incidents h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .incident {
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+
+    .incident-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .incident-status-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .incident-status-icon.resolved {
+      background: rgba(34, 197, 94, 0.15);
+    }
+
+    .incident-status-icon.investigating {
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    .incident-status-icon.identified {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .incident-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .incident-time {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .incident-updates {
+      margin-left: 36px;
+      padding-left: 16px;
+      border-left: 2px solid var(--border);
+    }
+
+    .incident-update {
+      padding: 8px 0;
+    }
+
+    .incident-update-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .incident-update-text {
+      font-size: 13px;
+    }
+
+    .no-incidents {
+      text-align: center;
+      padding: 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Admin Panel */
+    .admin-panel {
+      margin-top: 32px;
+      padding: 20px;
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .admin-panel {
+        background: #422006;
+      }
+    }
+
+    .admin-panel h3 {
+      margin-bottom: 16px;
+      color: #92400e;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .admin-panel h3 { color: #fbbf24; }
+    }
+
+    .admin-section {
+      margin-bottom: 20px;
+    }
+
+    .admin-section h4 {
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+
+    .admin-services {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .admin-service {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+
+    .admin-service input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .admin-service select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg);
+    }
+
+    .admin-service button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .admin-add-btn {
+      padding: 10px 16px;
+      background: var(--maintenance);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .admin-incident-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .admin-incident-form input,
+    .admin-incident-form textarea,
+    .admin-incident-form select {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--bg);
+      font-family: inherit;
+    }
+
+    .admin-incident-form textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .admin-submit-btn {
+      padding: 12px;
+      background: var(--outage);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    /* Subscribe */
+    .subscribe {
+      margin-top: 32px;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .subscribe h3 {
+      margin-bottom: 8px;
+    }
+
+    .subscribe p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .subscribe-form {
+      display: flex;
+      gap: 8px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .subscribe-form input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .subscribe-form button {
+      padding: 10px 16px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .powered-by a {
+      color: var(--maintenance);
+      text-decoration: none;
+    }
+
+    .last-updated {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 id="page-title">System Status</h1>
+    <div class="overall-status operational" id="overall-status">
+      <span class="status-dot"></span>
+      <span id="overall-text">All Systems Operational</span>
+    </div>
+  </div>
+
+  <div class="services">
+    <h2>🔧 Services</h2>
+    <div id="services-list"></div>
+  </div>
+
+  <div class="uptime-section">
+    <h2>📈 Uptime - Last 30 Days</h2>
+    <div class="uptime-bar" id="uptime-bar"></div>
+    <div class="uptime-meta">
+      <span>30 days ago</span>
+      <span class="uptime-percent" id="uptime-percent">100% uptime</span>
+      <span>Today</span>
+    </div>
+  </div>
+
+  <div class="incidents">
+    <h2>📋 Incident History</h2>
+    <div id="incidents-list"></div>
+  </div>
+
+  <div class="subscribe" id="subscribe-section">
+    <h3>Get Updates</h3>
+    <p>Subscribe to receive status notifications</p>
+    <div class="subscribe-form">
+      <input type="email" id="subscribe-email" placeholder="your@email.com">
+      <button id="subscribe-btn">Subscribe</button>
+    </div>
+  </div>
+
+  <div class="admin-panel" id="admin-panel" style="display:none;">
+    <h3>⚙️ Admin Panel</h3>
+
+    <div class="admin-section">
+      <h4>Services</h4>
+      <div class="admin-services" id="admin-services"></div>
+      <button class="admin-add-btn" id="add-service-btn">+ Add Service</button>
+    </div>
+
+    <div class="admin-section">
+      <h4>Report Incident</h4>
+      <div class="admin-incident-form">
+        <input type="text" id="incident-title" placeholder="Incident title">
+        <select id="incident-status">
+          <option value="investigating">🔍 Investigating</option>
+          <option value="identified">⚠️ Identified</option>
+          <option value="monitoring">👀 Monitoring</option>
+          <option value="resolved">✅ Resolved</option>
+        </select>
+        <select id="incident-services">
+          <option value="">Affected services...</option>
+        </select>
+        <textarea id="incident-message" placeholder="Status update message..."></textarea>
+        <button class="admin-submit-btn" id="report-incident-btn">Report Incident</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="last-updated">
+    Last updated: <span id="last-updated">Just now</span>
+  </div>
+
+  <div class="powered-by">
+    Powered by <a href="#">Konomi P2P</a> - Free status pages, no server required
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KONOMI STATUS - Zero-cost status pages
+    // =========================================================================
+
+    const params = new URLSearchParams(location.search);
+    const PAGE_ID = params.get('page') || 'default';
+    const IS_ADMIN = params.get('admin') === 'true';
+    const STORAGE_KEY = `konomi-status:${PAGE_ID}`;
+
+    // State
+    let pageData = {
+      name: 'System Status',
+      services: [],
+      incidents: [],
+      uptime: {}, // { "2025-12-23": "operational" }
+      subscribers: []
+    };
+    let channel = null;
+
+    // Status labels
+    const STATUS_LABELS = {
+      operational: 'Operational',
+      degraded: 'Degraded Performance',
+      outage: 'Major Outage',
+      maintenance: 'Under Maintenance'
+    };
+
+    // =========================================================================
+    // Storage & P2P
+    // =========================================================================
+
+    function loadData() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          pageData = { ...pageData, ...JSON.parse(stored) };
+        }
+      } catch (e) {}
+
+      // Default services if none
+      if (pageData.services.length === 0) {
+        pageData.services = [
+          { id: '1', name: 'API', description: 'Core API services', status: 'operational' },
+          { id: '2', name: 'Website', description: 'Main website', status: 'operational' },
+          { id: '3', name: 'Database', description: 'Database cluster', status: 'operational' }
+        ];
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pageData));
+    }
+
+    function initP2P() {
+      channel = new BroadcastChannel(`konomi-status:${PAGE_ID}`);
+
+      channel.onmessage = (e) => {
+        const msg = e.data;
+        if (msg.type === 'status-update') {
+          pageData = msg.data;
+          saveData();
+          render();
+        } else if (msg.type === 'sync-request') {
+          channel.postMessage({ type: 'sync-response', data: pageData });
+        } else if (msg.type === 'sync-response') {
+          // Merge - prefer newer incidents
+          const theirIncidents = msg.data.incidents || [];
+          theirIncidents.forEach(inc => {
+            if (!pageData.incidents.find(i => i.id === inc.id)) {
+              pageData.incidents.push(inc);
+            }
+          });
+          pageData.incidents.sort((a, b) => b.timestamp - a.timestamp);
+          saveData();
+          render();
+        }
+      };
+
+      channel.postMessage({ type: 'sync-request' });
+    }
+
+    function broadcast() {
+      channel.postMessage({ type: 'status-update', data: pageData });
+    }
+
+    // =========================================================================
+    // Rendering
+    // =========================================================================
+
+    function render() {
+      renderOverallStatus();
+      renderServices();
+      renderUptimeBar();
+      renderIncidents();
+      updateLastUpdated();
+
+      if (IS_ADMIN) {
+        renderAdminServices();
+        updateIncidentServicesDropdown();
+      }
+    }
+
+    function renderOverallStatus() {
+      const statuses = pageData.services.map(s => s.status);
+      let overall = 'operational';
+
+      if (statuses.includes('outage')) overall = 'outage';
+      else if (statuses.includes('degraded')) overall = 'degraded';
+      else if (statuses.includes('maintenance')) overall = 'maintenance';
+
+      const el = document.getElementById('overall-status');
+      el.className = `overall-status ${overall}`;
+      document.getElementById('overall-text').textContent =
+        overall === 'operational' ? 'All Systems Operational' : STATUS_LABELS[overall];
+    }
+
+    function renderServices() {
+      const container = document.getElementById('services-list');
+      container.innerHTML = pageData.services.map(s => `
+        <div class="service">
+          <div class="service-info">
+            <div class="service-name">${escapeHtml(s.name)}</div>
+            <div class="service-description">${escapeHtml(s.description || '')}</div>
+          </div>
+          <div class="service-status ${s.status}">
+            <span class="status-dot"></span>
+            ${STATUS_LABELS[s.status]}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderUptimeBar() {
+      const container = document.getElementById('uptime-bar');
+      const days = [];
+      let operational = 0;
+
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const status = pageData.uptime[dateStr] || 'operational';
+        if (status === 'operational') operational++;
+
+        const displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        days.push(`
+          <div class="uptime-day ${status}">
+            <div class="uptime-tooltip">${displayDate}: ${STATUS_LABELS[status] || 'Operational'}</div>
+          </div>
+        `);
+      }
+
+      container.innerHTML = days.join('');
+
+      const uptimePercent = ((operational / 30) * 100).toFixed(2);
+      document.getElementById('uptime-percent').textContent = `${uptimePercent}% uptime`;
+    }
+
+    function renderIncidents() {
+      const container = document.getElementById('incidents-list');
+
+      if (pageData.incidents.length === 0) {
+        container.innerHTML = `
+          <div class="no-incidents">
+            <div style="font-size:32px;margin-bottom:8px;">✅</div>
+            No incidents reported
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pageData.incidents.slice(0, 10).map(inc => `
+        <div class="incident">
+          <div class="incident-header">
+            <div class="incident-status-icon ${inc.status}">
+              ${inc.status === 'resolved' ? '✓' : inc.status === 'investigating' ? '?' : '!'}
+            </div>
+            <div>
+              <div class="incident-title">${escapeHtml(inc.title)}</div>
+              <div class="incident-time">${formatTime(inc.timestamp)}</div>
+            </div>
+          </div>
+          <div class="incident-updates">
+            ${inc.updates.map(u => `
+              <div class="incident-update">
+                <div class="incident-update-time">${formatTime(u.timestamp)}</div>
+                <div class="incident-update-text">${escapeHtml(u.message)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateLastUpdated() {
+      document.getElementById('last-updated').textContent = new Date().toLocaleString();
+    }
+
+    // =========================================================================
+    // Admin Functions
+    // =========================================================================
+
+    function renderAdminServices() {
+      const container = document.getElementById('admin-services');
+      container.innerHTML = pageData.services.map((s, i) => `
+        <div class="admin-service" data-index="${i}">
+          <input type="text" value="${escapeHtml(s.name)}" class="service-name-input" placeholder="Service name">
+          <select class="service-status-select">
+            <option value="operational" ${s.status === 'operational' ? 'selected' : ''}>✅ Operational</option>
+            <option value="degraded" ${s.status === 'degraded' ? 'selected' : ''}>⚠️ Degraded</option>
+            <option value="outage" ${s.status === 'outage' ? 'selected' : ''}>🔴 Outage</option>
+            <option value="maintenance" ${s.status === 'maintenance' ? 'selected' : ''}>🔧 Maintenance</option>
+          </select>
+          <button class="remove-service-btn" style="background:#ef4444;color:white;">×</button>
+        </div>
+      `).join('');
+
+      // Event handlers
+      container.querySelectorAll('.admin-service').forEach((el, i) => {
+        el.querySelector('.service-name-input').addEventListener('change', (e) => {
+          pageData.services[i].name = e.target.value;
+          saveData();
+          broadcast();
+          render();
+        });
+
+        el.querySelector('.service-status-select').addEventListener('change', (e) => {
+          const newStatus = e.target.value;
+          pageData.services[i].status = newStatus;
+
+          // Update today's uptime if any service has issues
+          const today = new Date().toISOString().split('T')[0];
+          const worstStatus = pageData.services.reduce((worst, s) => {
+            const priority = { outage: 0, degraded: 1, maintenance: 2, operational: 3 };
+            return priority[s.status] < priority[worst] ? s.status : worst;
+          }, 'operational');
+          pageData.uptime[today] = worstStatus;
+
+          saveData();
+          broadcast();
+          render();
+        });
+
+        el.querySelector('.remove-service-btn').addEventListener('click', () => {
+          if (pageData.services.length > 1) {
+            pageData.services.splice(i, 1);
+            saveData();
+            broadcast();
+            render();
+          }
+        });
+      });
+    }
+
+    function updateIncidentServicesDropdown() {
+      const select = document.getElementById('incident-services');
+      select.innerHTML = '<option value="">Affected services...</option>' +
+        pageData.services.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+    }
+
+    function addService() {
+      const newService = {
+        id: crypto.randomUUID(),
+        name: 'New Service',
+        description: '',
+        status: 'operational'
+      };
+      pageData.services.push(newService);
+      saveData();
+      broadcast();
+      render();
+    }
+
+    function reportIncident() {
+      const title = document.getElementById('incident-title').value.trim();
+      const status = document.getElementById('incident-status').value;
+      const message = document.getElementById('incident-message').value.trim();
+
+      if (!title || !message) {
+        alert('Please enter a title and message');
+        return;
+      }
+
+      const incident = {
+        id: crypto.randomUUID(),
+        title,
+        status,
+        timestamp: Date.now(),
+        updates: [{
+          timestamp: Date.now(),
+          status,
+          message
+        }]
+      };
+
+      pageData.incidents.unshift(incident);
+
+      // Update uptime for today if outage
+      if (status === 'investigating' || status === 'identified') {
+        const today = new Date().toISOString().split('T')[0];
+        pageData.uptime[today] = 'outage';
+      }
+
+      saveData();
+      broadcast();
+      render();
+
+      // Clear form
+      document.getElementById('incident-title').value = '';
+      document.getElementById('incident-message').value = '';
+    }
+
+    // =========================================================================
+    // Utilities
+    // =========================================================================
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+
+      if (diff < 60000) return 'Just now';
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+
+    // =========================================================================
+    // Event Handlers
+    // =========================================================================
+
+    if (IS_ADMIN) {
+      document.getElementById('admin-panel').style.display = 'block';
+      document.getElementById('subscribe-section').style.display = 'none';
+      document.getElementById('add-service-btn').addEventListener('click', addService);
+      document.getElementById('report-incident-btn').addEventListener('click', reportIncident);
+    }
+
+    document.getElementById('subscribe-btn').addEventListener('click', () => {
+      const email = document.getElementById('subscribe-email').value.trim();
+      if (email && email.includes('@')) {
+        pageData.subscribers.push(email);
+        saveData();
+        alert('Subscribed! (Note: Email notifications require a backend)');
+        document.getElementById('subscribe-email').value = '';
+      }
+    });
+
+    // =========================================================================
+    // Init
+    // =========================================================================
+
+    // Set page title
+    if (PAGE_ID !== 'default') {
+      document.getElementById('page-title').textContent = `${PAGE_ID} Status`;
+      document.title = `${PAGE_ID} - System Status`;
+    }
+
+    loadData();
+    initP2P();
+    render();
+
+    // Auto-refresh every 30s
+    setInterval(() => {
+      updateLastUpdated();
+    }, 30000);
+
+    // Export
+    window.KonomiStatus = {
+      getData: () => pageData,
+      setStatus: (serviceId, status) => {
+        const service = pageData.services.find(s => s.id === serviceId);
+        if (service) {
+          service.status = status;
+          saveData();
+          broadcast();
+          render();
+        }
+      },
+      addIncident: (title, message, status = 'investigating') => {
+        const incident = {
+          id: crypto.randomUUID(),
+          title,
+          status,
+          timestamp: Date.now(),
+          updates: [{ timestamp: Date.now(), status, message }]
+        };
+        pageData.incidents.unshift(incident);
+        saveData();
+        broadcast();
+        render();
+      }
+    };
+  </script>
+</body>
+</html>
