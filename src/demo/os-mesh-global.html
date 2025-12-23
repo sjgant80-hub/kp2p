@@ -231,6 +231,12 @@
   <script type="module">
     const $ = id => document.getElementById(id);
 
+    // WebTorrent tracker for REAL global P2P
+    const TRACKER = 'wss://tracker.openwebtorrent.com';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const ROOM = 'konomi-os-mesh-global';
+    const NUM_OFFERS = 5;
+
     // XSS protection
     function escapeHtml(str) {
       const div = document.createElement('div');
@@ -238,14 +244,209 @@
       return div.innerHTML;
     }
 
-    // Generate VM ID
-    const vmId = 'vm-' + Math.random().toString(36).slice(2, 8);
+    // Generate VM ID - must be 20 bytes for WebTorrent
+    const vmId = '-KM0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b => b.toString(16).padStart(2,'0')).join('');
     $('vmId').textContent = vmId;
 
     // State
     const peers = new Map();
     const sharedFiles = new Map();
     let channel = null;
+    let ws = null;
+    let infoHash = null;
+    let dataChannels = new Map();
+    let pendingOffers = new Map();
+
+    // Convert room name to 20-byte info_hash (hex)
+    async function roomToHash(name) {
+      const data = new TextEncoder().encode('konomi:' + name);
+      const hash = await crypto.subtle.digest('SHA-1', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Generate WebRTC offers upfront
+    async function generateOffers(count) {
+      const offers = [];
+      for (let i = 0; i < count; i++) {
+        const pc = new RTCPeerConnection(ICE);
+        const dc = pc.createDataChannel('mesh');
+        const offerId = crypto.randomUUID();
+
+        await new Promise(resolve => {
+          pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+          pc.createOffer().then(o => pc.setLocalDescription(o));
+        });
+
+        offers.push({
+          offer_id: offerId,
+          offer: { type: 'offer', sdp: pc.localDescription.sdp }
+        });
+        pendingOffers.set(offerId, { pc, dc });
+        setupPeerConnection(pc, dc, offerId);
+      }
+      return offers;
+    }
+
+    function setupPeerConnection(pc, dc, id) {
+      dc.onopen = () => {
+        log(`WebRTC peer connected: ${id.slice(0,8)}`);
+        dataChannels.set(id, dc);
+        peers.set(id, { joined: Date.now(), webrtc: true });
+        updatePeers();
+        // Send our files to new peer
+        for (const [path, content] of sharedFiles) {
+          dc.send(JSON.stringify({ type: 'file', vmId, path, content }));
+        }
+      };
+      dc.onclose = () => {
+        dataChannels.delete(id);
+        peers.delete(id);
+        updatePeers();
+        log(`WebRTC peer disconnected: ${id.slice(0,8)}`);
+      };
+      dc.onmessage = e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'file' && msg.vmId !== vmId) {
+            sharedFiles.set(msg.path, msg.content);
+            updateFiles();
+            log(`File synced from ${msg.vmId.slice(0,8)}: ${msg.path}`);
+          }
+          if (msg.type === 'announce' && msg.vmId !== vmId) {
+            peers.set(msg.vmId, { joined: Date.now(), webrtc: true });
+            updatePeers();
+          }
+        } catch (err) {
+          console.error('WebRTC message error:', err);
+        }
+      };
+    }
+
+    async function handleOffer(msg) {
+      const pc = new RTCPeerConnection(ICE);
+      const peerId = msg.peer_id;
+
+      pc.ondatachannel = e => {
+        const dc = e.channel;
+        peers.set(peerId, { joined: Date.now(), webrtc: true });
+        setupPeerConnection(pc, dc, peerId);
+      };
+
+      await pc.setRemoteDescription(msg.offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // Wait for ICE gathering
+      await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') resolve();
+        else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+      });
+
+      // Send answer back via tracker
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: vmId,
+        to_peer_id: peerId,
+        answer: { type: 'answer', sdp: pc.localDescription.sdp },
+        offer_id: msg.offer_id
+      }));
+    }
+
+    async function handleAnswer(msg) {
+      const pending = pendingOffers.get(msg.offer_id);
+      if (!pending) return;
+      const { pc, dc } = pending;
+      await pc.setRemoteDescription(msg.answer);
+    }
+
+    async function reannounce() {
+      if (ws?.readyState !== 1) return;
+      const offers = await generateOffers(NUM_OFFERS);
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: vmId,
+        numwant: 10,
+        offers: offers
+      }));
+    }
+
+    // Broadcast file to all WebRTC peers
+    function broadcastFile(path, content) {
+      const msg = JSON.stringify({ type: 'file', vmId, path, content });
+      for (const dc of dataChannels.values()) {
+        if (dc.readyState === 'open') dc.send(msg);
+      }
+    }
+
+    // Join global mesh via WebTorrent tracker
+    async function joinMesh() {
+      infoHash = await roomToHash(ROOM);
+      log(`Joining global mesh: ${ROOM}`);
+      log(`Hash: ${infoHash.slice(0,16)}...`);
+      $('connDot').className = 'dot pulse';
+      $('connStatus').textContent = 'Connecting...';
+
+      // Generate offers before connecting
+      const offers = await generateOffers(NUM_OFFERS);
+
+      // Connect to tracker
+      ws = new WebSocket(TRACKER);
+
+      ws.onopen = () => {
+        log('Connected to WebTorrent tracker');
+        $('connDot').className = 'dot on';
+        $('connStatus').textContent = 'Connected (Global)';
+        // Announce with offers
+        ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: infoHash,
+          peer_id: vmId,
+          numwant: 10,
+          uploaded: 0,
+          downloaded: 0,
+          left: 1,
+          offers: offers
+        }));
+      };
+
+      ws.onmessage = async (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+
+          if (msg.offer && msg.peer_id !== vmId) {
+            log(`Offer from ${msg.peer_id.slice(0,8)}`);
+            await handleOffer(msg);
+          }
+
+          if (msg.answer && msg.offer_id) {
+            log(`Answer received`);
+            await handleAnswer(msg);
+          }
+
+          if (msg.interval) {
+            setTimeout(() => reannounce(), msg.interval * 1000);
+          }
+        } catch (err) {
+          console.error('Tracker message error:', err);
+        }
+      };
+
+      ws.onerror = () => {
+        log('Tracker connection error');
+        $('connDot').className = 'dot off';
+        $('connStatus').textContent = 'Error';
+      };
+
+      ws.onclose = () => {
+        log('Tracker disconnected - will reconnect');
+        $('connDot').className = 'dot off';
+        $('connStatus').textContent = 'Disconnected';
+        // Auto-reconnect after 5 seconds
+        setTimeout(() => joinMesh(), 5000);
+      };
+    }
 
     // Logging
     function log(msg) {
@@ -397,10 +598,12 @@
         const fullPath = path.startsWith('/') ? path : '/' + path;
         sharedFiles.set(fullPath, content);
         updateFiles();
-        // Broadcast to peers
+        // Broadcast to local peers (BroadcastChannel)
         if (channel) {
           channel.postMessage({ type: 'file', vmId, path: fullPath, content });
         }
+        // Broadcast to global peers (WebRTC)
+        broadcastFile(fullPath, content);
         return `Wrote ${content.length} bytes to ${fullPath}`;
       },
       peers: () => peers.size ? [...peers.keys()].join('\n') : 'No peers connected',
@@ -439,6 +642,8 @@
       if (channel) {
         channel.postMessage({ type: 'file', vmId, path, content });
       }
+      // Broadcast to global peers (WebRTC)
+      broadcastFile(path, content);
       log(`Created: ${path}`);
     };
 
@@ -461,8 +666,8 @@
     }, 5000);
 
     // Initialize
-    termPrint('Welcome to P2P OS Mesh!', 'info');
-    termPrint('Open this page in another tab to see peer sync.', 'info');
+    termPrint('Welcome to P2P OS Mesh - Global Edition!', 'info');
+    termPrint('Connecting to worldwide mesh via WebTorrent tracker...', 'info');
     termPrint("Type 'help' for commands.", 'info');
     termPrint('', 'output');
 
@@ -470,8 +675,11 @@
     peers.set(vmId, { joined: Date.now() });
     updatePeers();
 
-    // Connect to mesh
+    // Connect to local mesh (BroadcastChannel for same-browser)
     initChannel();
+
+    // Connect to global mesh (WebTorrent tracker for worldwide P2P)
+    joinMesh();
   </script>
 </body>
 </html>

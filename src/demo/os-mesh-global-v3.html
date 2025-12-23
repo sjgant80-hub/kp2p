@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!--
 @file src/demo/os-mesh-global-v3.html
-@desc P2P OS Mesh v3 - True global P2P via Y.js WebRTC
-      Connects across browsers/devices using public signaling
+@desc P2P OS Mesh v3 - True global P2P via WebTorrent tracker
+      Connects across browsers/devices worldwide
 -->
 <html lang="en">
 <head>
@@ -291,24 +291,29 @@
     </div>
   </div>
 
-  <!-- Y.js + WebRTC -->
+  <!-- WebTorrent Tracker P2P -->
   <script type="module">
-    import * as Y from 'https://esm.sh/yjs@13';
-    import { WebrtcProvider } from 'https://esm.sh/y-webrtc@10';
-
     const $ = id => document.getElementById(id);
 
-    // State
-    let ydoc = null;
-    let provider = null;
-    let awareness = null;
-    let yFiles = null;
-    let yChat = null;
+    // WebTorrent tracker for reliable global P2P
+    const TRACKER = 'wss://tracker.openwebtorrent.com';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const NUM_OFFERS = 5;
 
-    // Identity
-    const myId = 'user-' + Math.random().toString(36).slice(2, 6);
+    // State
+    let ws = null;
+    let infoHash = null;
+    let currentRoom = '';
+    const peers = new Map();
+    const sharedFiles = new Map();
+    const chatHistory = [];
+    let dataChannels = new Map();
+    let pendingOffers = new Map();
+
+    // Identity - 20 bytes for WebTorrent compatibility
+    const myId = '-KM0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b => b.toString(16).padStart(2,'0')).join('');
+    const myName = myId.slice(0, 12);
     const myEmoji = ['😀','😎','🤖','👾','🦊','🐱','🐶','🦁','🐼','🐨','🦋','🌟'][Math.floor(Math.random() * 12)];
-    const myColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
     $('myId').textContent = myId;
 
     // Terminal
@@ -343,148 +348,270 @@
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    // Update peers from awareness
-    function updatePeers() {
-      if (!awareness) return;
+    // Convert room name to 20-byte info_hash (hex)
+    async function roomToHash(name) {
+      const data = new TextEncoder().encode('konomi:' + name);
+      const hash = await crypto.subtle.digest('SHA-1', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
 
-      const states = awareness.getStates();
-      const grid = $('peerGrid');
-      grid.innerHTML = '';
+    // Generate WebRTC offers upfront
+    async function generateOffers(count) {
+      const offers = [];
+      for (let i = 0; i < count; i++) {
+        const pc = new RTCPeerConnection(ICE);
+        const dc = pc.createDataChannel('mesh');
+        const offerId = crypto.randomUUID();
 
-      let count = 0;
-      states.forEach((state, clientId) => {
-        if (!state.user) return;
-        count++;
+        await new Promise(resolve => {
+          pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+          pc.createOffer().then(o => pc.setLocalDescription(o));
+        });
 
-        const isSelf = state.user.id === myId;
-        const card = document.createElement('div');
-        card.className = `peer-card ${isSelf ? 'self' : ''}`;
-        card.innerHTML = `
-          <div class="peer-avatar">${escapeHtml(state.user.emoji)}</div>
-          <div class="peer-name">${escapeHtml(state.user.name)}${isSelf ? ' (you)' : ''}</div>
-        `;
-        grid.appendChild(card);
+        offers.push({
+          offer_id: offerId,
+          offer: { type: 'offer', sdp: pc.localDescription.sdp }
+        });
+        pendingOffers.set(offerId, { pc, dc });
+        setupPeerConnection(pc, dc, offerId);
+      }
+      return offers;
+    }
+
+    function setupPeerConnection(pc, dc, id) {
+      dc.onopen = () => {
+        termPrint(`WebRTC peer connected: ${id.slice(0,8)}`, 'info');
+        dataChannels.set(id, dc);
+        if (!peers.has(id)) {
+          peers.set(id, { name: id.slice(0,12), emoji: '🌐', webrtc: true });
+          updatePeers();
+          addChatMsg(null, null, null, `🌐 Peer ${id.slice(0,8)} connected`, true);
+        }
+        // Send our files to new peer
+        for (const [path, file] of sharedFiles) {
+          dc.send(JSON.stringify({ type: 'file', senderId: myId, path, content: file.content, owner: file.owner }));
+        }
+        // Send announce with our info
+        dc.send(JSON.stringify({ type: 'announce', senderId: myId, name: myName, emoji: myEmoji }));
+      };
+      dc.onclose = () => {
+        dataChannels.delete(id);
+        if (peers.has(id)) {
+          const peer = peers.get(id);
+          addChatMsg(null, null, null, `${peer.emoji} ${peer.name} disconnected`, true);
+          peers.delete(id);
+          updatePeers();
+        }
+      };
+      dc.onmessage = e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.senderId === myId) return;
+
+          switch (msg.type) {
+            case 'chat':
+              const peer = peers.get(msg.senderId) || { name: msg.senderId.slice(0,12), emoji: '🌐' };
+              addChatMsg(msg.senderId, peer.name, peer.emoji, msg.text);
+              break;
+            case 'file':
+              sharedFiles.set(msg.path, { content: msg.content, owner: msg.owner });
+              updateFiles();
+              break;
+            case 'announce':
+              if (!peers.has(msg.senderId)) {
+                peers.set(msg.senderId, { name: msg.name || msg.senderId.slice(0,12), emoji: msg.emoji || '🌐', webrtc: true });
+                updatePeers();
+              }
+              break;
+          }
+        } catch (err) {
+          console.error('WebRTC message error:', err);
+        }
+      };
+    }
+
+    async function handleOffer(msg) {
+      const pc = new RTCPeerConnection(ICE);
+      const peerId = msg.peer_id;
+
+      pc.ondatachannel = e => {
+        const dc = e.channel;
+        setupPeerConnection(pc, dc, peerId);
+      };
+
+      await pc.setRemoteDescription(msg.offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') resolve();
+        else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
       });
 
-      $('peerCount').textContent = count;
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: myId,
+        to_peer_id: peerId,
+        answer: { type: 'answer', sdp: pc.localDescription.sdp },
+        offer_id: msg.offer_id
+      }));
+    }
 
-      if (count === 0) {
-        grid.innerHTML = '<div class="empty-state">No peers connected</div>';
+    async function handleAnswer(msg) {
+      const pending = pendingOffers.get(msg.offer_id);
+      if (!pending) return;
+      const { pc, dc } = pending;
+      await pc.setRemoteDescription(msg.answer);
+    }
+
+    async function reannounce() {
+      if (ws?.readyState !== 1) return;
+      const offers = await generateOffers(NUM_OFFERS);
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: myId,
+        numwant: 10,
+        offers: offers
+      }));
+    }
+
+    // Broadcast to all WebRTC peers
+    function broadcastToWebRTC(msg) {
+      const data = JSON.stringify(msg);
+      for (const dc of dataChannels.values()) {
+        if (dc.readyState === 'open') dc.send(data);
       }
     }
 
-    // Update files from Y.Map
+    // Update peers display
+    function updatePeers() {
+      const grid = $('peerGrid');
+      grid.innerHTML = '';
+
+      // Add self first
+      const selfCard = document.createElement('div');
+      selfCard.className = 'peer-card self';
+      selfCard.innerHTML = `
+        <div class="peer-avatar">${escapeHtml(myEmoji)}</div>
+        <div class="peer-name">${escapeHtml(myName)} (you)</div>
+      `;
+      grid.appendChild(selfCard);
+
+      // Add other peers
+      for (const [id, peer] of peers) {
+        if (id === myId) continue;
+        const card = document.createElement('div');
+        card.className = 'peer-card';
+        card.innerHTML = `
+          <div class="peer-avatar">${escapeHtml(peer.emoji)}</div>
+          <div class="peer-name">${escapeHtml(peer.name)}</div>
+        `;
+        grid.appendChild(card);
+      }
+
+      $('peerCount').textContent = peers.size + 1; // +1 for self
+    }
+
+    // Update files display
     function updateFiles() {
-      if (!yFiles) return;
-
       const list = $('fileList');
-      const files = Array.from(yFiles.entries());
 
-      if (files.length === 0) {
+      if (sharedFiles.size === 0) {
         list.innerHTML = '<div class="empty-state">No files yet</div>';
         return;
       }
 
       list.innerHTML = '';
-      files.forEach(([path, data]) => {
+      for (const [path, file] of sharedFiles) {
         const div = document.createElement('div');
         div.className = 'file-item';
         div.innerHTML = `
           <span>📄</span>
           <span style="flex:1">${escapeHtml(path)}</span>
-          <span style="color:#666;font-size:10px">${data.content?.length || 0}b</span>
+          <span style="color:#666;font-size:10px">${file.content?.length || 0}b</span>
         `;
         div.onclick = () => {
           termPrint(`$ cat ${path}`, 'prompt');
-          termPrint(data.content || '(empty)');
+          termPrint(file.content || '(empty)');
         };
         list.appendChild(div);
-      });
+      }
     }
 
-    // Join room
+    // Join room via WebTorrent tracker
     async function joinRoom(roomName) {
-      // Cleanup existing
-      if (provider) {
-        provider.destroy();
+      // Cleanup existing connections
+      if (ws) {
+        ws.close();
       }
-      if (ydoc) {
-        ydoc.destroy();
-      }
+      dataChannels.clear();
+      pendingOffers.clear();
+      peers.clear();
+
+      currentRoom = roomName;
+      infoHash = await roomToHash(roomName);
 
       $('connDot').className = 'dot connecting';
       $('connStatus').textContent = 'Connecting...';
+      termPrint(`Joining room: ${roomName}`, 'info');
 
-      // Create Y.Doc
-      ydoc = new Y.Doc();
-      yFiles = ydoc.getMap('files');
-      yChat = ydoc.getArray('chat');
+      const offers = await generateOffers(NUM_OFFERS);
 
-      // Create WebRTC provider with public signaling servers
-      provider = new WebrtcProvider(roomName, ydoc, {
-        signaling: [
-          'wss://signaling.yjs.dev',
-          'wss://y-webrtc-signaling-eu.herokuapp.com',
-          'wss://y-webrtc-signaling-us.herokuapp.com',
-        ],
-        password: null,
-        awareness: null,
-        maxConns: 20,
-        filterBcConns: true,
-        peerOpts: {},
-      });
+      ws = new WebSocket(TRACKER);
 
-      awareness = provider.awareness;
+      ws.onopen = () => {
+        termPrint('Connected to WebTorrent tracker!', 'info');
+        $('connDot').className = 'dot on';
+        $('connStatus').textContent = 'Connected';
+        addChatMsg(null, null, null, `Connected to room: ${roomName}`, true);
 
-      // Set local user info
-      awareness.setLocalStateField('user', {
-        id: myId,
-        name: myId,
-        emoji: myEmoji,
-        color: myColor,
-      });
+        ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: infoHash,
+          peer_id: myId,
+          numwant: 10,
+          uploaded: 0,
+          downloaded: 0,
+          left: 1,
+          offers: offers
+        }));
+      };
 
-      // Listen for awareness changes
-      awareness.on('change', () => {
-        updatePeers();
-      });
+      ws.onmessage = async (e) => {
+        try {
+          const msg = JSON.parse(e.data);
 
-      // Listen for connection status
-      provider.on('status', (event) => {
-        if (event.connected) {
-          $('connDot').className = 'dot on';
-          $('connStatus').textContent = 'Connected';
-          termPrint(`Connected to room: ${roomName}`, 'info');
-          addChatMsg(null, null, null, `Connected to ${roomName}`, true);
-        } else {
-          $('connDot').className = 'dot connecting';
-          $('connStatus').textContent = 'Reconnecting...';
+          if (msg.offer && msg.peer_id !== myId) {
+            termPrint(`Offer from ${msg.peer_id.slice(0,8)}`, 'info');
+            await handleOffer(msg);
+          }
+
+          if (msg.answer && msg.offer_id) {
+            await handleAnswer(msg);
+          }
+
+          if (msg.interval) {
+            setTimeout(() => reannounce(), msg.interval * 1000);
+          }
+        } catch (err) {
+          console.error('Tracker message error:', err);
         }
-      });
+      };
 
-      // Listen for synced event
-      provider.on('synced', (synced) => {
-        if (synced) {
-          termPrint('Synced with peers', 'info');
-          updateFiles();
-        }
-      });
+      ws.onerror = () => {
+        termPrint('Tracker connection error', 'error');
+        $('connDot').className = 'dot';
+        $('connStatus').textContent = 'Error';
+      };
 
-      // Listen for file changes
-      yFiles.observe(() => {
-        updateFiles();
-      });
-
-      // Listen for chat messages
-      yChat.observe((event) => {
-        event.changes.added.forEach(item => {
-          item.content.getContent().forEach(msg => {
-            if (msg.userId !== myId || !msg._local) {
-              addChatMsg(msg.userId, msg.name, msg.emoji, msg.text);
-            }
-          });
-        });
-      });
+      ws.onclose = () => {
+        termPrint('Tracker disconnected - reconnecting...', 'info');
+        $('connDot').className = 'dot connecting';
+        $('connStatus').textContent = 'Reconnecting...';
+        setTimeout(() => joinRoom(currentRoom), 5000);
+      };
 
       updatePeers();
       updateFiles();
@@ -503,34 +630,29 @@
   clear - Clear terminal`,
       whoami: () => `${myEmoji} ${myId}`,
       peers: () => {
-        if (!awareness) return 'Not connected';
-        const states = awareness.getStates();
-        const users = [];
-        states.forEach((state) => {
-          if (state.user) users.push(`${state.user.emoji} ${state.user.name}`);
-        });
-        return users.join('\n') || 'No peers';
+        const list = [`${myEmoji} ${myName} (you)`];
+        for (const [id, peer] of peers) {
+          list.push(`${peer.emoji} ${peer.name}`);
+        }
+        return list.join('\n');
       },
-      room: () => $('roomInput').value,
-      ls: () => {
-        if (!yFiles) return 'Not connected';
-        const files = Array.from(yFiles.keys());
-        return files.length ? files.join('\n') : '(no files)';
-      },
+      room: () => currentRoom || $('roomInput').value,
+      ls: () => sharedFiles.size ? [...sharedFiles.keys()].join('\n') : '(no files)',
       cat: (args) => {
-        if (!yFiles) return 'Not connected';
         const path = args[0];
         if (!path) return 'Usage: cat <file>';
-        const file = yFiles.get(path) || yFiles.get('/' + path);
+        const file = sharedFiles.get(path) || sharedFiles.get('/' + path);
         return file ? file.content : 'File not found';
       },
       write: (args) => {
-        if (!yFiles) return 'Not connected';
         const path = args[0];
         const content = args.slice(1).join(' ');
         if (!path) return 'Usage: write <file> <content>';
         const fullPath = path.startsWith('/') ? path : '/' + path;
-        yFiles.set(fullPath, { content, owner: myId, time: Date.now() });
+        const file = { content, owner: myId };
+        sharedFiles.set(fullPath, file);
+        updateFiles();
+        broadcastToWebRTC({ type: 'file', senderId: myId, path: fullPath, content, owner: myId });
         return `Created ${fullPath}`;
       },
       clear: () => { $('terminal').innerHTML = ''; return ''; },
@@ -555,32 +677,43 @@
     // Send chat
     function sendChat() {
       const text = $('chatInput').value.trim();
-      if (!text || !yChat) return;
+      if (!text) return;
       $('chatInput').value = '';
 
-      const msg = {
-        userId: myId,
-        name: myId,
-        emoji: myEmoji,
-        text,
-        time: Date.now(),
-        _local: true,
-      };
-
-      yChat.push([msg]);
-      addChatMsg(myId, myId, myEmoji, text);
+      broadcastToWebRTC({ type: 'chat', senderId: myId, text });
+      addChatMsg(myId, myName, myEmoji, text);
     }
 
     // New file
     $('newFileBtn').onclick = () => {
-      if (!yFiles) return alert('Not connected');
       const name = prompt('File name:');
       if (!name) return;
       const content = prompt('Content:') || '';
       const path = '/' + name.replace(/^\//, '');
-      yFiles.set(path, { content, owner: myId, time: Date.now() });
+      const file = { content, owner: myId };
+      sharedFiles.set(path, file);
+      updateFiles();
+      broadcastToWebRTC({ type: 'file', senderId: myId, path, content, owner: myId });
       termPrint(`Created ${path}`, 'info');
     };
+
+    // Load saved files from localStorage
+    try {
+      const saved = localStorage.getItem('os-mesh-v3-files');
+      if (saved) {
+        for (const [k, v] of JSON.parse(saved)) {
+          sharedFiles.set(k, v);
+        }
+        updateFiles();
+      }
+    } catch (e) {}
+
+    // Auto-save files periodically
+    setInterval(() => {
+      try {
+        localStorage.setItem('os-mesh-v3-files', JSON.stringify([...sharedFiles]));
+      } catch (e) {}
+    }, 5000);
 
     // Event handlers
     $('joinBtn').onclick = () => joinRoom($('roomInput').value.trim() || 'konomi-global');
@@ -589,11 +722,13 @@
     $('sendChatBtn').onclick = sendChat;
 
     // Init
-    termPrint('Welcome to P2P OS Mesh v3!', 'info');
-    termPrint('This uses Y.js WebRTC for true global P2P.', 'info');
-    termPrint('Click Join to connect to a room.', 'info');
+    termPrint('Welcome to P2P OS Mesh v3 - Global Edition!', 'info');
+    termPrint('Using WebTorrent tracker for reliable global P2P.', 'info');
     termPrint("Type 'help' for commands.", 'info');
     termPrint('', 'output');
+
+    updatePeers();
+    updateFiles();
 
     // Auto-join default room
     setTimeout(() => {
