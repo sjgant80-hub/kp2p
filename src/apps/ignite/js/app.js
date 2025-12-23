@@ -374,6 +374,61 @@ $('ignitionWriteBtn').onclick = () => {
   }
 };
 
+// Ignition - Add Provider
+$('addProviderBtn')?.addEventListener('click', () => {
+  const name = prompt('Enter provider name:');
+  if (name) {
+    window.ignite?.createProvider(name);
+  }
+});
+
+// Ignition - Add UDT
+$('addUDTBtn')?.addEventListener('click', () => {
+  const name = prompt('Enter UDT name:');
+  if (!name) return;
+
+  const membersStr = prompt('Enter members (comma-separated, format: name:type)\nExample: Temperature:Float8,Pressure:Float8,Running:Boolean');
+  if (!membersStr) return;
+
+  const members = membersStr.split(',').map(m => {
+    const [mName, mType] = m.trim().split(':');
+    return { name: mName, dataType: mType || 'Float8' };
+  });
+
+  window.ignite?.createUDT(name, members);
+});
+
+// Ignition - Add Folder
+$('addFolderBtn')?.addEventListener('click', () => {
+  const currentPath = $('ignitionTagPath').value || '[default]';
+  const folderName = prompt('Enter folder name:');
+  if (folderName) {
+    const path = currentPath.includes('/') ? `${currentPath}/${folderName}` : `${currentPath}/${folderName}`;
+    window.ignite?.createFolder(path);
+  }
+});
+
+// Ignition - Add Tag
+$('addTagBtn')?.addEventListener('click', () => {
+  const currentPath = $('ignitionTagPath').value || '[default]';
+  const tagName = prompt('Enter tag name:');
+  if (!tagName) return;
+
+  const dataType = prompt('Enter data type (Float8, Int4, Boolean, String) or UDT name:', 'Float8');
+  if (!dataType) return;
+
+  const path = currentPath.includes('/') ? `${currentPath}/${tagName}` : `${currentPath}/${tagName}`;
+
+  // Check if it's a UDT
+  const udtTypes = ['Motor', 'Valve']; // Known UDTs - in production would check ignitionState
+  if (udtTypes.includes(dataType)) {
+    window.ignite?.createTag(path, { udtType: dataType });
+  } else {
+    const engUnit = prompt('Enter engineering unit (optional):', '');
+    window.ignite?.createTag(path, { dataType, engUnit });
+  }
+});
+
 // Logs
 $('logsClearBtn').onclick = () => {
   $('logsConsole').innerHTML = '';
