@@ -599,10 +599,11 @@ export class VM {
   }
 
   /**
-   * List processes
+   * List processes (sync for UI updates)
    */
   ps() {
-    return this.kernel.syscall('ps');
+    if (!this.kernel) return [];
+    return Array.from(this.kernel.processes.values()).map(p => p.toJSON());
   }
 
   // === VM STATE ===
