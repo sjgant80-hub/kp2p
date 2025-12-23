@@ -83,6 +83,14 @@ export class LocalLLM {
   constructor(options = {}) {
     this.modelId = options.model || DEFAULT_MODEL;
     this.modelConfig = MODELS[this.modelId];
+
+    // Validate model exists
+    if (!this.modelConfig) {
+      console.warn(`Model "${this.modelId}" not found, using default: ${DEFAULT_MODEL}`);
+      this.modelId = DEFAULT_MODEL;
+      this.modelConfig = MODELS[DEFAULT_MODEL];
+    }
+
     this.engine = null;
     this.loading = false;
     this.ready = false;

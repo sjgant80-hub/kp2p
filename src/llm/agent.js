@@ -122,8 +122,11 @@ export class Agent {
    */
   async init(modelId, progressCallback) {
     // Initialize LLM
-    this.llm = new LocalLLM();
-    await this.llm.init(modelId, progressCallback);
+    this.llm = new LocalLLM({
+      model: modelId,
+      onProgress: progressCallback || (() => {}),
+    });
+    await this.llm.load();
 
     // Initialize VFS
     this.vfs = new VFS({ storageKey: 'agent-vfs' });
