@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P Wiki - Konomi</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    .sidebar {
+      width: 280px;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-header h1 {
+      color: #4facfe;
+      font-size: 1.3rem;
+      margin-bottom: 16px;
+    }
+
+    .new-page-btn {
+      width: 100%;
+      padding: 12px;
+      background: #4facfe;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .new-page-btn:hover {
+      background: #3d9dee;
+    }
+
+    .page-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .page-item {
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      transition: background 0.2s;
+    }
+
+    .page-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .page-item.active {
+      background: rgba(79, 172, 254, 0.2);
+      border-left: 3px solid #4facfe;
+    }
+
+    .page-item .title {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .page-item .preview {
+      font-size: 12px;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toolbar {
+      padding: 16px 24px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .page-title-input {
+      flex: 1;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .page-title-input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-danger {
+      background: #ff6b6b;
+      color: #fff;
+    }
+
+    .btn-primary {
+      background: #4facfe;
+      color: #fff;
+    }
+
+    .editor-container {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .editor {
+      max-width: 800px;
+      margin: 0 auto;
+      min-height: 400px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      font-size: 16px;
+      line-height: 1.8;
+      color: #ddd;
+    }
+
+    .editor:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .editor:empty::before {
+      content: 'Start writing...';
+      color: #666;
+    }
+
+    .collaborators {
+      display: flex;
+      gap: -8px;
+    }
+
+    .collaborator {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      border: 2px solid #1a1a2e;
+      margin-left: -8px;
+    }
+
+    .collaborator:first-child {
+      margin-left: 0;
+    }
+
+    .status-bar {
+      padding: 12px 24px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .status-bar .sync-status {
+      color: #4ecdc4;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px;
+      color: #666;
+    }
+
+    .empty-state h2 {
+      margin-bottom: 16px;
+      color: #888;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: -280px;
+        height: 100vh;
+        z-index: 100;
+        transition: left 0.3s;
+      }
+
+      .sidebar.open {
+        left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>📚 P2P Wiki</h1>
+      <button class="new-page-btn" id="newPageBtn">+ New Page</button>
+    </div>
+    <div class="page-list" id="pageList"></div>
+  </div>
+
+  <div class="main">
+    <div class="toolbar">
+      <input type="text" class="page-title-input" id="pageTitle" placeholder="Page title...">
+      <div class="collaborators" id="collaborators"></div>
+      <div class="toolbar-actions">
+        <button class="btn btn-outline" id="inviteBtn">Invite</button>
+        <button class="btn btn-danger" id="deleteBtn">Delete</button>
+      </div>
+    </div>
+
+    <div class="editor-container">
+      <div class="editor" id="editor" contenteditable="true"></div>
+    </div>
+
+    <div class="status-bar">
+      <span class="sync-status" id="syncStatus">Synced</span>
+      <span id="lastEdit">-</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import { injectP2P } from '../../src/index.js'
+
+    let p2p = null
+    let pages = null
+    let currentPageId = null
+    let updateTimeout = null
+
+    async function init() {
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']
+      const userColor = colors[Math.floor(Math.random() * colors.length)]
+      const userName = 'User ' + Math.floor(Math.random() * 1000)
+
+      p2p = await injectP2P({
+        user: { name: userName, color: userColor },
+        showUI: false
+      })
+
+      pages = p2p.getSharedMap('pages')
+
+      // Create welcome page if empty
+      if (pages.size === 0) {
+        const welcomeId = 'welcome-' + Date.now()
+        pages.set(welcomeId, {
+          id: welcomeId,
+          title: 'Welcome to P2P Wiki',
+          content: 'This is a collaborative wiki that runs entirely peer-to-peer.\n\nNo servers, no accounts. Just share the link!\n\nStart editing and your changes will sync in real-time with everyone viewing this page.',
+          created: Date.now(),
+          updated: Date.now()
+        })
+        currentPageId = welcomeId
+      }
+
+      // Render page list
+      renderPageList()
+      pages.observe(renderPageList)
+
+      // Select first page
+      if (!currentPageId) {
+        const firstPage = Array.from(pages.keys())[0]
+        if (firstPage) selectPage(firstPage)
+      } else {
+        selectPage(currentPageId)
+      }
+
+      // Editor input handling
+      const editor = document.getElementById('editor')
+      const titleInput = document.getElementById('pageTitle')
+
+      editor.addEventListener('input', debounce(() => {
+        if (!currentPageId) return
+        const page = pages.get(currentPageId)
+        if (page) {
+          pages.set(currentPageId, {
+            ...page,
+            content: editor.textContent,
+            updated: Date.now()
+          })
+          updateStatus('Saving...')
+          setTimeout(() => updateStatus('Synced'), 500)
+        }
+      }, 300))
+
+      titleInput.addEventListener('input', debounce(() => {
+        if (!currentPageId) return
+        const page = pages.get(currentPageId)
+        if (page) {
+          pages.set(currentPageId, {
+            ...page,
+            title: titleInput.value,
+            updated: Date.now()
+          })
+        }
+      }, 300))
+
+      // Update collaborators
+      setInterval(renderCollaborators, 1000)
+    }
+
+    function renderPageList() {
+      const container = document.getElementById('pageList')
+      const allPages = Array.from(pages.entries())
+        .map(([id, page]) => ({ id, ...page }))
+        .sort((a, b) => b.updated - a.updated)
+
+      container.innerHTML = allPages.map(page => `
+        <div class="page-item ${page.id === currentPageId ? 'active' : ''}"
+             data-id="${page.id}">
+          <div class="title">${escapeHtml(page.title) || 'Untitled'}</div>
+          <div class="preview">${escapeHtml((page.content || '').slice(0, 50))}...</div>
+        </div>
+      `).join('')
+
+      // Add click handlers
+      container.querySelectorAll('.page-item').forEach(el => {
+        el.onclick = () => selectPage(el.dataset.id)
+      })
+    }
+
+    function selectPage(pageId) {
+      currentPageId = pageId
+      const page = pages.get(pageId)
+
+      if (page) {
+        document.getElementById('pageTitle').value = page.title
+        document.getElementById('editor').textContent = page.content
+        document.getElementById('lastEdit').textContent =
+          'Last edited: ' + new Date(page.updated).toLocaleString()
+      }
+
+      renderPageList()
+    }
+
+    function renderCollaborators() {
+      if (!p2p) return
+
+      const users = p2p.getUsers()
+      const container = document.getElementById('collaborators')
+
+      container.innerHTML = users.slice(0, 5).map(user => `
+        <div class="collaborator" style="background: ${user.color}"
+             title="${user.name}">
+          ${user.name[0].toUpperCase()}
+        </div>
+      `).join('')
+
+      if (users.length > 5) {
+        container.innerHTML += `
+          <div class="collaborator" style="background: #333">
+            +${users.length - 5}
+          </div>
+        `
+      }
+    }
+
+    function updateStatus(status) {
+      document.getElementById('syncStatus').textContent = status
+    }
+
+    function debounce(fn, delay) {
+      let timeout
+      return (...args) => {
+        clearTimeout(timeout)
+        timeout = setTimeout(() => fn(...args), delay)
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return ''
+      const div = document.createElement('div')
+      div.textContent = text
+      return div.innerHTML
+    }
+
+    // New page
+    document.getElementById('newPageBtn').onclick = () => {
+      const pageId = 'page-' + Date.now()
+      pages.set(pageId, {
+        id: pageId,
+        title: 'New Page',
+        content: '',
+        created: Date.now(),
+        updated: Date.now()
+      })
+      selectPage(pageId)
+    }
+
+    // Delete page
+    document.getElementById('deleteBtn').onclick = () => {
+      if (!currentPageId) return
+      if (!confirm('Delete this page?')) return
+
+      pages.delete(currentPageId)
+      currentPageId = null
+
+      // Select another page
+      const firstPage = Array.from(pages.keys())[0]
+      if (firstPage) {
+        selectPage(firstPage)
+      } else {
+        document.getElementById('pageTitle').value = ''
+        document.getElementById('editor').textContent = ''
+      }
+    }
+
+    // Invite
+    document.getElementById('inviteBtn').onclick = () => {
+      navigator.clipboard.writeText(p2p.invite())
+      const btn = document.getElementById('inviteBtn')
+      btn.textContent = 'Copied!'
+      setTimeout(() => btn.textContent = 'Invite', 2000)
+    }
+
+    init()
+  </script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P Whiteboard - Konomi</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 16px 24px;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header h1 {
+      color: #4facfe;
+      font-size: 1.3rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tool-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .tool-group label {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .color-picker {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: none;
+    }
+
+    .size-slider {
+      width: 100px;
+      accent-color: #4facfe;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #4facfe;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #3d9dee;
+    }
+
+    .btn-danger {
+      background: #ff6b6b;
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #ee5a5a;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #4facfe;
+      color: #4facfe;
+    }
+
+    .btn-outline:hover {
+      background: rgba(79, 172, 254, 0.1);
+    }
+
+    .canvas-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    #canvas {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .cursors-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .remote-cursor {
+      position: absolute;
+      pointer-events: none;
+      transition: transform 0.1s ease-out;
+    }
+
+    .remote-cursor svg {
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .remote-cursor .label {
+      position: absolute;
+      left: 20px;
+      top: 16px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      color: #fff;
+    }
+
+    .status-bar {
+      padding: 12px 24px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .status-bar .peers {
+      color: #4ecdc4;
+    }
+
+    .status-bar .room {
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎨 P2P Whiteboard</h1>
+    <div class="toolbar">
+      <div class="tool-group">
+        <label>Color</label>
+        <input type="color" id="colorPicker" class="color-picker" value="#000000">
+      </div>
+      <div class="tool-group">
+        <label>Size</label>
+        <input type="range" id="sizePicker" class="size-slider" min="1" max="50" value="4">
+      </div>
+      <button class="btn btn-danger" id="clearBtn">Clear</button>
+      <button class="btn btn-outline" id="undoBtn">Undo</button>
+      <button class="btn btn-primary" id="inviteBtn">Invite</button>
+    </div>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="cursors-layer" id="cursorsLayer"></div>
+
+  <div class="status-bar">
+    <span class="peers" id="peerCount">0 peers connected</span>
+    <span class="room" id="roomId">Loading...</span>
+  </div>
+
+  <script type="module">
+    import { injectP2P, createAdapters } from '../../src/index.js'
+
+    // Canvas setup
+    const canvas = document.getElementById('canvas')
+    const ctx = canvas.getContext('2d')
+
+    // Responsive canvas size
+    function resizeCanvas() {
+      const container = document.querySelector('.canvas-container')
+      const maxWidth = container.clientWidth - 48
+      const maxHeight = container.clientHeight - 48
+      const aspectRatio = 16 / 9
+
+      let width = maxWidth
+      let height = width / aspectRatio
+
+      if (height > maxHeight) {
+        height = maxHeight
+        width = height * aspectRatio
+      }
+
+      canvas.width = Math.floor(width)
+      canvas.height = Math.floor(height)
+    }
+
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
+
+    // Initialize P2P
+    let p2p = null
+    let strokes = null
+    let myColor = '#000000'
+    let mySize = 4
+    let drawing = false
+    let currentStroke = null
+    let lastIndex = 0
+
+    async function init() {
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']
+      const userColor = colors[Math.floor(Math.random() * colors.length)]
+
+      p2p = await injectP2P({
+        user: {
+          name: 'Artist ' + Math.floor(Math.random() * 1000),
+          color: userColor
+        },
+        showUI: false
+      })
+
+      strokes = p2p.getSharedArray('strokes')
+
+      // Initial render
+      renderAll()
+
+      // Observe changes
+      strokes.observe(() => {
+        renderNew()
+      })
+
+      // Update status
+      setInterval(updateStatus, 1000)
+      updateStatus()
+
+      // Room ID
+      document.getElementById('roomId').textContent = 'Room: ' + p2p.roomId.slice(0, 8) + '...'
+
+      // Track cursors
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect()
+        p2p.setCursor({
+          x: e.clientX,
+          y: e.clientY,
+          canvasX: e.clientX - rect.left,
+          canvasY: e.clientY - rect.top
+        })
+      })
+
+      // Render remote cursors
+      setInterval(renderCursors, 50)
+    }
+
+    function renderAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      const allStrokes = strokes.toArray()
+      for (const stroke of allStrokes) {
+        drawStroke(stroke)
+      }
+      lastIndex = allStrokes.length
+    }
+
+    function renderNew() {
+      const allStrokes = strokes.toArray()
+      for (let i = lastIndex; i < allStrokes.length; i++) {
+        drawStroke(allStrokes[i])
+      }
+      lastIndex = allStrokes.length
+    }
+
+    function drawStroke(stroke) {
+      if (!stroke.points || stroke.points.length < 2) return
+
+      ctx.beginPath()
+      ctx.strokeStyle = stroke.color
+      ctx.lineWidth = stroke.size
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y)
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y)
+      }
+      ctx.stroke()
+    }
+
+    function updateStatus() {
+      const peers = p2p ? p2p.getPeers().length : 0
+      document.getElementById('peerCount').textContent =
+        `${peers} peer${peers !== 1 ? 's' : ''} connected`
+    }
+
+    function renderCursors() {
+      if (!p2p) return
+
+      const container = document.getElementById('cursorsLayer')
+      const users = p2p.getUsers()
+      const localId = p2p.doc.clientID
+
+      // Clear old cursors
+      container.innerHTML = ''
+
+      for (const user of users) {
+        if (user.clientId === localId) continue
+        if (!user.cursor) continue
+
+        const cursorEl = document.createElement('div')
+        cursorEl.className = 'remote-cursor'
+        cursorEl.style.transform = `translate(${user.cursor.x}px, ${user.cursor.y}px)`
+        cursorEl.innerHTML = `
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="${user.color}">
+            <path d="M5.65 0L18.15 12.5L12.4 12.5L18.15 22.5L15.4 24L9.65 14L5.65 18.5L5.65 0Z"/>
+          </svg>
+          <span class="label" style="background: ${user.color}">${user.name}</span>
+        `
+        container.appendChild(cursorEl)
+      }
+    }
+
+    // Drawing handlers
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect()
+      const x = (e.clientX || e.touches[0].clientX) - rect.left
+      const y = (e.clientY || e.touches[0].clientY) - rect.top
+      return { x, y }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      drawing = true
+      const pos = getPos(e)
+      currentStroke = {
+        color: myColor,
+        size: mySize,
+        points: [pos]
+      }
+    })
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!drawing) return
+      const pos = getPos(e)
+      currentStroke.points.push(pos)
+      drawStroke(currentStroke)
+    })
+
+    canvas.addEventListener('mouseup', () => {
+      if (!drawing) return
+      drawing = false
+      if (currentStroke && currentStroke.points.length > 1) {
+        strokes.push([currentStroke])
+      }
+      currentStroke = null
+    })
+
+    canvas.addEventListener('mouseleave', () => {
+      if (drawing) {
+        drawing = false
+        if (currentStroke && currentStroke.points.length > 1) {
+          strokes.push([currentStroke])
+        }
+        currentStroke = null
+      }
+    })
+
+    // Touch support
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault()
+      drawing = true
+      const pos = getPos(e)
+      currentStroke = {
+        color: myColor,
+        size: mySize,
+        points: [pos]
+      }
+    })
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault()
+      if (!drawing) return
+      const pos = getPos(e)
+      currentStroke.points.push(pos)
+      drawStroke(currentStroke)
+    })
+
+    canvas.addEventListener('touchend', () => {
+      if (!drawing) return
+      drawing = false
+      if (currentStroke && currentStroke.points.length > 1) {
+        strokes.push([currentStroke])
+      }
+      currentStroke = null
+    })
+
+    // Toolbar
+    document.getElementById('colorPicker').addEventListener('input', (e) => {
+      myColor = e.target.value
+    })
+
+    document.getElementById('sizePicker').addEventListener('input', (e) => {
+      mySize = parseInt(e.target.value)
+    })
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (confirm('Clear the whiteboard for everyone?')) {
+        while (strokes.length > 0) {
+          strokes.delete(0)
+        }
+        lastIndex = 0
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+    })
+
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      if (strokes.length > 0) {
+        strokes.delete(strokes.length - 1)
+        renderAll()
+      }
+    })
+
+    document.getElementById('inviteBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(p2p.invite())
+      const btn = document.getElementById('inviteBtn')
+      btn.textContent = 'Copied!'
+      setTimeout(() => btn.textContent = 'Invite', 2000)
+    })
+
+    // Start
+    init()
+  </script>
+</body>
+</html>

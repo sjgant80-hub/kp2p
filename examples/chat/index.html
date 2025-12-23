@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P Chat - Konomi</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      color: #4facfe;
+      font-size: 1.5rem;
+    }
+
+    .header .invite-btn {
+      padding: 10px 20px;
+      background: #4facfe;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .header .invite-btn:hover {
+      background: #3d9dee;
+    }
+
+    .container {
+      flex: 1;
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .message .content {
+      flex: 1;
+    }
+
+    .message .name {
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .message .text {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 12px 16px;
+      border-radius: 12px;
+      line-height: 1.5;
+    }
+
+    .message .time {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .message.self .content {
+      text-align: right;
+    }
+
+    .message.self .text {
+      background: #4facfe;
+    }
+
+    .input-area {
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      gap: 12px;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .input-area input::placeholder {
+      color: #666;
+    }
+
+    .input-area input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .input-area button {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 12px;
+      background: #4facfe;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .input-area button:hover {
+      background: #3d9dee;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .sidebar h3 {
+      color: #4facfe;
+      margin-bottom: 16px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-item .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .user-item .name {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .user-item .status {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .setup-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .setup-modal .modal-content {
+      background: #1a1a2e;
+      padding: 40px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    .setup-modal h2 {
+      color: #4facfe;
+      margin-bottom: 24px;
+    }
+
+    .setup-modal input {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    .setup-modal button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: #4facfe;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="setup-modal" id="setup">
+    <div class="modal-content">
+      <h2>👋 Welcome to P2P Chat</h2>
+      <input type="text" id="nameInput" placeholder="Enter your name..." autofocus>
+      <button id="joinBtn">Join Chat</button>
+    </div>
+  </div>
+
+  <div class="header">
+    <h1>🌐 P2P Chat</h1>
+    <button class="invite-btn" id="inviteBtn">Copy Invite Link</button>
+  </div>
+
+  <div class="container">
+    <div class="chat-area">
+      <div class="messages" id="messages"></div>
+      <div class="input-area">
+        <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+        <button id="sendBtn" disabled>Send</button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <h3>Online Users</h3>
+      <div class="user-list" id="userList"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { injectP2P } from '../../src/index.js'
+
+    let p2p = null
+    let myName = ''
+    let myColor = ''
+
+    // Random color
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']
+    myColor = colors[Math.floor(Math.random() * colors.length)]
+
+    // Setup
+    document.getElementById('joinBtn').onclick = async () => {
+      myName = document.getElementById('nameInput').value.trim() || 'Anonymous'
+      document.getElementById('setup').style.display = 'none'
+      document.getElementById('messageInput').disabled = false
+      document.getElementById('sendBtn').disabled = false
+
+      await initP2P()
+    }
+
+    document.getElementById('nameInput').onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('joinBtn').click()
+      }
+    }
+
+    async function initP2P() {
+      p2p = await injectP2P({
+        user: { name: myName, color: myColor }
+      })
+
+      const messages = p2p.getSharedArray('messages')
+
+      // Render messages
+      function renderMessages() {
+        const container = document.getElementById('messages')
+        container.innerHTML = messages.toArray().map(m => `
+          <div class="message ${m.peerId === p2p.peerId ? 'self' : ''}">
+            <div class="avatar" style="background: ${m.color}">${m.name[0].toUpperCase()}</div>
+            <div class="content">
+              <div class="name" style="color: ${m.color}">${m.name}</div>
+              <div class="text">${escapeHtml(m.text)}</div>
+              <div class="time">${new Date(m.time).toLocaleTimeString()}</div>
+            </div>
+          </div>
+        `).join('')
+        container.scrollTop = container.scrollHeight
+      }
+
+      messages.observe(renderMessages)
+      renderMessages()
+
+      // Render users
+      function renderUsers() {
+        const users = p2p.getUsers()
+        const container = document.getElementById('userList')
+        container.innerHTML = users.map(u => `
+          <div class="user-item">
+            <div class="dot" style="background: ${u.color}"></div>
+            <span class="name">${u.name}</span>
+            <span class="status">${u.state}</span>
+          </div>
+        `).join('')
+      }
+
+      setInterval(renderUsers, 1000)
+      renderUsers()
+
+      // Send message
+      function sendMessage() {
+        const input = document.getElementById('messageInput')
+        const text = input.value.trim()
+        if (!text) return
+
+        messages.push([{
+          name: myName,
+          color: myColor,
+          text,
+          time: Date.now(),
+          peerId: p2p.peerId
+        }])
+
+        input.value = ''
+      }
+
+      document.getElementById('sendBtn').onclick = sendMessage
+      document.getElementById('messageInput').onkeydown = (e) => {
+        if (e.key === 'Enter') sendMessage()
+      }
+
+      // Invite
+      document.getElementById('inviteBtn').onclick = () => {
+        navigator.clipboard.writeText(p2p.invite())
+        const btn = document.getElementById('inviteBtn')
+        btn.textContent = 'Copied!'
+        setTimeout(() => btn.textContent = 'Copy Invite Link', 2000)
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div.innerHTML
+    }
+  </script>
+</body>
+</html>
