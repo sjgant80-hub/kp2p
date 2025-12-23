@@ -236,9 +236,14 @@ export class Kernel {
 
     this.processes.set(pid, proc);
 
-    // Create sandbox for process
-    proc.sandbox = new Sandbox({ id: `proc-${pid}` });
-    await proc.sandbox.start();
+    // Create sandbox for process (optional - may fail in some environments)
+    try {
+      proc.sandbox = new Sandbox({ id: `proc-${pid}`, timeout: 2000 });
+      await proc.sandbox.start();
+    } catch (e) {
+      console.warn(`[KERNEL] Sandbox creation failed for PID ${pid}: ${e.message}`);
+      proc.sandbox = null; // Process runs without sandbox
+    }
 
     // Start process
     proc.state = PROC_STATE.READY;
