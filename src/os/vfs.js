@@ -514,6 +514,12 @@ export class VFS {
    * Import filesystem state
    */
   import(snapshot) {
+    // Validate snapshot structure
+    if (!snapshot || !snapshot.inodes || typeof snapshot.inodes !== 'object') {
+      console.warn('[VFS] Invalid snapshot, skipping import');
+      return;
+    }
+
     this.inodes.clear();
 
     for (const [path, data] of Object.entries(snapshot.inodes)) {
@@ -535,6 +541,12 @@ export class VFS {
 
     this.root = this.inodes.get('/');
     this.cwd = snapshot.cwd || '/';
+
+    // Ensure root exists after import
+    if (!this.root) {
+      console.warn('[VFS] No root after import, reinitializing');
+      this._init();
+    }
   }
 
   /**
@@ -544,11 +556,18 @@ export class VFS {
     try {
       const data = localStorage.getItem(this.storageKey);
       if (data) {
-        this.import(JSON.parse(data));
-        return true;
+        const snapshot = JSON.parse(data);
+        if (snapshot && snapshot.inodes) {
+          this.import(snapshot);
+          return true;
+        }
       }
     } catch (e) {
-      // Ignore
+      console.warn('[VFS] Failed to load from storage:', e.message);
+      // Clear corrupted data
+      try {
+        localStorage.removeItem(this.storageKey);
+      } catch (e2) {}
     }
     return false;
   }
