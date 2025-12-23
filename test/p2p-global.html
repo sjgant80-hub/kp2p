@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<!--
+@file test/p2p-global.html
+@desc Worldwide P2P chat using WebTorrent trackers for discovery
+@size ~200 tokens
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P Global Chat</title>
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box }
+    body { font-family:system-ui,sans-serif;background:#0a0a1a;color:#fff;height:100vh;display:flex;flex-direction:column }
+    .header { padding:16px;background:#12122a;border-bottom:1px solid #fff1;display:flex;align-items:center;gap:12px;flex-wrap:wrap }
+    .status { width:12px;height:12px;border-radius:50%;background:#666;flex-shrink:0 }
+    .status.connecting { background:#f90;animation:pulse 1s infinite }
+    .status.connected { background:#0f0 }
+    @keyframes pulse { 50% { opacity:0.5 } }
+    .room-input { background:#1a1a2e;border:1px solid #333;padding:8px 12px;border-radius:6px;color:#fff;font-size:14px;width:200px }
+    .info { font-size:11px;color:#666;margin-left:auto }
+    .peer-count { font-size:12px;color:#4facfe }
+    .messages { flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px }
+    .msg { max-width:80%;padding:10px 14px;border-radius:12px;font-size:14px;word-break:break-word }
+    .msg.mine { background:#4facfe;color:#000;align-self:flex-end;border-bottom-right-radius:4px }
+    .msg.theirs { background:#222;align-self:flex-start;border-bottom-left-radius:4px }
+    .msg.system { background:transparent;color:#666;font-size:12px;align-self:center }
+    .msg .meta { font-size:10px;opacity:0.7;margin-top:4px }
+    .input-area { padding:16px;background:#12122a;border-top:1px solid #fff1;display:flex;gap:12px }
+    input[type=text] { flex:1;padding:12px 16px;border:none;border-radius:24px;background:#222;color:#fff;font-size:14px;outline:none }
+    button { padding:12px 24px;border:none;border-radius:24px;background:#4facfe;color:#000;font-weight:600;cursor:pointer }
+    button:disabled { opacity:0.5;cursor:not-allowed }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="status" id="status"></div>
+    <input type="text" class="room-input" id="room" placeholder="Room name..." value="konomi-global" />
+    <button id="join">Join</button>
+    <span class="peer-count" id="peers">0 peers</span>
+    <span class="info" id="info">WebRTC + WebTorrent Trackers</span>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="input-area">
+    <input type="text" id="input" placeholder="Type a message..." disabled />
+    <button id="send" disabled>Send</button>
+  </div>
+
+  <script type="module">
+    // Simple WebRTC P2P with WebTorrent tracker signaling
+    const TRACKERS = [
+      'wss://tracker.openwebtorrent.com',
+      'wss://tracker.btorrent.xyz',
+      'wss://tracker.webtorrent.dev'
+    ]
+
+    const $ = id => document.getElementById(id)
+    const myId = crypto.randomUUID().slice(0, 8)
+    let ws = null
+    let peers = new Map() // peerId -> RTCPeerConnection
+    let dataChannels = new Map() // peerId -> RTCDataChannel
+    let currentRoom = null
+
+    function log(msg, isSystem = true) {
+      const div = document.createElement('div')
+      div.className = 'msg system'
+      div.textContent = msg
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function addMessage(text, from, isMine = false) {
+      const div = document.createElement('div')
+      div.className = 'msg ' + (isMine ? 'mine' : 'theirs')
+      div.innerHTML = `${text}<div class="meta">${isMine ? 'You' : from}</div>`
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function updatePeers() {
+      const count = dataChannels.size
+      $('peers').textContent = count + ' peer' + (count !== 1 ? 's' : '')
+      $('status').className = 'status ' + (count > 0 ? 'connected' : ws ? 'connecting' : '')
+    }
+
+    // Create room hash from name (like torrent infohash)
+    async function roomHash(name) {
+      const data = new TextEncoder().encode('konomi-p2p:' + name)
+      const hash = await crypto.subtle.digest('SHA-1', data)
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
+    }
+
+    // Connect to WebTorrent tracker for signaling
+    async function joinRoom(roomName) {
+      if (ws) ws.close()
+      currentRoom = roomName
+      peers.clear()
+      dataChannels.clear()
+      $('messages').innerHTML = ''
+
+      const infoHash = await roomHash(roomName)
+      log(`Joining room: ${roomName}`)
+      log(`Room hash: ${infoHash.slice(0, 16)}...`)
+
+      $('status').className = 'status connecting'
+
+      // Try trackers in order
+      for (const tracker of TRACKERS) {
+        try {
+          await connectTracker(tracker, infoHash)
+          break
+        } catch (e) {
+          log(`Tracker ${tracker} failed, trying next...`)
+        }
+      }
+    }
+
+    function connectTracker(trackerUrl, infoHash) {
+      return new Promise((resolve, reject) => {
+        ws = new WebSocket(trackerUrl)
+
+        ws.onopen = () => {
+          log(`Connected to tracker`)
+          // Announce ourselves
+          ws.send(JSON.stringify({
+            action: 'announce',
+            info_hash: infoHash,
+            peer_id: myId,
+            offers: [] // We'll create offers when we see peers
+          }))
+          resolve()
+        }
+
+        ws.onmessage = async (e) => {
+          const data = JSON.parse(e.data)
+
+          if (data.info_hash !== infoHash) return
+
+          if (data.offer) {
+            // Someone sent us an offer
+            await handleOffer(data.peer_id, data.offer, data.offer_id)
+          } else if (data.answer) {
+            // Someone answered our offer
+            await handleAnswer(data.peer_id, data.answer)
+          } else if (data.peer_id && data.peer_id !== myId && !peers.has(data.peer_id)) {
+            // New peer announced, send them an offer
+            await createOffer(data.peer_id, infoHash)
+          }
+        }
+
+        ws.onerror = () => reject(new Error('WebSocket error'))
+        ws.onclose = () => {
+          log('Disconnected from tracker')
+          $('status').className = 'status'
+        }
+
+        setTimeout(() => reject(new Error('Timeout')), 5000)
+      })
+    }
+
+    async function createOffer(peerId, infoHash) {
+      if (peers.has(peerId)) return
+
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      })
+      peers.set(peerId, pc)
+
+      const dc = pc.createDataChannel('chat')
+      setupDataChannel(dc, peerId)
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate === null) {
+          // ICE gathering complete, send offer
+          ws.send(JSON.stringify({
+            action: 'announce',
+            info_hash: infoHash,
+            peer_id: myId,
+            to_peer_id: peerId,
+            offer: { type: 'offer', sdp: pc.localDescription.sdp },
+            offer_id: crypto.randomUUID()
+          }))
+        }
+      }
+
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+    }
+
+    async function handleOffer(peerId, offer, offerId) {
+      if (peers.has(peerId)) return
+
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      })
+      peers.set(peerId, pc)
+
+      pc.ondatachannel = (e) => {
+        setupDataChannel(e.channel, peerId)
+      }
+
+      pc.onicecandidate = async (e) => {
+        if (e.candidate === null) {
+          const infoHash = await roomHash(currentRoom)
+          ws.send(JSON.stringify({
+            action: 'announce',
+            info_hash: infoHash,
+            peer_id: myId,
+            to_peer_id: peerId,
+            answer: { type: 'answer', sdp: pc.localDescription.sdp },
+            offer_id: offerId
+          }))
+        }
+      }
+
+      await pc.setRemoteDescription(offer)
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+    }
+
+    async function handleAnswer(peerId, answer) {
+      const pc = peers.get(peerId)
+      if (pc && pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription(answer)
+      }
+    }
+
+    function setupDataChannel(dc, peerId) {
+      dc.onopen = () => {
+        dataChannels.set(peerId, dc)
+        log(`${peerId} connected`)
+        updatePeers()
+        $('input').disabled = false
+        $('send').disabled = false
+      }
+
+      dc.onclose = () => {
+        dataChannels.delete(peerId)
+        peers.delete(peerId)
+        log(`${peerId} disconnected`)
+        updatePeers()
+      }
+
+      dc.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data)
+          addMessage(msg.text, msg.from)
+        } catch {
+          addMessage(e.data, peerId)
+        }
+      }
+    }
+
+    function broadcast(text) {
+      const msg = JSON.stringify({ from: myId, text, ts: Date.now() })
+      for (const dc of dataChannels.values()) {
+        if (dc.readyState === 'open') {
+          dc.send(msg)
+        }
+      }
+      addMessage(text, myId, true)
+    }
+
+    // UI handlers
+    $('join').onclick = () => joinRoom($('room').value.trim() || 'konomi-global')
+    $('room').onkeydown = (e) => { if (e.key === 'Enter') $('join').click() }
+
+    $('send').onclick = () => {
+      const text = $('input').value.trim()
+      if (!text) return
+      broadcast(text)
+      $('input').value = ''
+    }
+    $('input').onkeydown = (e) => { if (e.key === 'Enter') $('send').click() }
+
+    // Auto-join from URL hash or default room
+    const initialRoom = location.hash.slice(1) || 'konomi-global'
+    $('room').value = initialRoom
+    joinRoom(initialRoom)
+  </script>
+</body>
+</html>

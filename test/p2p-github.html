@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<!--
+@file test/p2p-github.html
+@desc P2P chat using GitHub Issues API for signaling
+@size ~250 tokens
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P via GitHub</title>
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box }
+    body { font-family:system-ui,sans-serif;background:#0a0a1a;color:#fff;height:100vh;display:flex;flex-direction:column }
+    .header { padding:16px;background:#12122a;border-bottom:1px solid #fff1 }
+    .header h1 { font-size:1.2rem;margin-bottom:12px;display:flex;align-items:center;gap:8px }
+    .config { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px }
+    .config input { background:#1a1a2e;border:1px solid #333;padding:8px 12px;border-radius:6px;color:#fff;font-size:13px }
+    .config input.wide { flex:1;min-width:200px }
+    .config button { padding:8px 16px;border:none;border-radius:6px;background:#4facfe;color:#000;font-weight:600;cursor:pointer }
+    .status-bar { display:flex;gap:12px;align-items:center;font-size:12px }
+    .status { width:10px;height:10px;border-radius:50%;background:#666 }
+    .status.polling { background:#f90;animation:pulse 1s infinite }
+    .status.connected { background:#0f0 }
+    @keyframes pulse { 50% { opacity:0.5 } }
+    .messages { flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px }
+    .msg { max-width:80%;padding:10px 14px;border-radius:12px;font-size:14px;word-break:break-word }
+    .msg.mine { background:#4facfe;color:#000;align-self:flex-end }
+    .msg.theirs { background:#222;align-self:flex-start }
+    .msg.system { background:transparent;color:#666;font-size:12px;align-self:center }
+    .msg .meta { font-size:10px;opacity:0.7;margin-top:4px }
+    .input-area { padding:16px;background:#12122a;border-top:1px solid #fff1;display:flex;gap:12px }
+    input[type=text] { flex:1;padding:12px 16px;border:none;border-radius:24px;background:#222;color:#fff;font-size:14px;outline:none }
+    button { padding:12px 24px;border:none;border-radius:24px;background:#4facfe;color:#000;font-weight:600;cursor:pointer }
+    button:disabled { opacity:0.5 }
+    .help { font-size:11px;color:#666;padding:8px 16px;background:#0a0a1a }
+    a { color:#4facfe }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🐙 P2P via GitHub Issues</h1>
+    <div class="config">
+      <input type="text" id="repo" class="wide" placeholder="owner/repo (e.g., user/my-chat)" value="" />
+      <input type="text" id="token" placeholder="GitHub token (optional for write)" />
+      <input type="text" id="room" placeholder="Room name" value="general" />
+      <button id="connect">Connect</button>
+    </div>
+    <div class="status-bar">
+      <div class="status" id="status"></div>
+      <span id="statusText">Not connected</span>
+      <span id="peers" style="margin-left:auto">0 peers</span>
+    </div>
+  </div>
+
+  <div class="help">
+    💡 Uses GitHub Issues as signaling. Create a repo, then join with owner/repo.
+    <a href="https://github.com/settings/tokens/new?scopes=public_repo" target="_blank">Get token</a> to send messages.
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="input-area">
+    <input type="text" id="input" placeholder="Type a message..." disabled />
+    <button id="send" disabled>Send</button>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id)
+    const myId = crypto.randomUUID().slice(0, 8)
+
+    let config = { repo: '', token: '', room: 'general' }
+    let issueNumber = null
+    let lastCommentId = 0
+    let pollInterval = null
+    let peers = new Map() // peerId -> { pc, dc }
+    let pendingOffers = new Map() // offerId -> peerId
+
+    function log(msg) {
+      const div = document.createElement('div')
+      div.className = 'msg system'
+      div.textContent = msg
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function addMessage(text, from, isMine = false) {
+      const div = document.createElement('div')
+      div.className = 'msg ' + (isMine ? 'mine' : 'theirs')
+      div.innerHTML = `${text}<div class="meta">${isMine ? 'You' : from}</div>`
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function updateStatus(status, text) {
+      $('status').className = 'status ' + status
+      $('statusText').textContent = text
+    }
+
+    function updatePeers() {
+      const count = [...peers.values()].filter(p => p.dc?.readyState === 'open').length
+      $('peers').textContent = count + ' peer' + (count !== 1 ? 's' : '')
+    }
+
+    // GitHub API helpers
+    async function ghFetch(path, options = {}) {
+      const headers = { 'Accept': 'application/vnd.github.v3+json' }
+      if (config.token) headers['Authorization'] = `token ${config.token}`
+
+      const res = await fetch(`https://api.github.com/repos/${config.repo}${path}`, {
+        ...options,
+        headers: { ...headers, ...options.headers }
+      })
+
+      if (!res.ok) throw new Error(`GitHub API: ${res.status}`)
+      return res.json()
+    }
+
+    // Find or create room issue
+    async function findOrCreateRoom(roomName) {
+      const title = `[P2P Room] ${roomName}`
+
+      // Search for existing issue
+      try {
+        const issues = await ghFetch(`/issues?labels=p2p-room&state=open`)
+        const existing = issues.find(i => i.title === title)
+        if (existing) return existing.number
+      } catch (e) {
+        log('Could not search issues: ' + e.message)
+      }
+
+      // Create new issue
+      if (!config.token) {
+        throw new Error('Need token to create room. Add your GitHub token.')
+      }
+
+      const issue = await ghFetch('/issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          body: `P2P signaling room: ${roomName}\n\nPeers post WebRTC offers/answers as comments.`,
+          labels: ['p2p-room']
+        })
+      })
+
+      return issue.number
+    }
+
+    // Post signaling message as comment
+    async function postSignal(data) {
+      if (!config.token) {
+        log('Need token to send signals')
+        return
+      }
+
+      const body = `<!-- P2P-SIGNAL -->\n\`\`\`json\n${JSON.stringify(data)}\n\`\`\``
+
+      await ghFetch(`/issues/${issueNumber}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body })
+      })
+    }
+
+    // Poll for new comments
+    async function pollComments() {
+      try {
+        const comments = await ghFetch(`/issues/${issueNumber}/comments?since=${new Date(Date.now() - 30000).toISOString()}`)
+
+        for (const comment of comments) {
+          if (comment.id <= lastCommentId) continue
+          lastCommentId = comment.id
+
+          // Parse signal from comment
+          const match = comment.body.match(/```json\n([\s\S]*?)\n```/)
+          if (!match) continue
+
+          try {
+            const signal = JSON.parse(match[1])
+            await handleSignal(signal)
+          } catch {}
+        }
+      } catch (e) {
+        // Ignore polling errors
+      }
+    }
+
+    async function handleSignal(signal) {
+      if (signal.from === myId) return
+      if (signal.to && signal.to !== myId) return
+
+      if (signal.type === 'offer') {
+        await handleOffer(signal)
+      } else if (signal.type === 'answer') {
+        await handleAnswer(signal)
+      } else if (signal.type === 'chat') {
+        addMessage(signal.text, signal.from)
+      }
+    }
+
+    // WebRTC
+    function createPeerConnection(peerId) {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      })
+
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'connected') {
+          updateStatus('connected', 'Connected')
+          updatePeers()
+        } else if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+          peers.delete(peerId)
+          updatePeers()
+        }
+      }
+
+      return pc
+    }
+
+    async function createOffer() {
+      const offerId = crypto.randomUUID().slice(0, 8)
+      const pc = createPeerConnection('pending-' + offerId)
+
+      const dc = pc.createDataChannel('chat')
+      setupDataChannel(dc, offerId)
+
+      pc.onicecandidate = async (e) => {
+        if (e.candidate === null) {
+          await postSignal({
+            type: 'offer',
+            from: myId,
+            offerId,
+            sdp: pc.localDescription.sdp
+          })
+          log('Posted offer, waiting for answer...')
+        }
+      }
+
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+
+      pendingOffers.set(offerId, { pc, dc })
+    }
+
+    async function handleOffer(signal) {
+      log(`Received offer from ${signal.from}`)
+
+      const pc = createPeerConnection(signal.from)
+      peers.set(signal.from, { pc, dc: null })
+
+      pc.ondatachannel = (e) => {
+        setupDataChannel(e.channel, signal.from)
+        peers.get(signal.from).dc = e.channel
+      }
+
+      pc.onicecandidate = async (e) => {
+        if (e.candidate === null) {
+          await postSignal({
+            type: 'answer',
+            from: myId,
+            to: signal.from,
+            offerId: signal.offerId,
+            sdp: pc.localDescription.sdp
+          })
+          log('Posted answer')
+        }
+      }
+
+      await pc.setRemoteDescription({ type: 'offer', sdp: signal.sdp })
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+    }
+
+    async function handleAnswer(signal) {
+      const pending = pendingOffers.get(signal.offerId)
+      if (!pending) return
+
+      log(`Received answer from ${signal.from}`)
+
+      await pending.pc.setRemoteDescription({ type: 'answer', sdp: signal.sdp })
+
+      peers.set(signal.from, { pc: pending.pc, dc: pending.dc })
+      pendingOffers.delete(signal.offerId)
+    }
+
+    function setupDataChannel(dc, peerId) {
+      dc.onopen = () => {
+        log(`Direct connection with ${peerId}!`)
+        $('input').disabled = false
+        $('send').disabled = false
+        updatePeers()
+      }
+
+      dc.onclose = () => {
+        log(`${peerId} disconnected`)
+        updatePeers()
+      }
+
+      dc.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data)
+          addMessage(msg.text, msg.from)
+        } catch {
+          addMessage(e.data, peerId)
+        }
+      }
+    }
+
+    function broadcast(text) {
+      const msg = JSON.stringify({ from: myId, text, ts: Date.now() })
+
+      // Send via data channels
+      for (const { dc } of peers.values()) {
+        if (dc?.readyState === 'open') {
+          dc.send(msg)
+        }
+      }
+
+      // Also post to GitHub as fallback
+      if (config.token) {
+        postSignal({ type: 'chat', from: myId, text, ts: Date.now() })
+      }
+
+      addMessage(text, myId, true)
+    }
+
+    // Connect
+    async function connect() {
+      config.repo = $('repo').value.trim()
+      config.token = $('token').value.trim()
+      config.room = $('room').value.trim() || 'general'
+
+      if (!config.repo) {
+        log('Enter a GitHub repo (owner/repo)')
+        return
+      }
+
+      $('messages').innerHTML = ''
+      log(`Connecting to ${config.repo}...`)
+      updateStatus('polling', 'Connecting...')
+
+      try {
+        issueNumber = await findOrCreateRoom(config.room)
+        log(`Room issue: #${issueNumber}`)
+
+        // Start polling
+        pollInterval = setInterval(pollComments, 3000)
+        await pollComments()
+
+        // Post our offer
+        await createOffer()
+
+        updateStatus('polling', 'Waiting for peers...')
+      } catch (e) {
+        log('Error: ' + e.message)
+        updateStatus('', 'Error')
+      }
+    }
+
+    // UI
+    $('connect').onclick = connect
+    $('send').onclick = () => {
+      const text = $('input').value.trim()
+      if (text) {
+        broadcast(text)
+        $('input').value = ''
+      }
+    }
+    $('input').onkeydown = (e) => { if (e.key === 'Enter') $('send').click() }
+
+    // Load from URL params
+    const params = new URLSearchParams(location.search)
+    if (params.get('repo')) $('repo').value = params.get('repo')
+    if (params.get('room')) $('room').value = params.get('room')
+  </script>
+</body>
+</html>
