@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/os-mesh-global-v3.html
+@desc P2P OS Mesh v3 - True global P2P via Y.js WebRTC
+      Connects across browsers/devices using public signaling
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P OS Mesh v3 - Global</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --fg: #c9d1d9;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --purple: #a371f7;
+      --border: #30363d;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 12px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header h1 { font-size: 1.2rem; color: var(--accent); }
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge.green { background: #23883433; color: var(--green); }
+    .badge.purple { background: #a371f733; color: var(--purple); }
+    .room-input {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .room-input input {
+      padding: 6px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      width: 120px;
+    }
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-secondary { background: var(--bg3); color: #fff; }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      margin-left: auto;
+      font-size: 12px;
+    }
+    .stat { display: flex; align-items: center; gap: 6px; }
+    .stat-val { color: var(--accent); font-weight: bold; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .dot.on { background: var(--green); }
+    .dot.connecting { background: #f97316; animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 10px 16px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-body {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Terminal */
+    .terminal {
+      flex: 1;
+      background: #000;
+      padding: 12px;
+      overflow-y: auto;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .terminal .line { margin-bottom: 2px; }
+    .terminal .prompt { color: var(--green); }
+    .terminal .output { color: #8b949e; }
+    .terminal .error { color: #f85149; }
+    .terminal .info { color: var(--accent); }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+    .input-row input {
+      flex: 1;
+      padding: 8px 12px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    /* Chat */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .chat-msg { margin-bottom: 12px; }
+    .chat-msg.self .chat-bubble { background: var(--accent); color: #000; margin-left: auto; }
+    .chat-meta { font-size: 11px; color: #666; margin-bottom: 4px; }
+    .chat-msg.self .chat-meta { text-align: right; }
+    .chat-bubble {
+      display: inline-block;
+      max-width: 80%;
+      padding: 8px 12px;
+      background: var(--bg2);
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    .chat-bubble.system { background: transparent; color: #666; font-style: italic; }
+
+    /* Peers */
+    .peer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+      padding: 12px;
+      overflow-y: auto;
+    }
+    .peer-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .peer-card.self { border-color: var(--green); }
+    .peer-avatar { font-size: 24px; margin-bottom: 6px; }
+    .peer-name { font-size: 11px; color: var(--accent); }
+
+    /* Files */
+    .file-list { flex: 1; overflow-y: auto; padding: 12px; }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: var(--bg2);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .file-item:hover { background: var(--bg3); }
+
+    .empty-state { color: #666; font-size: 12px; text-align: center; padding: 20px; }
+
+    @media (max-width: 800px) {
+      .main { grid-template-columns: 1fr; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .stats { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🌍 P2P OS Mesh</h1>
+    <span class="badge green">v3</span>
+    <span class="badge purple">WebRTC Global</span>
+    <div class="room-input">
+      <span style="font-size:11px;color:#888">Room:</span>
+      <input type="text" id="roomInput" value="konomi-global" placeholder="room name">
+      <button class="btn btn-primary" id="joinBtn">Join</button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <span class="dot" id="connDot"></span>
+        <span id="connStatus">Not connected</span>
+      </div>
+      <div class="stat">
+        <span>👥</span>
+        <span class="stat-val" id="peerCount">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Terminal -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>💻</span> Terminal
+        <span style="margin-left:auto;color:#666;font-size:11px" id="myId"></span>
+      </div>
+      <div class="panel-body">
+        <div class="terminal" id="terminal"></div>
+        <div class="input-row">
+          <input type="text" id="cmdInput" placeholder="Type command...">
+          <button class="btn btn-primary">Run</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>💬</span> Global Chat
+      </div>
+      <div class="panel-body">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="input-row">
+          <input type="text" id="chatInput" placeholder="Type message...">
+          <button class="btn btn-primary" id="sendChatBtn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Peers -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>👥</span> Connected Peers
+      </div>
+      <div class="panel-body">
+        <div class="peer-grid" id="peerGrid">
+          <div class="empty-state">Connecting...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Files -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>📁</span> Shared Files
+        <button class="btn btn-secondary" style="margin-left:auto;font-size:10px" id="newFileBtn">+ New</button>
+      </div>
+      <div class="panel-body">
+        <div class="file-list" id="fileList">
+          <div class="empty-state">No files yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Y.js + WebRTC -->
+  <script type="module">
+    import * as Y from 'https://esm.sh/yjs@13';
+    import { WebrtcProvider } from 'https://esm.sh/y-webrtc@10';
+
+    const $ = id => document.getElementById(id);
+
+    // State
+    let ydoc = null;
+    let provider = null;
+    let awareness = null;
+    let yFiles = null;
+    let yChat = null;
+
+    // Identity
+    const myId = 'user-' + Math.random().toString(36).slice(2, 6);
+    const myEmoji = ['😀','😎','🤖','👾','🦊','🐱','🐶','🦁','🐼','🐨','🦋','🌟'][Math.floor(Math.random() * 12)];
+    const myColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+    $('myId').textContent = myId;
+
+    // Terminal
+    function termPrint(text, type = 'output') {
+      const line = document.createElement('div');
+      line.className = `line ${type}`;
+      line.textContent = text;
+      $('terminal').appendChild(line);
+      $('terminal').scrollTop = $('terminal').scrollHeight;
+    }
+
+    // Chat
+    function addChatMsg(userId, name, emoji, text, isSystem = false) {
+      const isSelf = userId === myId;
+      const div = document.createElement('div');
+      div.className = `chat-msg ${isSelf ? 'self' : ''}`;
+
+      if (isSystem) {
+        div.innerHTML = `<div class="chat-bubble system">${text}</div>`;
+      } else {
+        div.innerHTML = `
+          <div class="chat-meta">${emoji} ${name}</div>
+          <div class="chat-bubble">${escapeHtml(text)}</div>
+        `;
+      }
+
+      $('chatMessages').appendChild(div);
+      $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Update peers from awareness
+    function updatePeers() {
+      if (!awareness) return;
+
+      const states = awareness.getStates();
+      const grid = $('peerGrid');
+      grid.innerHTML = '';
+
+      let count = 0;
+      states.forEach((state, clientId) => {
+        if (!state.user) return;
+        count++;
+
+        const isSelf = state.user.id === myId;
+        const card = document.createElement('div');
+        card.className = `peer-card ${isSelf ? 'self' : ''}`;
+        card.innerHTML = `
+          <div class="peer-avatar">${state.user.emoji}</div>
+          <div class="peer-name">${state.user.name}${isSelf ? ' (you)' : ''}</div>
+        `;
+        grid.appendChild(card);
+      });
+
+      $('peerCount').textContent = count;
+
+      if (count === 0) {
+        grid.innerHTML = '<div class="empty-state">No peers connected</div>';
+      }
+    }
+
+    // Update files from Y.Map
+    function updateFiles() {
+      if (!yFiles) return;
+
+      const list = $('fileList');
+      const files = Array.from(yFiles.entries());
+
+      if (files.length === 0) {
+        list.innerHTML = '<div class="empty-state">No files yet</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      files.forEach(([path, data]) => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `
+          <span>📄</span>
+          <span style="flex:1">${path}</span>
+          <span style="color:#666;font-size:10px">${data.content?.length || 0}b</span>
+        `;
+        div.onclick = () => {
+          termPrint(`$ cat ${path}`, 'prompt');
+          termPrint(data.content || '(empty)');
+        };
+        list.appendChild(div);
+      });
+    }
+
+    // Join room
+    async function joinRoom(roomName) {
+      // Cleanup existing
+      if (provider) {
+        provider.destroy();
+      }
+      if (ydoc) {
+        ydoc.destroy();
+      }
+
+      $('connDot').className = 'dot connecting';
+      $('connStatus').textContent = 'Connecting...';
+
+      // Create Y.Doc
+      ydoc = new Y.Doc();
+      yFiles = ydoc.getMap('files');
+      yChat = ydoc.getArray('chat');
+
+      // Create WebRTC provider with public signaling servers
+      provider = new WebrtcProvider(roomName, ydoc, {
+        signaling: [
+          'wss://signaling.yjs.dev',
+          'wss://y-webrtc-signaling-eu.herokuapp.com',
+          'wss://y-webrtc-signaling-us.herokuapp.com',
+        ],
+        password: null,
+        awareness: null,
+        maxConns: 20,
+        filterBcConns: true,
+        peerOpts: {},
+      });
+
+      awareness = provider.awareness;
+
+      // Set local user info
+      awareness.setLocalStateField('user', {
+        id: myId,
+        name: myId,
+        emoji: myEmoji,
+        color: myColor,
+      });
+
+      // Listen for awareness changes
+      awareness.on('change', () => {
+        updatePeers();
+      });
+
+      // Listen for connection status
+      provider.on('status', (event) => {
+        if (event.connected) {
+          $('connDot').className = 'dot on';
+          $('connStatus').textContent = 'Connected';
+          termPrint(`Connected to room: ${roomName}`, 'info');
+          addChatMsg(null, null, null, `Connected to ${roomName}`, true);
+        } else {
+          $('connDot').className = 'dot connecting';
+          $('connStatus').textContent = 'Reconnecting...';
+        }
+      });
+
+      // Listen for synced event
+      provider.on('synced', (synced) => {
+        if (synced) {
+          termPrint('Synced with peers', 'info');
+          updateFiles();
+        }
+      });
+
+      // Listen for file changes
+      yFiles.observe(() => {
+        updateFiles();
+      });
+
+      // Listen for chat messages
+      yChat.observe((event) => {
+        event.changes.added.forEach(item => {
+          item.content.getContent().forEach(msg => {
+            if (msg.userId !== myId || !msg._local) {
+              addChatMsg(msg.userId, msg.name, msg.emoji, msg.text);
+            }
+          });
+        });
+      });
+
+      updatePeers();
+      updateFiles();
+    }
+
+    // Commands
+    const commands = {
+      help: () => `Commands:
+  help - Show this help
+  whoami - Show your ID
+  peers - List connected peers
+  room - Show current room
+  ls - List shared files
+  cat <file> - View file
+  write <file> <content> - Create file
+  clear - Clear terminal`,
+      whoami: () => `${myEmoji} ${myId}`,
+      peers: () => {
+        if (!awareness) return 'Not connected';
+        const states = awareness.getStates();
+        const users = [];
+        states.forEach((state) => {
+          if (state.user) users.push(`${state.user.emoji} ${state.user.name}`);
+        });
+        return users.join('\n') || 'No peers';
+      },
+      room: () => $('roomInput').value,
+      ls: () => {
+        if (!yFiles) return 'Not connected';
+        const files = Array.from(yFiles.keys());
+        return files.length ? files.join('\n') : '(no files)';
+      },
+      cat: (args) => {
+        if (!yFiles) return 'Not connected';
+        const path = args[0];
+        if (!path) return 'Usage: cat <file>';
+        const file = yFiles.get(path) || yFiles.get('/' + path);
+        return file ? file.content : 'File not found';
+      },
+      write: (args) => {
+        if (!yFiles) return 'Not connected';
+        const path = args[0];
+        const content = args.slice(1).join(' ');
+        if (!path) return 'Usage: write <file> <content>';
+        const fullPath = path.startsWith('/') ? path : '/' + path;
+        yFiles.set(fullPath, { content, owner: myId, time: Date.now() });
+        return `Created ${fullPath}`;
+      },
+      clear: () => { $('terminal').innerHTML = ''; return ''; },
+    };
+
+    function runCommand() {
+      const input = $('cmdInput').value.trim();
+      if (!input) return;
+      $('cmdInput').value = '';
+
+      termPrint(`$ ${input}`, 'prompt');
+      const [cmd, ...args] = input.split(' ');
+
+      if (commands[cmd]) {
+        const result = commands[cmd](args);
+        if (result) termPrint(result);
+      } else {
+        termPrint(`Unknown command: ${cmd}`, 'error');
+      }
+    }
+
+    // Send chat
+    function sendChat() {
+      const text = $('chatInput').value.trim();
+      if (!text || !yChat) return;
+      $('chatInput').value = '';
+
+      const msg = {
+        userId: myId,
+        name: myId,
+        emoji: myEmoji,
+        text,
+        time: Date.now(),
+        _local: true,
+      };
+
+      yChat.push([msg]);
+      addChatMsg(myId, myId, myEmoji, text);
+    }
+
+    // New file
+    $('newFileBtn').onclick = () => {
+      if (!yFiles) return alert('Not connected');
+      const name = prompt('File name:');
+      if (!name) return;
+      const content = prompt('Content:') || '';
+      const path = '/' + name.replace(/^\//, '');
+      yFiles.set(path, { content, owner: myId, time: Date.now() });
+      termPrint(`Created ${path}`, 'info');
+    };
+
+    // Event handlers
+    $('joinBtn').onclick = () => joinRoom($('roomInput').value.trim() || 'konomi-global');
+    $('cmdInput').onkeydown = (e) => { if (e.key === 'Enter') runCommand(); };
+    $('chatInput').onkeydown = (e) => { if (e.key === 'Enter') sendChat(); };
+    $('sendChatBtn').onclick = sendChat;
+
+    // Init
+    termPrint('Welcome to P2P OS Mesh v3!', 'info');
+    termPrint('This uses Y.js WebRTC for true global P2P.', 'info');
+    termPrint('Click Join to connect to a room.', 'info');
+    termPrint("Type 'help' for commands.", 'info');
+    termPrint('', 'output');
+
+    // Auto-join default room
+    setTimeout(() => {
+      joinRoom($('roomInput').value.trim() || 'konomi-global');
+    }, 500);
+  </script>
+</body>
+</html>
