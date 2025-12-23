@@ -56,7 +56,11 @@
       <p style="color:#888;font-size:13px;margin-bottom:8px">Send this to your friend:</p>
       <div class="link-box" id="offerLink">Generating...</div>
       <button class="btn success" id="copyOffer">📋 Copy Link</button>
-      <div class="status waiting" id="waitStatus">Waiting for friend to join...</div>
+      <div style="margin-top:16px">
+        <p style="color:#888;font-size:13px;margin-bottom:8px">Then paste their response link here:</p>
+        <input type="text" id="answerInput" placeholder="Paste the response link from your friend..." style="width:100%;padding:12px;border-radius:8px;background:#1a1a2e;border:1px solid #333;color:#fff;margin-bottom:12px" />
+        <button class="btn primary" id="acceptAnswer">Connect</button>
+      </div>
     </div>
 
     <div class="step hidden" id="step2join">
@@ -199,6 +203,18 @@
       navigator.clipboard.writeText($('answerLink').textContent)
       $('copyAnswer').textContent = '✓ Copied!'
       setTimeout(() => $('copyAnswer').textContent = '📋 Copy Response Link', 2000)
+    }
+
+    // Accept answer (for offer creator)
+    $('acceptAnswer').onclick = async () => {
+      let link = $('answerInput').value.trim()
+      if (!link.includes('#answer:')) {
+        alert('Invalid response link! Paste the full response link from your friend.')
+        return
+      }
+      const sdp = link.split('#answer:')[1]
+      const answer = JSON.parse(decompress(sdp))
+      await pc.setRemoteDescription(answer)
     }
 
     // Chat
