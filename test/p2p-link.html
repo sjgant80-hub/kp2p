@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<!--
+@file test/p2p-link.html
+@desc P2P via shareable links - no auth, no server
+@size ~150 tokens
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P Link</title>
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box }
+    body { font-family:system-ui,sans-serif;background:#0a0a1a;color:#fff;min-height:100vh;display:flex;flex-direction:column }
+    .container { max-width:600px;margin:0 auto;padding:20px;width:100% }
+    h1 { font-size:1.5rem;margin-bottom:8px;text-align:center }
+    .sub { color:#666;text-align:center;margin-bottom:24px;font-size:14px }
+    .step { background:#12122a;border-radius:12px;padding:20px;margin-bottom:16px }
+    .step h2 { font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:8px }
+    .step-num { background:#4facfe;color:#000;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px }
+    .btn { padding:12px 24px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;width:100% }
+    .btn.primary { background:#4facfe;color:#000 }
+    .btn.success { background:#00ff88;color:#000 }
+    .btn:disabled { opacity:0.5;cursor:not-allowed }
+    .link-box { background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:12px;margin:12px 0;word-break:break-all;font-family:monospace;font-size:11px;max-height:80px;overflow-y:auto }
+    .status { padding:12px;border-radius:8px;text-align:center;margin-top:16px }
+    .status.waiting { background:#f9022a;color:#000 }
+    .status.connected { background:#00ff8833;color:#00ff88 }
+    .hidden { display:none }
+    .chat { flex:1;display:flex;flex-direction:column;max-width:600px;margin:0 auto;width:100% }
+    .messages { flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px }
+    .msg { max-width:80%;padding:10px 14px;border-radius:12px;font-size:14px }
+    .msg.mine { background:#4facfe;color:#000;align-self:flex-end }
+    .msg.theirs { background:#222;align-self:flex-start }
+    .msg.system { background:transparent;color:#666;font-size:12px;align-self:center }
+    .input-area { padding:16px;display:flex;gap:12px }
+    input[type=text] { flex:1;padding:12px 16px;border:none;border-radius:24px;background:#222;color:#fff;font-size:14px;outline:none }
+    .input-area button { padding:12px 24px;border:none;border-radius:24px;background:#4facfe;color:#000;font-weight:600;cursor:pointer }
+  </style>
+</head>
+<body>
+  <!-- Setup Phase -->
+  <div class="container" id="setup">
+    <h1>🔗 P2P Link Share</h1>
+    <p class="sub">Connect directly via shareable links. No accounts, no servers.</p>
+
+    <div class="step" id="step1">
+      <h2><span class="step-num">1</span> Start or Join</h2>
+      <button class="btn primary" id="createBtn">Create Invite Link</button>
+      <div style="text-align:center;margin:12px 0;color:#666">— or —</div>
+      <button class="btn primary" id="joinBtn">I Have a Link</button>
+    </div>
+
+    <div class="step hidden" id="step2create">
+      <h2><span class="step-num">2</span> Share This Link</h2>
+      <p style="color:#888;font-size:13px;margin-bottom:8px">Send this to your friend:</p>
+      <div class="link-box" id="offerLink">Generating...</div>
+      <button class="btn success" id="copyOffer">📋 Copy Link</button>
+      <div class="status waiting" id="waitStatus">Waiting for friend to join...</div>
+    </div>
+
+    <div class="step hidden" id="step2join">
+      <h2><span class="step-num">2</span> Paste Invite Link</h2>
+      <input type="text" id="pasteLink" placeholder="Paste the link here..." style="width:100%;padding:12px;border-radius:8px;background:#1a1a2e;border:1px solid #333;color:#fff;margin-bottom:12px" />
+      <button class="btn primary" id="connectBtn">Connect</button>
+    </div>
+
+    <div class="step hidden" id="step3answer">
+      <h2><span class="step-num">3</span> Send This Back</h2>
+      <p style="color:#888;font-size:13px;margin-bottom:8px">Send this response link to them:</p>
+      <div class="link-box" id="answerLink">Generating...</div>
+      <button class="btn success" id="copyAnswer">📋 Copy Response Link</button>
+    </div>
+  </div>
+
+  <!-- Chat Phase -->
+  <div class="chat hidden" id="chatUI">
+    <div style="padding:16px;background:#12122a;text-align:center;border-bottom:1px solid #333">
+      <span style="color:#00ff88">●</span> Connected!
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <input type="text" id="msgInput" placeholder="Type a message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id)
+    let pc = null
+    let dc = null
+    const myId = Math.random().toString(36).slice(2, 6)
+
+    const CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+
+    function compress(str) {
+      return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    }
+
+    function decompress(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/')
+      while (str.length % 4) str += '='
+      return atob(str)
+    }
+
+    function showChat() {
+      $('setup').classList.add('hidden')
+      $('chatUI').classList.remove('hidden')
+      addMsg('Connected! Start chatting.', true)
+    }
+
+    function addMsg(text, isSystem = false, isMine = false) {
+      const div = document.createElement('div')
+      div.className = 'msg ' + (isSystem ? 'system' : isMine ? 'mine' : 'theirs')
+      div.textContent = text
+      $('messages').appendChild(div)
+      $('messages').scrollTop = $('messages').scrollHeight
+    }
+
+    function setupDataChannel(channel) {
+      dc = channel
+      dc.onopen = () => showChat()
+      dc.onmessage = (e) => addMsg(e.data)
+      dc.onclose = () => addMsg('Disconnected', true)
+    }
+
+    // CREATE OFFER
+    $('createBtn').onclick = async () => {
+      pc = new RTCPeerConnection(CONFIG)
+
+      const channel = pc.createDataChannel('chat')
+      setupDataChannel(channel)
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate === null) {
+          const sdp = compress(JSON.stringify(pc.localDescription))
+          const link = location.origin + location.pathname + '#offer:' + sdp
+          $('offerLink').textContent = link
+          $('step2create').classList.remove('hidden')
+          $('step1').classList.add('hidden')
+        }
+      }
+
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+    }
+
+    $('copyOffer').onclick = () => {
+      navigator.clipboard.writeText($('offerLink').textContent)
+      $('copyOffer').textContent = '✓ Copied!'
+      setTimeout(() => $('copyOffer').textContent = '📋 Copy Link', 2000)
+    }
+
+    // JOIN WITH LINK
+    $('joinBtn').onclick = () => {
+      $('step2join').classList.remove('hidden')
+      $('step1').classList.add('hidden')
+    }
+
+    $('connectBtn').onclick = async () => {
+      let link = $('pasteLink').value.trim()
+
+      // Handle answer links too
+      if (link.includes('#answer:')) {
+        const sdp = link.split('#answer:')[1]
+        const answer = JSON.parse(decompress(sdp))
+        await pc.setRemoteDescription(answer)
+        return
+      }
+
+      // Parse offer
+      if (!link.includes('#offer:')) {
+        alert('Invalid link! Paste the full invite link.')
+        return
+      }
+
+      const sdp = link.split('#offer:')[1]
+      const offer = JSON.parse(decompress(sdp))
+
+      pc = new RTCPeerConnection(CONFIG)
+      pc.ondatachannel = (e) => setupDataChannel(e.channel)
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate === null) {
+          const answerSdp = compress(JSON.stringify(pc.localDescription))
+          const answerLink = location.origin + location.pathname + '#answer:' + answerSdp
+          $('answerLink').textContent = answerLink
+          $('step2join').classList.add('hidden')
+          $('step3answer').classList.remove('hidden')
+        }
+      }
+
+      await pc.setRemoteDescription(offer)
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+    }
+
+    $('copyAnswer').onclick = () => {
+      navigator.clipboard.writeText($('answerLink').textContent)
+      $('copyAnswer').textContent = '✓ Copied!'
+      setTimeout(() => $('copyAnswer').textContent = '📋 Copy Response Link', 2000)
+    }
+
+    // Chat
+    $('sendBtn').onclick = () => {
+      const text = $('msgInput').value.trim()
+      if (text && dc?.readyState === 'open') {
+        dc.send(text)
+        addMsg(text, false, true)
+        $('msgInput').value = ''
+      }
+    }
+    $('msgInput').onkeydown = (e) => { if (e.key === 'Enter') $('sendBtn').click() }
+
+    // Auto-handle incoming link
+    if (location.hash.startsWith('#offer:') || location.hash.startsWith('#answer:')) {
+      $('pasteLink').value = location.href
+      $('joinBtn').click()
+      if (location.hash.startsWith('#offer:')) {
+        setTimeout(() => $('connectBtn').click(), 100)
+      }
+    }
+  </script>
+</body>
+</html>
