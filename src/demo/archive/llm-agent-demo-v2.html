@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/llm-agent-demo-v2.html
+@desc LLM Agent v2 - Streaming, better UI, auto-connect
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LLM Agent v2</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg: #0a0a1a;
+      --bg2: #12122a;
+      --fg: #e0e0e0;
+      --accent: #4facfe;
+      --accent2: #00ff88;
+      --border: #333;
+      --error: #ff4444;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      padding: 12px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header h1 { font-size: 1.1rem; color: var(--accent); }
+    .badge { padding: 3px 8px; background: #1a3a2a; color: var(--accent2); border-radius: 10px; font-size: 10px; font-weight: 600; }
+    .status { margin-left: auto; font-size: 12px; color: #888; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .dot.on { background: var(--accent2); }
+    .dot.loading { background: #ffcc00; animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    /* Main layout */
+    .main { flex: 1; display: flex; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+    .sidebar h3 {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 16px 0 8px;
+    }
+    .sidebar h3:first-child { margin-top: 0; }
+
+    select, .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    select { background: var(--bg); color: #fff; border: 1px solid var(--border); }
+    .btn { cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-danger { background: var(--error); color: #fff; }
+
+    .progress-box {
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .progress-text { font-size: 11px; color: #888; margin-bottom: 6px; word-break: break-all; }
+    .progress-bar { height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+    .tool-list { background: var(--bg); border-radius: 6px; padding: 8px; }
+    .tool-item { display: flex; align-items: center; padding: 5px 8px; font-size: 11px; }
+    .tool-item span:first-child { margin-right: 8px; }
+
+    .settings-group { background: var(--bg); border-radius: 6px; padding: 10px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+    .setting:last-child { margin-bottom: 0; }
+    .setting input[type="range"] { width: 80px; }
+    .setting-val { color: var(--accent); min-width: 40px; text-align: right; }
+
+    /* Chat area */
+    .chat-area { flex: 1; display: flex; flex-direction: column; }
+
+    .messages { flex: 1; overflow-y: auto; padding: 20px; }
+    .message { max-width: 80%; margin-bottom: 16px; animation: fadeIn 0.2s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
+    .message.user { margin-left: auto; }
+    .message.assistant { margin-right: auto; }
+
+    .msg-content {
+      display: inline-block;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message.user .msg-content {
+      background: var(--accent);
+      color: #000;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant .msg-content {
+      background: #1a1a2e;
+      border-bottom-left-radius: 4px;
+    }
+    .message.assistant .msg-content.streaming {
+      border-right: 2px solid var(--accent);
+      animation: blink 0.8s infinite;
+    }
+    @keyframes blink { 50% { border-color: transparent; } }
+
+    .tool-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: #1a2a1a;
+      border: 1px solid #2a4a2a;
+      border-radius: 6px;
+      font-size: 12px;
+      margin: 8px 0;
+    }
+    .tool-badge.running { animation: pulse 1s infinite; }
+
+    /* Input */
+    .input-area {
+      padding: 16px 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+    .input-row { display: flex; gap: 10px; }
+    .input-row textarea {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 24px;
+      background: var(--bg);
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+    }
+    .input-row button {
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .quick-btn {
+      padding: 6px 12px;
+      background: #1a1a2e;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      font-size: 12px;
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .quick-btn:hover { border-color: var(--accent); }
+
+    @media (max-width: 700px) {
+      .main { flex-direction: column; }
+      .sidebar { width: 100%; max-height: 180px; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 LLM Agent</h1>
+    <span class="badge">v2</span>
+    <span style="color:#666;font-size:12px">Streaming + Tools</span>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Not loaded</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <h3>Model</h3>
+      <select id="modelSelect"></select>
+      <button class="btn btn-primary" id="loadBtn">Load Model</button>
+      <button class="btn btn-danger" id="unloadBtn" disabled>Unload</button>
+      <button class="btn btn-secondary" id="testBtn" title="Test without model">Test</button>
+
+      <div class="progress-box" id="progressBox">
+        <div class="progress-text" id="progressText">Loading...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+
+      <h3>Tools</h3>
+      <div class="tool-list">
+        <div class="tool-item"><span>🌐</span> Web Fetch</div>
+        <div class="tool-item"><span>📖</span> File Read</div>
+        <div class="tool-item"><span>✏️</span> File Write</div>
+        <div class="tool-item"><span>📂</span> File List</div>
+        <div class="tool-item"><span>🧮</span> Calculate</div>
+        <div class="tool-item"><span>💾</span> Memory</div>
+      </div>
+
+      <h3>Settings</h3>
+      <div class="settings-group">
+        <div class="setting">
+          <span>Temperature</span>
+          <input type="range" id="tempSlider" min="0" max="100" value="70">
+          <span class="setting-val" id="tempVal">0.7</span>
+        </div>
+        <div class="setting">
+          <span>Max Tokens</span>
+          <input type="range" id="tokensSlider" min="128" max="2048" step="128" value="1024">
+          <span class="setting-val" id="tokensVal">1024</span>
+        </div>
+      </div>
+
+      <h3>Actions</h3>
+      <button class="btn btn-secondary" id="clearBtn">Clear Chat</button>
+      <button class="btn btn-secondary" id="exportBtn">Export Chat</button>
+      <button class="btn btn-secondary" id="clearCacheBtn">Clear Cache</button>
+    </div>
+
+    <div class="chat-area">
+      <div class="messages" id="messages">
+        <div class="message assistant">
+          <div class="msg-content">Hi! I'm an AI agent running locally in your browser.
+
+I can help with:
+🌐 Fetch web pages
+📁 Read/write files
+🧮 Calculate things
+💾 Remember information
+
+Load a model to get started!</div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <textarea id="input" placeholder="Type a message..." rows="1" disabled></textarea>
+          <button id="sendBtn" disabled>➤</button>
+        </div>
+        <div class="quick-actions">
+          <span class="quick-btn" data-msg="What's 15% of $127.50?">🧮 Calculate</span>
+          <span class="quick-btn" data-msg="Create a file called todo.txt with: Buy groceries">📝 Create file</span>
+          <span class="quick-btn" data-msg="List all my files">📂 List files</span>
+          <span class="quick-btn" data-msg="Remember: My favorite color is blue">💾 Remember</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { AgentV2 } from '../llm/agent-v2.js';
+    import { checkWebGPU, RECOMMENDED_MODELS, DEFAULT_MODEL } from '../llm/local.js';
+
+    const $ = id => document.getElementById(id);
+    let agent = null;
+    let currentMsgEl = null;
+
+    // Populate models
+    function populateModels() {
+      const select = $('modelSelect');
+      const groups = { tiny: [], small: [], medium: [], large: [] };
+      for (const m of RECOMMENDED_MODELS) {
+        if (groups[m.size]) groups[m.size].push(m);
+      }
+      const labels = { tiny: 'Tiny (Fast)', small: 'Small', medium: 'Medium', large: 'Large' };
+      for (const [size, models] of Object.entries(groups)) {
+        if (!models.length) continue;
+        const og = document.createElement('optgroup');
+        og.label = labels[size];
+        for (const m of models) {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          if (m.id === DEFAULT_MODEL) opt.selected = true;
+          og.appendChild(opt);
+        }
+        select.appendChild(og);
+      }
+    }
+
+    // Add message to chat
+    function addMessage(role, content, streaming = false) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.innerHTML = `<div class="msg-content${streaming ? ' streaming' : ''}">${escapeHtml(content)}</div>`;
+      $('messages').appendChild(div);
+      $('messages').scrollTop = $('messages').scrollHeight;
+      return div;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Settings
+    $('tempSlider').oninput = () => {
+      const v = $('tempSlider').value / 100;
+      $('tempVal').textContent = v.toFixed(1);
+      if (agent) agent.settings.temperature = v;
+    };
+    $('tokensSlider').oninput = () => {
+      const v = parseInt($('tokensSlider').value);
+      $('tokensVal').textContent = v;
+      if (agent) agent.settings.maxTokens = v;
+    };
+
+    // Load model
+    $('loadBtn').onclick = async () => {
+      const modelId = $('modelSelect').value;
+      $('loadBtn').disabled = true;
+      $('modelSelect').disabled = true;
+      $('statusDot').className = 'dot loading';
+      $('statusText').textContent = 'Loading...';
+      $('progressBox').style.display = 'block';
+
+      try {
+        const gpu = await checkWebGPU();
+        if (!gpu.supported) throw new Error(gpu.error);
+
+        agent = new AgentV2({
+          settings: {
+            temperature: $('tempSlider').value / 100,
+            maxTokens: parseInt($('tokensSlider').value),
+          },
+          onToken: (token) => {
+            if (currentMsgEl) {
+              const content = currentMsgEl.querySelector('.msg-content');
+              content.textContent += token;
+              $('messages').scrollTop = $('messages').scrollHeight;
+            }
+          },
+          onToolStart: (call) => {
+            const badge = document.createElement('div');
+            badge.className = 'tool-badge running';
+            badge.innerHTML = `🔧 Using ${call.name}...`;
+            $('messages').appendChild(badge);
+          },
+          onToolEnd: ({ name, result }) => {
+            const badges = document.querySelectorAll('.tool-badge.running');
+            badges.forEach(b => {
+              b.classList.remove('running');
+              b.innerHTML = `✓ ${name}: ${JSON.stringify(result).slice(0, 60)}`;
+            });
+          },
+        });
+
+        await agent.init(modelId, (p) => {
+          $('progressText').textContent = p.text || p.message || 'Loading...';
+          $('progressFill').style.width = ((p.progress || 0) * 100) + '%';
+        });
+
+        $('statusDot').className = 'dot on';
+        $('statusText').textContent = 'Ready';
+        $('progressBox').style.display = 'none';
+        $('input').disabled = false;
+        $('sendBtn').disabled = false;
+        $('unloadBtn').disabled = false;
+
+        addMessage('assistant', 'Model loaded! How can I help?');
+      } catch (e) {
+        $('statusDot').className = 'dot';
+        $('statusText').textContent = 'Error';
+        $('progressText').textContent = e.message;
+        $('loadBtn').disabled = false;
+        $('modelSelect').disabled = false;
+        console.error(e);
+      }
+    };
+
+    // Unload
+    $('unloadBtn').onclick = async () => {
+      if (agent) await agent.destroy();
+      agent = null;
+      $('statusDot').className = 'dot';
+      $('statusText').textContent = 'Not loaded';
+      $('input').disabled = true;
+      $('sendBtn').disabled = true;
+      $('unloadBtn').disabled = true;
+      $('loadBtn').disabled = false;
+      $('modelSelect').disabled = false;
+    };
+
+    // Test mode (no model, just echo)
+    $('testBtn').onclick = () => {
+      $('statusDot').className = 'dot on';
+      $('statusText').textContent = 'Test Mode';
+      $('input').disabled = false;
+      $('sendBtn').disabled = false;
+      $('testBtn').disabled = true;
+      addMessage('assistant', 'Test mode enabled! Type anything - I\'ll echo it back. (No AI model loaded)');
+
+      // Create fake agent for testing
+      agent = {
+        chat: async (msg) => `[Echo] ${msg}`,
+        destroy: async () => {},
+        clearHistory: () => {},
+      };
+    };
+
+    // Send message
+    async function send() {
+      const msg = $('input').value.trim();
+      if (!msg || !agent) return;
+
+      $('input').value = '';
+      $('input').disabled = true;
+      $('sendBtn').disabled = true;
+
+      addMessage('user', msg);
+      currentMsgEl = addMessage('assistant', '', true);
+
+      try {
+        await agent.chat(msg);
+      } catch (e) {
+        currentMsgEl.querySelector('.msg-content').textContent = 'Error: ' + e.message;
+      }
+
+      currentMsgEl.querySelector('.msg-content').classList.remove('streaming');
+      currentMsgEl = null;
+      $('input').disabled = false;
+      $('sendBtn').disabled = false;
+      $('input').focus();
+    }
+
+    $('sendBtn').onclick = send;
+    $('input').onkeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    };
+    $('input').oninput = () => {
+      $('input').style.height = 'auto';
+      $('input').style.height = Math.min($('input').scrollHeight, 120) + 'px';
+    };
+
+    // Quick actions
+    document.querySelectorAll('.quick-btn').forEach(el => {
+      el.onclick = () => {
+        if (!$('input').disabled) {
+          $('input').value = el.dataset.msg;
+          $('input').focus();
+        }
+      };
+    });
+
+    // Clear chat
+    $('clearBtn').onclick = () => {
+      $('messages').innerHTML = '';
+      if (agent) agent.clearHistory();
+      addMessage('assistant', 'Chat cleared!');
+    };
+
+    // Export
+    $('exportBtn').onclick = () => {
+      if (!agent) return;
+      const data = agent.exportChat();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat-${Date.now()}.json`;
+      a.click();
+    };
+
+    // Clear cache
+    $('clearCacheBtn').onclick = async () => {
+      if (!confirm('Clear all cached models?')) return;
+      try {
+        for (const k of await caches.keys()) await caches.delete(k);
+        for (const db of await indexedDB.databases()) indexedDB.deleteDatabase(db.name);
+        addMessage('assistant', 'Cache cleared!');
+      } catch (e) {
+        addMessage('assistant', 'Error: ' + e.message);
+      }
+    };
+
+    // Init
+    populateModels();
+    checkWebGPU().then(r => {
+      if (!r.supported) {
+        $('statusText').textContent = 'No WebGPU';
+        $('loadBtn').disabled = true;
+        addMessage('assistant', `WebGPU not available: ${r.error}\n\nTry Chrome 113+ or Edge 113+`);
+      }
+    });
+  </script>
+</body>
+</html>

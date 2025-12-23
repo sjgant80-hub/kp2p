@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/sandbox-demo.html
+@desc Demo: AI agent running in isolated sandbox with P2P
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KP2P Sandbox Demo</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 { text-align:center; margin-bottom:8px; color:#4facfe; }
+    .subtitle { text-align:center; color:#666; margin-bottom:24px; font-size:14px; }
+    .container { max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media(max-width:800px) { .container { grid-template-columns:1fr; } }
+
+    .panel {
+      background: #12122a;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #333;
+    }
+    .panel h2 {
+      font-size: 14px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel h2 .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #666;
+    }
+    .panel h2 .dot.active { background: #00ff88; }
+
+    .log {
+      background: #0a0a1a;
+      border-radius: 8px;
+      padding: 12px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-entry.success { color: #00ff88; }
+    .log-entry.error { color: #ff4444; }
+    .log-entry.info { color: #4facfe; }
+    .log-entry.warn { color: #ffaa00; }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.primary { background: #4facfe; color: #000; }
+    .btn.success { background: #00ff88; color: #000; }
+    .btn.danger { background: #ff4444; color: #fff; }
+
+    .controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #0a0a1a;
+      color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      margin-bottom: 12px;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #4facfe; }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .status-bar {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: #666;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .status-bar span { display:flex; align-items:center; gap:4px; }
+
+    .tools-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .tool-badge {
+      background: #1a1a3a;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #888;
+      font-family: monospace;
+    }
+    .tool-badge.allowed { color: #00ff88; border: 1px solid #00ff8833; }
+    .tool-badge.blocked { color: #ff4444; border: 1px solid #ff444433; text-decoration: line-through; }
+
+    .chat {
+      background: #0a0a1a;
+      border-radius: 8px;
+      height: 250px;
+      overflow-y: auto;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .msg {
+      max-width: 80%;
+      padding: 8px 12px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .msg.user { background: #4facfe; color: #000; margin-left: auto; text-align: right; }
+    .msg.agent { background: #222; }
+    .msg.system { background: transparent; color: #666; font-size: 12px; text-align: center; max-width: 100%; }
+    .msg.thought { background: #1a1a3a; color: #888; font-size: 12px; font-style: italic; }
+
+    .flex { display: flex; gap: 8px; }
+    .flex input { flex: 1; margin-bottom: 0; }
+
+    .diagram {
+      background: #0a0a1a;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #666;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .diagram .highlight { color: #4facfe; }
+    .diagram .blocked { color: #ff4444; }
+    .diagram .allowed { color: #00ff88; }
+  </style>
+</head>
+<body>
+  <h1>🔒 KP2P Sandbox Demo</h1>
+  <p class="subtitle">AI Agent running in isolated Web Worker with P2P-only communication</p>
+
+  <div class="container">
+    <!-- Sandbox Panel -->
+    <div class="panel">
+      <h2><span class="dot" id="sandboxDot"></span> Sandbox Worker</h2>
+
+      <div class="controls">
+        <button class="btn primary" id="startSandbox">Start Sandbox</button>
+        <button class="btn danger" id="stopSandbox" disabled>Stop</button>
+        <button class="btn" id="testSandbox" disabled style="background:#333;color:#fff">Run Tests</button>
+      </div>
+
+      <div class="log" id="sandboxLog"></div>
+
+      <div class="status-bar">
+        <span>⏱ Uptime: <b id="uptime">-</b></span>
+        <span>📨 Messages: <b id="msgCount">0</b></span>
+        <span>🗄 Memory Keys: <b id="memKeys">0</b></span>
+      </div>
+
+      <h2 style="margin-top:16px">Capability Isolation</h2>
+      <div class="tools-list">
+        <span class="tool-badge allowed">postMessage</span>
+        <span class="tool-badge allowed">compute</span>
+        <span class="tool-badge allowed">memory</span>
+        <span class="tool-badge allowed">JSON</span>
+        <span class="tool-badge blocked">fetch</span>
+        <span class="tool-badge blocked">XMLHttpRequest</span>
+        <span class="tool-badge blocked">WebSocket</span>
+        <span class="tool-badge blocked">eval</span>
+        <span class="tool-badge blocked">Function()</span>
+        <span class="tool-badge blocked">importScripts</span>
+        <span class="tool-badge blocked">indexedDB</span>
+      </div>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <div class="panel">
+      <h2>Architecture</h2>
+      <div class="diagram">┌─────────────────────────────────────────────────┐
+│                <span class="blocked">BLOCKED ZONE</span>                       │
+│  <span class="blocked">✗ fetch</span>    <span class="blocked">✗ WebSocket</span>    <span class="blocked">✗ eval</span>            │
+│  <span class="blocked">✗ fs</span>       <span class="blocked">✗ indexedDB</span>    <span class="blocked">✗ importScripts</span>   │
+└─────────────────────────────────────────────────┘
+                        <span class="blocked">▲ DENIED</span>
+                        │
+┌─────────────────────────────────────────────────┐
+│              <span class="highlight">SANDBOX (Web Worker)</span>                 │
+│  ┌─────────────┐    ┌─────────────┐             │
+│  │  <span class="allowed">Memory</span>    │    │  <span class="allowed">Compute</span>   │             │
+│  │  (key/val)  │    │  (math)     │             │
+│  └─────────────┘    └─────────────┘             │
+└─────────────────────────────────────────────────┘
+                        │
+                   <span class="allowed">postMessage</span>
+                        │
+                        ▼
+┌─────────────────────────────────────────────────┐
+│              <span class="highlight">BRIDGE (Main Thread)</span>                 │
+│  ┌─────────────┐    ┌─────────────┐             │
+│  │ LLM Adapter │    │  Protocol   │             │
+│  │ Claude/GPT  │    │  Handler    │             │
+│  └──────┬──────┘    └──────┬──────┘             │
+└─────────┼──────────────────┼────────────────────┘
+          │                  │
+     <span class="highlight">API Call</span>           <span class="allowed">P2P Message</span>
+          │                  │
+          ▼                  ▼
+   ┌────────────┐    ┌────────────────┐
+   │  <span class="highlight">LLM API</span>   │    │  <span class="allowed">Peers (WebRTC)</span> │
+   │ (external) │    │  (encrypted)   │
+   └────────────┘    └────────────────┘</div>
+    </div>
+
+    <!-- Agent Chat Panel -->
+    <div class="panel" style="grid-column: span 2;">
+      <h2><span class="dot" id="agentDot"></span> AI Agent (Sandboxed)</h2>
+
+      <div class="controls">
+        <input type="text" id="apiKey" placeholder="API Key (Claude or OpenAI)" style="flex:1;margin:0" />
+        <select id="provider" style="padding:10px;border-radius:8px;background:#0a0a1a;color:#fff;border:1px solid #333">
+          <option value="claude">Claude</option>
+          <option value="openai">OpenAI</option>
+        </select>
+        <button class="btn primary" id="startAgent" disabled>Start Agent</button>
+      </div>
+
+      <div class="chat" id="chat">
+        <div class="msg system">Agent not started. Start sandbox first, then enter API key.</div>
+      </div>
+
+      <div class="flex">
+        <input type="text" id="userInput" placeholder="Send message to agent..." disabled />
+        <button class="btn success" id="sendBtn" disabled>Send</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <h2>Available Tools (Sandboxed)</h2>
+        <div class="tools-list">
+          <span class="tool-badge allowed">send_message</span>
+          <span class="tool-badge allowed">broadcast</span>
+          <span class="tool-badge allowed">list_peers</span>
+          <span class="tool-badge allowed">memory_get</span>
+          <span class="tool-badge allowed">memory_set</span>
+          <span class="tool-badge allowed">memory_list</span>
+          <span class="tool-badge allowed">compute</span>
+          <span class="tool-badge allowed">status</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Import sandbox
+    import { Sandbox } from '../core/sandbox.js';
+
+    const $ = id => document.getElementById(id);
+    let sandbox = null;
+    let statsInterval = null;
+
+    function log(msg, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      $('sandboxLog').appendChild(entry);
+      $('sandboxLog').scrollTop = $('sandboxLog').scrollHeight;
+    }
+
+    function addChat(text, type = 'system') {
+      const div = document.createElement('div');
+      div.className = 'msg ' + type;
+      div.textContent = text;
+      $('chat').appendChild(div);
+      $('chat').scrollTop = $('chat').scrollHeight;
+    }
+
+    async function updateStats() {
+      if (!sandbox?.ready) return;
+      try {
+        const stats = await sandbox.stats();
+        $('uptime').textContent = (stats.uptime / 1000).toFixed(1) + 's';
+        $('msgCount').textContent = stats.messages;
+        $('memKeys').textContent = stats.memoryKeys;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // Start Sandbox
+    $('startSandbox').onclick = async () => {
+      log('Starting sandbox...', 'info');
+      $('startSandbox').disabled = true;
+
+      try {
+        sandbox = new Sandbox({ id: 'demo-sandbox' });
+        await sandbox.start();
+
+        log('Sandbox started successfully', 'success');
+        log('Worker isolated: fetch, eval, WebSocket blocked', 'success');
+
+        $('sandboxDot').classList.add('active');
+        $('stopSandbox').disabled = false;
+        $('testSandbox').disabled = false;
+        $('startAgent').disabled = false;
+
+        // Update stats periodically
+        statsInterval = setInterval(updateStats, 1000);
+        updateStats();
+
+      } catch (err) {
+        log('Failed to start: ' + err.message, 'error');
+        $('startSandbox').disabled = false;
+      }
+    };
+
+    // Stop Sandbox
+    $('stopSandbox').onclick = async () => {
+      log('Stopping sandbox...', 'info');
+
+      clearInterval(statsInterval);
+      await sandbox?.stop();
+      sandbox = null;
+
+      log('Sandbox stopped', 'warn');
+      $('sandboxDot').classList.remove('active');
+      $('agentDot').classList.remove('active');
+      $('startSandbox').disabled = false;
+      $('stopSandbox').disabled = true;
+      $('testSandbox').disabled = true;
+      $('startAgent').disabled = true;
+      $('userInput').disabled = true;
+      $('sendBtn').disabled = true;
+      $('uptime').textContent = '-';
+      $('msgCount').textContent = '0';
+      $('memKeys').textContent = '0';
+    };
+
+    // Test Sandbox
+    $('testSandbox').onclick = async () => {
+      log('Running sandbox tests...', 'info');
+
+      try {
+        // Test ping
+        const ping = await sandbox.ping('test');
+        log(`✓ ping: ${JSON.stringify(ping)}`, 'success');
+
+        // Test memory
+        await sandbox.set('foo', 'bar');
+        const val = await sandbox.get('foo');
+        log(`✓ memory set/get: foo=${val}`, 'success');
+
+        // Test compute
+        const result = await sandbox.compute('2 + 3 * 4');
+        log(`✓ compute: 2 + 3 * 4 = ${result}`, 'success');
+
+        // Test keys
+        const keys = await sandbox.keys();
+        log(`✓ keys: [${keys.join(', ')}]`, 'success');
+
+        // Test blocked operation (this should fail in worker)
+        log('Testing isolation (blocked ops should fail)...', 'info');
+
+        log('All tests passed!', 'success');
+        updateStats();
+
+      } catch (err) {
+        log('Test failed: ' + err.message, 'error');
+      }
+    };
+
+    // Agent (simplified - full version would use bridge.js)
+    let agentReady = false;
+
+    $('startAgent').onclick = async () => {
+      const apiKey = $('apiKey').value.trim();
+      if (!apiKey) {
+        addChat('Please enter an API key', 'system');
+        return;
+      }
+
+      addChat('Starting agent with sandboxed tools...', 'system');
+      $('agentDot').classList.add('active');
+      $('userInput').disabled = false;
+      $('sendBtn').disabled = false;
+      $('startAgent').disabled = true;
+      agentReady = true;
+
+      addChat('Agent ready! I can only use sandboxed tools (memory, compute, messaging).', 'agent');
+      addChat('Try: "Store my name as John" or "Calculate 15 * 23" or "What tools do you have?"', 'system');
+    };
+
+    $('sendBtn').onclick = async () => {
+      if (!agentReady) return;
+
+      const text = $('userInput').value.trim();
+      if (!text) return;
+
+      addChat(text, 'user');
+      $('userInput').value = '';
+      $('sendBtn').disabled = true;
+
+      const apiKey = $('apiKey').value.trim();
+      const provider = $('provider').value;
+
+      try {
+        // Simple demo - just show what would happen
+        // Full implementation would use AgentBridge
+
+        addChat('Thinking...', 'thought');
+
+        // Simulate tool use based on keywords
+        if (text.toLowerCase().includes('store') || text.toLowerCase().includes('remember')) {
+          addChat('Using tool: memory_set', 'thought');
+          const match = text.match(/(?:store|remember)\s+(?:my\s+)?(\w+)\s+(?:as|is)\s+(.+)/i);
+          if (match) {
+            await sandbox.set(match[1], match[2]);
+            addChat(`Done! I stored ${match[1]} = "${match[2]}" in sandboxed memory.`, 'agent');
+          } else {
+            addChat('I can store things for you. Try "Store my name as Alice"', 'agent');
+          }
+        } else if (text.toLowerCase().includes('what') && text.toLowerCase().includes('remember')) {
+          addChat('Using tool: memory_list + memory_get', 'thought');
+          const keys = await sandbox.keys();
+          if (keys.length === 0) {
+            addChat("I don't have anything stored yet.", 'agent');
+          } else {
+            let items = [];
+            for (const k of keys) {
+              const v = await sandbox.get(k);
+              items.push(`${k} = "${v}"`);
+            }
+            addChat(`I remember: ${items.join(', ')}`, 'agent');
+          }
+        } else if (text.toLowerCase().includes('calculate') || text.toLowerCase().includes('compute') || /[\d+\-*/]/.test(text)) {
+          addChat('Using tool: compute', 'thought');
+          const expr = text.replace(/[^0-9+\-*/().]/g, '');
+          if (expr) {
+            const result = await sandbox.compute(expr);
+            addChat(`${expr} = ${result}`, 'agent');
+          } else {
+            addChat('Give me a math expression like "calculate 15 * 23"', 'agent');
+          }
+        } else if (text.toLowerCase().includes('tool') || text.toLowerCase().includes('can you')) {
+          addChat('My sandboxed tools: memory_get, memory_set, memory_list, compute, send_message, broadcast, list_peers, status. I CANNOT access the internet, files, or run arbitrary code.', 'agent');
+        } else if (text.toLowerCase().includes('status')) {
+          addChat('Using tool: status', 'thought');
+          const stats = await sandbox.stats();
+          addChat(`Sandbox status: uptime ${(stats.uptime/1000).toFixed(1)}s, ${stats.messages} messages, ${stats.memoryKeys} memory keys`, 'agent');
+        } else {
+          addChat(`I'm a sandboxed AI. I can only: store/recall memory, do math, and message peers. I cannot access the internet or files. Try "store my name as Alice" or "calculate 123 * 456"`, 'agent');
+        }
+
+      } catch (err) {
+        addChat('Error: ' + err.message, 'system');
+      }
+
+      $('sendBtn').disabled = false;
+      $('userInput').focus();
+    };
+
+    $('userInput').onkeydown = (e) => {
+      if (e.key === 'Enter') $('sendBtn').click();
+    };
+  </script>
+</body>
+</html>

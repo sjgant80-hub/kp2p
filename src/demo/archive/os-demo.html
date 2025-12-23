@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<!--
+@file src/demo/os-demo.html
+@desc Demo: P2P Virtual Machine OS with ISA-95 Structure
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P OS Demo</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+      background: #0a0a1a;
+      color: #00ff88;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      padding: 12px 20px;
+      background: #12122a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header h1 { font-size: 1rem; color: #4facfe; font-weight: 600; }
+    .header .status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.off { background: #666; }
+    .dot.running { background: #00ff88; animation: pulse 2s infinite; }
+    .dot.booting { background: #ffcc00; animation: pulse 0.5s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    .container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: #12122a;
+      border-right: 1px solid #333;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .sidebar h2 {
+      font-size: 10px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      margin-top: 16px;
+    }
+    .sidebar h2:first-child { margin-top: 0; }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 6px;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #4facfe; color: #000; }
+    .btn-danger { background: #ff4444; color: #fff; }
+    .btn-secondary { background: #333; color: #fff; }
+
+    .info-box {
+      background: #0a0a1a;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+    }
+    .info-row .label { color: #888; }
+    .info-row .value { color: #fff; }
+
+    .process-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .process {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      background: #0a0a1a;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .process .pid { color: #4facfe; width: 40px; }
+    .process .name { flex: 1; color: #fff; }
+    .process .state { color: #888; font-size: 10px; }
+    .process .state.running { color: #00ff88; }
+
+    .file-tree {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .file-item {
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .file-item:hover { background: #1a1a2e; }
+    .file-item.dir { color: #4facfe; }
+    .file-item.file { color: #e0e0e0; }
+
+    .terminal-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .terminal {
+      flex: 1;
+      background: #0a0a0a;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .terminal .line { margin-bottom: 2px; }
+    .terminal .prompt { color: #4facfe; }
+    .terminal .output { color: #e0e0e0; }
+    .terminal .error { color: #ff4444; }
+    .terminal .success { color: #00ff88; }
+    .terminal .system { color: #888; font-style: italic; }
+
+    .input-area {
+      padding: 12px 16px;
+      background: #12122a;
+      border-top: 1px solid #333;
+      display: flex;
+      gap: 8px;
+    }
+    .input-area span {
+      color: #4facfe;
+      line-height: 36px;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #0a0a1a;
+      color: #00ff88;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+    .input-area input:focus { background: #1a1a2e; }
+    .input-area button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #333;
+      color: #fff;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .peer-list .peer {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      background: #0a0a1a;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .peer .dot { width: 6px; height: 6px; margin-right: 8px; }
+    .peer .id { color: #fff; }
+
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #333; max-height: 40vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>💻 P2P OS</h1>
+    <span style="color:#888;font-size:12px">Virtual Machine with ISA-95 Structure</span>
+    <div class="status">
+      <span class="dot off" id="vmDot"></span>
+      <span id="vmStatus">Powered Off</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <h2>VM Control</h2>
+      <button class="btn btn-primary" id="bootBtn">Boot VM</button>
+      <button class="btn btn-danger" id="shutdownBtn" disabled>Shutdown</button>
+
+      <h2>VM Info</h2>
+      <div class="info-box" id="vmInfo">
+        <div class="info-row"><span class="label">ID:</span><span class="value" id="vmId">-</span></div>
+        <div class="info-row"><span class="label">State:</span><span class="value" id="vmState">off</span></div>
+        <div class="info-row"><span class="label">Uptime:</span><span class="value" id="vmUptime">-</span></div>
+        <div class="info-row"><span class="label">Processes:</span><span class="value" id="vmProcs">0</span></div>
+        <div class="info-row"><span class="label">Files:</span><span class="value" id="vmFiles">0</span></div>
+      </div>
+
+      <h2>Processes</h2>
+      <div class="process-list" id="processList">
+        <div style="color:#666;font-size:11px;padding:8px">VM not running</div>
+      </div>
+
+      <h2>File System</h2>
+      <div class="info-box">
+        <div class="info-row"><span class="label">CWD:</span><span class="value" id="fsCwd">/</span></div>
+      </div>
+      <div class="file-tree" id="fileTree">
+        <div style="color:#666;font-size:11px;padding:8px">VM not running</div>
+      </div>
+
+      <h2>P2P Peers</h2>
+      <div class="peer-list" id="peerList">
+        <div style="color:#666;font-size:11px;padding:8px">No peers connected</div>
+      </div>
+      <button class="btn btn-secondary" id="connectBtn" disabled>Create Second VM</button>
+    </div>
+
+    <div class="terminal-wrapper">
+      <div class="terminal" id="terminal">
+        <div class="line system">Welcome to P2P OS - A distributed virtual machine</div>
+        <div class="line system">Click "Boot VM" to start the system</div>
+        <div class="line system"></div>
+        <div class="line system">Architecture:</div>
+        <div class="line system">  Enterprise → Network (all VMs)</div>
+        <div class="line system">  Site       → Cluster (group of VMs)</div>
+        <div class="line system">  Area       → Node (single VM)</div>
+        <div class="line system">  WorkCenter → Process Group</div>
+        <div class="line system">  WorkUnit   → Process</div>
+        <div class="line system"></div>
+        <div class="line system">Commands: help, ls, cd, cat, echo, touch, rm, mkdir, ps, kill, clear</div>
+      </div>
+
+      <div class="input-area">
+        <span id="promptText">$</span>
+        <input type="text" id="cmdInput" placeholder="Enter command..." disabled />
+        <button id="sendBtn" disabled>Run</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { VM, VMCluster, VM_STATE, VM_EVENT } from '../os/vm.js';
+    import { PROC_STATE } from '../os/kernel.js';
+    import { FILE_TYPE } from '../os/vfs.js';
+
+    const $ = id => document.getElementById(id);
+    let vm = null;
+    let cluster = null;
+    let secondVM = null;
+    let commandHistory = [];
+    let historyIndex = -1;
+
+    function log(text, type = 'output') {
+      const terminal = $('terminal');
+      const line = document.createElement('div');
+      line.className = 'line ' + type;
+      line.textContent = text;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function logPrompt(cmd) {
+      log(`${vm?.vfs?.getcwd() || '/'} $ ${cmd}`, 'prompt');
+    }
+
+    function updateStatus() {
+      if (!vm) {
+        $('vmDot').className = 'dot off';
+        $('vmStatus').textContent = 'Powered Off';
+        return;
+      }
+
+      const info = vm.info();
+      $('vmDot').className = 'dot ' + (info.state === 'running' ? 'running' : info.state === 'booting' ? 'booting' : 'off');
+      $('vmStatus').textContent = info.state.charAt(0).toUpperCase() + info.state.slice(1);
+      $('vmId').textContent = info.id;
+      $('vmState').textContent = info.state;
+      $('vmUptime').textContent = formatUptime(info.uptime);
+      $('vmProcs').textContent = info.stats?.processes || 0;
+      $('vmFiles').textContent = info.stats?.files || 0;
+      $('fsCwd').textContent = vm.vfs?.getcwd() || '/';
+      $('promptText').textContent = `${vm.vfs?.getcwd() || '/'} $`;
+
+      updateProcessList();
+      updateFileTree();
+      updatePeerList();
+    }
+
+    function formatUptime(ms) {
+      if (!ms) return '-';
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const h = Math.floor(m / 60);
+      if (h > 0) return `${h}h ${m % 60}m`;
+      if (m > 0) return `${m}m ${s % 60}s`;
+      return `${s}s`;
+    }
+
+    function updateProcessList() {
+      const container = $('processList');
+      if (!vm || vm.state !== VM_STATE.RUNNING) {
+        container.innerHTML = '<div style="color:#666;font-size:11px;padding:8px">VM not running</div>';
+        return;
+      }
+
+      const procs = vm.ps();
+      if (procs.length === 0) {
+        container.innerHTML = '<div style="color:#666;font-size:11px;padding:8px">No processes</div>';
+        return;
+      }
+
+      container.innerHTML = procs.map(p => `
+        <div class="process">
+          <span class="pid">${p.pid}</span>
+          <span class="name">${p.name}</span>
+          <span class="state ${p.state}">${p.state}</span>
+        </div>
+      `).join('');
+    }
+
+    function updateFileTree() {
+      const container = $('fileTree');
+      if (!vm || vm.state !== VM_STATE.RUNNING) {
+        container.innerHTML = '<div style="color:#666;font-size:11px;padding:8px">VM not running</div>';
+        return;
+      }
+
+      try {
+        const cwd = vm.vfs.getcwd();
+        const items = vm.vfs.readdir(cwd);
+        if (items.length === 0) {
+          container.innerHTML = '<div style="color:#666;font-size:11px;padding:8px">(empty)</div>';
+          return;
+        }
+
+        container.innerHTML = items.map(name => {
+          const path = cwd === '/' ? '/' + name : cwd + '/' + name;
+          const inode = vm.vfs.resolve(path);
+          const isDir = inode?.type === FILE_TYPE.DIR;
+          return `<div class="file-item ${isDir ? 'dir' : 'file'}" data-path="${path}">${isDir ? '📁 ' : '📄 '}${name}</div>`;
+        }).join('');
+
+        // Click to cd or cat
+        container.querySelectorAll('.file-item').forEach(el => {
+          el.onclick = () => {
+            const path = el.dataset.path;
+            const inode = vm.vfs.resolve(path);
+            if (inode?.type === FILE_TYPE.DIR) {
+              executeCommand('cd ' + path);
+            } else {
+              executeCommand('cat ' + path);
+            }
+          };
+        });
+      } catch (e) {
+        container.innerHTML = `<div style="color:#ff4444;font-size:11px;padding:8px">${e.message}</div>`;
+      }
+    }
+
+    function updatePeerList() {
+      const container = $('peerList');
+      if (!vm) {
+        container.innerHTML = '<div style="color:#666;font-size:11px;padding:8px">No peers connected</div>';
+        return;
+      }
+
+      const peers = Array.from(vm.peers.keys());
+      if (peers.length === 0) {
+        container.innerHTML = '<div style="color:#666;font-size:11px;padding:8px">No peers connected</div>';
+        return;
+      }
+
+      container.innerHTML = peers.map(id => `
+        <div class="peer">
+          <span class="dot running"></span>
+          <span class="id">${id}</span>
+        </div>
+      `).join('');
+    }
+
+    async function executeCommand(cmdLine) {
+      if (!vm || vm.state !== VM_STATE.RUNNING) {
+        log('VM not running', 'error');
+        return;
+      }
+
+      logPrompt(cmdLine);
+      commandHistory.push(cmdLine);
+      historyIndex = commandHistory.length;
+
+      const parts = cmdLine.trim().split(/\s+/);
+      const cmd = parts[0];
+      const args = parts.slice(1);
+
+      try {
+        switch (cmd) {
+          case '':
+            break;
+
+          case 'help':
+            log('Available commands:');
+            log('  ls [path]      - List directory contents');
+            log('  cd <path>      - Change directory');
+            log('  pwd            - Print working directory');
+            log('  cat <file>     - Display file contents');
+            log('  echo <text>    - Print text (use > file to write)');
+            log('  touch <file>   - Create empty file');
+            log('  mkdir <dir>    - Create directory');
+            log('  rm <file>      - Remove file');
+            log('  rmdir <dir>    - Remove directory');
+            log('  ps             - List processes');
+            log('  kill <pid>     - Kill process');
+            log('  spawn <name>   - Spawn a process');
+            log('  uptime         - Show system uptime');
+            log('  hostname       - Show hostname');
+            log('  vminfo         - Show VM info');
+            log('  shm get <key>  - Get shared memory');
+            log('  shm set <k> <v>- Set shared memory');
+            log('  clear          - Clear terminal');
+            break;
+
+          case 'clear':
+            $('terminal').innerHTML = '';
+            break;
+
+          case 'ls': {
+            const path = args[0] || vm.vfs.getcwd();
+            const items = vm.vfs.readdir(path);
+            if (items.length === 0) {
+              log('(empty directory)', 'system');
+            } else {
+              items.forEach(name => {
+                const fullPath = path === '/' ? '/' + name : path + '/' + name;
+                const inode = vm.vfs.resolve(fullPath);
+                const prefix = inode?.type === FILE_TYPE.DIR ? 'd' : '-';
+                const mode = inode?.mode?.toString(8) || '644';
+                log(`${prefix}${mode.padStart(4, '0')}  ${name}`);
+              });
+            }
+            break;
+          }
+
+          case 'cd':
+            if (!args[0]) {
+              log('Usage: cd <path>', 'error');
+            } else {
+              vm.vfs.chdir(args[0]);
+              log(`Changed to ${vm.vfs.getcwd()}`, 'success');
+            }
+            break;
+
+          case 'pwd':
+            log(vm.vfs.getcwd());
+            break;
+
+          case 'cat':
+            if (!args[0]) {
+              log('Usage: cat <file>', 'error');
+            } else {
+              const content = vm.vfs.readFile(args[0]);
+              log(content || '(empty file)');
+            }
+            break;
+
+          case 'echo': {
+            const text = args.join(' ');
+            const redirectIdx = args.indexOf('>');
+            if (redirectIdx >= 0) {
+              const file = args[redirectIdx + 1];
+              const content = args.slice(0, redirectIdx).join(' ');
+              vm.vfs.writeFile(file, content + '\n');
+              log(`Wrote to ${file}`, 'success');
+            } else {
+              log(text);
+            }
+            break;
+          }
+
+          case 'touch':
+            if (!args[0]) {
+              log('Usage: touch <file>', 'error');
+            } else {
+              if (!vm.vfs.exists(args[0])) {
+                vm.vfs.writeFile(args[0], '');
+              }
+              log(`Created ${args[0]}`, 'success');
+            }
+            break;
+
+          case 'mkdir':
+            if (!args[0]) {
+              log('Usage: mkdir <dir>', 'error');
+            } else {
+              vm.vfs.mkdir(args[0]);
+              log(`Created directory ${args[0]}`, 'success');
+            }
+            break;
+
+          case 'rm':
+            if (!args[0]) {
+              log('Usage: rm <file>', 'error');
+            } else {
+              vm.vfs.unlink(args[0]);
+              log(`Removed ${args[0]}`, 'success');
+            }
+            break;
+
+          case 'rmdir':
+            if (!args[0]) {
+              log('Usage: rmdir <dir>', 'error');
+            } else {
+              vm.vfs.rmdir(args[0]);
+              log(`Removed directory ${args[0]}`, 'success');
+            }
+            break;
+
+          case 'ps': {
+            const procs = vm.ps();
+            log('  PID  PPID  STATE       NAME');
+            procs.forEach(p => {
+              log(`  ${String(p.pid).padEnd(4)} ${String(p.ppid).padEnd(5)} ${p.state.padEnd(11)} ${p.name}`);
+            });
+            break;
+          }
+
+          case 'kill':
+            if (!args[0]) {
+              log('Usage: kill <pid>', 'error');
+            } else {
+              const pid = parseInt(args[0]);
+              const result = await vm.kill(pid);
+              log(result ? `Killed process ${pid}` : `No such process: ${pid}`, result ? 'success' : 'error');
+            }
+            break;
+
+          case 'spawn': {
+            const name = args[0] || 'process';
+            const proc = await vm.spawn({
+              name,
+              code: async (p) => {
+                // Simple process that runs for 10 seconds
+                let i = 0;
+                while (i < 10 && p.state !== 'terminated') {
+                  await new Promise(r => setTimeout(r, 1000));
+                  i++;
+                }
+              }
+            });
+            log(`Spawned process ${proc.pid}: ${name}`, 'success');
+            break;
+          }
+
+          case 'uptime': {
+            const ms = await vm.syscall('uptime');
+            log(`Uptime: ${formatUptime(ms)}`);
+            break;
+          }
+
+          case 'hostname':
+            log(await vm.syscall('hostname'));
+            break;
+
+          case 'vminfo': {
+            const info = vm.info();
+            log(`VM ID: ${info.id}`);
+            log(`State: ${info.state}`);
+            log(`Uptime: ${formatUptime(info.uptime)}`);
+            log(`Processes: ${info.stats.processes}`);
+            log(`Files: ${info.stats.files}`);
+            log(`Peers: ${info.peers.length}`);
+            log(`Sync messages: ${info.stats.syncMessages}`);
+            log(`Bytes transferred: ${info.stats.bytesTransferred}`);
+            break;
+          }
+
+          case 'shm':
+            if (args[0] === 'get' && args[1]) {
+              const val = vm.shmGet(args[1]);
+              log(val !== undefined ? JSON.stringify(val) : '(undefined)');
+            } else if (args[0] === 'set' && args[1] && args[2]) {
+              vm.shmSet(args[1], args.slice(2).join(' '));
+              log(`Set ${args[1]}`, 'success');
+            } else {
+              log('Usage: shm get <key> | shm set <key> <value>', 'error');
+            }
+            break;
+
+          default:
+            log(`Command not found: ${cmd}`, 'error');
+            log('Type "help" for available commands', 'system');
+        }
+      } catch (e) {
+        log(`Error: ${e.message}`, 'error');
+      }
+
+      updateStatus();
+    }
+
+    // Boot VM
+    $('bootBtn').onclick = async () => {
+      $('bootBtn').disabled = true;
+      log('Booting VM...', 'system');
+
+      try {
+        cluster = new VMCluster({ id: 'demo-cluster' });
+        vm = await cluster.createVM({ name: 'demo-vm' });
+
+        // VM is ready - enable input
+        log('VM ready.', 'success');
+        log('');
+        log('Type "help" for available commands.', 'system');
+        $('cmdInput').disabled = false;
+        $('sendBtn').disabled = false;
+        $('shutdownBtn').disabled = false;
+        $('connectBtn').disabled = false;
+        $('cmdInput').focus();
+        updateStatus();
+
+        vm.on(VM_EVENT.PEER_JOIN, (e) => {
+          log(`Peer connected: ${e.peerId}`, 'success');
+          updateStatus();
+        });
+
+        vm.on(VM_EVENT.PEER_LEAVE, (e) => {
+          log(`Peer disconnected: ${e.peerId}`, 'system');
+          updateStatus();
+        });
+
+      } catch (e) {
+        log(`Boot failed: ${e.message}`, 'error');
+        $('bootBtn').disabled = false;
+      }
+    };
+
+    // Shutdown VM
+    $('shutdownBtn').onclick = async () => {
+      if (!vm) return;
+      log('Shutting down...', 'system');
+      await cluster.shutdown();
+      vm = null;
+      secondVM = null;
+      cluster = null;
+      $('bootBtn').disabled = false;
+      $('shutdownBtn').disabled = true;
+      $('connectBtn').disabled = true;
+      $('cmdInput').disabled = true;
+      $('sendBtn').disabled = true;
+      log('VM shutdown complete.', 'system');
+      updateStatus();
+    };
+
+    // Create second VM and connect
+    $('connectBtn').onclick = async () => {
+      if (!cluster || secondVM) return;
+      log('Creating second VM...', 'system');
+
+      try {
+        secondVM = await cluster.createVM({ name: 'demo-vm-2' });
+
+        // Create mock data channels for local demo
+        const channel1 = createMockChannel();
+        const channel2 = createMockChannel();
+
+        // Cross-connect the channels
+        channel1.remote = channel2;
+        channel2.remote = channel1;
+
+        cluster.connectVMs(vm.id, secondVM.id, channel1, channel2);
+        log(`Connected to ${secondVM.id}`, 'success');
+        updateStatus();
+      } catch (e) {
+        log(`Failed to create second VM: ${e.message}`, 'error');
+      }
+    };
+
+    // Mock data channel for local demo
+    function createMockChannel() {
+      return {
+        readyState: 'open',
+        remote: null,
+        onmessage: null,
+        onclose: null,
+        send(data) {
+          if (this.remote?.onmessage) {
+            setTimeout(() => this.remote.onmessage({ data }), 0);
+          }
+        },
+        close() {
+          this.readyState = 'closed';
+          if (this.onclose) this.onclose();
+        }
+      };
+    }
+
+    // Command input
+    $('sendBtn').onclick = () => {
+      const cmd = $('cmdInput').value.trim();
+      if (cmd) {
+        executeCommand(cmd);
+        $('cmdInput').value = '';
+      }
+    };
+
+    $('cmdInput').onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        $('sendBtn').click();
+      } else if (e.key === 'ArrowUp') {
+        if (historyIndex > 0) {
+          historyIndex--;
+          $('cmdInput').value = commandHistory[historyIndex];
+        }
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        if (historyIndex < commandHistory.length - 1) {
+          historyIndex++;
+          $('cmdInput').value = commandHistory[historyIndex];
+        } else {
+          historyIndex = commandHistory.length;
+          $('cmdInput').value = '';
+        }
+        e.preventDefault();
+      }
+    };
+
+    // Update status periodically
+    setInterval(updateStatus, 1000);
+  </script>
+</body>
+</html>
