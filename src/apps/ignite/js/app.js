@@ -7,6 +7,7 @@ import { connectMQTT, mqttState, publish, subscribe, unsubscribe } from './mqtt.
 import { connectOPCUA, browseOPCUA, monitorNode } from './opcua.js';
 import { connectOPCDA, addItem } from './opcda.js';
 import { connectIgnition, readTag, writeTag } from './ignition.js';
+import { tagDB, showTagDBConfig, initTagDB } from './tagdb.js';
 
 // Application State
 const state = {
@@ -451,8 +452,14 @@ function loadState() {
   } catch {}
 }
 
+// TagDB button
+$('tagDBBtn')?.addEventListener('click', () => {
+  showTagDBConfig();
+});
+
 // Initialize
 loadState();
+initTagDB();
 updateSubscriptionsList();
 log('info', 'Konomi Ignite initialized', 'SYS');
 log('info', 'Add a connection to get started', 'SYS');
