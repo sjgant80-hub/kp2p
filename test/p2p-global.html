@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 @file test/p2p-global.html
-@desc Worldwide P2P chat using WebTorrent trackers for discovery
+@desc Worldwide P2P using WebTorrent tracker protocol
 @size ~200 tokens
 -->
 <html lang="en">
@@ -25,7 +25,6 @@
     .msg.mine { background:#4facfe;color:#000;align-self:flex-end;border-bottom-right-radius:4px }
     .msg.theirs { background:#222;align-self:flex-start;border-bottom-left-radius:4px }
     .msg.system { background:transparent;color:#666;font-size:12px;align-self:center }
-    .msg .meta { font-size:10px;opacity:0.7;margin-top:4px }
     .input-area { padding:16px;background:#12122a;border-top:1px solid #fff1;display:flex;gap:12px }
     input[type=text] { flex:1;padding:12px 16px;border:none;border-radius:24px;background:#222;color:#fff;font-size:14px;outline:none }
     button { padding:12px 24px;border:none;border-radius:24px;background:#4facfe;color:#000;font-weight:600;cursor:pointer }
@@ -38,7 +37,7 @@
     <input type="text" class="room-input" id="room" placeholder="Room name..." value="konomi-global" />
     <button id="join">Join</button>
     <span class="peer-count" id="peers">0 peers</span>
-    <span class="info" id="info">WebRTC + WebTorrent Trackers</span>
+    <span class="info">WebTorrent Tracker P2P</span>
   </div>
 
   <div class="messages" id="messages"></div>
@@ -49,21 +48,20 @@
   </div>
 
   <script type="module">
-    // Simple WebRTC P2P with WebTorrent tracker signaling
-    const TRACKERS = [
-      'wss://tracker.openwebtorrent.com',
-      'wss://tracker.btorrent.xyz',
-      'wss://tracker.webtorrent.dev'
-    ]
+    const TRACKER = 'wss://tracker.openwebtorrent.com'
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+    const NUM_OFFERS = 5
 
     const $ = id => document.getElementById(id)
-    const myId = crypto.randomUUID().slice(0, 8)
-    let ws = null
-    let peers = new Map() // peerId -> RTCPeerConnection
-    let dataChannels = new Map() // peerId -> RTCDataChannel
-    let currentRoom = null
+    const myId = '-KP0001-' + Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2,'0')).join('').slice(0,12)
 
-    function log(msg, isSystem = true) {
+    let ws = null
+    let infoHash = null
+    let peers = new Map()
+    let dataChannels = new Map()
+    let pendingOffers = new Map()
+
+    function log(msg) {
       const div = document.createElement('div')
       div.className = 'msg system'
       div.textContent = msg
@@ -74,7 +72,7 @@
     function addMessage(text, from, isMine = false) {
       const div = document.createElement('div')
       div.className = 'msg ' + (isMine ? 'mine' : 'theirs')
-      div.innerHTML = `${text}<div class="meta">${isMine ? 'You' : from}</div>`
+      div.innerHTML = `${text}<div style="font-size:10px;opacity:0.7;margin-top:4px">${isMine ? 'You' : from.slice(0,8)}</div>`
       $('messages').appendChild(div)
       $('messages').scrollTop = $('messages').scrollHeight
     }
@@ -82,203 +80,202 @@
     function updatePeers() {
       const count = dataChannels.size
       $('peers').textContent = count + ' peer' + (count !== 1 ? 's' : '')
-      $('status').className = 'status ' + (count > 0 ? 'connected' : ws ? 'connecting' : '')
+      $('status').className = 'status ' + (count > 0 ? 'connected' : ws?.readyState === 1 ? 'connecting' : '')
+      $('input').disabled = count === 0
+      $('send').disabled = count === 0
     }
 
-    // Create room hash from name (like torrent infohash)
-    async function roomHash(name) {
-      const data = new TextEncoder().encode('konomi-p2p:' + name)
+    // Convert room name to 20-byte info_hash (hex)
+    async function roomToHash(name) {
+      const data = new TextEncoder().encode('konomi:' + name)
       const hash = await crypto.subtle.digest('SHA-1', data)
       return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
     }
 
-    // Connect to WebTorrent tracker for signaling
-    async function joinRoom(roomName) {
-      if (ws) ws.close()
-      currentRoom = roomName
-      peers.clear()
-      dataChannels.clear()
-      $('messages').innerHTML = ''
+    // Generate WebRTC offers upfront
+    async function generateOffers(count) {
+      const offers = []
+      for (let i = 0; i < count; i++) {
+        const pc = new RTCPeerConnection(ICE)
+        const dc = pc.createDataChannel('data')
+        const offerId = crypto.randomUUID()
 
-      const infoHash = await roomHash(roomName)
-      log(`Joining room: ${roomName}`)
-      log(`Room hash: ${infoHash.slice(0, 16)}...`)
+        await new Promise(resolve => {
+          pc.onicecandidate = e => { if (!e.candidate) resolve() }
+          pc.createOffer().then(o => pc.setLocalDescription(o))
+        })
 
-      $('status').className = 'status connecting'
-
-      // Try trackers in order
-      for (const tracker of TRACKERS) {
-        try {
-          await connectTracker(tracker, infoHash)
-          break
-        } catch (e) {
-          log(`Tracker ${tracker} failed, trying next...`)
-        }
+        offers.push({
+          offer_id: offerId,
+          offer: { type: 'offer', sdp: pc.localDescription.sdp }
+        })
+        pendingOffers.set(offerId, { pc, dc })
+        setupPeerConnection(pc, dc, offerId)
       }
+      return offers
     }
 
-    function connectTracker(trackerUrl, infoHash) {
-      return new Promise((resolve, reject) => {
-        ws = new WebSocket(trackerUrl)
-
-        ws.onopen = () => {
-          log(`Connected to tracker`)
-          // Announce ourselves
-          ws.send(JSON.stringify({
-            action: 'announce',
-            info_hash: infoHash,
-            peer_id: myId,
-            offers: [] // We'll create offers when we see peers
-          }))
-          resolve()
-        }
-
-        ws.onmessage = async (e) => {
-          const data = JSON.parse(e.data)
-
-          if (data.info_hash !== infoHash) return
-
-          if (data.offer) {
-            // Someone sent us an offer
-            await handleOffer(data.peer_id, data.offer, data.offer_id)
-          } else if (data.answer) {
-            // Someone answered our offer
-            await handleAnswer(data.peer_id, data.answer)
-          } else if (data.peer_id && data.peer_id !== myId && !peers.has(data.peer_id)) {
-            // New peer announced, send them an offer
-            await createOffer(data.peer_id, infoHash)
-          }
-        }
-
-        ws.onerror = () => reject(new Error('WebSocket error'))
-        ws.onclose = () => {
-          log('Disconnected from tracker')
-          $('status').className = 'status'
-        }
-
-        setTimeout(() => reject(new Error('Timeout')), 5000)
-      })
-    }
-
-    async function createOffer(peerId, infoHash) {
-      if (peers.has(peerId)) return
-
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      })
-      peers.set(peerId, pc)
-
-      const dc = pc.createDataChannel('chat')
-      setupDataChannel(dc, peerId)
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate === null) {
-          // ICE gathering complete, send offer
-          ws.send(JSON.stringify({
-            action: 'announce',
-            info_hash: infoHash,
-            peer_id: myId,
-            to_peer_id: peerId,
-            offer: { type: 'offer', sdp: pc.localDescription.sdp },
-            offer_id: crypto.randomUUID()
-          }))
-        }
-      }
-
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-    }
-
-    async function handleOffer(peerId, offer, offerId) {
-      if (peers.has(peerId)) return
-
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      })
-      peers.set(peerId, pc)
-
-      pc.ondatachannel = (e) => {
-        setupDataChannel(e.channel, peerId)
-      }
-
-      pc.onicecandidate = async (e) => {
-        if (e.candidate === null) {
-          const infoHash = await roomHash(currentRoom)
-          ws.send(JSON.stringify({
-            action: 'announce',
-            info_hash: infoHash,
-            peer_id: myId,
-            to_peer_id: peerId,
-            answer: { type: 'answer', sdp: pc.localDescription.sdp },
-            offer_id: offerId
-          }))
-        }
-      }
-
-      await pc.setRemoteDescription(offer)
-      const answer = await pc.createAnswer()
-      await pc.setLocalDescription(answer)
-    }
-
-    async function handleAnswer(peerId, answer) {
-      const pc = peers.get(peerId)
-      if (pc && pc.signalingState === 'have-local-offer') {
-        await pc.setRemoteDescription(answer)
-      }
-    }
-
-    function setupDataChannel(dc, peerId) {
+    function setupPeerConnection(pc, dc, id) {
       dc.onopen = () => {
-        dataChannels.set(peerId, dc)
-        log(`${peerId} connected`)
+        log(`Connected to peer!`)
+        dataChannels.set(id, dc)
         updatePeers()
-        $('input').disabled = false
-        $('send').disabled = false
       }
-
       dc.onclose = () => {
-        dataChannels.delete(peerId)
-        peers.delete(peerId)
-        log(`${peerId} disconnected`)
+        dataChannels.delete(id)
+        peers.delete(id)
         updatePeers()
       }
-
-      dc.onmessage = (e) => {
+      dc.onmessage = e => {
         try {
           const msg = JSON.parse(e.data)
           addMessage(msg.text, msg.from)
         } catch {
-          addMessage(e.data, peerId)
+          addMessage(e.data, id)
         }
       }
+    }
+
+    async function joinRoom(roomName) {
+      if (ws) ws.close()
+      peers.clear()
+      dataChannels.clear()
+      pendingOffers.clear()
+      $('messages').innerHTML = ''
+
+      infoHash = await roomToHash(roomName)
+      log(`Joining: ${roomName}`)
+      log(`Hash: ${infoHash.slice(0,16)}...`)
+      $('status').className = 'status connecting'
+
+      // Generate offers before connecting
+      log('Generating offers...')
+      const offers = await generateOffers(NUM_OFFERS)
+      log(`Created ${offers.length} offers`)
+
+      // Connect to tracker
+      ws = new WebSocket(TRACKER)
+
+      ws.onopen = () => {
+        log('Connected to tracker')
+        // Announce with offers
+        ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: infoHash,
+          peer_id: myId,
+          numwant: 10,
+          uploaded: 0,
+          downloaded: 0,
+          left: 1,
+          offers: offers
+        }))
+      }
+
+      ws.onmessage = async (e) => {
+        try {
+          const msg = JSON.parse(e.data)
+
+          if (msg.offer && msg.peer_id !== myId) {
+            // Someone sent us an offer - answer it
+            log(`Offer from ${msg.peer_id.slice(0,8)}`)
+            await handleOffer(msg)
+          }
+
+          if (msg.answer && msg.offer_id) {
+            // Got answer to our offer
+            log(`Answer received`)
+            await handleAnswer(msg)
+          }
+
+          if (msg.interval) {
+            // Schedule re-announce
+            setTimeout(() => reannounce(), msg.interval * 1000)
+          }
+        } catch (err) {
+          console.error('Message error:', err)
+        }
+      }
+
+      ws.onerror = () => log('Tracker error')
+      ws.onclose = () => {
+        log('Disconnected from tracker')
+        $('status').className = 'status'
+      }
+    }
+
+    async function reannounce() {
+      if (ws?.readyState !== 1) return
+      const offers = await generateOffers(NUM_OFFERS)
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: myId,
+        numwant: 10,
+        offers: offers
+      }))
+    }
+
+    async function handleOffer(msg) {
+      const pc = new RTCPeerConnection(ICE)
+      const peerId = msg.peer_id
+
+      pc.ondatachannel = e => {
+        const dc = e.channel
+        peers.set(peerId, { pc, dc })
+        setupPeerConnection(pc, dc, peerId)
+      }
+
+      await pc.setRemoteDescription(msg.offer)
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+
+      // Wait for ICE gathering
+      await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') resolve()
+        else pc.onicecandidate = e => { if (!e.candidate) resolve() }
+      })
+
+      // Send answer back via tracker
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: myId,
+        to_peer_id: peerId,
+        answer: { type: 'answer', sdp: pc.localDescription.sdp },
+        offer_id: msg.offer_id
+      }))
+    }
+
+    async function handleAnswer(msg) {
+      const pending = pendingOffers.get(msg.offer_id)
+      if (!pending) return
+
+      const { pc, dc } = pending
+      await pc.setRemoteDescription(msg.answer)
+      peers.set(msg.offer_id, { pc, dc })
     }
 
     function broadcast(text) {
       const msg = JSON.stringify({ from: myId, text, ts: Date.now() })
       for (const dc of dataChannels.values()) {
-        if (dc.readyState === 'open') {
-          dc.send(msg)
-        }
+        if (dc.readyState === 'open') dc.send(msg)
       }
       addMessage(text, myId, true)
     }
 
-    // UI handlers
+    // UI
     $('join').onclick = () => joinRoom($('room').value.trim() || 'konomi-global')
-    $('room').onkeydown = (e) => { if (e.key === 'Enter') $('join').click() }
-
+    $('room').onkeydown = e => { if (e.key === 'Enter') $('join').click() }
     $('send').onclick = () => {
       const text = $('input').value.trim()
-      if (!text) return
-      broadcast(text)
-      $('input').value = ''
+      if (text) { broadcast(text); $('input').value = '' }
     }
-    $('input').onkeydown = (e) => { if (e.key === 'Enter') $('send').click() }
+    $('input').onkeydown = e => { if (e.key === 'Enter') $('send').click() }
 
-    // Auto-join from URL hash or default room
-    const initialRoom = location.hash.slice(1) || 'konomi-global'
-    $('room').value = initialRoom
-    joinRoom(initialRoom)
+    // Auto-join
+    const room = location.hash.slice(1) || 'konomi-global'
+    $('room').value = room
+    joinRoom(room)
   </script>
 </body>
 </html>
