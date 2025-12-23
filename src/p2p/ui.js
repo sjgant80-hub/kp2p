@@ -32,8 +32,8 @@ export const userList = (el) => {
 // Chat panel
 export const chat = (el,onSend) => {
   const msgs = t`div.msgs`
-  const inp = t`input ${{placeholder:'Message...',onkeydown:e=>e.key==='Enter'&&send()}}`
   const send = () => { if(inp.value.trim()) { onSend(inp.value); inp.value='' } }
+  const inp = t`input ${{type:'text',placeholder:'Message...',onkeydown:e=>e.key==='Enter'&&send()}}`
   el.append(msgs, t`div.input-row ${[inp, t`button ${{onclick:send}} ${['Send']}`]}`)
 
   return {
