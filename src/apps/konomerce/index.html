@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konomerce - E-Commerce Suite</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🛒</span>
+        <span class="logo-text">Konomerce</span>
+      </div>
+      <div class="header-status">
+        <span id="gatewayStatus" class="status-badge disconnected">Gateway: Offline</span>
+        <button class="btn btn-sm" id="connectBtn">Connect</button>
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+      <!-- Sidebar - Tag Providers -->
+      <aside class="sidebar">
+        <div class="sidebar-header">Tag Providers</div>
+        <div class="provider-list" id="providerList">
+          <div class="provider-item active" data-provider="store">
+            <span class="provider-icon">🏪</span>
+            <span class="provider-name">Store</span>
+            <span class="provider-count" id="storeCount">0</span>
+          </div>
+          <div class="provider-item" data-provider="inventory">
+            <span class="provider-icon">📦</span>
+            <span class="provider-name">Inventory</span>
+            <span class="provider-count" id="inventoryCount">0</span>
+          </div>
+          <div class="provider-item" data-provider="orders">
+            <span class="provider-icon">📋</span>
+            <span class="provider-name">Orders</span>
+            <span class="provider-count" id="ordersCount">0</span>
+          </div>
+          <div class="provider-item" data-provider="customers">
+            <span class="provider-icon">👥</span>
+            <span class="provider-name">Customers</span>
+            <span class="provider-count" id="customersCount">0</span>
+          </div>
+        </div>
+
+        <div class="sidebar-header" style="margin-top: 16px;">UDTs</div>
+        <div class="udt-list" id="udtList">
+          <div class="udt-item" data-udt="Product">
+            <span class="udt-icon">📦</span> Product
+          </div>
+          <div class="udt-item" data-udt="Order">
+            <span class="udt-icon">🧾</span> Order
+          </div>
+          <div class="udt-item" data-udt="Customer">
+            <span class="udt-icon">👤</span> Customer
+          </div>
+          <div class="udt-item" data-udt="CartItem">
+            <span class="udt-icon">🛒</span> CartItem
+          </div>
+          <div class="udt-item" data-udt="Inventory">
+            <span class="udt-icon">📊</span> Inventory
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="content">
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab active" data-tab="dashboard">Dashboard</button>
+          <button class="tab" data-tab="products">Products</button>
+          <button class="tab" data-tab="orders">Orders</button>
+          <button class="tab" data-tab="customers">Customers</button>
+          <button class="tab" data-tab="tags">Tag Browser</button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="tab-dashboard">
+          <div class="dashboard-grid">
+            <div class="stat-card">
+              <div class="stat-icon">📦</div>
+              <div class="stat-info">
+                <div class="stat-value" id="statProducts">0</div>
+                <div class="stat-label">Products</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📋</div>
+              <div class="stat-info">
+                <div class="stat-value" id="statOrders">0</div>
+                <div class="stat-label">Orders</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">👥</div>
+              <div class="stat-info">
+                <div class="stat-value" id="statCustomers">0</div>
+                <div class="stat-label">Customers</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">💰</div>
+              <div class="stat-info">
+                <div class="stat-value" id="statRevenue">$0</div>
+                <div class="stat-label">Revenue</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-panels">
+            <div class="panel">
+              <div class="panel-header">Recent Orders</div>
+              <div class="panel-body" id="recentOrders">
+                <div class="empty-state">No orders yet</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header">Low Stock Alerts</div>
+              <div class="panel-body" id="lowStockAlerts">
+                <div class="empty-state">No alerts</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products Tab -->
+        <div class="tab-content" id="tab-products">
+          <div class="toolbar">
+            <button class="btn btn-primary" id="addProductBtn">+ Add Product</button>
+            <input type="text" class="search-input" placeholder="Search products..." id="productSearch">
+          </div>
+          <div class="data-table" id="productsTable">
+            <div class="table-header">
+              <div class="col-sku">SKU</div>
+              <div class="col-name">Name</div>
+              <div class="col-price">Price</div>
+              <div class="col-stock">Stock</div>
+              <div class="col-status">Status</div>
+              <div class="col-actions">Actions</div>
+            </div>
+            <div class="table-body" id="productsBody">
+              <div class="empty-state">No products. Connect gateway to sync.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div class="tab-content" id="tab-orders">
+          <div class="toolbar">
+            <button class="btn btn-primary" id="newOrderBtn">+ New Order</button>
+            <select class="filter-select" id="orderFilter">
+              <option value="all">All Orders</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="data-table" id="ordersTable">
+            <div class="table-header">
+              <div class="col-id">Order #</div>
+              <div class="col-customer">Customer</div>
+              <div class="col-items">Items</div>
+              <div class="col-total">Total</div>
+              <div class="col-status">Status</div>
+              <div class="col-actions">Actions</div>
+            </div>
+            <div class="table-body" id="ordersBody">
+              <div class="empty-state">No orders yet</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customers Tab -->
+        <div class="tab-content" id="tab-customers">
+          <div class="toolbar">
+            <button class="btn btn-primary" id="addCustomerBtn">+ Add Customer</button>
+            <input type="text" class="search-input" placeholder="Search customers..." id="customerSearch">
+          </div>
+          <div class="data-table" id="customersTable">
+            <div class="table-header">
+              <div class="col-id">ID</div>
+              <div class="col-name">Name</div>
+              <div class="col-email">Email</div>
+              <div class="col-orders">Orders</div>
+              <div class="col-spent">Total Spent</div>
+              <div class="col-actions">Actions</div>
+            </div>
+            <div class="table-body" id="customersBody">
+              <div class="empty-state">No customers yet</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tag Browser Tab -->
+        <div class="tab-content" id="tab-tags">
+          <div class="tag-browser">
+            <div class="tag-tree-panel">
+              <div class="panel-header">Tag Tree</div>
+              <div class="tag-tree" id="tagTree"></div>
+            </div>
+            <div class="tag-detail-panel">
+              <div class="panel-header">Tag Details</div>
+              <div class="tag-details" id="tagDetails">
+                <div class="empty-state">Select a tag</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Panel - Live Tags -->
+      <aside class="right-panel">
+        <div class="panel-header">
+          Live Tags
+          <span class="tag-count" id="liveTagCount">0</span>
+        </div>
+        <div class="live-tags" id="liveTags"></div>
+      </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-left">
+        <span id="connectionInfo">Disconnected</span>
+      </div>
+      <div class="footer-right">
+        <span id="lastSync">Last sync: Never</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modals will be injected here -->
+  <div id="modalContainer"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
