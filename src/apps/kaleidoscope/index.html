@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaleidoscope - Shattering Perspectives</title>
+  <style>
+    :root {
+      --bg: #0a0a12;
+      --bg2: #12121f;
+      --border: #2a2a4a;
+      --text: #e8e8f8;
+      --text-dim: #7878a0;
+      --gradient: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 24px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .tagline {
+      color: var(--text-dim);
+      font-size: 12px;
+      font-style: italic;
+    }
+
+    .status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected {
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    main { flex: 1; display: flex; flex-direction: column; }
+
+    /* Connect Panel */
+    .connect-panel {
+      max-width: 600px;
+      margin: 60px auto;
+      padding: 40px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .connect-panel h1 {
+      font-size: 36px;
+      margin-bottom: 8px;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .connect-panel .sub {
+      color: var(--text-dim);
+      margin-bottom: 40px;
+    }
+
+    .mode-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 20px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .mode-btn:hover { border-color: #54a0ff; }
+    .mode-btn.active {
+      border-color: #54a0ff;
+      background: rgba(84, 160, 255, 0.1);
+    }
+
+    .mode-btn .icon { font-size: 28px; margin-bottom: 8px; }
+    .mode-btn .title { font-weight: 600; margin-bottom: 4px; }
+    .mode-btn .desc { font-size: 11px; color: var(--text-dim); }
+
+    .connect-form { text-align: left; }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #54a0ff;
+    }
+
+    .connect-btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--gradient);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .connect-btn:hover { opacity: 0.9; }
+    .connect-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .help-link {
+      display: block;
+      margin-top: 20px;
+      color: var(--text-dim);
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .help-link:hover { color: var(--text); }
+
+    /* Perspective Frame */
+    .perspective-container {
+      flex: 1;
+      position: relative;
+      display: none;
+    }
+
+    .perspective-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+    }
+
+    .perspective-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 4px solid var(--border);
+      border-top-color: #54a0ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    footer {
+      padding: 8px 24px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">🔮 Kaleidoscope</div>
+      <div class="tagline">Shattering Perspectives</div>
+      <div class="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Disconnected</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="connect-panel" id="connectPanel">
+        <h1>🔮 Kaleidoscope</h1>
+        <p class="sub">Shattering Perspectives — View Ignition from Anywhere</p>
+
+        <div class="mode-selector">
+          <button class="mode-btn active" data-mode="bridge">
+            <div class="icon">🌉</div>
+            <div class="title">Bridge Tunnel</div>
+            <div class="desc">Connect via KonoBridge P2P</div>
+          </button>
+          <button class="mode-btn" data-mode="tailscale">
+            <div class="icon">🔐</div>
+            <div class="title">Tailscale</div>
+            <div class="desc">Connect via Tailscale VPN</div>
+          </button>
+          <button class="mode-btn" data-mode="direct">
+            <div class="icon">🔗</div>
+            <div class="title">Direct</div>
+            <div class="desc">LAN/Direct IP connection</div>
+          </button>
+        </div>
+
+        <div class="connect-form" id="bridgeForm">
+          <div class="form-group">
+            <label>Bridge Peer ID</label>
+            <input type="text" id="bridgeId" placeholder="Enter the Bridge ID from your gateway host">
+          </div>
+        </div>
+
+        <div class="connect-form hidden" id="tailscaleForm">
+          <div class="form-group">
+            <label>Tailscale Device Name</label>
+            <input type="text" id="tsDevice" placeholder="my-ignition-server">
+          </div>
+          <div class="form-group">
+            <label>API Key</label>
+            <input type="password" id="tsKey" placeholder="tskey-api-...">
+          </div>
+        </div>
+
+        <div class="connect-form hidden" id="directForm">
+          <div class="form-group">
+            <label>Gateway URL</label>
+            <input type="text" id="gatewayUrl" placeholder="http://192.168.1.100:8088">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Project (optional)</label>
+          <input type="text" id="projectName" placeholder="Leave blank for default">
+        </div>
+
+        <button class="connect-btn" id="connectBtn">✨ Connect</button>
+
+        <a href="host.html" class="help-link">
+          Need to set up a bridge? Open Host Setup →
+        </a>
+      </div>
+
+      <div class="perspective-container" id="perspectiveContainer">
+        <iframe class="perspective-frame" id="perspectiveFrame"></iframe>
+        <div class="perspective-overlay" id="loadingOverlay">
+          <div class="loader"></div>
+          <div>Connecting to Perspective...</div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>🔮 Kaleidoscope — Shattering Perspectives</span>
+      <span id="connectionInfo"></span>
+    </footer>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    let mode = 'bridge';
+
+    // Mode selection
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.mode;
+
+        $('bridgeForm').classList.toggle('hidden', mode !== 'bridge');
+        $('tailscaleForm').classList.toggle('hidden', mode !== 'tailscale');
+        $('directForm').classList.toggle('hidden', mode !== 'direct');
+      });
+    });
+
+    // Connect
+    $('connectBtn').addEventListener('click', async () => {
+      $('connectBtn').disabled = true;
+      $('connectBtn').textContent = 'Connecting...';
+
+      try {
+        if (mode === 'direct') {
+          const url = $('gatewayUrl').value.trim();
+          const project = $('projectName').value.trim() || 'main';
+          if (!url) throw new Error('Gateway URL required');
+          await loadPerspective(`${url}/data/perspective/client/${project}`);
+
+        } else if (mode === 'tailscale') {
+          const device = $('tsDevice').value.trim();
+          const key = $('tsKey').value.trim();
+          const project = $('projectName').value.trim() || 'main';
+
+          if (!device) throw new Error('Device name required');
+
+          // Connect via Tailscale
+          const vpn = await import('../../widgets/konovpn/index.js');
+          await vpn.init();
+          if (key) await vpn.loginWithApiKey(key);
+
+          const devices = await vpn.getDevices();
+          const target = devices.find(d => d.name.includes(device) || d.hostname.includes(device));
+
+          if (!target || !target.addresses[0]) {
+            throw new Error(`Device "${device}" not found in tailnet`);
+          }
+
+          const ip = target.addresses[0];
+          await loadPerspective(`http://${ip}:8088/data/perspective/client/${project}`);
+
+        } else {
+          // Bridge mode
+          const bridgeId = $('bridgeId').value.trim();
+          if (!bridgeId) throw new Error('Bridge ID required');
+
+          // For demo - show instructions
+          alert(`Bridge connection requires signaling setup.
+
+Bridge ID: ${bridgeId}
+
+In production:
+1. Bridge runs on Ignition host
+2. Client connects via WebRTC/Tailscale
+3. All requests tunnel through bridge
+
+Try Direct or Tailscale mode for now!`);
+        }
+      } catch (e) {
+        alert('Connection failed: ' + e.message);
+      } finally {
+        $('connectBtn').disabled = false;
+        $('connectBtn').textContent = '✨ Connect';
+      }
+    });
+
+    async function loadPerspective(url) {
+      $('connectPanel').classList.add('hidden');
+      $('perspectiveContainer').style.display = 'block';
+      $('connectionInfo').textContent = `Connected: ${new URL(url).host}`;
+
+      const frame = $('perspectiveFrame');
+      frame.src = url;
+
+      frame.onload = () => {
+        $('loadingOverlay').classList.add('hidden');
+        updateStatus(true);
+      };
+
+      frame.onerror = () => {
+        $('loadingOverlay').innerHTML = '<div>Failed to load. Check CORS/gateway settings.</div>';
+      };
+    }
+
+    function updateStatus(connected) {
+      $('statusDot').classList.toggle('connected', connected);
+      $('statusText').textContent = connected ? 'Connected' : 'Disconnected';
+    }
+  </script>
+</body>
+</html>

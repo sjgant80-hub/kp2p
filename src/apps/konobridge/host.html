@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KonoBridge Host - Ignition Gateway Bridge</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --bg2: #252542;
+      --border: #3a3a5c;
+      --text: #e4e4f0;
+      --text-dim: #8888a0;
+      --primary: #6366f1;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .status-item {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .status-item .label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .status-item .value {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .status-item .value.success { color: var(--success); }
+    .status-item .value.warning { color: var(--warning); }
+    .status-item .value.danger { color: var(--danger); }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn:hover { background: var(--border); }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: white; }
+    .btn-success { background: var(--success); border-color: var(--success); color: white; }
+    .btn-danger { background: var(--danger); border-color: var(--danger); color: white; }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .peer-id-display {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .peer-id-display code {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 2px;
+    }
+
+    .log-console {
+      background: #000;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 12px;
+      height: 200px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+    }
+
+    .log-entry.info { color: #58a6ff; }
+    .log-entry.success { color: #3fb950; }
+    .log-entry.warning { color: #d29922; }
+    .log-entry.error { color: #f85149; }
+
+    .instructions {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 13px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+    }
+
+    .instructions li {
+      margin-bottom: 8px;
+    }
+
+    .instructions code {
+      background: var(--border);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌉 KonoBridge Host</h1>
+    <p class="subtitle">Run this on your Ignition gateway machine to tunnel Perspective to remote clients</p>
+
+    <div class="card">
+      <h2>📊 Bridge Status</h2>
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="label">Bridge</div>
+          <div class="value" id="bridgeStatus">Stopped</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Ignition</div>
+          <div class="value" id="ignitionStatus">Unknown</div>
+        </div>
+        <div class="status-item">
+          <div class="label">Clients</div>
+          <div class="value" id="clientCount">0</div>
+        </div>
+      </div>
+
+      <div class="peer-id-display">
+        <span>Your Bridge ID:</span>
+        <code id="peerId">--------</code>
+        <button class="btn" id="copyBtn">Copy</button>
+      </div>
+      <p style="font-size: 12px; color: var(--text-dim);">Share this ID with clients so they can connect to your gateway</p>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Configuration</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ignition Host</label>
+          <input type="text" id="ignitionHost" value="localhost">
+        </div>
+        <div class="form-group">
+          <label>Port</label>
+          <input type="number" id="ignitionPort" value="8088">
+        </div>
+        <div class="form-group">
+          <label>Protocol</label>
+          <input type="text" id="ignitionProtocol" value="http">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tailscale API Key (optional - for Tailscale routing)</label>
+        <input type="password" id="tailscaleKey" placeholder="tskey-api-...">
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-success" id="startBtn">▶️ Start Bridge</button>
+        <button class="btn btn-danger" id="stopBtn" disabled>⏹️ Stop Bridge</button>
+        <button class="btn" id="testBtn">🔍 Test Ignition</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📜 Activity Log</h2>
+      <div class="log-console" id="logConsole"></div>
+    </div>
+
+    <div class="card">
+      <h2>📖 Instructions</h2>
+      <div class="instructions">
+        <ol>
+          <li>Enter your Ignition gateway host and port (usually <code>localhost:8088</code>)</li>
+          <li>Click <strong>Test Ignition</strong> to verify the gateway is reachable</li>
+          <li>Optionally add a Tailscale API key for VPN routing</li>
+          <li>Click <strong>Start Bridge</strong> to begin tunneling</li>
+          <li>Share your <strong>Bridge ID</strong> with remote clients</li>
+          <li>Clients open the KonoBridge viewer and enter your Bridge ID</li>
+          <li>They can now access your Perspective projects through the tunnel!</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as bridge from '../../widgets/konobridge/index.js';
+
+    const $ = id => document.getElementById(id);
+    const log = (msg, level = 'info') => {
+      const console = $('logConsole');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${level}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      console.appendChild(entry);
+      console.scrollTop = console.scrollHeight;
+    };
+
+    // Initialize
+    async function init() {
+      log('Initializing KonoBridge...');
+
+      const { bridgeId } = await bridge.init({
+        localHost: $('ignitionHost').value,
+        localPort: parseInt($('ignitionPort').value),
+        protocol: $('ignitionProtocol').value
+      });
+
+      $('peerId').textContent = bridgeId;
+      log(`Bridge ID: ${bridgeId}`, 'success');
+    }
+
+    // Copy peer ID
+    $('copyBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText($('peerId').textContent);
+      $('copyBtn').textContent = 'Copied!';
+      setTimeout(() => $('copyBtn').textContent = 'Copy', 1500);
+    });
+
+    // Test Ignition connection
+    $('testBtn').addEventListener('click', async () => {
+      log('Testing Ignition connection...');
+
+      const result = await bridge.testConnection();
+
+      if (result.success) {
+        $('ignitionStatus').textContent = 'Online';
+        $('ignitionStatus').className = 'value success';
+        log(`Ignition is running: ${JSON.stringify(result.ignitionStatus)}`, 'success');
+      } else {
+        $('ignitionStatus').textContent = 'Offline';
+        $('ignitionStatus').className = 'value danger';
+        log(`Ignition test failed: ${result.error}`, 'error');
+      }
+    });
+
+    // Start bridge
+    $('startBtn').addEventListener('click', async () => {
+      // Re-init with current config
+      await bridge.init({
+        localHost: $('ignitionHost').value,
+        localPort: parseInt($('ignitionPort').value),
+        protocol: $('ignitionProtocol').value
+      });
+
+      // Login to Tailscale if key provided
+      const tsKey = $('tailscaleKey').value.trim();
+      if (tsKey) {
+        try {
+          const vpn = await import('../../widgets/konovpn/index.js');
+          await vpn.loginWithApiKey(tsKey);
+          log('Connected to Tailscale', 'success');
+        } catch (e) {
+          log(`Tailscale login failed: ${e.message}`, 'warning');
+        }
+      }
+
+      bridge.start();
+
+      $('bridgeStatus').textContent = 'Running';
+      $('bridgeStatus').className = 'value success';
+      $('startBtn').disabled = true;
+      $('stopBtn').disabled = false;
+
+      log('Bridge started - waiting for client connections', 'success');
+    });
+
+    // Stop bridge
+    $('stopBtn').addEventListener('click', () => {
+      bridge.stop();
+
+      $('bridgeStatus').textContent = 'Stopped';
+      $('bridgeStatus').className = 'value';
+      $('startBtn').disabled = false;
+      $('stopBtn').disabled = true;
+
+      log('Bridge stopped');
+    });
+
+    // Init on load
+    init();
+  </script>
+</body>
+</html>

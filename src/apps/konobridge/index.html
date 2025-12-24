@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KonoBridge - Ignition Perspective Tunnel</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-dim: #8b949e;
+      --primary: #58a6ff;
+      --success: #3fb950;
+      --warning: #d29922;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo { font-size: 18px; font-weight: 600; }
+    .status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+    .status-dot.connected { background: var(--success); }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .connect-panel {
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 30px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .connect-panel h2 { margin-bottom: 20px; text-align: center; }
+
+    .mode-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .mode-tab.active {
+      border-color: var(--primary);
+      background: rgba(88, 166, 255, 0.1);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      background: var(--primary);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .help-text {
+      margin-top: 16px;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .perspective-frame {
+      flex: 1;
+      border: none;
+      background: white;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-dim);
+    }
+
+    footer {
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">🌉 KonoBridge</div>
+      <span style="color: var(--text-dim); font-size: 13px;">Ignition Perspective Tunnel</span>
+      <div class="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Disconnected</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- Connect Panel -->
+      <div class="connect-panel" id="connectPanel">
+        <h2>Connect to Ignition Gateway</h2>
+
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="bridge">Via Bridge</button>
+          <button class="mode-tab" data-mode="direct">Direct (LAN)</button>
+        </div>
+
+        <div id="bridgeMode">
+          <div class="form-group">
+            <label>Bridge Peer ID</label>
+            <input type="text" id="bridgePeerId" placeholder="Enter the Bridge ID from your host">
+          </div>
+          <div class="form-group">
+            <label>Tailscale API Key (optional)</label>
+            <input type="password" id="tailscaleKey" placeholder="tskey-api-... for Tailscale routing">
+          </div>
+        </div>
+
+        <div id="directMode" class="hidden">
+          <div class="form-group">
+            <label>Gateway URL</label>
+            <input type="text" id="gatewayUrl" placeholder="http://192.168.1.100:8088" value="http://localhost:8088">
+          </div>
+          <div class="form-group">
+            <label>Project Name</label>
+            <input type="text" id="projectName" placeholder="MyProject" value="">
+          </div>
+        </div>
+
+        <button class="btn" id="connectBtn">Connect</button>
+
+        <div class="help-text">
+          <strong>Bridge Mode:</strong> Run KonoBridge on your Ignition host, then enter the Bridge ID here.
+          Traffic tunnels through P2P/Tailscale.<br><br>
+          <strong>Direct Mode:</strong> Connect directly if you're on the same network as the gateway.
+        </div>
+      </div>
+
+      <!-- Perspective Frame -->
+      <iframe class="perspective-frame hidden" id="perspectiveFrame"></iframe>
+
+      <!-- Loading -->
+      <div class="loading hidden" id="loading">
+        Connecting to Ignition Gateway...
+      </div>
+    </main>
+
+    <footer>
+      KonoBridge tunnels your Ignition Perspective through GitHub Pages via P2P
+    </footer>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+
+    let mode = 'bridge';
+    let connected = false;
+
+    // Mode tabs
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        mode = tab.dataset.mode;
+
+        $('bridgeMode').classList.toggle('hidden', mode !== 'bridge');
+        $('directMode').classList.toggle('hidden', mode !== 'direct');
+      });
+    });
+
+    // Connect
+    $('connectBtn').addEventListener('click', async () => {
+      $('connectBtn').disabled = true;
+      $('connectBtn').textContent = 'Connecting...';
+
+      try {
+        if (mode === 'direct') {
+          await connectDirect();
+        } else {
+          await connectViaBridge();
+        }
+      } catch (e) {
+        alert('Connection failed: ' + e.message);
+      } finally {
+        $('connectBtn').disabled = false;
+        $('connectBtn').textContent = 'Connect';
+      }
+    });
+
+    async function connectDirect() {
+      const gatewayUrl = $('gatewayUrl').value.trim();
+      const projectName = $('projectName').value.trim();
+
+      if (!gatewayUrl) {
+        throw new Error('Gateway URL required');
+      }
+
+      // Build Perspective URL
+      let perspectiveUrl = `${gatewayUrl}/data/perspective/client/${projectName || 'main'}`;
+
+      // Test connection
+      try {
+        const test = await fetch(`${gatewayUrl}/StatusPing`, { mode: 'cors' });
+        if (!test.ok) throw new Error('Gateway not responding');
+      } catch (e) {
+        // CORS might block - try anyway
+        console.warn('Could not test gateway (CORS?), attempting connection anyway');
+      }
+
+      showPerspective(perspectiveUrl);
+    }
+
+    async function connectViaBridge() {
+      const bridgeId = $('bridgePeerId').value.trim();
+      const tailscaleKey = $('tailscaleKey').value.trim();
+
+      if (!bridgeId) {
+        throw new Error('Bridge Peer ID required');
+      }
+
+      // Import VPN widget
+      const vpn = await import('../../widgets/konovpn/index.js');
+      await vpn.init();
+
+      // Connect with Tailscale if key provided
+      if (tailscaleKey) {
+        await vpn.loginWithApiKey(tailscaleKey);
+      }
+
+      // In full implementation:
+      // 1. Connect to bridge peer via WebRTC/Tailscale
+      // 2. Request Perspective page through tunnel
+      // 3. Render in iframe with URL rewriting
+
+      // For now, show message about tunnel setup
+      alert(`To complete bridge connection:
+
+1. Ensure KonoBridge is running on your Ignition host
+2. Bridge ID: ${bridgeId}
+3. The bridge will tunnel requests from this page to your local Ignition
+
+Full tunnel implementation requires:
+- WebRTC signaling server (or Tailscale DERP)
+- Request/response proxying
+- WebSocket tunneling for live updates
+
+For now, try Direct mode if you're on the same network!`);
+    }
+
+    function showPerspective(url) {
+      $('connectPanel').classList.add('hidden');
+      $('loading').classList.remove('hidden');
+
+      const frame = $('perspectiveFrame');
+      frame.src = url;
+
+      frame.onload = () => {
+        $('loading').classList.add('hidden');
+        frame.classList.remove('hidden');
+        updateStatus(true);
+      };
+
+      frame.onerror = () => {
+        $('loading').textContent = 'Failed to load Perspective. Check CORS settings on your gateway.';
+      };
+    }
+
+    function updateStatus(isConnected) {
+      connected = isConnected;
+      $('statusDot').classList.toggle('connected', isConnected);
+      $('statusText').textContent = isConnected ? 'Connected' : 'Disconnected';
+    }
+  </script>
+</body>
+</html>
