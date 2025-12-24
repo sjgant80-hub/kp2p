@@ -82,6 +82,14 @@ body{font:14px -apple-system,sans-serif;background:var(--bg);color:var(--text)}
   </div>
 </div>
 
+<div id="logpanel" style="position:fixed;bottom:0;left:0;right:0;max-height:150px;overflow-y:auto;background:#222;color:#0f0;font:11px monospace;padding:8px;display:none">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+    <span>🔧 Debug Log</span>
+    <button onclick="this.parentElement.parentElement.style.display='none'" style="background:none;border:none;color:#fff;cursor:pointer">✕</button>
+  </div>
+  <div id="loglines"></div>
+</div>
+
 <div id="modal" class="modal show">
   <div class="modal-box">
     <h3>Join Workspace</h3>
@@ -123,7 +131,20 @@ $('btn-join').onclick = () => {
 $('inp-name').onkeydown = e => e.key === 'Enter' && $('btn-join').click()
 $('inp-room').onkeydown = e => e.key === 'Enter' && $('btn-join').click()
 
+// Debug logger
+const logPanel = $('logpanel')
+const logLines = $('loglines')
+const addLog = (...args) => {
+  logPanel.style.display = 'block'
+  const line = document.createElement('div')
+  line.textContent = new Date().toLocaleTimeString() + ' ' + args.join(' ')
+  logLines.appendChild(line)
+  logPanel.scrollTop = logPanel.scrollHeight
+}
+
 function start(room) {
+  addLog('Starting room:', room)
+
   // Chat
   ch = chat($('chat'), text => {
     ch.add(name, text)
@@ -139,6 +160,7 @@ function start(room) {
 
   // P2P
   net = mesh(room, {
+    log: addLog,
     open: () => {
       st.set('open')
       net.send({t:'join', name, color})
