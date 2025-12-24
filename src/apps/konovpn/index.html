@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KonoVPN - Tailscale + P2P Mesh</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">🔐 KonoVPN</div>
+      <div class="tagline">Tailscale + WebRTC Mesh</div>
+      <div class="status" id="connectionStatus">
+        <span class="status-dot disconnected"></span>
+        <span>Disconnected</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Login Panel -->
+      <div class="panel login-panel" id="loginPanel">
+        <h2>Connect to Tailscale</h2>
+        <p class="help-text">Use your Tailscale account to join your private network, or connect via WebRTC P2P.</p>
+
+        <div class="login-options">
+          <div class="login-option">
+            <h3>🔑 API Key Login</h3>
+            <p>Use a Tailscale API key for quick access</p>
+            <div class="form-group">
+              <input type="password" id="apiKey" placeholder="tskey-api-...">
+            </div>
+            <button class="btn btn-primary" id="loginApiKeyBtn">Connect with API Key</button>
+            <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" class="link">Get API Key →</a>
+          </div>
+
+          <div class="divider">or</div>
+
+          <div class="login-option">
+            <h3>🌐 OAuth Login</h3>
+            <p>Login with your Tailscale account</p>
+            <div class="form-group">
+              <input type="text" id="clientId" placeholder="OAuth Client ID">
+            </div>
+            <button class="btn" id="loginOAuthBtn">Login with Tailscale</button>
+            <a href="https://login.tailscale.com/admin/settings/oauth" target="_blank" class="link">Create OAuth App →</a>
+          </div>
+        </div>
+
+        <div class="webrtc-fallback">
+          <h3>📡 WebRTC Only Mode</h3>
+          <p>No Tailscale? Connect directly to other KonoVPN peers via WebRTC.</p>
+          <button class="btn" id="webrtcOnlyBtn">Start P2P Mode</button>
+        </div>
+      </div>
+
+      <!-- Connected Panel -->
+      <div class="panel connected-panel" id="connectedPanel" style="display: none;">
+        <div class="network-info">
+          <div class="info-card">
+            <span class="label">Tailnet</span>
+            <span class="value" id="tailnetName">-</span>
+          </div>
+          <div class="info-card">
+            <span class="label">Devices</span>
+            <span class="value" id="deviceCount">0</span>
+          </div>
+          <div class="info-card">
+            <span class="label">Online</span>
+            <span class="value" id="onlineCount">0</span>
+          </div>
+          <div class="info-card">
+            <span class="label">P2P Peers</span>
+            <span class="value" id="peerCount">0</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <h3>📱 Devices</h3>
+            <button class="btn btn-sm" id="refreshDevicesBtn">↻ Refresh</button>
+          </div>
+          <div class="device-list" id="deviceList">
+            <div class="empty">Loading devices...</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <h3>🔗 WebRTC Peers</h3>
+            <button class="btn btn-sm" id="addPeerBtn">+ Add Peer</button>
+          </div>
+          <div class="peer-list" id="peerList">
+            <div class="empty">No P2P peers connected</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <h3>📊 Traffic</h3>
+          </div>
+          <div class="traffic-stats">
+            <div class="stat">
+              <span class="stat-label">↑ Sent</span>
+              <span class="stat-value" id="bytesSent">0 B</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">↓ Received</span>
+              <span class="stat-value" id="bytesReceived">0 B</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-danger" id="disconnectBtn">Disconnect</button>
+        </div>
+      </div>
+
+      <!-- Peer ID for sharing -->
+      <div class="peer-id-panel">
+        <span class="label">Your Peer ID:</span>
+        <code id="localPeerId">-</code>
+        <button class="btn btn-sm" id="copyPeerIdBtn">Copy</button>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-info">
+        <span>🔐 End-to-end encrypted</span>
+        <span>🌐 No central server</span>
+        <span>⚡ WebRTC + Tailscale</span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
