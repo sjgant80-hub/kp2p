@@ -117,6 +117,10 @@ function setupEventListeners() {
  */
 function handleParentMessage(event) {
   if (event.data?.type === 'api-request') {
+    // Auto-start on first message
+    if (!isRunning) {
+      startSymphony();
+    }
     ingestAPIRequest(event.data.request);
   }
 }

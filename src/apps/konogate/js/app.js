@@ -6,8 +6,12 @@
 import { UDTs } from './udts/api.js';
 import * as gateway from './providers/gateway.js';
 import * as security from './agents/security.js';
+import { gateTagDB, initGateTagDB, showTagDBConfig } from './tagdb.js';
 
 const $ = id => document.getElementById(id);
+
+// Expose TagDB config
+window.showTagDBConfig = showTagDBConfig;
 
 // App state
 const state = {
@@ -23,8 +27,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   gateway.initGateway({ name: 'KonoGate Local' });
   renderUDTs();
   renderProviderTree();
+
+  // Init TagDB and auto-connect if configured
+  initGateTagDB();
+  if (gateTagDB.owner && gateTagDB.repo) {
+    gateTagDB.connect().catch(e => console.warn('TagDB auto-connect failed:', e));
+  }
+
+  // Listen for TagDB requests from API HERO
+  gateTagDB.on('request', broadcastToHero);
+
   await initLLM();
-  startDemoTraffic();
   startUIUpdates();
 });
 
@@ -48,6 +61,116 @@ function setupEventHandlers() {
   $('clearTrafficBtn')?.addEventListener('click', () => $('trafficFeed').innerHTML = '');
   $('clearLogsBtn')?.addEventListener('click', () => $('logConsole').innerHTML = '');
 }
+
+// Broadcast request to API HERO iframe
+function broadcastToHero(request) {
+  const heroFrame = $('heroFrame');
+  if (heroFrame?.contentWindow) {
+    heroFrame.contentWindow.postMessage({
+      type: 'api-request',
+      request: {
+        method: request.method || request.Method,
+        status: request.status || request.Status,
+        endpoint: request.endpoint || request.Path,
+        duration: request.duration || request.Latency
+      }
+    }, '*');
+  }
+}
+
+// Record and broadcast an API request
+function recordAndBroadcast(req) {
+  // Record to gateway state
+  const recorded = gateway.recordRequest(req);
+
+  // Record for security agent
+  security.recordMetric(recorded);
+
+  // Record to TagDB (if connected, will batch)
+  gateTagDB.recordRequest({
+    method: recorded.Method,
+    endpoint: recorded.Path,
+    status: recorded.Status,
+    duration: recorded.Latency
+  });
+
+  // Update traffic feed
+  addTrafficItem(recorded);
+
+  // Log
+  addLog(recorded.Blocked ? 'warn' : (recorded.Status >= 400 ? 'error' : 'info'),
+    `${recorded.Method} ${recorded.Path} → ${recorded.Status} (${recorded.Latency}ms)`);
+
+  return recorded;
+}
+
+// Quick API Entry (for API HERO)
+function showQuickAPIEntry() {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border-radius:12px;padding:24px;width:400px;">
+      <h3 style="margin-bottom:16px;">⚡ Quick API Entry</h3>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        ${['GET', 'POST', 'PUT', 'DELETE', 'WS', 'EVENT'].map(m => `
+          <button class="btn quick-method" data-method="${m}" style="flex:1;padding:8px;font-size:11px;">${m}</button>
+        `).join('')}
+      </div>
+      <div style="margin-bottom:12px;">
+        <input type="text" id="quick-endpoint" placeholder="/api/endpoint" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input type="number" id="quick-status" value="200" style="width:80px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);" placeholder="Status">
+        <input type="number" id="quick-latency" value="50" style="width:80px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);" placeholder="ms">
+        <button class="btn btn-primary" id="quick-send" style="flex:1;">Send</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        <button class="btn" id="quick-burst">🔥 Burst (10)</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  let selectedMethod = 'GET';
+
+  modal.querySelectorAll('.quick-method').forEach(btn => {
+    btn.onclick = () => {
+      modal.querySelectorAll('.quick-method').forEach(b => b.style.background = '');
+      btn.style.background = 'var(--primary)';
+      selectedMethod = btn.dataset.method;
+    };
+  });
+
+  // Select GET by default
+  modal.querySelector('.quick-method').style.background = 'var(--primary)';
+
+  const sendRequest = () => {
+    const endpoint = $('quick-endpoint').value || '/api/test';
+    const status = parseInt($('quick-status').value) || 200;
+    const latency = parseInt($('quick-latency').value) || 50;
+
+    recordAndBroadcast({
+      Method: selectedMethod,
+      Path: endpoint,
+      Status: status,
+      Latency: latency,
+      Blocked: false,
+      ClientIP: '127.0.0.1'
+    });
+  };
+
+  $('quick-send').onclick = sendRequest;
+
+  $('quick-burst').onclick = () => {
+    for (let i = 0; i < 10; i++) {
+      setTimeout(sendRequest, i * 100);
+    }
+  };
+}
+
+window.showQuickAPIEntry = showQuickAPIEntry;
 
 // Initialize LLM
 async function initLLM() {
@@ -105,13 +228,25 @@ function renderProviderTree() {
   `).join('');
 }
 
-// Start demo traffic simulation
-function startDemoTraffic() {
-  const methods = ['GET', 'POST', 'GET', 'GET', 'PUT', 'DELETE'];
-  const paths = ['/api/users', '/api/products', '/api/orders', '/api/auth', '/api/search'];
+// Demo traffic timer
+let demoTimer = null;
+
+// Toggle demo traffic simulation
+function toggleDemoTraffic() {
+  if (demoTimer) {
+    clearInterval(demoTimer);
+    demoTimer = null;
+    addLog('info', 'Demo traffic stopped');
+    return false;
+  }
+
+  const methods = ['GET', 'POST', 'GET', 'GET', 'PUT', 'DELETE', 'WS', 'EVENT'];
+  const paths = ['/api/users', '/api/products', '/api/orders', '/api/auth', '/api/search', '/ws/live', '/events/notify'];
   const statuses = [200, 200, 200, 200, 201, 400, 404, 500];
 
-  setInterval(() => {
+  addLog('info', 'Demo traffic started');
+
+  demoTimer = setInterval(() => {
     const method = methods[Math.floor(Math.random() * methods.length)];
     const path = paths[Math.floor(Math.random() * paths.length)];
     const status = statuses[Math.floor(Math.random() * statuses.length)];
@@ -121,7 +256,7 @@ function startDemoTraffic() {
     const rateCheck = gateway.checkRateLimit('global');
     const blocked = !rateCheck.allowed;
 
-    const req = gateway.recordRequest({
+    recordAndBroadcast({
       Method: method,
       Path: path,
       Status: blocked ? 429 : status,
@@ -131,18 +266,12 @@ function startDemoTraffic() {
       ClientIP: `192.168.1.${Math.floor(Math.random() * 255)}`
     });
 
-    // Record for security agent
-    security.recordMetric(req);
+  }, 300 + Math.random() * 700);
 
-    // Update traffic feed
-    addTrafficItem(req);
-
-    // Log
-    addLog(blocked ? 'warn' : (status >= 400 ? 'error' : 'info'),
-      `${method} ${path} → ${req.Status} (${latency}ms)`);
-
-  }, 500 + Math.random() * 1500);
+  return true;
 }
+
+window.toggleDemoTraffic = toggleDemoTraffic;
 
 // Add traffic item to feed
 function addTrafficItem(req) {
