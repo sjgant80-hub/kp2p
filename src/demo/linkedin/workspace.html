@@ -5,356 +5,190 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LinkedIn P2P Workspace</title>
 <style>
-:root{--li:#0077b5;--li2:#004182;--bg:#f3f2ef;--card:#fff;--text:#333;--muted:#666}
+:root{--li:#0077b5;--bg:#f3f2ef;--card:#fff;--text:#333;--muted:#666}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font:14px -apple-system,sans-serif;background:var(--bg);color:var(--text)}
 
-/* Layout */
-.app{display:grid;grid-template-columns:250px 1fr 280px;height:100vh}
-.sidebar{background:var(--card);border-right:1px solid #ddd;padding:16px;display:flex;flex-direction:column;gap:16px}
-.main{position:relative;overflow:hidden}
+.app{display:grid;grid-template-columns:240px 1fr 260px;height:100vh}
+.sidebar{background:var(--card);border-right:1px solid #ddd;padding:16px;display:flex;flex-direction:column;gap:12px}
+.main{position:relative;display:flex;flex-direction:column}
 .panel{background:var(--card);border-left:1px solid #ddd;display:flex;flex-direction:column}
 
-/* Header */
-.logo{font-size:24px;font-weight:700;color:var(--li)}
-.status{padding:6px 12px;border-radius:20px;font-size:12px;text-align:center}
-.status.open{background:#dff0d8;color:#3c763d}
-.status.connecting{background:#fcf8e3;color:#8a6d3b}
+.logo{font-size:22px;font-weight:700;color:var(--li)}
+.status{padding:6px 12px;border-radius:16px;font-size:12px;text-align:center}
+.status.open{background:#dfd;color:#060}
+.status.connecting{background:#ffd;color:#860}
 
-/* Users */
-.user{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px}
+.user{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px}
 .user:hover{background:#f5f5f5}
-.user .dot{width:10px;height:10px;border-radius:50%}
-.user .name{flex:1;font-weight:500}
+.user .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.user .name{font-size:13px}
 
-/* Toolbar */
-.toolbar{display:flex;gap:8px;padding:12px;border-bottom:1px solid #eee;flex-wrap:wrap}
-.toolbar button{padding:8px 16px;border:1px solid #ddd;border-radius:20px;background:#fff;cursor:pointer;font-size:13px}
+.toolbar{display:flex;gap:6px;padding:10px;border-bottom:1px solid #eee;flex-wrap:wrap}
+.toolbar button{padding:6px 14px;border:1px solid #ddd;border-radius:16px;background:#fff;cursor:pointer;font-size:12px}
 .toolbar button:hover{background:#f5f5f5}
 .toolbar button.active{background:var(--li);color:#fff;border-color:var(--li)}
 
-/* Canvas area */
 .canvas-wrap{flex:1;position:relative;background:#fff}
 #laser{position:absolute;inset:0;pointer-events:none}
-#notes-layer{position:absolute;inset:0;overflow:hidden}
-.note{position:absolute;width:180px;padding:12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);cursor:move;font-size:13px}
-.note-text{min-height:60px;white-space:pre-wrap}
 
-/* Chat */
-.chat{flex:1;display:flex;flex-direction:column}
-.chat-header{padding:12px;border-bottom:1px solid #eee;font-weight:600;color:var(--li)}
-.msgs{flex:1;overflow-y:auto;padding:12px}
-.msg{margin-bottom:8px;font-size:13px}
+.msgs{flex:1;overflow-y:auto;padding:10px;min-height:0}
+.msg{margin:6px 0;font-size:13px}
 .msg.sys{color:var(--muted);font-style:italic}
 .input-row{display:flex;border-top:1px solid #eee}
-.input-row input{flex:1;border:none;padding:12px;font-size:14px}
-.input-row button{background:var(--li);color:#fff;border:none;padding:12px 20px;cursor:pointer}
+.input-row input{flex:1;border:none;padding:10px;font-size:13px}
+.input-row button{background:var(--li);color:#fff;border:none;padding:10px 16px;cursor:pointer}
 
-/* Reactions */
-.reactions{padding:12px;border-top:1px solid #eee;display:flex;gap:4px;flex-wrap:wrap}
-.react{padding:6px 12px;border:1px solid #ddd;border-radius:16px;background:#fff;cursor:pointer;font-size:14px}
+.reactions{padding:10px;border-top:1px solid #eee;display:flex;gap:4px;flex-wrap:wrap}
+.react{padding:4px 10px;border:1px solid #ddd;border-radius:14px;background:#fff;cursor:pointer}
 .react:hover{background:#f5f5f5}
 
-/* Polls */
-.poll{padding:12px;border-top:1px solid #eee}
-.poll h4{margin-bottom:8px;color:var(--li)}
-.poll-opt{display:flex;align-items:center;gap:8px;padding:8px;margin:4px 0;background:#f5f5f5;border-radius:8px;cursor:pointer}
-.poll-opt:hover{background:#e8e8e8}
-.poll-opt .bar{flex:1;height:6px;background:#ddd;border-radius:3px;overflow:hidden}
-.poll-opt .fill{height:100%;background:var(--li);transition:width 0.3s}
-.poll-opt .pct{font-size:12px;color:var(--muted)}
+.chat-header{padding:10px;border-bottom:1px solid #eee;font-weight:600;color:var(--li);font-size:13px}
 
-/* Topics */
-.topics{margin-top:auto;padding-top:16px;border-top:1px solid #eee}
-.topics h4{margin-bottom:8px;color:var(--muted);font-size:12px;text-transform:uppercase}
-.topic{display:inline-block;padding:4px 12px;margin:2px;background:#e8f4fc;color:var(--li);border-radius:12px;font-size:12px;cursor:pointer}
-
-/* Input modal */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:100}
 .modal.show{display:flex}
-.modal-box{background:#fff;padding:24px;border-radius:12px;width:320px}
-.modal-box h3{margin-bottom:16px}
-.modal-box input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px;font-size:16px;outline:none}
-.modal-box input:focus{border-color:var(--li);box-shadow:0 0 0 3px rgba(0,119,181,0.2)}
-.modal-box button{width:100%;padding:12px;background:var(--li);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:16px}
+.modal-box{background:#fff;padding:24px;border-radius:12px;width:300px}
+.modal-box h3{margin-bottom:16px;color:var(--li)}
+.modal-box input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px;font-size:16px}
+.modal-box input:focus{outline:none;border-color:var(--li)}
+.modal-box button{width:100%;padding:12px;background:var(--li);color:#fff;border:none;border-radius:8px;cursor:pointer}
 </style>
 </head>
 <body>
 
 <div class="app">
-  <!-- Sidebar -->
   <div class="sidebar">
     <div class="logo">in Workspace</div>
     <div id="status" class="status connecting">Connecting...</div>
-    <div>
-      <h4 style="color:var(--muted);font-size:12px;margin-bottom:8px">PARTICIPANTS</h4>
-      <div id="users"></div>
-    </div>
-    <div class="topics">
-      <h4>Quick Topics</h4>
-      <span class="topic" data-topic="Strategy">Strategy</span>
-      <span class="topic" data-topic="Roadmap">Roadmap</span>
-      <span class="topic" data-topic="Brainstorm">Brainstorm</span>
-      <span class="topic" data-topic="Feedback">Feedback</span>
-      <span class="topic" data-topic="Q&A">Q&A</span>
-    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">PARTICIPANTS</div>
+    <div id="users"></div>
   </div>
 
-  <!-- Main canvas -->
   <div class="main">
     <div class="toolbar">
-      <button id="tool-pointer" class="active">👆 Pointer</button>
-      <button id="tool-laser">🔴 Laser</button>
-      <button id="tool-note">📝 Add Note</button>
-      <button id="tool-poll">📊 Quick Poll</button>
-      <span style="flex:1"></span>
-      <button id="btn-clear">Clear All</button>
+      <button id="t-pointer" class="active">👆 Pointer</button>
+      <button id="t-laser">🔴 Laser</button>
+      <button id="t-note">📝 Note</button>
     </div>
-    <div class="canvas-wrap">
+    <div class="canvas-wrap" id="area">
       <canvas id="laser"></canvas>
-      <div id="notes-layer"></div>
     </div>
   </div>
 
-  <!-- Right panel -->
   <div class="panel">
-    <div id="chat" class="chat">
-      <div class="chat-header">💬 Team Chat</div>
-    </div>
+    <div class="chat-header">💬 Chat</div>
+    <div id="chat" style="flex:1;display:flex;flex-direction:column"></div>
     <div id="reactions" class="reactions"></div>
-    <div id="poll" class="poll" style="display:none">
-      <h4>Quick Poll</h4>
-      <div id="poll-opts"></div>
-    </div>
   </div>
 </div>
 
-<!-- Join modal -->
 <div id="modal" class="modal show">
   <div class="modal-box">
     <h3>Join Workspace</h3>
-    <input type="text" id="name-input" placeholder="Your name" maxlength="20" autofocus>
-    <input type="text" id="room-input" placeholder="Room code (optional)">
-    <button type="button" id="join-btn">Join</button>
+    <input type="text" id="inp-name" placeholder="Your name" autofocus>
+    <input type="text" id="inp-room" placeholder="Room (optional)">
+    <button id="btn-join">Join</button>
   </div>
 </div>
 
-<script>
-// Focus the input on load
-window.onload = () => document.getElementById('name-input').focus();
-</script>
-
 <script type="module">
+import {$} from '../../p2p/dom.js'
 import {mesh} from '../../p2p/mesh.js'
-import {$,esc,t,state} from '../../p2p/tpl.js'
-import {status,userList,chat,reactions,laser,notes} from '../../p2p/ui.js'
+import {status} from '../../p2p/status.js'
+import {users} from '../../p2p/users.js'
+import {chat} from '../../p2p/chat.js'
+import {laser} from '../../p2p/laser.js'
+import {reactions} from '../../p2p/reactions.js'
 
-// State
-let myName = '', myColor = `hsl(${Math.random()*360},70%,50%)`, tool = 'pointer'
-const users = new Map()
+let name = '', color = `hsl(${Math.random()*360},70%,50%)`, tool = 'pointer', net
 
-// Init UI components
-const statusUI = status($('status'), {open:'Connected',connecting:'Connecting...'})
-const usersUI = userList($('users'))
-const laserUI = laser($('laser'), myColor)
-const notesUI = notes($('notes-layer'))
-let chatUI, reactUI
+// Init components
+const st = status($('status'), {open:'Connected', connecting:'Connecting...'})
+const ul = users($('users'))
+const lz = laser($('laser'))
+let ch, rx
 
-// Resize laser canvas
-const resize = () => {
-  const c = $('laser')
-  c.width = c.offsetWidth
-  c.height = c.offsetHeight
-}
+// Resize laser
+const resize = () => { $('laser').width = $('area').offsetWidth; $('laser').height = $('area').offsetHeight }
 resize()
 window.onresize = resize
 
-// P2P
-let net
+// Join
+$('btn-join').onclick = () => {
+  name = $('inp-name').value.trim() || 'User-' + Math.random().toString(36).slice(2,6)
+  const room = $('inp-room').value.trim() || 'linkedin-workspace'
+  $('modal').classList.remove('show')
+  start(room)
+}
+$('inp-name').onkeydown = e => e.key === 'Enter' && $('btn-join').click()
+$('inp-room').onkeydown = e => e.key === 'Enter' && $('btn-join').click()
 
-const join = (name, room) => {
-  myName = name || 'User-' + Math.random().toString(36).slice(2,6)
-  const roomId = room || 'linkedin-workspace'
+function start(room) {
+  // Chat
+  ch = chat($('chat'), text => {
+    ch.add(name, text)
+    net.send({t:'chat', name, text})
+  })
+  ch.add('', 'Welcome!', true)
 
-  net = mesh(roomId, {
+  // Reactions
+  rx = reactions($('reactions'), e => {
+    rx.add(e)
+    net.send({t:'react', e})
+  })
+
+  // P2P
+  net = mesh(room, {
     open: () => {
-      statusUI.set('open')
-      net.send({t:'join', name:myName, color:myColor})
+      st.set('open')
+      net.send({t:'join', name, color})
     },
     peer: pid => {
-      net.send({t:'join', name:myName, color:myColor})
-      chatUI.add('', `Someone joined`, true)
+      net.send({t:'join', name, color})
+      ch.add('', 'Someone joined', true)
     },
     left: pid => {
-      const u = users.get(pid)
-      users.delete(pid)
-      usersUI.remove(pid)
-      laserUI.remove(pid)
-      if(u) chatUI.add('', `${u.name} left`, true)
+      ul.remove(pid)
+      lz.remove(pid)
+      ch.add('', 'Someone left', true)
     },
     msg: (m, pid) => {
-      switch(m.t) {
-        case 'join':
-          users.set(pid, {name:m.name, color:m.color})
-          usersUI.add(pid, {name:m.name, color:m.color})
-          break
-        case 'chat':
-          chatUI.add(m.name, m.text)
-          break
-        case 'laser':
-          laserUI.set(pid, m.x, m.y, m.color)
-          break
-        case 'laser-off':
-          laserUI.remove(pid)
-          break
-        case 'react':
-          reactUI.add(m.emoji)
-          break
-        case 'note':
-          notesUI.add(m.id, {x:m.x, y:m.y, text:m.text, color:m.color})
-          break
-        case 'poll':
-          showPoll(m.q, m.opts)
-          break
-        case 'vote':
-          addVote(m.opt)
-          break
-        case 'clear':
-          $('notes-layer').innerHTML = ''
-          break
-      }
+      if (m.t === 'join') ul.add(pid, {name:m.name, color:m.color})
+      if (m.t === 'chat') ch.add(m.name, m.text)
+      if (m.t === 'laser') lz.set(pid, m.x, m.y, m.c)
+      if (m.t === 'laser-off') lz.remove(pid)
+      if (m.t === 'react') rx.add(m.e)
     }
   })
-
   net.connect()
-
-  // Add self to list
-  usersUI.add('me', {name:myName+' (you)', color:myColor})
+  ul.add('me', {name: name + ' (you)', color})
 }
 
-// Chat
-chatUI = chat($('chat'), text => {
-  chatUI.add(myName, text)
-  net.send({t:'chat', name:myName, text})
-})
-chatUI.add('', 'Welcome to the workspace!', true)
-
-// Reactions
-reactUI = reactions($('reactions'), emoji => {
-  reactUI.add(emoji)
-  net.send({t:'react', emoji})
-})
-
-// Tool selection
-const tools = ['pointer', 'laser', 'note', 'poll']
-tools.forEach(tl => {
-  $(`tool-${tl}`).onclick = () => {
-    tool = tl
-    document.querySelectorAll('.toolbar button').forEach(b => b.classList.remove('active'))
-    $(`tool-${tl}`).classList.add('active')
-    if(tl === 'note') addNote()
-    if(tl === 'poll') createPoll()
+// Tools
+const tools = ['pointer', 'laser', 'note']
+tools.forEach(t => {
+  $('t-'+t).onclick = () => {
+    tool = t
+    tools.forEach(x => $('t-'+x).classList.toggle('active', x===t))
+    if (t === 'note') {
+      const text = prompt('Note:')
+      if (text) ch.add(name, '📝 ' + text)
+    }
   }
 })
 
-// Laser pointer
-const canvasWrap = document.querySelector('.canvas-wrap')
-canvasWrap.onmousemove = e => {
-  if(tool !== 'laser') return
-  const r = canvasWrap.getBoundingClientRect()
+// Laser
+$('area').onmousemove = e => {
+  if (tool !== 'laser' || !net) return
+  const r = $('area').getBoundingClientRect()
   const x = e.clientX - r.left, y = e.clientY - r.top
-  laserUI.set('me', x, y, myColor)
-  net.send({t:'laser', x, y, color:myColor})
+  lz.set('me', x, y, color)
+  net.send({t:'laser', x, y, c:color})
 }
-canvasWrap.onmouseleave = () => {
-  laserUI.remove('me')
-  net.send({t:'laser-off'})
+$('area').onmouseleave = () => {
+  lz.remove('me')
+  if (net) net.send({t:'laser-off'})
 }
-
-// Notes
-const noteColors = ['#fef3b0','#b5ead7','#c7ceea','#ffb7b2','#e2f0cb']
-function addNote() {
-  const text = prompt('Note text:')
-  if(!text) return
-  const id = crypto.randomUUID()
-  const x = 50 + Math.random() * 200
-  const y = 50 + Math.random() * 200
-  const color = noteColors[Math.floor(Math.random()*noteColors.length)]
-  notesUI.add(id, {x, y, text, color})
-  net.send({t:'note', id, x, y, text, color})
-  tool = 'pointer'
-  $('tool-pointer').classList.add('active')
-  $('tool-note').classList.remove('active')
-}
-
-// Polls
-let currentPoll = null
-function createPoll() {
-  const q = prompt('Poll question:')
-  if(!q) return
-  const opts = prompt('Options (comma separated):')
-  if(!opts) return
-  const optList = opts.split(',').map(s=>s.trim()).filter(Boolean)
-  showPoll(q, optList)
-  net.send({t:'poll', q, opts:optList})
-  tool = 'pointer'
-  $('tool-pointer').classList.add('active')
-  $('tool-poll').classList.remove('active')
-}
-
-function showPoll(q, opts) {
-  currentPoll = {q, opts: opts.map(o=>({text:o, votes:0}))}
-  renderPoll()
-  $('poll').style.display = 'block'
-}
-
-function addVote(opt) {
-  if(!currentPoll) return
-  const o = currentPoll.opts.find(x=>x.text===opt)
-  if(o) o.votes++
-  renderPoll()
-}
-
-function renderPoll() {
-  if(!currentPoll) return
-  const total = currentPoll.opts.reduce((s,o)=>s+o.votes,0) || 1
-  $('poll-opts').innerHTML = ''
-  currentPoll.opts.forEach(o => {
-    const pct = Math.round(o.votes/total*100)
-    const div = t`div.poll-opt ${{onclick:()=>{
-      o.votes++
-      renderPoll()
-      net.send({t:'vote', opt:o.text})
-    }}} ${[
-      t`span ${[o.text]}`,
-      t`div.bar ${[t`div.fill ${{style:{width:pct+'%'}}}`]}`,
-      t`span.pct ${[pct+'%']}`
-    ]}`
-    $('poll-opts').append(div)
-  })
-}
-
-// Clear
-$('btn-clear').onclick = () => {
-  $('notes-layer').innerHTML = ''
-  net.send({t:'clear'})
-}
-
-// Topics
-document.querySelectorAll('.topic').forEach(t => {
-  t.onclick = () => {
-    chatUI.add(myName, `📌 Let's discuss: ${t.dataset.topic}`)
-    net.send({t:'chat', name:myName, text:`📌 Let's discuss: ${t.dataset.topic}`})
-  }
-})
-
-// Join modal
-$('join-btn').onclick = () => {
-  join($('name-input').value, $('room-input').value)
-  $('modal').classList.remove('show')
-}
-$('name-input').onkeydown = e => e.key==='Enter' && $('join-btn').click()
-$('room-input').onkeydown = e => e.key==='Enter' && $('join-btn').click()
 </script>
 </body>
 </html>

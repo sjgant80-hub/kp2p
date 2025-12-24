@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>Test: mesh.js</title>
+<style>
+body{font:16px system-ui;padding:20px}
+.status{padding:10px 20px;border-radius:20px;display:inline-block;margin:10px 0}
+.open{background:#dfd;color:#060}
+.connecting{background:#ffd;color:#860}
+#log{background:#111;color:#0f0;padding:20px;border-radius:8px;height:300px;overflow:auto;font-family:monospace}
+</style>
+<h1>P2P Mesh Test</h1>
+<div id="status" class="status connecting">Connecting...</div>
+<p>Peers: <span id="count">0</span></p>
+<div id="log"></div>
+<script type="module">
+import {mesh} from '../mesh.js'
+
+const log = msg => {
+  const d = document.getElementById('log')
+  d.innerHTML += new Date().toLocaleTimeString() + ' ' + msg + '<br>'
+  d.scrollTop = d.scrollHeight
+}
+
+const room = 'test-' + location.hash.slice(1) || 'default'
+log('Room: ' + room)
+
+const net = mesh(room, {
+  open: () => {
+    log('Connected to tracker')
+    document.getElementById('status').className = 'status open'
+    document.getElementById('status').textContent = 'Connected'
+  },
+  peer: pid => {
+    log('Peer joined: ' + pid)
+    document.getElementById('count').textContent = net.peers.size
+    net.send({type:'hello', from:net.id})
+  },
+  left: pid => {
+    log('Peer left: ' + pid)
+    document.getElementById('count').textContent = net.peers.size
+  },
+  msg: (m, pid) => {
+    log('Message from ' + pid + ': ' + JSON.stringify(m))
+  }
+})
+
+net.connect()
+log('My ID: ' + net.id)
+log('Connecting...')
+</script>
