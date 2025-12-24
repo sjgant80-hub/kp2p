@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 📐 KONOMI STANDARD PAGES 📐
 ## GitHub Pages Static Reference Build
 
@@ -194,6 +190,7 @@ module.exports = {
 
 ## 📄 BASE.NJK
 
+{% raw %}
 ```html
 <!DOCTYPE html>
 <html lang="en" x-data="{dark:true}" :class="{'dark':dark}">
@@ -222,11 +219,13 @@ module.exports = {
 </body>
 </html>
 ```
+{% endraw %}
 
 ---
 
 ## 🧭 SIDEBAR.NJK
 
+{% raw %}
 ```html
 <div class="mb-6">
   <a href="/" class="text-xl font-bold text-konomi-accent">📐 Konomi Std</a>
@@ -260,11 +259,13 @@ module.exports = {
   </button>
 </div>
 ```
+{% endraw %}
 
 ---
 
 ## 📇 UDT-CARD.NJK
 
+{% raw %}
 ```html
 <div class="udt-card" id="{{udt.name|slug}}">
   <div class="flex justify-between items-start mb-2">
@@ -296,11 +297,13 @@ module.exports = {
   {% endif %}
 </div>
 ```
+{% endraw %}
 
 ---
 
 ## 📊 STATE-DIAGRAM.NJK
 
+{% raw %}
 ```html
 {% if states %}
 <div class="my-4">
@@ -313,6 +316,7 @@ stateDiagram-v2
 </div>
 {% endif %}
 ```
+{% endraw %}
 
 ---
 
@@ -371,6 +375,7 @@ document.querySelectorAll('[data-copy]').forEach(btn => {
 
 ## 🚀 DEPLOY.YML
 
+{% raw %}
 ```yaml
 name: Deploy to GitHub Pages
 
@@ -398,11 +403,13 @@ jobs:
           github_token: ${{secrets.GITHUB_TOKEN}}
           publish_dir: ./dist
 ```
+{% endraw %}
 
 ---
 
 ## 📄 INDEX.NJK (home)
 
+{% raw %}
 ```html
 ---
 layout: base.njk
@@ -431,11 +438,13 @@ title: Home
   {% endfor %}
 </div>
 ```
+{% endraw %}
 
 ---
 
 ## 📄 STANDARD.NJK (layout)
 
+{% raw %}
 ```html
 ---
 layout: base.njk
@@ -476,11 +485,13 @@ layout: base.njk
 </div>
 {% endif %}
 ```
+{% endraw %}
 
 ---
 
 ## 🔀 CROSSWALK.NJK (layout)
 
+{% raw %}
 ```html
 ---
 layout: base.njk
@@ -507,6 +518,7 @@ layout: base.njk
   </tbody>
 </table>
 ```
+{% endraw %}
 
 ---
 
