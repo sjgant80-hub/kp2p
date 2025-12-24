@@ -298,7 +298,8 @@ function showSlidePreview(index) {
 
 // Render slide content
 function renderSlideContent(slide, isPreview = false) {
-  const scale = isPreview ? 'transform: scale(0.25); transform-origin: top left; width: 400%; height: 400%;' : '';
+  // CSS handles preview scaling via .slide-preview .slide
+  const scale = '';
 
   switch (slide.style) {
     case 'hero':
