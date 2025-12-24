@@ -10,8 +10,6 @@ import { gateTagDB, initGateTagDB, showTagDBConfig } from './tagdb.js';
 
 const $ = id => document.getElementById(id);
 
-// Expose TagDB config
-window.showTagDBConfig = showTagDBConfig;
 
 // App state
 const state = {
@@ -60,6 +58,10 @@ function setupEventHandlers() {
   $('addEndpointBtn')?.addEventListener('click', showAddEndpointModal);
   $('clearTrafficBtn')?.addEventListener('click', () => $('trafficFeed').innerHTML = '');
   $('clearLogsBtn')?.addEventListener('click', () => $('logConsole').innerHTML = '');
+
+  // Header buttons
+  $('quickApiBtn')?.addEventListener('click', showQuickAPIEntry);
+  $('tagDbBtn')?.addEventListener('click', showTagDBConfig);
 }
 
 // Broadcast request to API HERO iframe
@@ -170,7 +172,6 @@ function showQuickAPIEntry() {
   };
 }
 
-window.showQuickAPIEntry = showQuickAPIEntry;
 
 // Initialize LLM
 async function initLLM() {
@@ -227,51 +228,6 @@ function renderProviderTree() {
     </div>
   `).join('');
 }
-
-// Demo traffic timer
-let demoTimer = null;
-
-// Toggle demo traffic simulation
-function toggleDemoTraffic() {
-  if (demoTimer) {
-    clearInterval(demoTimer);
-    demoTimer = null;
-    addLog('info', 'Demo traffic stopped');
-    return false;
-  }
-
-  const methods = ['GET', 'POST', 'GET', 'GET', 'PUT', 'DELETE', 'WS', 'EVENT'];
-  const paths = ['/api/users', '/api/products', '/api/orders', '/api/auth', '/api/search', '/ws/live', '/events/notify'];
-  const statuses = [200, 200, 200, 200, 201, 400, 404, 500];
-
-  addLog('info', 'Demo traffic started');
-
-  demoTimer = setInterval(() => {
-    const method = methods[Math.floor(Math.random() * methods.length)];
-    const path = paths[Math.floor(Math.random() * paths.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    const latency = Math.floor(Math.random() * 200) + 10;
-
-    // Check rate limit
-    const rateCheck = gateway.checkRateLimit('global');
-    const blocked = !rateCheck.allowed;
-
-    recordAndBroadcast({
-      Method: method,
-      Path: path,
-      Status: blocked ? 429 : status,
-      Latency: latency,
-      Blocked: blocked,
-      BlockReason: blocked ? 'Rate limit exceeded' : '',
-      ClientIP: `192.168.1.${Math.floor(Math.random() * 255)}`
-    });
-
-  }, 300 + Math.random() * 700);
-
-  return true;
-}
-
-window.toggleDemoTraffic = toggleDemoTraffic;
 
 // Add traffic item to feed
 function addTrafficItem(req) {
