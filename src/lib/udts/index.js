@@ -11,6 +11,9 @@
  * - Core: Identity, Peer, Protocol, Crypto types
  * - Network: Discovery, Transport, Relay, NAT types
  * - P2P: Mesh, Users, Chat, Status, Laser types
+ * - Sync: Awareness, Provider, Room, Persistence types
+ * - Protocols: Signal, RPC, Blob transfer types
+ * - Enterprise: ISA-95, PackML, Sparkplug, Mesh types
  * - LLM: Agent tools and capabilities
  * - Graphics: Ignition/Perspective component types
  *
@@ -25,6 +28,9 @@ import { OS_UDTS, expandUDT as expandOS, minify as minifyOS, expand as expandOSO
 import { CORE_UDTS, expandUDT as expandCore, minify as minifyCore, expand as expandCoreObj, validate as validateCore } from '../../core/udts.js';
 import { NETWORK_UDTS, expandUDT as expandNetwork, minify as minifyNetwork, expand as expandNetworkObj, validate as validateNetwork } from '../../network/udts.js';
 import { P2P_UDTS, expandUDT as expandP2P, minify as minifyP2P, expand as expandP2PObj, validate as validateP2P } from '../../p2p/udts.js';
+import { SYNC_UDTS } from '../../sync/udts.js';
+import { PROTOCOL_UDTS } from '../../protocols/udts.js';
+import { ENTERPRISE_UDTS } from '../../enterprise/udts.js';
 import { TOOLS as LLM_TOOLS, ToolRegistry } from '../../llm/tools-udt.js';
 import { TYPE_MAP, STYLE_MAP, SHORTCODES } from '../graphics/udts.js';
 
@@ -47,6 +53,15 @@ export const UDT_REGISTRY = {
 
   // P2P messaging types
   p2p: P2P_UDTS,
+
+  // Sync/CRDT types
+  sync: SYNC_UDTS,
+
+  // Protocol types (signal, RPC, blob)
+  protocols: PROTOCOL_UDTS,
+
+  // Enterprise/Industrial types
+  enterprise: ENTERPRISE_UDTS,
 
   // LLM agent tools
   llm: {
@@ -376,6 +391,9 @@ export {
   CORE_UDTS,
   NETWORK_UDTS,
   P2P_UDTS,
+  SYNC_UDTS,
+  PROTOCOL_UDTS,
+  ENTERPRISE_UDTS,
   LLM_TOOLS,
 
   // Graphics maps
