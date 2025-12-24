@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Test: dom.js</title>
+<style>
+.box{padding:20px;background:#eef;margin:10px;border-radius:8px}
+button{padding:10px 20px;margin:5px}
+</style>
+<div id="out"></div>
+<script type="module">
+import {$, h, esc} from '../dom.js'
+
+// Test $
+console.log('$ test:', $('out') ? 'PASS' : 'FAIL')
+
+// Test h
+const box = h('div', {className:'box'},
+  h('h2', {}, 'Hello'),
+  h('p', {}, 'Created with h()'),
+  h('button', {onclick: () => alert('clicked!')}, 'Click me')
+)
+$('out').append(box)
+
+// Test esc
+const escaped = esc('<script>alert("xss")</script>')
+$('out').append(h('div', {className:'box'},
+  h('p', {}, 'Escaped HTML: ' + escaped)
+))
+
+console.log('esc test:', escaped.includes('&lt;') ? 'PASS' : 'FAIL')
+console.log('h test:', box.className === 'box' ? 'PASS' : 'FAIL')
+</script>
