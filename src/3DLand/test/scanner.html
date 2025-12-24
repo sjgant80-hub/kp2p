@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html><head>
+  <title>Scanner Test</title>
+  <style>
+    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+    h1 { color: #4ade80; font-size: 18px; }
+    button { background: #059669; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin: 8px 4px 8px 0; }
+    button:hover { background: #10b981; }
+    pre { background: #0f0f23; padding: 12px; border-radius: 6px; height: 300px; overflow: auto; }
+    .found { color: #22c55e; }
+    input { background: #0f0f23; border: 1px solid #333; color: #fff; padding: 8px; border-radius: 4px; width: 150px; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Network Scanner Test</h1>
+  <div>
+    <input type="text" id="subnet" placeholder="192.168.1" value="192.168.1">
+    <button id="btn-quick">Quick Scan</button>
+    <button id="btn-full">Full Scan</button>
+  </div>
+  <pre id="out">Click a button to start scanning...\n</pre>
+  <script type="module">
+import { scan, quickScan } from '../scanner.js'
+
+const out = document.getElementById('out')
+const log = msg => {
+  out.innerHTML += msg + '\n'
+  out.scrollTop = out.scrollHeight
+}
+const found = ({ ip, port }) => {
+  out.innerHTML += `<span class="found">✓ FOUND: ${ip}:${port}</span>\n`
+}
+
+document.getElementById('btn-quick').onclick = async () => {
+  out.innerHTML = 'Starting quick scan...\n'
+  await quickScan(found, log)
+  log('Quick scan complete.')
+}
+
+document.getElementById('btn-full').onclick = async () => {
+  const subnet = document.getElementById('subnet').value || '192.168.1'
+  out.innerHTML = `Starting full scan of ${subnet}.1-254...\n`
+  await scan(subnet, found, log)
+}
+  </script>
+</body>
+</html>

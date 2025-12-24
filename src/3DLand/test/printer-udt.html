@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html><head>
+  <title>Printer UDT Test</title>
+  <style>
+    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+    h1 { color: #4ade80; font-size: 18px; }
+    pre { background: #0f0f23; padding: 12px; border-radius: 6px; overflow: auto; }
+    .pass { color: #22c55e; }
+    .fail { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>🖨️ Printer UDT Test</h1>
+  <pre id="out"></pre>
+  <script type="module">
+import { printer } from '../printers/base.js'
+import { Ender3, Ender3V2, Ender5, CR10, K1 } from '../printers/creality.js'
+
+const out = document.getElementById('out')
+const log = (msg, pass = true) => {
+  out.innerHTML += `<span class="${pass ? 'pass' : 'fail'}">${pass ? '✓' : '✗'}</span> ${msg}\n`
+}
+
+// Test base printer
+const p = printer({ name: 'Test', brand: 'Generic', bed: { x: 100, y: 100, z: 100 } })
+log(`Base printer: ${p.name} (${p.brand})`, p.name === 'Test')
+log(`Bed size: ${p.bed.x}x${p.bed.y}x${p.bed.z}`, p.bed.x === 100)
+log(`Has UUID: ${p.id.slice(0, 8)}...`, p.id.length === 36)
+
+// Test Creality models
+const e3 = Ender3('192.168.1.100')
+log(`Ender3: ${e3.name} @ ${e3.ip}:${e3.port}`, e3.ip === '192.168.1.100')
+log(`Ender3 bed: ${e3.bed.x}x${e3.bed.y}x${e3.bed.z}`, e3.bed.x === 220)
+
+const e5 = Ender5('192.168.1.101')
+log(`Ender5: ${e5.name} bed Z: ${e5.bed.z}mm`, e5.bed.z === 300)
+
+const cr = CR10('192.168.1.102')
+log(`CR-10: ${cr.name} bed: ${cr.bed.x}x${cr.bed.y}`, cr.bed.x === 300)
+
+const k1 = K1('192.168.1.103')
+log(`K1: ${k1.name} port: ${k1.port}`, k1.port === 9999)
+log(`K1 filaments: ${k1.filament.join(', ')}`, k1.filament.includes('ASA'))
+
+log('\n--- All tests complete ---')
+  </script>
+</body>
+</html>
