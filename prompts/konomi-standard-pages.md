@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 📐 KONOMI STANDARD PAGES 📐
 ## GitHub Pages Static Reference Build
 
