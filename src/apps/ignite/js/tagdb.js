@@ -17,6 +17,12 @@ export class TagDatabase {
     this.lastEtag = null;
     this.onUpdate = config.onUpdate || (() => {});
     this.connected = false;
+
+    // Status tracking
+    this.clientId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    this.connectedAt = null;
+    this.pollCount = 0;
+    this.statusUpdateTimer = null;
   }
 
   // Configure connection
@@ -107,7 +113,14 @@ export class TagDatabase {
     await this.poll();
 
     this.connected = true;
+    this.connectedAt = Date.now();
+    this.pollCount = 0;
+
+    // Write initial status tags
+    await this.updateStatusTags();
+
     this.startPolling();
+    this.startStatusUpdates();
 
     log('success', 'TagDB connected', 'TAGDB');
   }
@@ -115,8 +128,61 @@ export class TagDatabase {
   // Disconnect
   disconnect() {
     this.stopPolling();
+    this.stopStatusUpdates();
     this.connected = false;
+    this.connectedAt = null;
     log('info', 'TagDB disconnected', 'TAGDB');
+  }
+
+  // Start status tag updates (every poll interval)
+  startStatusUpdates() {
+    if (this.statusUpdateTimer) return;
+
+    this.statusUpdateTimer = setInterval(() => {
+      this.updateStatusTags().catch(e => {
+        log('error', `Status update error: ${e.message}`, 'TAGDB');
+      });
+    }, this.pollInterval);
+  }
+
+  // Stop status updates
+  stopStatusUpdates() {
+    if (this.statusUpdateTimer) {
+      clearInterval(this.statusUpdateTimer);
+      this.statusUpdateTimer = null;
+    }
+  }
+
+  // Update gateway status tags
+  async updateStatusTags() {
+    const now = new Date();
+    const uptime = this.connectedAt ? Math.floor((Date.now() - this.connectedAt) / 1000) : 0;
+
+    // Status tags that update automatically
+    const statusTags = {
+      'Gateway/Status': this.connected ? 'Connected' : 'Disconnected',
+      'Gateway/Heartbeat': now.toISOString(),
+      'Gateway/Uptime_Seconds': uptime,
+      'Gateway/Poll_Count': this.pollCount,
+      'Gateway/Client_ID': this.clientId,
+      'Gateway/Last_Update': now.toLocaleTimeString(),
+      'Gateway/Memory_MB': Math.round(performance?.memory?.usedJSHeapSize / 1024 / 1024) || 0,
+      'Gateway/Tags_Count': this.tags.size
+    };
+
+    // Update local tags
+    for (const [path, value] of Object.entries(statusTags)) {
+      this.tags.set(path, {
+        value,
+        quality: 'Good',
+        timestamp: now.toISOString(),
+        source: 'system'
+      });
+    }
+
+    // Sync to remote
+    await this.syncToRemote();
+    log('info', `Status tags updated (uptime: ${uptime}s, polls: ${this.pollCount})`, 'TAGDB');
   }
 
   // Start polling for updates
@@ -143,6 +209,8 @@ export class TagDatabase {
   // Poll for updates
   async poll() {
     if (!this.issueNumber) return;
+
+    this.pollCount++;
 
     try {
       const resp = await fetch(`${this.apiBase}/issues/${this.issueNumber}`, {
@@ -385,6 +453,11 @@ export function showTagDBConfig() {
           </div>
           ${tagDB.issueNumber ? `<div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Issue: #${tagDB.issueNumber}</div>` : ''}
         </div>
+
+        <div id="tagdb-live-tags" style="margin-top: 16px; max-height: 200px; overflow-y: auto; display: ${tagDB.connected ? 'block' : 'none'};">
+          <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">📊 Live Status Tags</div>
+          <div id="tagdb-tags-list" style="font-family: monospace; font-size: 11px;"></div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
@@ -395,6 +468,39 @@ export function showTagDBConfig() {
   `;
 
   document.body.appendChild(modal);
+
+  // Update live tags display
+  function updateLiveTagsDisplay() {
+    const list = document.getElementById('tagdb-tags-list');
+    if (!list) return;
+
+    const statusTags = [...tagDB.tags.entries()]
+      .filter(([path]) => path.startsWith('Gateway/'))
+      .sort((a, b) => a[0].localeCompare(b[0]));
+
+    list.innerHTML = statusTags.map(([path, data]) => {
+      const name = path.replace('Gateway/', '');
+      const value = typeof data.value === 'string' ? data.value : JSON.stringify(data.value);
+      return `<div style="display: flex; justify-content: space-between; padding: 4px 8px; background: var(--bg2); margin-bottom: 2px; border-radius: 3px;">
+        <span style="color: var(--cyan);">${name}</span>
+        <span style="color: var(--green);">${value}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Start live update if connected
+  let liveUpdateTimer = null;
+  if (tagDB.connected) {
+    updateLiveTagsDisplay();
+    liveUpdateTimer = setInterval(updateLiveTagsDisplay, 1000);
+  }
+
+  // Clean up timer when modal closes
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal || e.target.classList.contains('modal-close')) {
+      if (liveUpdateTimer) clearInterval(liveUpdateTimer);
+    }
+  });
 
   // Connect button
   document.getElementById('tagdb-connect').onclick = async () => {
@@ -416,6 +522,12 @@ export function showTagDBConfig() {
       document.getElementById('tagdb-status').textContent = 'Connected';
       document.getElementById('tagdb-status').style.color = 'var(--green)';
       document.getElementById('tagdb-disconnect').style.display = '';
+      document.getElementById('tagdb-live-tags').style.display = 'block';
+
+      // Start live updates
+      updateLiveTagsDisplay();
+      if (liveUpdateTimer) clearInterval(liveUpdateTimer);
+      liveUpdateTimer = setInterval(updateLiveTagsDisplay, 1000);
 
       // Save config
       localStorage.setItem('konomi-tagdb-config', JSON.stringify({ owner, repo, token, poll }));
@@ -431,6 +543,11 @@ export function showTagDBConfig() {
     document.getElementById('tagdb-status').textContent = 'Disconnected';
     document.getElementById('tagdb-status').style.color = 'var(--text-dim)';
     document.getElementById('tagdb-disconnect').style.display = 'none';
+    document.getElementById('tagdb-live-tags').style.display = 'none';
+    if (liveUpdateTimer) {
+      clearInterval(liveUpdateTimer);
+      liveUpdateTimer = null;
+    }
   };
 }
 
