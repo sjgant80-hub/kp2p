@@ -3,9 +3,6 @@
  * Local LLM-powered presentation generator
  */
 
-// Import WebLLM from CDN
-import * as webllm from 'https://esm.run/@anthropic-ai/claude-instant-1.2';
-
 const $ = id => document.getElementById(id);
 
 // State
