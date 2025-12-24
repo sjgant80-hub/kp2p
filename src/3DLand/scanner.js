@@ -1,65 +1,49 @@
-// Network scanner for 3D printers - ~45 lines
-import { models } from './printers/creality.js'
+// Network scanner for 3D printers - ~50 lines
 
 // Common printer ports
-const PORTS = [80, 8080, 5000, 7125, 9999]
+export const PORTS = [80, 8080, 5000, 7125, 9999]
 
-// Probe a single IP:port for printer
-async function probe(ip, port, timeout = 2000) {
-  const ctrl = new AbortController()
-  const id = setTimeout(() => ctrl.abort(), timeout)
-  try {
-    const r = await fetch(`http://${ip}:${port}/`, {
-      signal: ctrl.signal, mode: 'no-cors'
-    })
-    clearTimeout(id)
-    return true
-  } catch {
-    clearTimeout(id)
-    return false
+// Test if printer responds with valid data
+export async function testPrinter(ip, port = 80, onLog) {
+  onLog?.(`Testing ${ip}:${port}...`)
+
+  // Try common printer API endpoints
+  const endpoints = [
+    '/api/version',           // OctoPrint
+    '/api/printer',           // OctoPrint
+    '/printer/info',          // Klipper/Moonraker
+    '/protocal.csp?fname=Info&opt=main', // Creality
+  ]
+
+  for (const ep of endpoints) {
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 3000)
+      const r = await fetch(`http://${ip}:${port}${ep}`, { signal: ctrl.signal })
+      clearTimeout(timer)
+      if (r.ok) {
+        const data = await r.json().catch(() => null)
+        onLog?.(`✓ Found printer at ${ip}:${port} (${ep})`)
+        return { ip, port, endpoint: ep, data }
+      }
+    } catch (e) {
+      // CORS or network error - continue
+    }
   }
+  onLog?.(`✗ No printer found at ${ip}:${port}`)
+  return null
 }
 
-// Scan subnet for printers
+// Note: Browser auto-scanning is limited by CORS.
+// For reliable detection, use manual IP entry or run a local scan tool.
 export async function scan(subnet = '192.168.1', onFound, onLog) {
-  onLog?.(`Scanning ${subnet}.1-254...`)
-  const found = []
-
-  // Scan in batches of 20 to avoid overwhelming network
-  for (let batch = 0; batch < 13; batch++) {
-    const promises = []
-    for (let i = batch * 20 + 1; i <= (batch + 1) * 20 && i <= 254; i++) {
-      const ip = `${subnet}.${i}`
-      for (const port of PORTS) {
-        promises.push(
-          probe(ip, port).then(ok => ok ? { ip, port } : null)
-        )
-      }
-    }
-    const results = await Promise.all(promises)
-    for (const r of results.filter(Boolean)) {
-      onLog?.(`Found: ${r.ip}:${r.port}`)
-      found.push(r)
-      onFound?.(r)
-    }
-  }
-  onLog?.(`Scan complete. Found ${found.length} devices.`)
-  return found
+  onLog?.(`⚠️ Browser scanning limited by CORS`)
+  onLog?.(`Tip: Use "Add Printer" to enter IP manually`)
+  onLog?.(`Or run: nmap -p 80,8080,5000,7125 ${subnet}.0/24`)
+  return []
 }
 
-// Quick scan common printer IPs
-export async function quickScan(onFound, onLog) {
-  const common = ['.100', '.101', '.50', '.1']
-  // Detect local subnet from common ranges
-  for (const subnet of ['192.168.1', '192.168.0', '10.0.0']) {
-    for (const suffix of common) {
-      const ip = subnet + suffix
-      for (const port of PORTS) {
-        if (await probe(ip, port, 1000)) {
-          onLog?.(`Found: ${ip}:${port}`)
-          onFound?.({ ip, port })
-        }
-      }
-    }
-  }
+// Quick scan - just test a single IP
+export async function quickScan(ip, port, onLog) {
+  return await testPrinter(ip, port, onLog)
 }
