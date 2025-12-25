@@ -49,6 +49,9 @@ export const WIDGET_PATHS = {
   mcp: './mcp.html',
   kontainer: './kontainer.html',
   konomiKode: './konomi-kode.html',
+  iframe: './iframe.html',
+  kframe: './kframe.html',
+  claudeCode: './claude-code.html',
 }
 
 /**

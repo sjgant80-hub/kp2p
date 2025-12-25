@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<!--
+@file kframe.html
+@desc K-Frame - Enhanced frame that bypasses iframe restrictions
+@api  window.KFrame - frame controller
+
+Features:
+- CORS proxy for blocked content
+- Popup bridge for X-Frame-Options sites
+- postMessage communication bridge
+- Multiple proxy providers
+- Content injection/extraction
+- Session persistence
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>K-Frame</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{padding:10px 16px;background:linear-gradient(135deg,#0d9488,var(--a));display:flex;gap:12px;align-items:center}
+    .logo{font-size:22px}
+    .header h1{font-size:16px;color:#fff}
+    .header-info{display:flex;align-items:center;gap:8px;margin-left:12px;padding:6px 12px;background:rgba(0,0,0,.2);border-radius:20px;font-size:11px}
+    .header-info .dot{width:8px;height:8px;border-radius:50%;background:var(--y)}
+    .header-info .dot.connected{background:var(--g)}
+    .header-info .dot.error{background:var(--r)}
+    .header-actions{margin-left:auto;display:flex;gap:8px}
+    .header-actions button,.header-actions select{padding:8px 14px;background:rgba(255,255,255,.15);border:0;border-radius:6px;color:#fff;font-size:11px;cursor:pointer}
+    .header-actions button:hover{background:rgba(255,255,255,.25)}
+    .header-actions select{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2)}
+
+    .toolbar{padding:10px 16px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:10px;align-items:center}
+    .url-bar{flex:1;display:flex;align-items:center;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:0 12px}
+    .url-bar .mode{padding:6px 10px;background:var(--a2);border-radius:4px;font-size:10px;font-weight:600;margin-right:10px}
+    .url-bar .mode.proxy{background:var(--o)}
+    .url-bar .mode.popup{background:var(--g)}
+    .url-bar input{flex:1;background:0;border:0;color:var(--f);font:13px 'SF Mono',monospace;padding:10px 0}
+    .url-bar input:focus{outline:0}
+    .url-bar .go{padding:8px 16px;background:var(--a);border:0;border-radius:6px;color:#000;font-size:11px;font-weight:600;cursor:pointer;margin-left:8px}
+
+    .mode-btns{display:flex;gap:4px}
+    .mode-btns button{padding:8px 14px;background:rgba(255,255,255,.06);border:0;border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer}
+    .mode-btns button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+    .mode-btns button.active{background:var(--a2);color:#fff}
+
+    .main{flex:1;display:flex;overflow:hidden}
+
+    .frame-area{flex:1;position:relative;background:#fff}
+    .frame-area iframe{width:100%;height:100%;border:0}
+
+    .popup-placeholder{position:absolute;inset:0;background:var(--b);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px}
+    .popup-placeholder.active{display:flex}
+    .popup-placeholder .icon{font-size:64px;margin-bottom:20px}
+    .popup-placeholder h2{margin-bottom:12px}
+    .popup-placeholder p{color:#64748b;margin-bottom:24px;max-width:500px}
+    .popup-placeholder .btn-group{display:flex;gap:12px}
+    .popup-placeholder button{padding:14px 28px;border:0;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+    .popup-placeholder .primary{background:var(--a);color:#000}
+    .popup-placeholder .secondary{background:rgba(255,255,255,.1);color:var(--f)}
+
+    .sidebar{width:320px;background:var(--b2);border-left:1px solid rgba(255,255,255,.06);display:none;flex-direction:column}
+    .sidebar.open{display:flex}
+    .sidebar-header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-weight:600;display:flex;align-items:center;gap:10px}
+    .sidebar-header button{margin-left:auto;background:0;border:0;color:#64748b;cursor:pointer;font-size:18px}
+
+    .sidebar-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06)}
+    .sidebar-tabs button{flex:1;padding:12px;background:0;border:0;color:#64748b;font-size:12px;cursor:pointer;border-bottom:2px solid transparent}
+    .sidebar-tabs button:hover{color:var(--f)}
+    .sidebar-tabs button.active{color:var(--a);border-color:var(--a)}
+
+    .sidebar-content{flex:1;overflow-y:auto;padding:16px}
+
+    .message-list{display:flex;flex-direction:column;gap:10px}
+    .msg{padding:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:8px;font-size:12px}
+    .msg .time{font-size:10px;color:#64748b;margin-bottom:6px}
+    .msg .dir{font-size:10px;padding:2px 6px;border-radius:4px;margin-left:8px}
+    .msg .dir.in{background:var(--g);color:#000}
+    .msg .dir.out{background:var(--a2);color:#fff}
+    .msg pre{margin-top:8px;padding:8px;background:rgba(0,0,0,.3);border-radius:4px;overflow-x:auto;font-size:11px;color:#94a3b8}
+
+    .console-input{padding:12px;border-top:1px solid rgba(255,255,255,.06)}
+    .console-input textarea{width:100%;padding:10px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font:12px 'SF Mono',monospace;resize:none}
+    .console-input textarea:focus{outline:0;border-color:var(--a)}
+    .console-input button{margin-top:8px;width:100%;padding:10px;background:var(--a);border:0;border-radius:6px;color:#000;font-weight:600;cursor:pointer}
+
+    .proxy-list{display:flex;flex-direction:column;gap:8px}
+    .proxy-item{display:flex;align-items:center;gap:10px;padding:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:8px;cursor:pointer}
+    .proxy-item:hover{border-color:rgba(255,255,255,.15)}
+    .proxy-item.active{border-color:var(--a);background:rgba(0,217,255,.1)}
+    .proxy-item .status{width:10px;height:10px;border-radius:50%;background:var(--g)}
+    .proxy-item .status.slow{background:var(--y)}
+    .proxy-item .status.down{background:var(--r)}
+    .proxy-item .info{flex:1}
+    .proxy-item .name{font-weight:500;font-size:13px}
+    .proxy-item .url{font-size:10px;color:#64748b}
+
+    .loading{position:absolute;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center}
+    .loading.active{display:flex}
+    .loading .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--a);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🖼️</span>
+    <h1>K-Frame</h1>
+    <div class="header-info">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Ready</span>
+    </div>
+    <div class="header-actions">
+      <select id="proxySelect">
+        <option value="">Direct (No Proxy)</option>
+        <option value="corsproxy">CORS Proxy</option>
+        <option value="allorigins">AllOrigins</option>
+        <option value="cors-anywhere">CORS Anywhere</option>
+      </select>
+      <button id="bridgeBtn">🔗 Bridge</button>
+      <button id="injectBtn">💉 Inject</button>
+      <button id="sidebarBtn">📊</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="mode-btns">
+      <button class="active" data-mode="iframe">iFrame</button>
+      <button data-mode="proxy">Proxy</button>
+      <button data-mode="popup">Popup</button>
+    </div>
+    <div class="url-bar">
+      <span class="mode" id="modeLabel">DIRECT</span>
+      <input type="text" id="urlInput" placeholder="Enter URL to frame...">
+      <button class="go" id="goBtn">Load</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="frame-area">
+      <iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+      <div class="popup-placeholder" id="popupPlaceholder">
+        <div class="icon">🔗</div>
+        <h2>Popup Bridge Active</h2>
+        <p id="popupInfo">This site blocks iframe embedding. Use the popup bridge to interact with it in a separate window while maintaining communication.</p>
+        <div class="btn-group">
+          <button class="primary" id="openPopupBtn">Open in Popup</button>
+          <button class="secondary" id="tryProxyBtn">Try Proxy Instead</button>
+        </div>
+      </div>
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        📊 K-Frame Console
+        <button id="closeSidebarBtn">×</button>
+      </div>
+      <div class="sidebar-tabs">
+        <button class="active" data-tab="messages">Messages</button>
+        <button data-tab="proxies">Proxies</button>
+        <button data-tab="console">Console</button>
+      </div>
+      <div class="sidebar-content" id="sidebarContent">
+        <div class="message-list" id="messageList">
+          <div style="color:#64748b;text-align:center;padding:20px">No messages yet</div>
+        </div>
+      </div>
+      <div class="console-input" id="consoleInput" style="display:none">
+        <textarea id="evalInput" rows="3" placeholder="JavaScript to execute in frame..."></textarea>
+        <button id="evalBtn">Execute</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    // Proxy providers
+    const PROXIES = {
+      corsproxy: url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      allorigins: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      'cors-anywhere': url => `https://cors-anywhere.herokuapp.com/${url}`
+    };
+
+    class KFrame {
+      constructor() {
+        this.mode = 'iframe'; // iframe, proxy, popup
+        this.currentUrl = '';
+        this.proxy = '';
+        this.popupWindow = null;
+        this.messages = [];
+        this.sidebarTab = 'messages';
+        this.init();
+      }
+
+      setStatus(text, type = 'ready') {
+        $('statusText').textContent = text;
+        $('statusDot').className = 'dot' + (type === 'connected' ? ' connected' : type === 'error' ? ' error' : '');
+      }
+
+      setMode(mode) {
+        this.mode = mode;
+        document.querySelectorAll('.mode-btns button').forEach(b => {
+          b.classList.toggle('active', b.dataset.mode === mode);
+        });
+
+        const labels = { iframe: 'DIRECT', proxy: 'PROXY', popup: 'POPUP' };
+        const colors = { iframe: '', proxy: ' proxy', popup: ' popup' };
+        $('modeLabel').textContent = labels[mode];
+        $('modeLabel').className = 'mode' + colors[mode];
+
+        $('popupPlaceholder').classList.toggle('active', mode === 'popup');
+      }
+
+      async load(url) {
+        if (!url) return;
+
+        // Normalize URL
+        if (!url.match(/^https?:\/\//)) {
+          url = 'https://' + url;
+        }
+
+        this.currentUrl = url;
+        $('urlInput').value = url;
+        $('loading').classList.add('active');
+        this.setStatus('Loading...', 'ready');
+
+        try {
+          if (this.mode === 'popup') {
+            this.loadPopup(url);
+          } else if (this.mode === 'proxy' || this.proxy) {
+            await this.loadProxy(url);
+          } else {
+            this.loadDirect(url);
+          }
+        } catch (e) {
+          this.setStatus('Error: ' + e.message, 'error');
+          this.logMessage('error', { error: e.message });
+        }
+
+        $('loading').classList.remove('active');
+      }
+
+      loadDirect(url) {
+        const frame = $('frame');
+        frame.src = url;
+
+        frame.onload = () => {
+          this.setStatus('Loaded (Direct)', 'connected');
+          this.logMessage('load', { url, mode: 'direct' });
+
+          // Try to detect if blocked
+          try {
+            const doc = frame.contentDocument;
+            if (!doc || !doc.body) throw new Error('blocked');
+          } catch (e) {
+            // Cross-origin or blocked - that's expected
+          }
+        };
+
+        frame.onerror = () => {
+          this.setStatus('Failed - try Proxy mode', 'error');
+          this.logMessage('error', { url, reason: 'direct_failed' });
+        };
+      }
+
+      async loadProxy(url) {
+        const proxyFn = PROXIES[this.proxy || 'corsproxy'];
+        if (!proxyFn) {
+          this.loadDirect(url);
+          return;
+        }
+
+        const proxyUrl = proxyFn(url);
+        this.setStatus('Loading via proxy...', 'ready');
+
+        try {
+          const response = await fetch(proxyUrl);
+          const html = await response.text();
+
+          // Inject into iframe via srcdoc
+          const frame = $('frame');
+
+          // Rewrite relative URLs
+          const base = new URL(url);
+          const rewritten = html
+            .replace(/href=["'](?!http|\/\/|#|javascript:|data:)([^"']+)["']/gi,
+              `href="${base.origin}/$1"`)
+            .replace(/src=["'](?!http|\/\/|data:)([^"']+)["']/gi,
+              `src="${base.origin}/$1"`);
+
+          frame.srcdoc = rewritten;
+          this.setStatus('Loaded (Proxy)', 'connected');
+          this.logMessage('load', { url, mode: 'proxy', proxy: this.proxy });
+        } catch (e) {
+          this.setStatus('Proxy failed: ' + e.message, 'error');
+          throw e;
+        }
+      }
+
+      loadPopup(url) {
+        this.setStatus('Popup mode active', 'connected');
+        $('popupPlaceholder').classList.add('active');
+        $('popupInfo').textContent = `Ready to open: ${url}`;
+
+        $('openPopupBtn').onclick = () => {
+          this.popupWindow = window.open(url, 'kframe_popup', 'width=1200,height=800');
+          this.setStatus('Popup opened - bridge active', 'connected');
+          this.startPopupBridge();
+        };
+      }
+
+      startPopupBridge() {
+        // Listen for messages from popup
+        window.addEventListener('message', e => {
+          if (e.source === this.popupWindow) {
+            this.logMessage('in', e.data);
+          }
+        });
+
+        // Periodic check if popup closed
+        const check = setInterval(() => {
+          if (this.popupWindow?.closed) {
+            clearInterval(check);
+            this.setStatus('Popup closed', 'ready');
+            this.logMessage('system', { event: 'popup_closed' });
+          }
+        }, 1000);
+      }
+
+      sendToPopup(data) {
+        if (this.popupWindow && !this.popupWindow.closed) {
+          this.popupWindow.postMessage(data, '*');
+          this.logMessage('out', data);
+        }
+      }
+
+      sendToFrame(data) {
+        try {
+          $('frame').contentWindow.postMessage(data, '*');
+          this.logMessage('out', data);
+        } catch (e) {
+          this.logMessage('error', { error: 'Cannot send to frame: ' + e.message });
+        }
+      }
+
+      logMessage(dir, data) {
+        this.messages.unshift({
+          time: new Date().toLocaleTimeString(),
+          dir,
+          data
+        });
+        this.renderMessages();
+      }
+
+      renderMessages() {
+        if (this.sidebarTab !== 'messages') return;
+
+        $('messageList').innerHTML = this.messages.length ? this.messages.slice(0, 50).map(m => `
+          <div class="msg">
+            <span class="time">${m.time}</span>
+            <span class="dir ${m.dir}">${m.dir.toUpperCase()}</span>
+            <pre>${esc(JSON.stringify(m.data, null, 2))}</pre>
+          </div>
+        `).join('') : '<div style="color:#64748b;text-align:center;padding:20px">No messages yet</div>';
+      }
+
+      renderProxies() {
+        $('sidebarContent').innerHTML = `
+          <div class="proxy-list">
+            <div class="proxy-item ${!this.proxy ? 'active' : ''}" data-proxy="">
+              <div class="status"></div>
+              <div class="info">
+                <div class="name">Direct (No Proxy)</div>
+                <div class="url">Load directly in iframe</div>
+              </div>
+            </div>
+            <div class="proxy-item ${this.proxy === 'corsproxy' ? 'active' : ''}" data-proxy="corsproxy">
+              <div class="status"></div>
+              <div class="info">
+                <div class="name">CORS Proxy</div>
+                <div class="url">corsproxy.io</div>
+              </div>
+            </div>
+            <div class="proxy-item ${this.proxy === 'allorigins' ? 'active' : ''}" data-proxy="allorigins">
+              <div class="status"></div>
+              <div class="info">
+                <div class="name">AllOrigins</div>
+                <div class="url">api.allorigins.win</div>
+              </div>
+            </div>
+            <div class="proxy-item ${this.proxy === 'cors-anywhere' ? 'active' : ''}" data-proxy="cors-anywhere">
+              <div class="status slow"></div>
+              <div class="info">
+                <div class="name">CORS Anywhere</div>
+                <div class="url">cors-anywhere.herokuapp.com (rate limited)</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      renderConsole() {
+        $('sidebarContent').innerHTML = '<div style="color:#64748b;padding:20px">Execute JavaScript in the framed content (same-origin only)</div>';
+        $('consoleInput').style.display = 'block';
+      }
+
+      executeInFrame(code) {
+        try {
+          const result = $('frame').contentWindow.eval(code);
+          this.logMessage('eval', { code, result: String(result) });
+        } catch (e) {
+          this.logMessage('error', { code, error: e.message });
+        }
+      }
+
+      init() {
+        // Mode buttons
+        document.querySelectorAll('.mode-btns button').forEach(btn => {
+          btn.onclick = () => this.setMode(btn.dataset.mode);
+        });
+
+        // URL loading
+        $('goBtn').onclick = () => this.load($('urlInput').value);
+        $('urlInput').onkeydown = e => {
+          if (e.key === 'Enter') this.load($('urlInput').value);
+        };
+
+        // Proxy select
+        $('proxySelect').onchange = e => {
+          this.proxy = e.target.value;
+          if (this.proxy) this.setMode('proxy');
+        };
+
+        // Sidebar
+        $('sidebarBtn').onclick = () => $('sidebar').classList.toggle('open');
+        $('closeSidebarBtn').onclick = () => $('sidebar').classList.remove('open');
+
+        // Sidebar tabs
+        document.querySelectorAll('.sidebar-tabs button').forEach(btn => {
+          btn.onclick = () => {
+            document.querySelectorAll('.sidebar-tabs button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.sidebarTab = btn.dataset.tab;
+            $('consoleInput').style.display = 'none';
+
+            if (this.sidebarTab === 'messages') this.renderMessages();
+            else if (this.sidebarTab === 'proxies') this.renderProxies();
+            else if (this.sidebarTab === 'console') this.renderConsole();
+          };
+        });
+
+        // Proxy list click
+        $('sidebarContent').onclick = e => {
+          const item = e.target.closest('.proxy-item');
+          if (item) {
+            this.proxy = item.dataset.proxy;
+            $('proxySelect').value = this.proxy;
+            this.renderProxies();
+          }
+        };
+
+        // Console eval
+        $('evalBtn').onclick = () => {
+          this.executeInFrame($('evalInput').value);
+        };
+
+        // Bridge button
+        $('bridgeBtn').onclick = () => {
+          const msg = prompt('Message to send to frame/popup (JSON):');
+          if (msg) {
+            try {
+              const data = JSON.parse(msg);
+              if (this.popupWindow) this.sendToPopup(data);
+              else this.sendToFrame(data);
+            } catch (e) {
+              alert('Invalid JSON');
+            }
+          }
+        };
+
+        // Try proxy from popup placeholder
+        $('tryProxyBtn').onclick = () => {
+          this.setMode('proxy');
+          this.load(this.currentUrl);
+        };
+
+        // Listen for messages from frames
+        window.addEventListener('message', e => {
+          if (e.source === $('frame').contentWindow) {
+            this.logMessage('in', e.data);
+          }
+        });
+
+        this.renderMessages();
+        this.setStatus('Ready', 'ready');
+      }
+    }
+
+    window.KFrame = new KFrame();
+  </script>
+</body>
+</html>

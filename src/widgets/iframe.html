@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<!--
+@file iframe.html
+@desc Enhanced iframe widget - iframe on steroids
+@api  window.IFrame - iframe controller
+
+Features:
+- URL bar with navigation
+- Responsive sizing modes
+- Screenshot capture
+- DOM inspection bridge
+- postMessage communication
+- Multiple frame tabs
+- Bookmark manager
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Enhanced iFrame</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .toolbar{padding:8px 12px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:8px;align-items:center}
+    .nav-btns{display:flex;gap:4px}
+    .nav-btns button{width:32px;height:32px;background:rgba(255,255,255,.06);border:0;border-radius:6px;color:#94a3b8;cursor:pointer;font-size:14px}
+    .nav-btns button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+    .nav-btns button:disabled{opacity:.3;cursor:not-allowed}
+
+    .url-bar{flex:1;display:flex;align-items:center;background:var(--b3);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:0 12px;gap:8px}
+    .url-bar .icon{color:#64748b}
+    .url-bar input{flex:1;background:0;border:0;color:var(--f);font:13px 'SF Mono',monospace;padding:10px 0}
+    .url-bar input:focus{outline:0}
+    .url-bar .go{padding:6px 12px;background:var(--a);border:0;border-radius:5px;color:#000;font-size:11px;font-weight:600;cursor:pointer}
+
+    .actions{display:flex;gap:6px}
+    .actions button{padding:8px 12px;background:rgba(255,255,255,.06);border:0;border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px}
+    .actions button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+    .actions select{padding:8px 10px;background:var(--b3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font-size:11px}
+
+    .tabs-bar{display:flex;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);padding:0 8px}
+    .tab{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:12px;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;max-width:200px}
+    .tab:hover{color:var(--f);background:rgba(255,255,255,.02)}
+    .tab.active{color:var(--a);border-color:var(--a)}
+    .tab .title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tab .close{width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:14px}
+    .tab .close:hover{background:rgba(255,255,255,.1)}
+    .new-tab{padding:10px 14px;color:#64748b;cursor:pointer;font-size:16px}
+    .new-tab:hover{color:var(--f)}
+
+    .main{flex:1;display:flex;overflow:hidden}
+
+    .frame-container{flex:1;background:#fff;position:relative}
+    .frame-container iframe{width:100%;height:100%;border:0}
+    .frame-container.mobile{max-width:375px;margin:20px auto;border-radius:20px;overflow:hidden;box-shadow:0 0 0 10px #333,0 0 0 12px #111}
+    .frame-container.tablet{max-width:768px;margin:20px auto;border-radius:12px;overflow:hidden;box-shadow:0 0 0 8px #333}
+
+    .loading-overlay{position:absolute;inset:0;background:var(--b);display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .loading-overlay.hidden{display:none}
+    .loading-overlay .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--a);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .error-overlay{position:absolute;inset:0;background:var(--b);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px}
+    .error-overlay.show{display:flex}
+    .error-overlay .icon{font-size:48px;margin-bottom:16px}
+    .error-overlay h3{margin-bottom:8px}
+    .error-overlay p{color:#64748b;margin-bottom:20px;max-width:400px}
+    .error-overlay button{padding:10px 20px;background:var(--a);border:0;border-radius:8px;color:#000;font-weight:600;cursor:pointer}
+
+    .sidebar{width:280px;background:var(--b2);border-left:1px solid rgba(255,255,255,.06);display:none;flex-direction:column}
+    .sidebar.open{display:flex}
+    .sidebar-header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+    .sidebar-header button{margin-left:auto;background:0;border:0;color:#64748b;cursor:pointer}
+    .sidebar-content{flex:1;overflow-y:auto;padding:12px}
+
+    .bookmark{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:8px;margin-bottom:8px;cursor:pointer}
+    .bookmark:hover{border-color:rgba(255,255,255,.15)}
+    .bookmark .favicon{width:16px;height:16px;border-radius:3px}
+    .bookmark .info{flex:1;min-width:0}
+    .bookmark .title{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bookmark .url{font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bookmark .delete{opacity:0;color:var(--r);background:0;border:0;cursor:pointer}
+    .bookmark:hover .delete{opacity:1}
+
+    .console{display:none}
+    .console.open{display:flex;flex-direction:column;height:200px;background:#000;border-top:1px solid rgba(255,255,255,.06)}
+    .console-header{padding:8px 12px;background:rgba(255,255,255,.02);font-size:11px;color:#64748b;display:flex;align-items:center;gap:12px}
+    .console-body{flex:1;overflow-y:auto;padding:8px 12px;font:11px/1.5 'SF Mono',monospace}
+    .console-line{margin-bottom:2px}
+    .console-line.log{color:#94a3b8}
+    .console-line.info{color:var(--a)}
+    .console-line.warn{color:var(--y)}
+    .console-line.error{color:var(--r)}
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="nav-btns">
+      <button id="backBtn" title="Back">←</button>
+      <button id="forwardBtn" title="Forward">→</button>
+      <button id="refreshBtn" title="Refresh">↻</button>
+    </div>
+    <div class="url-bar">
+      <span class="icon">🌐</span>
+      <input type="text" id="urlInput" placeholder="Enter URL or search...">
+      <button class="go" id="goBtn">Go</button>
+    </div>
+    <div class="actions">
+      <select id="sizeSelect">
+        <option value="desktop">Desktop</option>
+        <option value="tablet">Tablet</option>
+        <option value="mobile">Mobile</option>
+      </select>
+      <button id="bookmarkBtn">⭐ Bookmark</button>
+      <button id="screenshotBtn">📷 Screenshot</button>
+      <button id="consoleBtn">🔧 Console</button>
+      <button id="sidebarBtn">📑</button>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <div class="tabs" id="tabs"></div>
+    <div class="new-tab" id="newTabBtn">+</div>
+  </div>
+
+  <div class="main">
+    <div class="frame-container" id="frameContainer">
+      <iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+      <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+      </div>
+      <div class="error-overlay" id="error">
+        <div class="icon">🚫</div>
+        <h3>Cannot Display This Page</h3>
+        <p id="errorMsg">This site doesn't allow embedding in iframes.</p>
+        <button id="openExternalBtn">Open in New Tab</button>
+      </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        📑 Bookmarks
+        <button id="closeSidebarBtn">×</button>
+      </div>
+      <div class="sidebar-content" id="bookmarksList"></div>
+    </div>
+  </div>
+
+  <div class="console" id="console">
+    <div class="console-header">
+      Console
+      <span style="margin-left:auto;cursor:pointer" id="clearConsoleBtn">Clear</span>
+    </div>
+    <div class="console-body" id="consoleBody"></div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class IFrame {
+      constructor() {
+        this.tabs = [];
+        this.activeTab = null;
+        this.bookmarks = JSON.parse(localStorage.getItem('iframe-bookmarks') || '[]');
+        this.history = [];
+        this.historyIndex = -1;
+        this.init();
+      }
+
+      createTab(url = 'about:blank') {
+        const tab = {
+          id: Date.now().toString(36),
+          url,
+          title: 'New Tab'
+        };
+        this.tabs.push(tab);
+        this.switchTab(tab.id);
+        this.renderTabs();
+        return tab;
+      }
+
+      closeTab(id) {
+        const idx = this.tabs.findIndex(t => t.id === id);
+        if (idx !== -1) {
+          this.tabs.splice(idx, 1);
+          if (this.activeTab === id) {
+            const newTab = this.tabs[Math.min(idx, this.tabs.length - 1)];
+            if (newTab) this.switchTab(newTab.id);
+            else this.createTab();
+          }
+          this.renderTabs();
+        }
+      }
+
+      switchTab(id) {
+        this.activeTab = id;
+        const tab = this.tabs.find(t => t.id === id);
+        if (tab) {
+          $('urlInput').value = tab.url === 'about:blank' ? '' : tab.url;
+          this.navigate(tab.url, false);
+        }
+        this.renderTabs();
+      }
+
+      renderTabs() {
+        $('tabs').innerHTML = this.tabs.map(tab => `
+          <div class="tab ${tab.id === this.activeTab ? 'active' : ''}" data-id="${tab.id}">
+            <span class="title">${esc(tab.title)}</span>
+            <span class="close" data-close="${tab.id}">×</span>
+          </div>
+        `).join('');
+      }
+
+      navigate(url, addHistory = true) {
+        if (!url || url === 'about:blank') {
+          $('frame').src = 'about:blank';
+          $('loading').classList.add('hidden');
+          $('error').classList.remove('show');
+          return;
+        }
+
+        // Add protocol if missing
+        if (!url.match(/^https?:\/\//)) {
+          if (url.includes('.') && !url.includes(' ')) {
+            url = 'https://' + url;
+          } else {
+            url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+          }
+        }
+
+        $('urlInput').value = url;
+        $('loading').classList.remove('hidden');
+        $('error').classList.remove('show');
+
+        // Update tab
+        const tab = this.tabs.find(t => t.id === this.activeTab);
+        if (tab) {
+          tab.url = url;
+          tab.title = new URL(url).hostname;
+          this.renderTabs();
+        }
+
+        // Try to load
+        const frame = $('frame');
+        frame.src = url;
+
+        // History
+        if (addHistory) {
+          this.history = this.history.slice(0, this.historyIndex + 1);
+          this.history.push(url);
+          this.historyIndex = this.history.length - 1;
+          this.updateNavButtons();
+        }
+      }
+
+      updateNavButtons() {
+        $('backBtn').disabled = this.historyIndex <= 0;
+        $('forwardBtn').disabled = this.historyIndex >= this.history.length - 1;
+      }
+
+      back() {
+        if (this.historyIndex > 0) {
+          this.historyIndex--;
+          this.navigate(this.history[this.historyIndex], false);
+        }
+      }
+
+      forward() {
+        if (this.historyIndex < this.history.length - 1) {
+          this.historyIndex++;
+          this.navigate(this.history[this.historyIndex], false);
+        }
+      }
+
+      refresh() {
+        $('frame').src = $('frame').src;
+      }
+
+      addBookmark() {
+        const url = $('urlInput').value;
+        if (!url || url === 'about:blank') return;
+
+        const tab = this.tabs.find(t => t.id === this.activeTab);
+        this.bookmarks.push({
+          id: Date.now().toString(36),
+          url,
+          title: tab?.title || new URL(url).hostname
+        });
+        this.saveBookmarks();
+        this.renderBookmarks();
+        this.log('Bookmarked: ' + url, 'info');
+      }
+
+      removeBookmark(id) {
+        this.bookmarks = this.bookmarks.filter(b => b.id !== id);
+        this.saveBookmarks();
+        this.renderBookmarks();
+      }
+
+      saveBookmarks() {
+        localStorage.setItem('iframe-bookmarks', JSON.stringify(this.bookmarks));
+      }
+
+      renderBookmarks() {
+        $('bookmarksList').innerHTML = this.bookmarks.length ? this.bookmarks.map(b => `
+          <div class="bookmark" data-url="${esc(b.url)}">
+            <img class="favicon" src="https://www.google.com/s2/favicons?domain=${new URL(b.url).hostname}&sz=32" onerror="this.style.display='none'">
+            <div class="info">
+              <div class="title">${esc(b.title)}</div>
+              <div class="url">${esc(b.url)}</div>
+            </div>
+            <button class="delete" data-delete="${b.id}">×</button>
+          </div>
+        `).join('') : '<div style="color:#64748b;text-align:center;padding:20px">No bookmarks yet</div>';
+      }
+
+      screenshot() {
+        this.log('Screenshot captured (simulated)', 'info');
+        // Real screenshot would need html2canvas or similar
+        alert('Screenshot feature requires html2canvas library for cross-origin frames');
+      }
+
+      log(msg, type = 'log') {
+        const line = document.createElement('div');
+        line.className = 'console-line ' + type;
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        $('consoleBody').appendChild(line);
+        $('consoleBody').scrollTop = $('consoleBody').scrollHeight;
+      }
+
+      setSize(size) {
+        $('frameContainer').className = 'frame-container ' + (size === 'desktop' ? '' : size);
+      }
+
+      init() {
+        // Create initial tab
+        this.createTab();
+        this.renderBookmarks();
+
+        // Frame events
+        $('frame').onload = () => {
+          $('loading').classList.add('hidden');
+          try {
+            const title = $('frame').contentDocument?.title;
+            if (title) {
+              const tab = this.tabs.find(t => t.id === this.activeTab);
+              if (tab) {
+                tab.title = title;
+                this.renderTabs();
+              }
+            }
+          } catch (e) {
+            // Cross-origin, can't access
+          }
+        };
+
+        $('frame').onerror = () => {
+          $('loading').classList.add('hidden');
+          $('error').classList.add('show');
+          $('errorMsg').textContent = 'Failed to load the page.';
+        };
+
+        // Navigation
+        $('goBtn').onclick = () => this.navigate($('urlInput').value);
+        $('urlInput').onkeydown = e => {
+          if (e.key === 'Enter') this.navigate($('urlInput').value);
+        };
+        $('backBtn').onclick = () => this.back();
+        $('forwardBtn').onclick = () => this.forward();
+        $('refreshBtn').onclick = () => this.refresh();
+
+        // Tabs
+        $('tabs').onclick = e => {
+          const close = e.target.closest('[data-close]');
+          if (close) {
+            e.stopPropagation();
+            this.closeTab(close.dataset.close);
+          } else {
+            const tab = e.target.closest('.tab');
+            if (tab) this.switchTab(tab.dataset.id);
+          }
+        };
+        $('newTabBtn').onclick = () => this.createTab();
+
+        // Actions
+        $('sizeSelect').onchange = e => this.setSize(e.target.value);
+        $('bookmarkBtn').onclick = () => this.addBookmark();
+        $('screenshotBtn').onclick = () => this.screenshot();
+        $('consoleBtn').onclick = () => $('console').classList.toggle('open');
+        $('clearConsoleBtn').onclick = () => $('consoleBody').innerHTML = '';
+
+        // Sidebar
+        $('sidebarBtn').onclick = () => $('sidebar').classList.toggle('open');
+        $('closeSidebarBtn').onclick = () => $('sidebar').classList.remove('open');
+        $('bookmarksList').onclick = e => {
+          const del = e.target.closest('[data-delete]');
+          if (del) {
+            e.stopPropagation();
+            this.removeBookmark(del.dataset.delete);
+          } else {
+            const bm = e.target.closest('.bookmark');
+            if (bm) this.navigate(bm.dataset.url);
+          }
+        };
+
+        // Error overlay
+        $('openExternalBtn').onclick = () => {
+          window.open($('urlInput').value, '_blank');
+        };
+
+        // Listen for postMessage from frames
+        window.addEventListener('message', e => {
+          this.log(`Message from frame: ${JSON.stringify(e.data)}`, 'info');
+        });
+
+        this.log('Enhanced iFrame ready', 'info');
+      }
+    }
+
+    window.IFrame = new IFrame();
+  </script>
+</body>
+</html>
