@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konnect - API Testing Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; min-height: 100vh; color: #e4e4e7; }
+
+        .header { background: rgba(0,0,0,0.3); padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d2d44; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; }
+        .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #f59e0b, #ef4444); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .logo-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .main { display: grid; grid-template-columns: 250px 1fr 1fr; height: calc(100vh - 60px); }
+
+        .sidebar { background: rgba(0,0,0,0.2); border-right: 1px solid #2d2d44; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 0.75rem; border-bottom: 1px solid #2d2d44; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-title { font-size: 0.8rem; font-weight: 600; color: #a1a1aa; text-transform: uppercase; }
+
+        .collection-list { flex: 1; overflow-y: auto; padding: 0.5rem; }
+        .collection-item { padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; }
+        .collection-item:hover { background: rgba(255,255,255,0.05); }
+        .collection-item.active { background: rgba(245, 158, 11, 0.2); }
+        .method-badge { font-size: 0.65rem; font-weight: 600; padding: 2px 6px; border-radius: 3px; min-width: 40px; text-align: center; }
+        .method-GET { background: #22c55e; color: #000; }
+        .method-POST { background: #f59e0b; color: #000; }
+        .method-PUT { background: #3b82f6; color: #fff; }
+        .method-DELETE { background: #ef4444; color: #fff; }
+        .method-PATCH { background: #a855f7; color: #fff; }
+
+        .request-panel { display: flex; flex-direction: column; border-right: 1px solid #2d2d44; }
+        .response-panel { display: flex; flex-direction: column; }
+
+        .panel-header { padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid #2d2d44; }
+        .panel-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+        .url-bar { display: flex; gap: 0.5rem; padding: 1rem; background: rgba(0,0,0,0.1); border-bottom: 1px solid #2d2d44; }
+        .method-select { padding: 0.5rem; background: #2d2d44; border: 1px solid #3d3d54; border-radius: 6px; color: #e4e4e7; font-weight: 600; min-width: 100px; }
+        .url-input { flex: 1; padding: 0.5rem 0.75rem; background: #0d0d15; border: 1px solid #3d3d54; border-radius: 6px; color: #e4e4e7; font-family: monospace; }
+        .url-input:focus { outline: none; border-color: #f59e0b; }
+
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: #2d2d44; color: #e4e4e7; }
+        .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+        .tabs { display: flex; border-bottom: 1px solid #2d2d44; background: rgba(0,0,0,0.1); }
+        .tab { padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; color: #a1a1aa; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab:hover { color: #e4e4e7; }
+        .tab.active { color: #f59e0b; border-bottom-color: #f59e0b; }
+
+        .tab-content { flex: 1; overflow: auto; display: none; }
+        .tab-content.active { display: block; }
+
+        .params-list { padding: 0.75rem; }
+        .param-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+        .param-input { padding: 0.4rem 0.6rem; background: #0d0d15; border: 1px solid #3d3d54; border-radius: 4px; color: #e4e4e7; font-size: 0.85rem; }
+        .param-input:focus { outline: none; border-color: #f59e0b; }
+        .param-delete { background: none; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem; }
+
+        .editor-area { flex: 1; padding: 0.75rem; }
+        .code-editor { width: 100%; height: 100%; min-height: 200px; background: #0d0d15; border: 1px solid #3d3d54; border-radius: 6px; padding: 0.75rem; font-family: 'Fira Code', monospace; font-size: 0.85rem; color: #e4e4e7; resize: none; }
+        .code-editor:focus { outline: none; border-color: #f59e0b; }
+
+        .response-status { padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid #2d2d44; display: flex; align-items: center; gap: 1rem; font-size: 0.85rem; }
+        .status-code { font-weight: 700; padding: 0.25rem 0.5rem; border-radius: 4px; }
+        .status-2xx { background: #22c55e; color: #000; }
+        .status-3xx { background: #3b82f6; color: #fff; }
+        .status-4xx { background: #f59e0b; color: #000; }
+        .status-5xx { background: #ef4444; color: #fff; }
+        .status-info { color: #a1a1aa; }
+
+        .response-body { flex: 1; overflow: auto; padding: 0.75rem; }
+        .response-body pre { background: #0d0d15; padding: 1rem; border-radius: 6px; font-family: 'Fira Code', monospace; font-size: 0.8rem; overflow-x: auto; white-space: pre-wrap; }
+
+        .headers-table { width: 100%; font-size: 0.8rem; }
+        .headers-table th, .headers-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #2d2d44; }
+        .headers-table th { color: #a1a1aa; font-weight: 500; }
+        .headers-table td:first-child { color: #f59e0b; font-family: monospace; }
+
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #71717a; }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+        .history-item { padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.25rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+        .history-item:hover { background: rgba(255,255,255,0.05); }
+        .history-url { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #a1a1aa; }
+        .history-status { font-size: 0.7rem; padding: 1px 4px; border-radius: 2px; }
+
+        .env-list { padding: 0.75rem; }
+        .env-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 0.5rem; margin-bottom: 0.5rem; }
+
+        @media (max-width: 1200px) { .main { grid-template-columns: 200px 1fr 1fr; } }
+        @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .sidebar { display: none; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">K</div>
+            <span class="logo-text">Konnect</span>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="importCollection()">Import</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportCollection()">Export</button>
+            <button class="btn btn-primary btn-sm" onclick="newRequest()">+ New</button>
+        </div>
+    </header>
+
+    <div class="main">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Collections</span>
+            </div>
+            <div class="collection-list" id="collection-list"></div>
+            <div class="sidebar-header">
+                <span class="sidebar-title">History</span>
+                <button class="btn btn-secondary btn-sm" onclick="clearHistory()">Clear</button>
+            </div>
+            <div class="collection-list" id="history-list" style="max-height: 200px;"></div>
+        </aside>
+
+        <section class="request-panel">
+            <div class="url-bar">
+                <select class="method-select" id="method-select">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="HEAD">HEAD</option>
+                    <option value="OPTIONS">OPTIONS</option>
+                </select>
+                <input type="text" class="url-input" id="url-input" placeholder="https://api.example.com/endpoint" />
+                <button class="btn btn-primary" onclick="sendRequest()">Send</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="setRequestTab('params')">Params</div>
+                <div class="tab" onclick="setRequestTab('headers')">Headers</div>
+                <div class="tab" onclick="setRequestTab('body')">Body</div>
+                <div class="tab" onclick="setRequestTab('auth')">Auth</div>
+            </div>
+
+            <div class="tab-content active" id="tab-params">
+                <div class="params-list" id="params-list">
+                    <div class="param-row">
+                        <input type="text" class="param-input" placeholder="Key" />
+                        <input type="text" class="param-input" placeholder="Value" />
+                        <button class="param-delete" onclick="this.parentElement.remove()">×</button>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" style="margin: 0 0.75rem;" onclick="addParam()">+ Add Param</button>
+            </div>
+
+            <div class="tab-content" id="tab-headers">
+                <div class="params-list" id="headers-list">
+                    <div class="param-row">
+                        <input type="text" class="param-input" placeholder="Header" value="Content-Type" />
+                        <input type="text" class="param-input" placeholder="Value" value="application/json" />
+                        <button class="param-delete" onclick="this.parentElement.remove()">×</button>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" style="margin: 0 0.75rem;" onclick="addHeader()">+ Add Header</button>
+            </div>
+
+            <div class="tab-content" id="tab-body">
+                <div class="tabs" style="padding: 0.5rem;">
+                    <div class="tab active" onclick="setBodyType('json')">JSON</div>
+                    <div class="tab" onclick="setBodyType('form')">Form</div>
+                    <div class="tab" onclick="setBodyType('raw')">Raw</div>
+                </div>
+                <div class="editor-area">
+                    <textarea class="code-editor" id="body-editor" placeholder='{"key": "value"}'></textarea>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-auth">
+                <div class="params-list">
+                    <label style="font-size: 0.8rem; color: #a1a1aa; margin-bottom: 0.5rem; display: block;">Auth Type</label>
+                    <select class="method-select" id="auth-type" style="margin-bottom: 1rem; width: 100%;">
+                        <option value="none">No Auth</option>
+                        <option value="bearer">Bearer Token</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="apikey">API Key</option>
+                    </select>
+                    <div id="auth-fields"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="response-panel">
+            <div class="response-status" id="response-status" style="display: none;">
+                <span class="status-code" id="status-code">200</span>
+                <span class="status-info" id="status-time">0ms</span>
+                <span class="status-info" id="status-size">0 B</span>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="setResponseTab('body')">Body</div>
+                <div class="tab" onclick="setResponseTab('headers')">Headers</div>
+                <div class="tab" onclick="setResponseTab('cookies')">Cookies</div>
+            </div>
+
+            <div class="tab-content active" id="resp-body">
+                <div class="response-body" id="response-body">
+                    <div class="empty-state">
+                        <div class="empty-icon">↗</div>
+                        <p>Send a request to see the response</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="resp-headers">
+                <div class="response-body">
+                    <table class="headers-table" id="response-headers"></table>
+                </div>
+            </div>
+
+            <div class="tab-content" id="resp-cookies">
+                <div class="response-body">
+                    <table class="headers-table" id="response-cookies"></table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let requests = JSON.parse(localStorage.getItem('konnect_requests') || '[]');
+        let history = JSON.parse(localStorage.getItem('konnect_history') || '[]');
+        let currentRequest = null;
+
+        function renderCollections() {
+            const list = document.getElementById('collection-list');
+            list.innerHTML = requests.map((r, i) => `
+                <div class="collection-item ${currentRequest === i ? 'active' : ''}" onclick="loadRequest(${i})">
+                    <span class="method-badge method-${r.method}">${r.method}</span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name || r.url}</span>
+                </div>
+            `).join('') || '<div style="padding:1rem;color:#71717a;text-align:center;">No saved requests</div>';
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = history.slice(0, 20).map((h, i) => `
+                <div class="history-item" onclick="loadFromHistory(${i})">
+                    <span class="method-badge method-${h.method}" style="font-size:0.6rem;padding:1px 4px;">${h.method}</span>
+                    <span class="history-url">${h.url}</span>
+                    <span class="history-status ${h.status < 300 ? 'status-2xx' : h.status < 400 ? 'status-3xx' : h.status < 500 ? 'status-4xx' : 'status-5xx'}">${h.status}</span>
+                </div>
+            `).join('');
+        }
+
+        function newRequest() {
+            document.getElementById('method-select').value = 'GET';
+            document.getElementById('url-input').value = '';
+            document.getElementById('body-editor').value = '';
+            currentRequest = null;
+            renderCollections();
+        }
+
+        function loadRequest(index) {
+            const r = requests[index];
+            currentRequest = index;
+            document.getElementById('method-select').value = r.method;
+            document.getElementById('url-input').value = r.url;
+            document.getElementById('body-editor').value = r.body || '';
+            renderCollections();
+        }
+
+        function loadFromHistory(index) {
+            const h = history[index];
+            document.getElementById('method-select').value = h.method;
+            document.getElementById('url-input').value = h.url;
+        }
+
+        function saveRequest() {
+            const method = document.getElementById('method-select').value;
+            const url = document.getElementById('url-input').value;
+            const body = document.getElementById('body-editor').value;
+            const name = prompt('Request name:', url);
+            if (!name) return;
+
+            requests.push({ method, url, body, name });
+            localStorage.setItem('konnect_requests', JSON.stringify(requests));
+            currentRequest = requests.length - 1;
+            renderCollections();
+        }
+
+        function addParam() {
+            const list = document.getElementById('params-list');
+            const row = document.createElement('div');
+            row.className = 'param-row';
+            row.innerHTML = `
+                <input type="text" class="param-input" placeholder="Key" />
+                <input type="text" class="param-input" placeholder="Value" />
+                <button class="param-delete" onclick="this.parentElement.remove()">×</button>
+            `;
+            list.appendChild(row);
+        }
+
+        function addHeader() {
+            const list = document.getElementById('headers-list');
+            const row = document.createElement('div');
+            row.className = 'param-row';
+            row.innerHTML = `
+                <input type="text" class="param-input" placeholder="Header" />
+                <input type="text" class="param-input" placeholder="Value" />
+                <button class="param-delete" onclick="this.parentElement.remove()">×</button>
+            `;
+            list.appendChild(row);
+        }
+
+        function getParams() {
+            const params = {};
+            document.querySelectorAll('#params-list .param-row').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                if (inputs[0].value && inputs[1].value) {
+                    params[inputs[0].value] = inputs[1].value;
+                }
+            });
+            return params;
+        }
+
+        function getHeaders() {
+            const headers = {};
+            document.querySelectorAll('#headers-list .param-row').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                if (inputs[0].value && inputs[1].value) {
+                    headers[inputs[0].value] = inputs[1].value;
+                }
+            });
+            return headers;
+        }
+
+        async function sendRequest() {
+            const method = document.getElementById('method-select').value;
+            let url = document.getElementById('url-input').value;
+            if (!url) { alert('Enter a URL'); return; }
+
+            const params = getParams();
+            if (Object.keys(params).length > 0) {
+                const searchParams = new URLSearchParams(params);
+                url += (url.includes('?') ? '&' : '?') + searchParams.toString();
+            }
+
+            const headers = getHeaders();
+            const body = document.getElementById('body-editor').value;
+
+            const options = { method, headers };
+            if (['POST', 'PUT', 'PATCH'].includes(method) && body) {
+                options.body = body;
+            }
+
+            // Add auth
+            const authType = document.getElementById('auth-type').value;
+            if (authType === 'bearer') {
+                const token = document.querySelector('#auth-fields input')?.value;
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            } else if (authType === 'basic') {
+                const inputs = document.querySelectorAll('#auth-fields input');
+                if (inputs[0]?.value && inputs[1]?.value) {
+                    headers['Authorization'] = 'Basic ' + btoa(inputs[0].value + ':' + inputs[1].value);
+                }
+            } else if (authType === 'apikey') {
+                const inputs = document.querySelectorAll('#auth-fields input');
+                if (inputs[0]?.value && inputs[1]?.value) {
+                    headers[inputs[0].value] = inputs[1].value;
+                }
+            }
+
+            const startTime = performance.now();
+
+            try {
+                const response = await fetch(url, options);
+                const endTime = performance.now();
+                const time = Math.round(endTime - startTime);
+
+                const responseHeaders = {};
+                response.headers.forEach((v, k) => responseHeaders[k] = v);
+
+                let responseBody;
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    responseBody = await response.json();
+                } else {
+                    responseBody = await response.text();
+                }
+
+                displayResponse(response.status, time, responseBody, responseHeaders);
+
+                // Add to history
+                history.unshift({ method, url, status: response.status, time: new Date().toISOString() });
+                history = history.slice(0, 50);
+                localStorage.setItem('konnect_history', JSON.stringify(history));
+                renderHistory();
+
+            } catch (error) {
+                displayResponse(0, 0, { error: error.message }, {});
+            }
+        }
+
+        function displayResponse(status, time, body, headers) {
+            document.getElementById('response-status').style.display = 'flex';
+
+            const statusEl = document.getElementById('status-code');
+            statusEl.textContent = status || 'Error';
+            statusEl.className = 'status-code ' + (
+                status >= 200 && status < 300 ? 'status-2xx' :
+                status >= 300 && status < 400 ? 'status-3xx' :
+                status >= 400 && status < 500 ? 'status-4xx' : 'status-5xx'
+            );
+
+            document.getElementById('status-time').textContent = time + 'ms';
+
+            const bodyStr = typeof body === 'object' ? JSON.stringify(body, null, 2) : body;
+            document.getElementById('status-size').textContent = formatBytes(bodyStr.length);
+            document.getElementById('response-body').innerHTML = `<pre>${escapeHtml(bodyStr)}</pre>`;
+
+            const headersTable = document.getElementById('response-headers');
+            headersTable.innerHTML = Object.entries(headers).map(([k, v]) =>
+                `<tr><td>${k}</td><td>${v}</td></tr>`
+            ).join('');
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function setRequestTab(tab) {
+            document.querySelectorAll('.request-panel .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.request-panel .tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+
+        function setResponseTab(tab) {
+            document.querySelectorAll('.response-panel .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.response-panel .tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('resp-' + tab).classList.add('active');
+        }
+
+        function setBodyType(type) {
+            // Just visual for now
+            document.querySelectorAll('#tab-body .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        document.getElementById('auth-type').addEventListener('change', function() {
+            const fields = document.getElementById('auth-fields');
+            switch (this.value) {
+                case 'bearer':
+                    fields.innerHTML = '<input type="text" class="param-input" placeholder="Token" style="width:100%;" />';
+                    break;
+                case 'basic':
+                    fields.innerHTML = `
+                        <input type="text" class="param-input" placeholder="Username" style="width:100%;margin-bottom:0.5rem;" />
+                        <input type="password" class="param-input" placeholder="Password" style="width:100%;" />
+                    `;
+                    break;
+                case 'apikey':
+                    fields.innerHTML = `
+                        <input type="text" class="param-input" placeholder="Header name" style="width:100%;margin-bottom:0.5rem;" value="X-API-Key" />
+                        <input type="text" class="param-input" placeholder="API Key" style="width:100%;" />
+                    `;
+                    break;
+                default:
+                    fields.innerHTML = '';
+            }
+        });
+
+        function exportCollection() {
+            const data = JSON.stringify({ requests, history }, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'konnect-collection.json';
+            a.click();
+        }
+
+        function importCollection() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                const text = await file.text();
+                const data = JSON.parse(text);
+                if (data.requests) {
+                    requests = [...requests, ...data.requests];
+                    localStorage.setItem('konnect_requests', JSON.stringify(requests));
+                }
+                renderCollections();
+            };
+            input.click();
+        }
+
+        function clearHistory() {
+            history = [];
+            localStorage.setItem('konnect_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        // Init
+        renderCollections();
+        renderHistory();
+    </script>
+</body>
+</html>

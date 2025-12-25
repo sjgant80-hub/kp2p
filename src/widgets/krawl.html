@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krawl - Web Scraper</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); min-height: 100vh; color: #e2e8f0; }
+
+        .header { background: rgba(0,0,0,0.3); padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; }
+        .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #8b5cf6, #6366f1); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+        .logo-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .main { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 60px); gap: 1px; background: #334155; }
+
+        .panel { background: #0f172a; display: flex; flex-direction: column; }
+        .panel-header { padding: 0.75rem 1rem; background: rgba(0,0,0,0.3); border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+        .panel-title { font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+        .panel-content { flex: 1; overflow: auto; padding: 1rem; }
+
+        .url-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .url-input { flex: 1; padding: 0.6rem 0.75rem; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 0.9rem; }
+        .url-input:focus { outline: none; border-color: #8b5cf6; }
+
+        .btn { padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+
+        .selector-builder { background: #1e293b; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .selector-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+        .selector-input { flex: 1; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #e2e8f0; font-family: monospace; font-size: 0.85rem; }
+        .selector-type { padding: 0.5rem; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #e2e8f0; min-width: 100px; }
+        .selector-delete { background: none; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem 0.5rem; }
+
+        .selector-add { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+        .option-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+        .option-item input[type="checkbox"] { accent-color: #8b5cf6; }
+        .option-item input[type="number"] { width: 60px; padding: 0.25rem 0.5rem; background: #1e293b; border: 1px solid #334155; border-radius: 4px; color: #e2e8f0; }
+
+        .results-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .results-table th, .results-table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid #334155; }
+        .results-table th { background: rgba(0,0,0,0.3); font-weight: 600; color: #a78bfa; position: sticky; top: 0; }
+        .results-table tr:hover { background: rgba(139, 92, 246, 0.1); }
+
+        .preview-frame { width: 100%; height: 100%; border: none; background: white; border-radius: 6px; }
+
+        .tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; }
+        .tab { padding: 0.5rem 1rem; background: transparent; border: none; color: #94a3b8; cursor: pointer; border-radius: 6px 6px 0 0; font-size: 0.85rem; }
+        .tab.active { background: #1e293b; color: #e2e8f0; }
+
+        .code-block { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 1rem; font-family: monospace; font-size: 0.8rem; overflow: auto; max-height: 300px; white-space: pre-wrap; }
+
+        .status-bar { padding: 0.5rem 1rem; background: rgba(0,0,0,0.3); border-top: 1px solid #334155; font-size: 0.75rem; color: #94a3b8; display: flex; justify-content: space-between; }
+
+        .loading { display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8; }
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid #334155; border-top-color: #8b5cf6; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #64748b; }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+        .selector-preview { font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; font-family: monospace; }
+        .match-count { background: #8b5cf6; color: white; padding: 0.125rem 0.375rem; border-radius: 10px; font-size: 0.7rem; margin-left: 0.5rem; }
+
+        .export-options { display: flex; gap: 0.5rem; }
+
+        @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">K</div>
+            <span class="logo-text">Krawl</span>
+        </div>
+        <div class="export-options">
+            <button class="btn btn-secondary btn-sm" onclick="exportJSON()">Export JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV()">Export CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="copyResults()">Copy</button>
+        </div>
+    </header>
+
+    <div class="main">
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Configuration</span>
+            </div>
+            <div class="panel-content">
+                <div class="url-bar">
+                    <input type="text" class="url-input" id="url-input" placeholder="https://example.com" />
+                    <button class="btn btn-primary" onclick="fetchPage()">Fetch</button>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="setTab('selectors')">Selectors</button>
+                    <button class="tab" onclick="setTab('options')">Options</button>
+                    <button class="tab" onclick="setTab('preview')">Preview</button>
+                </div>
+
+                <div id="tab-selectors" class="tab-content">
+                    <div class="selector-builder">
+                        <div id="selectors-list">
+                            <div class="selector-row">
+                                <select class="selector-type">
+                                    <option value="css">CSS</option>
+                                    <option value="xpath">XPath</option>
+                                    <option value="text">Text</option>
+                                    <option value="regex">Regex</option>
+                                </select>
+                                <input type="text" class="selector-input" placeholder="h1, .title, #main" data-name="title" />
+                                <input type="text" class="selector-input" placeholder="Field name" value="title" style="max-width: 100px;" />
+                                <button class="selector-delete" onclick="this.closest('.selector-row').remove()">×</button>
+                            </div>
+                        </div>
+                        <div class="selector-add">
+                            <button class="btn btn-secondary btn-sm" onclick="addSelector()">+ Add Selector</button>
+                            <button class="btn btn-secondary btn-sm" onclick="addCommonSelectors()">+ Common</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%;" onclick="scrape()">Scrape Data</button>
+                </div>
+
+                <div id="tab-options" class="tab-content" style="display: none;">
+                    <div class="options-grid">
+                        <div class="option-item">
+                            <input type="checkbox" id="opt-text" checked />
+                            <label for="opt-text">Extract text</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="opt-html" />
+                            <label for="opt-html">Include HTML</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="opt-attrs" />
+                            <label for="opt-attrs">Extract attributes</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="opt-links" />
+                            <label for="opt-links">Extract links</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="opt-images" />
+                            <label for="opt-images">Extract images</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="opt-meta" />
+                            <label for="opt-meta">Meta tags</label>
+                        </div>
+                        <div class="option-item">
+                            <label>Max items:</label>
+                            <input type="number" id="opt-limit" value="100" min="1" max="1000" />
+                        </div>
+                        <div class="option-item">
+                            <label>Delay (ms):</label>
+                            <input type="number" id="opt-delay" value="0" min="0" max="5000" />
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-preview" class="tab-content" style="display: none;">
+                    <div id="html-preview" class="code-block">Fetch a page to see HTML preview</div>
+                </div>
+            </div>
+            <div class="status-bar">
+                <span id="status">Ready</span>
+                <span id="page-info"></span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Results <span class="match-count" id="result-count">0</span></span>
+            </div>
+            <div class="panel-content" id="results-container">
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <p>Configure selectors and click Scrape</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pageDoc = null;
+        let pageHTML = '';
+        let scrapedData = [];
+
+        function setTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).style.display = 'block';
+        }
+
+        function addSelector() {
+            const list = document.getElementById('selectors-list');
+            const row = document.createElement('div');
+            row.className = 'selector-row';
+            row.innerHTML = `
+                <select class="selector-type">
+                    <option value="css">CSS</option>
+                    <option value="xpath">XPath</option>
+                    <option value="text">Text</option>
+                    <option value="regex">Regex</option>
+                </select>
+                <input type="text" class="selector-input" placeholder="Selector" />
+                <input type="text" class="selector-input" placeholder="Field name" style="max-width: 100px;" />
+                <button class="selector-delete" onclick="this.closest('.selector-row').remove()">×</button>
+            `;
+            list.appendChild(row);
+        }
+
+        function addCommonSelectors() {
+            const common = [
+                { type: 'css', selector: 'h1', name: 'title' },
+                { type: 'css', selector: 'p', name: 'paragraphs' },
+                { type: 'css', selector: 'a[href]', name: 'links' },
+                { type: 'css', selector: 'img[src]', name: 'images' },
+                { type: 'css', selector: 'meta[name="description"]', name: 'description' }
+            ];
+
+            common.forEach(c => {
+                const list = document.getElementById('selectors-list');
+                const row = document.createElement('div');
+                row.className = 'selector-row';
+                row.innerHTML = `
+                    <select class="selector-type">
+                        <option value="css" ${c.type === 'css' ? 'selected' : ''}>CSS</option>
+                        <option value="xpath" ${c.type === 'xpath' ? 'selected' : ''}>XPath</option>
+                        <option value="text">Text</option>
+                        <option value="regex">Regex</option>
+                    </select>
+                    <input type="text" class="selector-input" value="${c.selector}" />
+                    <input type="text" class="selector-input" value="${c.name}" style="max-width: 100px;" />
+                    <button class="selector-delete" onclick="this.closest('.selector-row').remove()">×</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        async function fetchPage() {
+            const url = document.getElementById('url-input').value.trim();
+            if (!url) { alert('Enter a URL'); return; }
+
+            document.getElementById('status').textContent = 'Fetching...';
+
+            try {
+                // Using a CORS proxy for demo - in production use your own backend
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+
+                if (!response.ok) throw new Error('Failed to fetch');
+
+                pageHTML = await response.text();
+                const parser = new DOMParser();
+                pageDoc = parser.parseFromString(pageHTML, 'text/html');
+
+                document.getElementById('html-preview').textContent = pageHTML.substring(0, 5000) + (pageHTML.length > 5000 ? '...' : '');
+                document.getElementById('status').textContent = 'Page loaded';
+                document.getElementById('page-info').textContent = `${(pageHTML.length / 1024).toFixed(1)} KB`;
+
+            } catch (error) {
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+                // Try direct fetch as fallback
+                try {
+                    const response = await fetch(url);
+                    pageHTML = await response.text();
+                    const parser = new DOMParser();
+                    pageDoc = parser.parseFromString(pageHTML, 'text/html');
+                    document.getElementById('html-preview').textContent = pageHTML.substring(0, 5000);
+                    document.getElementById('status').textContent = 'Page loaded (direct)';
+                } catch (e) {
+                    alert('Unable to fetch page. CORS may be blocking the request.');
+                }
+            }
+        }
+
+        function scrape() {
+            if (!pageDoc) {
+                alert('Fetch a page first');
+                return;
+            }
+
+            const limit = parseInt(document.getElementById('opt-limit').value) || 100;
+            const extractText = document.getElementById('opt-text').checked;
+            const extractHTML = document.getElementById('opt-html').checked;
+            const extractAttrs = document.getElementById('opt-attrs').checked;
+            const extractLinks = document.getElementById('opt-links').checked;
+            const extractImages = document.getElementById('opt-images').checked;
+            const extractMeta = document.getElementById('opt-meta').checked;
+
+            scrapedData = [];
+
+            // Get selectors
+            const rows = document.querySelectorAll('#selectors-list .selector-row');
+            const selectors = Array.from(rows).map(row => ({
+                type: row.querySelector('.selector-type').value,
+                selector: row.querySelectorAll('.selector-input')[0].value,
+                name: row.querySelectorAll('.selector-input')[1].value || 'field'
+            })).filter(s => s.selector);
+
+            // Scrape each selector
+            selectors.forEach(sel => {
+                let elements = [];
+
+                try {
+                    if (sel.type === 'css') {
+                        elements = Array.from(pageDoc.querySelectorAll(sel.selector)).slice(0, limit);
+                    } else if (sel.type === 'xpath') {
+                        const result = pageDoc.evaluate(sel.selector, pageDoc, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                        for (let i = 0; i < Math.min(result.snapshotLength, limit); i++) {
+                            elements.push(result.snapshotItem(i));
+                        }
+                    } else if (sel.type === 'text') {
+                        const textMatch = pageHTML.match(new RegExp(sel.selector, 'gi')) || [];
+                        elements = textMatch.slice(0, limit).map(t => ({ textContent: t }));
+                    } else if (sel.type === 'regex') {
+                        const regex = new RegExp(sel.selector, 'gi');
+                        let match;
+                        while ((match = regex.exec(pageHTML)) !== null && elements.length < limit) {
+                            elements.push({ textContent: match[0], groups: match.slice(1) });
+                        }
+                    }
+                } catch (e) {
+                    console.error('Selector error:', e);
+                }
+
+                elements.forEach((el, i) => {
+                    const item = { _selector: sel.name, _index: i };
+
+                    if (extractText) {
+                        item.text = (el.textContent || '').trim();
+                    }
+                    if (extractHTML && el.outerHTML) {
+                        item.html = el.outerHTML;
+                    }
+                    if (extractAttrs && el.attributes) {
+                        item.attributes = {};
+                        Array.from(el.attributes || []).forEach(attr => {
+                            item.attributes[attr.name] = attr.value;
+                        });
+                    }
+                    if (el.href) item.href = el.href;
+                    if (el.src) item.src = el.src;
+
+                    scrapedData.push(item);
+                });
+            });
+
+            // Auto-extract links if enabled
+            if (extractLinks) {
+                Array.from(pageDoc.querySelectorAll('a[href]')).slice(0, limit).forEach((a, i) => {
+                    scrapedData.push({ _selector: 'links', _index: i, text: a.textContent.trim(), href: a.href });
+                });
+            }
+
+            // Auto-extract images if enabled
+            if (extractImages) {
+                Array.from(pageDoc.querySelectorAll('img[src]')).slice(0, limit).forEach((img, i) => {
+                    scrapedData.push({ _selector: 'images', _index: i, src: img.src, alt: img.alt });
+                });
+            }
+
+            // Auto-extract meta tags if enabled
+            if (extractMeta) {
+                Array.from(pageDoc.querySelectorAll('meta[name], meta[property]')).forEach((meta, i) => {
+                    scrapedData.push({
+                        _selector: 'meta',
+                        _index: i,
+                        name: meta.getAttribute('name') || meta.getAttribute('property'),
+                        content: meta.getAttribute('content')
+                    });
+                });
+            }
+
+            renderResults();
+        }
+
+        function renderResults() {
+            const container = document.getElementById('results-container');
+            document.getElementById('result-count').textContent = scrapedData.length;
+
+            if (scrapedData.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>No results found</p></div>';
+                return;
+            }
+
+            // Get all unique keys
+            const keys = [...new Set(scrapedData.flatMap(item => Object.keys(item)))];
+
+            let html = '<table class="results-table"><thead><tr>';
+            keys.forEach(key => {
+                html += `<th>${key}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            scrapedData.forEach(item => {
+                html += '<tr>';
+                keys.forEach(key => {
+                    let value = item[key];
+                    if (typeof value === 'object') value = JSON.stringify(value);
+                    if (typeof value === 'string' && value.length > 100) value = value.substring(0, 100) + '...';
+                    html += `<td>${escapeHtml(String(value || ''))}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function exportJSON() {
+            if (scrapedData.length === 0) { alert('No data to export'); return; }
+            const blob = new Blob([JSON.stringify(scrapedData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'scraped-data.json';
+            a.click();
+        }
+
+        function exportCSV() {
+            if (scrapedData.length === 0) { alert('No data to export'); return; }
+
+            const keys = [...new Set(scrapedData.flatMap(item => Object.keys(item)))];
+            let csv = keys.join(',') + '\n';
+
+            scrapedData.forEach(item => {
+                csv += keys.map(key => {
+                    let value = item[key];
+                    if (typeof value === 'object') value = JSON.stringify(value);
+                    return `"${String(value || '').replace(/"/g, '""')}"`;
+                }).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'scraped-data.csv';
+            a.click();
+        }
+
+        function copyResults() {
+            navigator.clipboard.writeText(JSON.stringify(scrapedData, null, 2));
+            document.getElementById('status').textContent = 'Copied to clipboard!';
+        }
+    </script>
+</body>
+</html>

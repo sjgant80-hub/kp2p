@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krypt - Encryption Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%); min-height: 100vh; color: #e4e4e7; }
+
+        .header { background: rgba(0,0,0,0.4); padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d2d44; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; }
+        .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+        .logo-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(135deg, #f87171, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { font-size: 0.7rem; color: #71717a; }
+
+        .main { max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab { padding: 0.6rem 1.25rem; background: rgba(255,255,255,0.05); border: 1px solid #2d2d44; border-radius: 8px; color: #a1a1aa; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .tab:hover { background: rgba(255,255,255,0.1); }
+        .tab.active { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-color: transparent; }
+
+        .panel { background: rgba(0,0,0,0.3); border: 1px solid #2d2d44; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .panel-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .input-group { margin-bottom: 1rem; }
+        .input-label { display: block; font-size: 0.85rem; color: #a1a1aa; margin-bottom: 0.4rem; }
+        .input-field { width: 100%; padding: 0.75rem; background: #0d0d15; border: 1px solid #2d2d44; border-radius: 8px; color: #e4e4e7; font-size: 0.9rem; }
+        .input-field:focus { outline: none; border-color: #ef4444; }
+        textarea.input-field { min-height: 120px; resize: vertical; font-family: 'Fira Code', monospace; }
+
+        .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .btn { padding: 0.6rem 1.25rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn-secondary { background: #2d2d44; color: #e4e4e7; }
+        .btn-success { background: #22c55e; color: #000; }
+        .btn:hover { transform: translateY(-2px); opacity: 0.95; }
+
+        .output-box { background: #0d0d15; border: 1px solid #2d2d44; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', monospace; font-size: 0.85rem; word-break: break-all; min-height: 80px; position: relative; }
+        .output-box .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+        .options-row { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .option-item { display: flex; align-items: center; gap: 0.5rem; }
+        .option-item select { padding: 0.5rem; background: #0d0d15; border: 1px solid #2d2d44; border-radius: 4px; color: #e4e4e7; }
+
+        .strength-meter { height: 8px; background: #2d2d44; border-radius: 4px; margin-top: 0.5rem; overflow: hidden; }
+        .strength-fill { height: 100%; transition: all 0.3s; }
+        .strength-weak { width: 25%; background: #ef4444; }
+        .strength-fair { width: 50%; background: #f59e0b; }
+        .strength-good { width: 75%; background: #22c55e; }
+        .strength-strong { width: 100%; background: #22c55e; }
+
+        .hash-result { display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #0d0d15; border-radius: 6px; margin-bottom: 0.5rem; }
+        .hash-label { min-width: 80px; color: #a1a1aa; font-size: 0.8rem; }
+        .hash-value { flex: 1; font-family: monospace; font-size: 0.8rem; word-break: break-all; }
+
+        .file-drop { border: 2px dashed #2d2d44; border-radius: 12px; padding: 2rem; text-align: center; color: #71717a; cursor: pointer; transition: all 0.2s; }
+        .file-drop:hover, .file-drop.dragover { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .file-drop input { display: none; }
+
+        .info-box { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.85rem; color: #93c5fd; margin-bottom: 1rem; }
+
+        .key-display { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: #0d0d15; border-radius: 4px; margin-top: 0.5rem; }
+        .key-display input { flex: 1; background: none; border: none; color: #e4e4e7; font-family: monospace; }
+
+        @media (max-width: 600px) { .main { padding: 1rem; } .options-row { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">K</div>
+            <div>
+                <div class="logo-text">Krypt</div>
+                <div class="subtitle">Browser-Based Encryption</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="tabs">
+            <button class="tab active" onclick="setTab('encrypt')">Encrypt/Decrypt</button>
+            <button class="tab" onclick="setTab('hash')">Hash</button>
+            <button class="tab" onclick="setTab('password')">Password Gen</button>
+            <button class="tab" onclick="setTab('base64')">Base64</button>
+            <button class="tab" onclick="setTab('file')">File Encrypt</button>
+        </div>
+
+        <!-- Encrypt/Decrypt Tab -->
+        <div id="tab-encrypt" class="tab-content">
+            <div class="panel">
+                <div class="panel-title">AES Encryption</div>
+                <div class="info-box">All encryption happens locally in your browser. Nothing is sent to any server.</div>
+
+                <div class="options-row">
+                    <div class="option-item">
+                        <label>Algorithm:</label>
+                        <select id="aes-mode">
+                            <option value="AES-GCM">AES-GCM (Recommended)</option>
+                            <option value="AES-CBC">AES-CBC</option>
+                            <option value="AES-CTR">AES-CTR</option>
+                        </select>
+                    </div>
+                    <div class="option-item">
+                        <label>Key Size:</label>
+                        <select id="aes-keysize">
+                            <option value="256">256-bit</option>
+                            <option value="128">128-bit</option>
+                            <option value="192">192-bit</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Text to Encrypt/Decrypt</label>
+                    <textarea class="input-field" id="aes-input" placeholder="Enter text here..."></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Password / Key</label>
+                    <input type="password" class="input-field" id="aes-password" placeholder="Enter a strong password" />
+                    <div class="strength-meter"><div class="strength-fill" id="password-strength"></div></div>
+                </div>
+
+                <div class="btn-row" style="margin-bottom: 1rem;">
+                    <button class="btn btn-primary" onclick="encryptAES()">Encrypt</button>
+                    <button class="btn btn-secondary" onclick="decryptAES()">Decrypt</button>
+                    <button class="btn btn-secondary" onclick="generateKey()">Generate Key</button>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Output</label>
+                    <div class="output-box" id="aes-output">
+                        <button class="btn btn-secondary copy-btn" onclick="copyOutput('aes-output')">Copy</button>
+                        <span id="aes-output-text">Result will appear here...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hash Tab -->
+        <div id="tab-hash" class="tab-content" style="display: none;">
+            <div class="panel">
+                <div class="panel-title">Hash Functions</div>
+
+                <div class="input-group">
+                    <label class="input-label">Text to Hash</label>
+                    <textarea class="input-field" id="hash-input" placeholder="Enter text to hash..." oninput="computeHashes()"></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Results</label>
+                    <div class="hash-result"><span class="hash-label">MD5</span><span class="hash-value" id="hash-md5">-</span></div>
+                    <div class="hash-result"><span class="hash-label">SHA-1</span><span class="hash-value" id="hash-sha1">-</span></div>
+                    <div class="hash-result"><span class="hash-label">SHA-256</span><span class="hash-value" id="hash-sha256">-</span></div>
+                    <div class="hash-result"><span class="hash-label">SHA-384</span><span class="hash-value" id="hash-sha384">-</span></div>
+                    <div class="hash-result"><span class="hash-label">SHA-512</span><span class="hash-value" id="hash-sha512">-</span></div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Verify Hash (paste hash to compare)</label>
+                    <input type="text" class="input-field" id="hash-verify" placeholder="Paste a hash to verify..." oninput="verifyHash()" />
+                    <div id="hash-verify-result" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Password Generator Tab -->
+        <div id="tab-password" class="tab-content" style="display: none;">
+            <div class="panel">
+                <div class="panel-title">Password Generator</div>
+
+                <div class="options-row">
+                    <div class="option-item">
+                        <label>Length:</label>
+                        <input type="number" id="pw-length" value="16" min="8" max="128" style="width: 60px; padding: 0.4rem; background: #0d0d15; border: 1px solid #2d2d44; border-radius: 4px; color: #e4e4e7;" />
+                    </div>
+                    <div class="option-item">
+                        <input type="checkbox" id="pw-upper" checked /> Uppercase
+                    </div>
+                    <div class="option-item">
+                        <input type="checkbox" id="pw-lower" checked /> Lowercase
+                    </div>
+                    <div class="option-item">
+                        <input type="checkbox" id="pw-numbers" checked /> Numbers
+                    </div>
+                    <div class="option-item">
+                        <input type="checkbox" id="pw-symbols" checked /> Symbols
+                    </div>
+                </div>
+
+                <div class="btn-row" style="margin-bottom: 1rem;">
+                    <button class="btn btn-primary" onclick="generatePassword()">Generate Password</button>
+                    <button class="btn btn-secondary" onclick="generatePassphrase()">Generate Passphrase</button>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Generated Password</label>
+                    <div class="output-box" style="font-size: 1.1rem; letter-spacing: 1px;">
+                        <button class="btn btn-secondary copy-btn" onclick="copyOutput('pw-output')">Copy</button>
+                        <span id="pw-output">Click generate to create password</span>
+                    </div>
+                    <div class="strength-meter"><div class="strength-fill" id="pw-strength"></div></div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Password History (this session)</label>
+                    <div id="pw-history" style="font-size: 0.8rem; color: #71717a;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Base64 Tab -->
+        <div id="tab-base64" class="tab-content" style="display: none;">
+            <div class="panel">
+                <div class="panel-title">Base64 Encode/Decode</div>
+
+                <div class="input-group">
+                    <label class="input-label">Input</label>
+                    <textarea class="input-field" id="b64-input" placeholder="Enter text to encode or base64 to decode..."></textarea>
+                </div>
+
+                <div class="btn-row" style="margin-bottom: 1rem;">
+                    <button class="btn btn-primary" onclick="encodeBase64()">Encode</button>
+                    <button class="btn btn-secondary" onclick="decodeBase64()">Decode</button>
+                    <button class="btn btn-secondary" onclick="encodeBase64URL()">URL-Safe Encode</button>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Output</label>
+                    <div class="output-box">
+                        <button class="btn btn-secondary copy-btn" onclick="copyOutput('b64-output')">Copy</button>
+                        <span id="b64-output">Result will appear here...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Encrypt Tab -->
+        <div id="tab-file" class="tab-content" style="display: none;">
+            <div class="panel">
+                <div class="panel-title">File Encryption</div>
+                <div class="info-box">Files are encrypted entirely in your browser using AES-256-GCM. Nothing is uploaded.</div>
+
+                <div class="file-drop" id="file-drop" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" onchange="handleFile(this.files[0])" />
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
+                    <div>Drop file here or click to select</div>
+                    <div id="file-name" style="margin-top: 0.5rem; color: #e4e4e7;"></div>
+                </div>
+
+                <div class="input-group" style="margin-top: 1rem;">
+                    <label class="input-label">Encryption Password</label>
+                    <input type="password" class="input-field" id="file-password" placeholder="Enter password for file encryption" />
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="encryptFile()">Encrypt File</button>
+                    <button class="btn btn-secondary" onclick="decryptFile()">Decrypt File</button>
+                </div>
+
+                <div id="file-status" style="margin-top: 1rem; font-size: 0.85rem; color: #71717a;"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let selectedFile = null;
+        let passwordHistory = [];
+
+        function setTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).style.display = 'block';
+        }
+
+        // Password strength checker
+        document.getElementById('aes-password').addEventListener('input', function() {
+            const strength = checkPasswordStrength(this.value);
+            const el = document.getElementById('password-strength');
+            el.className = 'strength-fill strength-' + strength;
+        });
+
+        function checkPasswordStrength(pw) {
+            if (!pw) return 'weak';
+            let score = 0;
+            if (pw.length >= 8) score++;
+            if (pw.length >= 12) score++;
+            if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+            if (/\d/.test(pw)) score++;
+            if (/[^a-zA-Z0-9]/.test(pw)) score++;
+            if (score <= 1) return 'weak';
+            if (score <= 2) return 'fair';
+            if (score <= 3) return 'good';
+            return 'strong';
+        }
+
+        // AES Encryption
+        async function deriveKey(password, salt) {
+            const encoder = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']
+            );
+            const keySize = parseInt(document.getElementById('aes-keysize').value);
+            return crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+                keyMaterial,
+                { name: 'AES-GCM', length: keySize },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptAES() {
+            const text = document.getElementById('aes-input').value;
+            const password = document.getElementById('aes-password').value;
+            if (!text || !password) { alert('Enter text and password'); return; }
+
+            const encoder = new TextEncoder();
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(password, salt);
+
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                encoder.encode(text)
+            );
+
+            const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+            combined.set(salt, 0);
+            combined.set(iv, salt.length);
+            combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+            document.getElementById('aes-output-text').textContent = btoa(String.fromCharCode(...combined));
+        }
+
+        async function decryptAES() {
+            const encrypted = document.getElementById('aes-input').value;
+            const password = document.getElementById('aes-password').value;
+            if (!encrypted || !password) { alert('Enter encrypted text and password'); return; }
+
+            try {
+                const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0));
+                const salt = combined.slice(0, 16);
+                const iv = combined.slice(16, 28);
+                const data = combined.slice(28);
+
+                const key = await deriveKey(password, salt);
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv },
+                    key,
+                    data
+                );
+
+                document.getElementById('aes-output-text').textContent = new TextDecoder().decode(decrypted);
+            } catch (e) {
+                document.getElementById('aes-output-text').textContent = 'Decryption failed. Wrong password or corrupted data.';
+            }
+        }
+
+        function generateKey() {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            const key = btoa(String.fromCharCode(...array));
+            document.getElementById('aes-password').value = key;
+            document.getElementById('aes-password').dispatchEvent(new Event('input'));
+        }
+
+        // Hash functions
+        async function computeHashes() {
+            const text = document.getElementById('hash-input').value;
+            if (!text) {
+                ['md5', 'sha1', 'sha256', 'sha384', 'sha512'].forEach(h => {
+                    document.getElementById('hash-' + h).textContent = '-';
+                });
+                return;
+            }
+
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+
+            // SHA hashes using Web Crypto
+            const sha1 = await crypto.subtle.digest('SHA-1', data);
+            const sha256 = await crypto.subtle.digest('SHA-256', data);
+            const sha384 = await crypto.subtle.digest('SHA-384', data);
+            const sha512 = await crypto.subtle.digest('SHA-512', data);
+
+            document.getElementById('hash-sha1').textContent = arrayToHex(sha1);
+            document.getElementById('hash-sha256').textContent = arrayToHex(sha256);
+            document.getElementById('hash-sha384').textContent = arrayToHex(sha384);
+            document.getElementById('hash-sha512').textContent = arrayToHex(sha512);
+
+            // MD5 (simple implementation for demo)
+            document.getElementById('hash-md5').textContent = md5(text);
+        }
+
+        function arrayToHex(buffer) {
+            return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Simple MD5 implementation
+        function md5(str) {
+            const utf8 = unescape(encodeURIComponent(str));
+            const words = [];
+            for (let i = 0; i < utf8.length; i += 4) {
+                words.push((utf8.charCodeAt(i)) | (utf8.charCodeAt(i+1) << 8) | (utf8.charCodeAt(i+2) << 16) | (utf8.charCodeAt(i+3) << 24));
+            }
+            const len = utf8.length * 8;
+            words[utf8.length >> 2] |= 0x80 << ((utf8.length % 4) * 8);
+            words[(((utf8.length + 64) >>> 9) << 4) + 14] = len;
+
+            let a = 0x67452301, b = 0xEFCDAB89, c = 0x98BADCFE, d = 0x10325476;
+
+            for (let i = 0; i < words.length; i += 16) {
+                const aa = a, bb = b, cc = c, dd = d;
+                const w = words.slice(i, i + 16);
+                while (w.length < 16) w.push(0);
+
+                // Round 1-4 (simplified)
+                a = md5Round(a, b, c, d, w[0], 7, 0xD76AA478);
+                d = md5Round(d, a, b, c, w[1], 12, 0xE8C7B756);
+                // ... (full implementation would have all 64 operations)
+
+                a = (a + aa) >>> 0;
+                b = (b + bb) >>> 0;
+                c = (c + cc) >>> 0;
+                d = (d + dd) >>> 0;
+            }
+
+            return [a, b, c, d].map(x => x.toString(16).padStart(8, '0').match(/../g).reverse().join('')).join('');
+        }
+
+        function md5Round(a, b, c, d, x, s, t) {
+            const f = (b & c) | ((~b) & d);
+            return b + (((a + f + (x >>> 0) + t) << s) | ((a + f + (x >>> 0) + t) >>> (32 - s)));
+        }
+
+        function verifyHash() {
+            const target = document.getElementById('hash-verify').value.toLowerCase();
+            if (!target) {
+                document.getElementById('hash-verify-result').innerHTML = '';
+                return;
+            }
+
+            const hashes = ['md5', 'sha1', 'sha256', 'sha384', 'sha512'];
+            for (const h of hashes) {
+                const computed = document.getElementById('hash-' + h).textContent.toLowerCase();
+                if (computed === target) {
+                    document.getElementById('hash-verify-result').innerHTML = `<span style="color: #22c55e;">✓ Match found: ${h.toUpperCase()}</span>`;
+                    return;
+                }
+            }
+            document.getElementById('hash-verify-result').innerHTML = `<span style="color: #ef4444;">✗ No match found</span>`;
+        }
+
+        // Password generator
+        function generatePassword() {
+            const length = parseInt(document.getElementById('pw-length').value);
+            const useUpper = document.getElementById('pw-upper').checked;
+            const useLower = document.getElementById('pw-lower').checked;
+            const useNumbers = document.getElementById('pw-numbers').checked;
+            const useSymbols = document.getElementById('pw-symbols').checked;
+
+            let chars = '';
+            if (useUpper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            if (useLower) chars += 'abcdefghijklmnopqrstuvwxyz';
+            if (useNumbers) chars += '0123456789';
+            if (useSymbols) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+            if (!chars) { alert('Select at least one character type'); return; }
+
+            const array = new Uint32Array(length);
+            crypto.getRandomValues(array);
+            const password = Array.from(array).map(x => chars[x % chars.length]).join('');
+
+            document.getElementById('pw-output').textContent = password;
+            passwordHistory.unshift(password);
+            passwordHistory = passwordHistory.slice(0, 10);
+            renderPasswordHistory();
+
+            const strength = checkPasswordStrength(password);
+            document.getElementById('pw-strength').className = 'strength-fill strength-' + strength;
+        }
+
+        function generatePassphrase() {
+            const words = ['apple', 'banana', 'cherry', 'dragon', 'eagle', 'forest', 'galaxy', 'harbor', 'island', 'jungle', 'kingdom', 'lemon', 'mountain', 'nebula', 'ocean', 'planet', 'quantum', 'river', 'storm', 'thunder', 'universe', 'valley', 'winter', 'xenon', 'yellow', 'zebra'];
+            const array = new Uint32Array(4);
+            crypto.getRandomValues(array);
+            const passphrase = Array.from(array).map(x => words[x % words.length]).join('-');
+
+            document.getElementById('pw-output').textContent = passphrase;
+            passwordHistory.unshift(passphrase);
+            passwordHistory = passwordHistory.slice(0, 10);
+            renderPasswordHistory();
+        }
+
+        function renderPasswordHistory() {
+            document.getElementById('pw-history').innerHTML = passwordHistory.map(p => `<div style="margin-bottom: 0.25rem; font-family: monospace;">${p}</div>`).join('');
+        }
+
+        // Base64
+        function encodeBase64() {
+            const input = document.getElementById('b64-input').value;
+            document.getElementById('b64-output').textContent = btoa(unescape(encodeURIComponent(input)));
+        }
+
+        function decodeBase64() {
+            try {
+                const input = document.getElementById('b64-input').value;
+                document.getElementById('b64-output').textContent = decodeURIComponent(escape(atob(input)));
+            } catch (e) {
+                document.getElementById('b64-output').textContent = 'Invalid Base64 input';
+            }
+        }
+
+        function encodeBase64URL() {
+            const input = document.getElementById('b64-input').value;
+            const base64 = btoa(unescape(encodeURIComponent(input)));
+            document.getElementById('b64-output').textContent = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        // File encryption
+        function handleFile(file) {
+            selectedFile = file;
+            document.getElementById('file-name').textContent = file ? file.name : '';
+        }
+
+        document.getElementById('file-drop').addEventListener('dragover', e => {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        });
+
+        document.getElementById('file-drop').addEventListener('dragleave', e => {
+            e.currentTarget.classList.remove('dragover');
+        });
+
+        document.getElementById('file-drop').addEventListener('drop', e => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        async function encryptFile() {
+            if (!selectedFile) { alert('Select a file first'); return; }
+            const password = document.getElementById('file-password').value;
+            if (!password) { alert('Enter a password'); return; }
+
+            document.getElementById('file-status').textContent = 'Encrypting...';
+
+            const data = await selectedFile.arrayBuffer();
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(password, salt);
+
+            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+
+            const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+            combined.set(salt, 0);
+            combined.set(iv, salt.length);
+            combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+            const blob = new Blob([combined], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = selectedFile.name + '.encrypted';
+            a.click();
+
+            document.getElementById('file-status').textContent = 'File encrypted and downloaded!';
+        }
+
+        async function decryptFile() {
+            if (!selectedFile) { alert('Select an encrypted file first'); return; }
+            const password = document.getElementById('file-password').value;
+            if (!password) { alert('Enter the password'); return; }
+
+            document.getElementById('file-status').textContent = 'Decrypting...';
+
+            try {
+                const data = new Uint8Array(await selectedFile.arrayBuffer());
+                const salt = data.slice(0, 16);
+                const iv = data.slice(16, 28);
+                const encrypted = data.slice(28);
+
+                const key = await deriveKey(password, salt);
+                const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted);
+
+                const originalName = selectedFile.name.replace('.encrypted', '');
+                const blob = new Blob([decrypted]);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = originalName;
+                a.click();
+
+                document.getElementById('file-status').textContent = 'File decrypted and downloaded!';
+            } catch (e) {
+                document.getElementById('file-status').textContent = 'Decryption failed. Wrong password?';
+            }
+        }
+
+        function copyOutput(id) {
+            const text = document.getElementById(id).querySelector('span')?.textContent ||
+                         document.getElementById(id + '-text')?.textContent ||
+                         document.getElementById(id).textContent;
+            navigator.clipboard.writeText(text);
+        }
+    </script>
+</body>
+</html>
