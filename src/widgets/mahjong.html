@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<!--
+Dee's Nuts Mahjong - Classic tile matching game
+Part of KISS MySaaS
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dee's Nuts Mahjong</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1a472a 0%, #0d2818 100%); color: #fff; min-height: 100vh; overflow: hidden; }
+
+    .header { background: rgba(0,0,0,0.3); padding: 12px 24px; display: flex; align-items: center; gap: 20px; backdrop-filter: blur(10px); }
+    .logo { font-size: 24px; font-weight: 700; }
+    .logo span { color: #f59e0b; }
+    .stats { display: flex; gap: 24px; margin-left: auto; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 24px; font-weight: 700; color: #f59e0b; }
+    .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #f59e0b; color: #000; }
+    .btn-primary:hover { background: #d97706; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.2); }
+
+    .game-container { display: flex; flex-direction: column; align-items: center; padding: 20px; height: calc(100vh - 60px); }
+
+    .board { position: relative; transform-style: preserve-3d; perspective: 1000px; }
+
+    .tile { position: absolute; width: 44px; height: 56px; background: linear-gradient(180deg, #fff8e7 0%, #f5e6c8 100%); border-radius: 6px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow:
+      2px 2px 0 #c4a87c,
+      4px 4px 0 #a08060,
+      0 6px 12px rgba(0,0,0,0.4);
+    user-select: none;
+    }
+    .tile::before { content: ''; position: absolute; top: 2px; left: 2px; right: 2px; height: 8px; background: linear-gradient(180deg, rgba(255,255,255,0.8), transparent); border-radius: 4px 4px 0 0; }
+    .tile:hover { transform: translateY(-4px); box-shadow:
+      2px 2px 0 #c4a87c,
+      4px 4px 0 #a08060,
+      0 10px 20px rgba(0,0,0,0.5);
+    }
+    .tile.selected { transform: translateY(-8px); box-shadow:
+      2px 2px 0 #c4a87c,
+      4px 4px 0 #a08060,
+      0 12px 24px rgba(0,0,0,0.5),
+      0 0 0 3px #f59e0b;
+    }
+    .tile.blocked { opacity: 0.7; cursor: not-allowed; }
+    .tile.blocked:hover { transform: none; }
+    .tile.hint { animation: hint-pulse 0.5s ease-in-out infinite alternate; }
+    @keyframes hint-pulse { to { box-shadow: 0 0 20px #22c55e, 2px 2px 0 #c4a87c, 4px 4px 0 #a08060; } }
+    .tile.matched { animation: match-pop 0.3s ease-out forwards; }
+    @keyframes match-pop {
+      50% { transform: scale(1.2); opacity: 0.5; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    .tile-content { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+    .tile-char { font-size: 24px; }
+    .tile-sub { font-size: 10px; color: #666; margin-top: 2px; }
+
+    /* Tile colors by type */
+    .tile[data-type="dots"] .tile-char { color: #2563eb; }
+    .tile[data-type="bams"] .tile-char { color: #16a34a; }
+    .tile[data-type="chars"] .tile-char { color: #dc2626; }
+    .tile[data-type="winds"] .tile-char { color: #7c3aed; }
+    .tile[data-type="dragons"] .tile-char { color: #000; }
+    .tile[data-type="flowers"] .tile-char { color: #ec4899; }
+    .tile[data-type="nuts"] .tile-char { color: #92400e; }
+
+    .controls { display: flex; gap: 12px; margin-top: 20px; }
+
+    .message { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 40px 60px; border-radius: 16px; text-align: center; z-index: 100; display: none; }
+    .message.show { display: block; animation: pop-in 0.3s ease-out; }
+    @keyframes pop-in { from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } }
+    .message h2 { font-size: 32px; margin-bottom: 16px; }
+    .message p { color: #888; margin-bottom: 24px; }
+    .message.win h2 { color: #22c55e; }
+    .message.lose h2 { color: #ef4444; }
+
+    .sidebar { position: fixed; right: 20px; top: 80px; background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; backdrop-filter: blur(10px); }
+    .sidebar-title { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 12px; }
+    .tile-count { display: flex; flex-wrap: wrap; gap: 8px; max-width: 200px; }
+    .tile-mini { width: 28px; height: 36px; background: linear-gradient(180deg, #fff8e7, #f5e6c8); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 16px; position: relative; }
+    .tile-mini .count { position: absolute; bottom: -4px; right: -4px; background: #f59e0b; color: #000; font-size: 10px; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .tile-mini.empty { opacity: 0.3; }
+
+    .shuffle-warning { background: #f59e0b22; border: 1px solid #f59e0b; color: #f59e0b; padding: 8px 16px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+    .shuffle-warning.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Dee's <span>Nuts</span> Mahjong</div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="tilesLeft">144</div>
+        <div class="stat-label">Tiles Left</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="pairsLeft">72</div>
+        <div class="stat-label">Pairs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="timer">0:00</div>
+        <div class="stat-label">Time</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="score">0</div>
+        <div class="stat-label">Score</div>
+      </div>
+    </div>
+    <button class="btn btn-secondary" onclick="showHint()">Hint</button>
+    <button class="btn btn-secondary" onclick="shuffle()">Shuffle</button>
+    <button class="btn btn-primary" onclick="newGame()">New Game</button>
+  </div>
+
+  <div class="game-container">
+    <div class="board" id="board"></div>
+    <div class="controls">
+      <div class="shuffle-warning" id="shuffleWarning">No moves available! Click Shuffle or start a New Game.</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-title">Remaining Tiles</div>
+    <div class="tile-count" id="tileCount"></div>
+  </div>
+
+  <div class="message" id="message">
+    <h2 id="msgTitle">You Win!</h2>
+    <p id="msgText">Congratulations! You cleared the board!</p>
+    <button class="btn btn-primary" onclick="newGame()">Play Again</button>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Dee's Nuts Mahjong - Tile Matching Game
+    // =========================================================================
+
+    // Tile definitions with fun nut theme mixed in
+    const TILES = [
+      // Dots (circles) 1-9
+      { id: 'd1', char: '🔴', type: 'dots', name: '1 Dot' },
+      { id: 'd2', char: '🔵', type: 'dots', name: '2 Dots' },
+      { id: 'd3', char: '🟢', type: 'dots', name: '3 Dots' },
+      { id: 'd4', char: '🟡', type: 'dots', name: '4 Dots' },
+      { id: 'd5', char: '🟣', type: 'dots', name: '5 Dots' },
+      { id: 'd6', char: '🟠', type: 'dots', name: '6 Dots' },
+      { id: 'd7', char: '⚫', type: 'dots', name: '7 Dots' },
+      { id: 'd8', char: '⚪', type: 'dots', name: '8 Dots' },
+      { id: 'd9', char: '🔘', type: 'dots', name: '9 Dots' },
+      // Bamboo (bams) 1-9
+      { id: 'b1', char: '🎋', type: 'bams', name: '1 Bam' },
+      { id: 'b2', char: '🎍', type: 'bams', name: '2 Bam' },
+      { id: 'b3', char: '🌿', type: 'bams', name: '3 Bam' },
+      { id: 'b4', char: '🌴', type: 'bams', name: '4 Bam' },
+      { id: 'b5', char: '🌲', type: 'bams', name: '5 Bam' },
+      { id: 'b6', char: '🌳', type: 'bams', name: '6 Bam' },
+      { id: 'b7', char: '🌱', type: 'bams', name: '7 Bam' },
+      { id: 'b8', char: '🍀', type: 'bams', name: '8 Bam' },
+      { id: 'b9', char: '🎄', type: 'bams', name: '9 Bam' },
+      // Characters 1-9
+      { id: 'c1', char: '一', type: 'chars', name: '1 Char' },
+      { id: 'c2', char: '二', type: 'chars', name: '2 Char' },
+      { id: 'c3', char: '三', type: 'chars', name: '3 Char' },
+      { id: 'c4', char: '四', type: 'chars', name: '4 Char' },
+      { id: 'c5', char: '五', type: 'chars', name: '5 Char' },
+      { id: 'c6', char: '六', type: 'chars', name: '6 Char' },
+      { id: 'c7', char: '七', type: 'chars', name: '7 Char' },
+      { id: 'c8', char: '八', type: 'chars', name: '8 Char' },
+      { id: 'c9', char: '九', type: 'chars', name: '9 Char' },
+      // Winds
+      { id: 'we', char: '東', type: 'winds', name: 'East' },
+      { id: 'ws', char: '南', type: 'winds', name: 'South' },
+      { id: 'ww', char: '西', type: 'winds', name: 'West' },
+      { id: 'wn', char: '北', type: 'winds', name: 'North' },
+      // Dragons
+      { id: 'dr', char: '中', type: 'dragons', name: 'Red Dragon' },
+      { id: 'dg', char: '發', type: 'dragons', name: 'Green Dragon' },
+      { id: 'dw', char: '白', type: 'dragons', name: 'White Dragon' },
+      // Dee's Nuts special tiles!
+      { id: 'n1', char: '🥜', type: 'nuts', name: 'Peanut' },
+      { id: 'n2', char: '🌰', type: 'nuts', name: 'Chestnut' },
+      { id: 'n3', char: '🫘', type: 'nuts', name: 'Beans' },
+      { id: 'n4', char: '🥥', type: 'nuts', name: 'Coconut' },
+    ];
+
+    // Turtle layout (classic mahjong solitaire)
+    const LAYOUT = [
+      // Layer 0 (bottom) - 12x8 base
+      ...generateLayer(0, [
+        [1,1,1,1,1,1,1,1,1,1,1,1],
+        [0,0,1,1,1,1,1,1,1,1,0,0],
+        [0,1,1,1,1,1,1,1,1,1,1,0],
+        [1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1],
+        [0,1,1,1,1,1,1,1,1,1,1,0],
+        [0,0,1,1,1,1,1,1,1,1,0,0],
+        [1,1,1,1,1,1,1,1,1,1,1,1],
+      ]),
+      // Layer 1
+      ...generateLayer(1, [
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,1,1,1,1,1,1,0,0,0],
+        [0,0,0,1,1,1,1,1,1,0,0,0],
+        [0,0,0,1,1,1,1,1,1,0,0,0],
+        [0,0,0,1,1,1,1,1,1,0,0,0],
+        [0,0,0,1,1,1,1,1,1,0,0,0],
+        [0,0,0,1,1,1,1,1,1,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+      ]),
+      // Layer 2
+      ...generateLayer(2, [
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,1,1,1,1,0,0,0,0],
+        [0,0,0,0,1,1,1,1,0,0,0,0],
+        [0,0,0,0,1,1,1,1,0,0,0,0],
+        [0,0,0,0,1,1,1,1,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+      ]),
+      // Layer 3
+      ...generateLayer(3, [
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,1,1,0,0,0,0,0],
+        [0,0,0,0,0,1,1,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+      ]),
+      // Layer 4 (top)
+      ...generateLayer(4, [
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,1,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0],
+      ]),
+    ];
+
+    function generateLayer(z, grid) {
+      const positions = [];
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+          if (grid[y][x]) positions.push({ x, y, z });
+        }
+      }
+      return positions;
+    }
+
+    let tiles = [];
+    let selectedTile = null;
+    let score = 0;
+    let timerInterval = null;
+    let seconds = 0;
+    let hintsUsed = 0;
+    let shufflesUsed = 0;
+
+    const board = document.getElementById('board');
+
+    function newGame() {
+      // Clear
+      board.innerHTML = '';
+      tiles = [];
+      selectedTile = null;
+      score = 0;
+      seconds = 0;
+      hintsUsed = 0;
+      shufflesUsed = 0;
+      document.getElementById('score').textContent = '0';
+      document.getElementById('message').classList.remove('show');
+      document.getElementById('shuffleWarning').classList.remove('show');
+
+      // Stop old timer
+      if (timerInterval) clearInterval(timerInterval);
+
+      // Create tile set (4 of each tile type = 144 tiles for 36 unique)
+      // We have 40 tile types, so pick 36 for classic 144-tile game
+      const selectedTiles = TILES.slice(0, 36);
+      let deck = [];
+      selectedTiles.forEach(t => {
+        for (let i = 0; i < 4; i++) deck.push({ ...t });
+      });
+
+      // Shuffle deck
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+
+      // Place tiles on layout positions
+      const positions = [...LAYOUT];
+      if (deck.length > positions.length) {
+        deck = deck.slice(0, positions.length);
+      }
+
+      positions.forEach((pos, i) => {
+        if (i < deck.length) {
+          const tile = {
+            ...deck[i],
+            x: pos.x,
+            y: pos.y,
+            z: pos.z,
+            uid: i
+          };
+          tiles.push(tile);
+        }
+      });
+
+      renderBoard();
+      updateStats();
+      startTimer();
+
+      // Check for initial moves
+      if (!hasAvailableMoves()) {
+        document.getElementById('shuffleWarning').classList.add('show');
+      }
+    }
+
+    function renderBoard() {
+      board.innerHTML = '';
+
+      // Calculate board dimensions
+      const tileW = 48;
+      const tileH = 60;
+      const layerOffset = 4;
+
+      // Center offset
+      const maxX = Math.max(...tiles.map(t => t.x));
+      const maxY = Math.max(...tiles.map(t => t.y));
+      const boardW = (maxX + 1) * tileW + 50;
+      const boardH = (maxY + 1) * tileH + 50;
+      board.style.width = boardW + 'px';
+      board.style.height = boardH + 'px';
+
+      // Sort tiles by z (draw order)
+      const sortedTiles = [...tiles].sort((a, b) => a.z - b.z || a.y - b.y || a.x - b.x);
+
+      sortedTiles.forEach(tile => {
+        const el = document.createElement('div');
+        el.className = 'tile';
+        el.dataset.uid = tile.uid;
+        el.dataset.type = tile.type;
+
+        const left = tile.x * (tileW - 4) + tile.z * layerOffset;
+        const top = tile.y * (tileH - 8) - tile.z * layerOffset;
+
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        el.style.zIndex = tile.z * 100 + tile.y * 10 + tile.x;
+
+        el.innerHTML = `<div class="tile-content"><span class="tile-char">${tile.char}</span></div>`;
+
+        el.addEventListener('click', () => onTileClick(tile, el));
+
+        board.appendChild(el);
+
+        // Check if blocked
+        if (isTileBlocked(tile)) {
+          el.classList.add('blocked');
+        }
+      });
+    }
+
+    function isTileBlocked(tile) {
+      // Blocked if covered from above
+      const above = tiles.find(t =>
+        t.z === tile.z + 1 &&
+        Math.abs(t.x - tile.x) < 1 &&
+        Math.abs(t.y - tile.y) < 1
+      );
+      if (above) return true;
+
+      // Blocked if surrounded on left AND right
+      const left = tiles.find(t => t.z === tile.z && t.y === tile.y && t.x === tile.x - 1);
+      const right = tiles.find(t => t.z === tile.z && t.y === tile.y && t.x === tile.x + 1);
+      if (left && right) return true;
+
+      return false;
+    }
+
+    function onTileClick(tile, el) {
+      if (isTileBlocked(tile)) return;
+
+      // Clear hints
+      document.querySelectorAll('.tile.hint').forEach(t => t.classList.remove('hint'));
+
+      if (selectedTile === tile) {
+        // Deselect
+        selectedTile = null;
+        el.classList.remove('selected');
+        return;
+      }
+
+      if (selectedTile) {
+        // Check match
+        if (selectedTile.id === tile.id && selectedTile.uid !== tile.uid) {
+          // Match!
+          matchTiles(selectedTile, tile);
+        } else {
+          // Wrong match - deselect first
+          document.querySelector(`.tile[data-uid="${selectedTile.uid}"]`)?.classList.remove('selected');
+          selectedTile = tile;
+          el.classList.add('selected');
+        }
+      } else {
+        selectedTile = tile;
+        el.classList.add('selected');
+      }
+    }
+
+    function matchTiles(t1, t2) {
+      const el1 = document.querySelector(`.tile[data-uid="${t1.uid}"]`);
+      const el2 = document.querySelector(`.tile[data-uid="${t2.uid}"]`);
+
+      el1?.classList.add('matched');
+      el2?.classList.add('matched');
+
+      // Score: base + time bonus + layer bonus
+      const layerBonus = (t1.z + t2.z) * 10;
+      const timeBonus = Math.max(0, 100 - seconds);
+      score += 100 + layerBonus + timeBonus;
+      document.getElementById('score').textContent = score;
+
+      setTimeout(() => {
+        tiles = tiles.filter(t => t.uid !== t1.uid && t.uid !== t2.uid);
+        selectedTile = null;
+        renderBoard();
+        updateStats();
+
+        // Check win/lose
+        if (tiles.length === 0) {
+          showMessage('win', 'You Win!', `Score: ${score} | Time: ${formatTime(seconds)}`);
+          clearInterval(timerInterval);
+        } else if (!hasAvailableMoves()) {
+          document.getElementById('shuffleWarning').classList.add('show');
+        }
+      }, 300);
+    }
+
+    function hasAvailableMoves() {
+      const available = tiles.filter(t => !isTileBlocked(t));
+      for (let i = 0; i < available.length; i++) {
+        for (let j = i + 1; j < available.length; j++) {
+          if (available[i].id === available[j].id) return true;
+        }
+      }
+      return false;
+    }
+
+    function showHint() {
+      const available = tiles.filter(t => !isTileBlocked(t));
+      for (let i = 0; i < available.length; i++) {
+        for (let j = i + 1; j < available.length; j++) {
+          if (available[i].id === available[j].id) {
+            const el1 = document.querySelector(`.tile[data-uid="${available[i].uid}"]`);
+            const el2 = document.querySelector(`.tile[data-uid="${available[j].uid}"]`);
+            el1?.classList.add('hint');
+            el2?.classList.add('hint');
+            hintsUsed++;
+            score = Math.max(0, score - 50);
+            document.getElementById('score').textContent = score;
+            return;
+          }
+        }
+      }
+    }
+
+    function shuffle() {
+      // Collect all tile data (preserving positions but shuffling tile types)
+      const positions = tiles.map(t => ({ x: t.x, y: t.y, z: t.z }));
+      const tileData = tiles.map(t => ({ id: t.id, char: t.char, type: t.type, name: t.name }));
+
+      // Shuffle tile data
+      for (let i = tileData.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tileData[i], tileData[j]] = [tileData[j], tileData[i]];
+      }
+
+      // Reassign
+      tiles = positions.map((pos, i) => ({
+        ...pos,
+        ...tileData[i],
+        uid: i
+      }));
+
+      selectedTile = null;
+      shufflesUsed++;
+      score = Math.max(0, score - 100);
+      document.getElementById('score').textContent = score;
+
+      renderBoard();
+      document.getElementById('shuffleWarning').classList.remove('show');
+
+      if (!hasAvailableMoves()) {
+        document.getElementById('shuffleWarning').classList.add('show');
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('tilesLeft').textContent = tiles.length;
+      document.getElementById('pairsLeft').textContent = Math.floor(tiles.length / 2);
+      updateTileCount();
+    }
+
+    function updateTileCount() {
+      const counts = {};
+      tiles.forEach(t => {
+        counts[t.id] = (counts[t.id] || 0) + 1;
+      });
+
+      const container = document.getElementById('tileCount');
+      container.innerHTML = '';
+
+      TILES.slice(0, 36).forEach(t => {
+        const count = counts[t.id] || 0;
+        const mini = document.createElement('div');
+        mini.className = 'tile-mini' + (count === 0 ? ' empty' : '');
+        mini.innerHTML = `${t.char}<span class="count">${count}</span>`;
+        container.appendChild(mini);
+      });
+    }
+
+    function startTimer() {
+      seconds = 0;
+      timerInterval = setInterval(() => {
+        seconds++;
+        document.getElementById('timer').textContent = formatTime(seconds);
+      }, 1000);
+    }
+
+    function formatTime(s) {
+      const mins = Math.floor(s / 60);
+      const secs = s % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function showMessage(type, title, text) {
+      const msg = document.getElementById('message');
+      msg.className = 'message show ' + type;
+      document.getElementById('msgTitle').textContent = title;
+      document.getElementById('msgText').textContent = text;
+    }
+
+    // Start game
+    newGame();
+  </script>
+</body>
+</html>
