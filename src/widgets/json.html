@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Formatter & Validator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 20px 0; }
+        .logo { font-size: 40px; margin-bottom: 8px; }
+        h1 { font-size: 1.6rem; color: #f59e0b; margin-bottom: 6px; }
+        .subtitle { color: #666; font-size: 12px; }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover { transform: scale(1.05); }
+
+        .btn-primary { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        .btn-success { background: #22c55e; color: #000; }
+        .btn-danger { background: #ef4444; color: #fff; }
+
+        .panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .panels { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-title { font-size: 13px; font-weight: 600; }
+
+        .panel-info {
+            font-size: 11px;
+            color: #888;
+            display: flex;
+            gap: 12px;
+        }
+
+        .status { display: flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.valid { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .status-dot.invalid { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .status-dot.empty { background: #888; }
+
+        textarea {
+            flex: 1;
+            min-height: 400px;
+            background: transparent;
+            border: none;
+            padding: 16px;
+            color: #e0e0e0;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+        }
+
+        .output-view {
+            flex: 1;
+            min-height: 400px;
+            padding: 16px;
+            overflow: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* Syntax highlighting */
+        .json-key { color: #f59e0b; }
+        .json-string { color: #22c55e; }
+        .json-number { color: #3b82f6; }
+        .json-boolean { color: #ec4899; }
+        .json-null { color: #888; }
+        .json-bracket { color: #888; }
+        .json-error { color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 8px; }
+
+        .tree-view { padding: 8px 0; }
+        .tree-item { padding: 2px 0; }
+        .tree-key { color: #f59e0b; cursor: pointer; }
+        .tree-key:hover { text-decoration: underline; }
+        .tree-toggle {
+            display: inline-block;
+            width: 16px;
+            color: #888;
+            cursor: pointer;
+            user-select: none;
+        }
+        .tree-toggle:hover { color: #fff; }
+        .tree-children { margin-left: 20px; }
+        .tree-children.collapsed { display: none; }
+        .tree-preview { color: #666; font-style: italic; }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .stat { text-align: center; }
+        .stat-value { font-size: 20px; font-weight: 700; color: #f59e0b; }
+        .stat-label { font-size: 11px; color: #666; margin-top: 4px; }
+
+        .path-bar {
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+        }
+
+        .view-btn {
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 4px;
+            color: #888;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .view-btn.active {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">{ }</div>
+            <h1>JSON Formatter</h1>
+            <p class="subtitle">Format, validate, and explore JSON data</p>
+        </div>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="JSON_Tool.format()">✨ Format</button>
+            <button class="btn btn-secondary" onclick="JSON_Tool.minify()">📦 Minify</button>
+            <button class="btn btn-secondary" onclick="JSON_Tool.copy()">📋 Copy</button>
+            <button class="btn btn-secondary" onclick="JSON_Tool.download()">💾 Download</button>
+            <button class="btn btn-secondary" onclick="JSON_Tool.clear()">🗑️ Clear</button>
+            <button class="btn btn-secondary" onclick="JSON_Tool.sample()">📝 Sample</button>
+        </div>
+
+        <div class="panels">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">📥 Input</span>
+                    <div class="panel-info">
+                        <span id="charCount">0 chars</span>
+                        <span id="lineCount">0 lines</span>
+                    </div>
+                </div>
+                <textarea id="input" placeholder="Paste your JSON here..." oninput="JSON_Tool.parse()"></textarea>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">📤 Output</span>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div class="status">
+                            <span class="status-dot empty" id="statusDot"></span>
+                            <span id="statusText">Empty</span>
+                        </div>
+                        <div class="view-toggle">
+                            <button class="view-btn active" id="viewFormatted" onclick="JSON_Tool.setView('formatted')">Formatted</button>
+                            <button class="view-btn" id="viewTree" onclick="JSON_Tool.setView('tree')">Tree</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="output-view" id="output">Enter JSON to see formatted output</div>
+                <div class="path-bar" id="pathBar">Path: $</div>
+            </div>
+        </div>
+
+        <div class="stats" id="stats" style="display:none;">
+            <div class="stat">
+                <div class="stat-value" id="statKeys">0</div>
+                <div class="stat-label">Keys</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statDepth">0</div>
+                <div class="stat-label">Max Depth</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statArrays">0</div>
+                <div class="stat-label">Arrays</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statObjects">0</div>
+                <div class="stat-label">Objects</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="statSize">0 B</div>
+                <div class="stat-label">Size</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class JSONFormatter {
+            constructor() {
+                this.parsed = null;
+                this.view = 'formatted';
+            }
+
+            parse() {
+                const input = document.getElementById('input').value;
+                const output = document.getElementById('output');
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                const stats = document.getElementById('stats');
+
+                // Update counts
+                document.getElementById('charCount').textContent = `${input.length} chars`;
+                document.getElementById('lineCount').textContent = `${input.split('\n').length} lines`;
+
+                if (!input.trim()) {
+                    statusDot.className = 'status-dot empty';
+                    statusText.textContent = 'Empty';
+                    output.innerHTML = 'Enter JSON to see formatted output';
+                    stats.style.display = 'none';
+                    this.parsed = null;
+                    return;
+                }
+
+                try {
+                    this.parsed = JSON.parse(input);
+                    statusDot.className = 'status-dot valid';
+                    statusText.textContent = 'Valid JSON';
+                    stats.style.display = 'flex';
+
+                    this.render();
+                    this.updateStats();
+                } catch (e) {
+                    statusDot.className = 'status-dot invalid';
+                    statusText.textContent = 'Invalid';
+                    stats.style.display = 'none';
+                    this.parsed = null;
+
+                    // Show error with position
+                    const match = e.message.match(/position (\d+)/);
+                    let errorMsg = e.message;
+                    if (match) {
+                        const pos = parseInt(match[1]);
+                        const lines = input.substring(0, pos).split('\n');
+                        const line = lines.length;
+                        const col = lines[lines.length - 1].length + 1;
+                        errorMsg += ` (Line ${line}, Column ${col})`;
+                    }
+
+                    output.innerHTML = `<div class="json-error">❌ ${this.escapeHtml(errorMsg)}</div>`;
+                }
+            }
+
+            render() {
+                if (!this.parsed) return;
+
+                const output = document.getElementById('output');
+
+                if (this.view === 'formatted') {
+                    output.innerHTML = this.highlight(JSON.stringify(this.parsed, null, 2));
+                } else {
+                    output.innerHTML = this.buildTree(this.parsed, '$');
+                }
+            }
+
+            highlight(json) {
+                return json
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                    .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                    .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+                    .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+                    .replace(/: (null)/g, ': <span class="json-null">$1</span>')
+                    .replace(/([{}\[\]])/g, '<span class="json-bracket">$1</span>');
+            }
+
+            buildTree(obj, path, depth = 0) {
+                if (obj === null) return '<span class="json-null">null</span>';
+                if (typeof obj !== 'object') {
+                    if (typeof obj === 'string') return `<span class="json-string">"${this.escapeHtml(obj)}"</span>`;
+                    if (typeof obj === 'number') return `<span class="json-number">${obj}</span>`;
+                    if (typeof obj === 'boolean') return `<span class="json-boolean">${obj}</span>`;
+                    return String(obj);
+                }
+
+                const isArray = Array.isArray(obj);
+                const keys = Object.keys(obj);
+                const id = 'tree-' + Math.random().toString(36).substr(2, 9);
+
+                if (keys.length === 0) {
+                    return isArray ? '[]' : '{}';
+                }
+
+                let html = `<span class="tree-toggle" onclick="JSON_Tool.toggle('${id}')">▼</span>`;
+                html += isArray ? '[' : '{';
+                html += `<span class="tree-preview" id="${id}-preview" style="display:none;"> ${keys.length} ${isArray ? 'items' : 'properties'} </span>`;
+                html += `<div class="tree-children" id="${id}">`;
+
+                keys.forEach((key, i) => {
+                    const childPath = isArray ? `${path}[${key}]` : `${path}.${key}`;
+                    html += '<div class="tree-item">';
+                    if (!isArray) {
+                        html += `<span class="tree-key" onclick="JSON_Tool.showPath('${childPath}')">"${this.escapeHtml(key)}"</span>: `;
+                    }
+                    html += this.buildTree(obj[key], childPath, depth + 1);
+                    if (i < keys.length - 1) html += ',';
+                    html += '</div>';
+                });
+
+                html += '</div>';
+                html += isArray ? ']' : '}';
+
+                return html;
+            }
+
+            toggle(id) {
+                const el = document.getElementById(id);
+                const preview = document.getElementById(id + '-preview');
+                const toggle = el.previousElementSibling.previousElementSibling;
+
+                if (el.classList.contains('collapsed')) {
+                    el.classList.remove('collapsed');
+                    preview.style.display = 'none';
+                    toggle.textContent = '▼';
+                } else {
+                    el.classList.add('collapsed');
+                    preview.style.display = 'inline';
+                    toggle.textContent = '▶';
+                }
+            }
+
+            showPath(path) {
+                document.getElementById('pathBar').textContent = 'Path: ' + path;
+            }
+
+            setView(view) {
+                this.view = view;
+                document.getElementById('viewFormatted').classList.toggle('active', view === 'formatted');
+                document.getElementById('viewTree').classList.toggle('active', view === 'tree');
+                this.render();
+            }
+
+            updateStats() {
+                if (!this.parsed) return;
+
+                let keys = 0, maxDepth = 0, arrays = 0, objects = 0;
+
+                const analyze = (obj, depth = 0) => {
+                    maxDepth = Math.max(maxDepth, depth);
+
+                    if (Array.isArray(obj)) {
+                        arrays++;
+                        obj.forEach(item => analyze(item, depth + 1));
+                    } else if (obj && typeof obj === 'object') {
+                        objects++;
+                        Object.keys(obj).forEach(key => {
+                            keys++;
+                            analyze(obj[key], depth + 1);
+                        });
+                    }
+                };
+
+                analyze(this.parsed);
+
+                document.getElementById('statKeys').textContent = keys;
+                document.getElementById('statDepth').textContent = maxDepth;
+                document.getElementById('statArrays').textContent = arrays;
+                document.getElementById('statObjects').textContent = objects;
+
+                const size = new Blob([JSON.stringify(this.parsed)]).size;
+                document.getElementById('statSize').textContent = size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`;
+            }
+
+            format() {
+                if (!this.parsed) return;
+                document.getElementById('input').value = JSON.stringify(this.parsed, null, 2);
+                this.parse();
+            }
+
+            minify() {
+                if (!this.parsed) return;
+                document.getElementById('input').value = JSON.stringify(this.parsed);
+                this.parse();
+            }
+
+            copy() {
+                const input = document.getElementById('input').value;
+                navigator.clipboard.writeText(input).then(() => {
+                    alert('Copied to clipboard!');
+                });
+            }
+
+            download() {
+                if (!this.parsed) return;
+                const blob = new Blob([JSON.stringify(this.parsed, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'data.json';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            clear() {
+                document.getElementById('input').value = '';
+                this.parse();
+            }
+
+            sample() {
+                document.getElementById('input').value = JSON.stringify({
+                    "name": "KISS MySaaS",
+                    "version": "1.0.0",
+                    "description": "Open source P2P widgets",
+                    "features": ["chat", "kanban", "forms", "analytics"],
+                    "pricing": {
+                        "monthly": 0,
+                        "yearly": 0,
+                        "enterprise": null
+                    },
+                    "stats": {
+                        "widgets": 50,
+                        "users": 10000,
+                        "active": true
+                    },
+                    "tags": ["p2p", "serverless", "free"]
+                }, null, 2);
+                this.parse();
+            }
+
+            escapeHtml(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+        }
+
+        const JSON_Tool = new JSONFormatter();
+    </script>
+</body>
+</html>
