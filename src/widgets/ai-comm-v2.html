@@ -563,8 +563,27 @@
     // AI FreeComm v2 - Next-Gen Communication
     // ============================================
 
-    import { LocalLLM } from '../../llm/local.js';
-    import { KonoTel } from '../../network/konotel.js';
+    // Optional module imports (graceful fallback if not available)
+    let LocalLLM = null;
+    let KonoTel = null;
+
+    // Try to load optional modules
+    async function loadOptionalModules() {
+      try {
+        const llmModule = await import('../../llm/local.js');
+        LocalLLM = llmModule.LocalLLM;
+        console.log('LLM module loaded');
+      } catch (e) {
+        console.warn('LLM module not available:', e.message);
+      }
+      try {
+        const konotelModule = await import('../../network/konotel.js');
+        KonoTel = konotelModule.KonoTel;
+        console.log('KonoTel module loaded');
+      } catch (e) {
+        console.warn('KonoTel module not available:', e.message);
+      }
+    }
 
     // ============================================
     // State
@@ -699,6 +718,10 @@
     // AI Features
     // ============================================
     async function initAI() {
+      if (!LocalLLM) {
+        console.warn('LLM module not available');
+        return;
+      }
       try {
         state.llm = new LocalLLM();
         await state.llm.loadModel('smollm2-1.7b');
@@ -714,8 +737,8 @@
       return ['That sounds great!', 'Tell me more', 'Interesting!', '👍'];
     }
 
-    async function analyzeSentiment(text) {
-      // Simplified sentiment analysis
+    function analyzeSentiment(text) {
+      // Simplified sentiment analysis (synchronous)
       const positive = ['great', 'amazing', 'love', 'awesome', 'excellent', '!', '😊', '🔥', '❤️'];
       const negative = ['bad', 'hate', 'terrible', 'awful', 'sad', '😢', '😠'];
 
@@ -875,10 +898,19 @@
     // ============================================
     async function init() {
       console.log('AI FreeComm v2 initializing...');
+
+      // Load optional modules first
+      await loadOptionalModules();
+
+      // Initialize UI components
       initMeshViz();
       initVoice();
       initUI();
-      setTimeout(initAI, 500);
+
+      // Initialize AI if available
+      if (LocalLLM) {
+        setTimeout(initAI, 500);
+      }
     }
 
     init();
