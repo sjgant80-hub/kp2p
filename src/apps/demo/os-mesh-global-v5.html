@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<!--
+@file os-mesh-global-v5.html
+@desc KonomiOS v5 - Templated + Token-optimized
+@hash {W:window,A:app,T:terminal,C:chat,F:files,P:peers,S:settings}
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KonomiOS v5</title>
+  <style>
+    :root{--b:#1a1a2e;--b2:#16213e;--b3:#0f3460;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316;--br:#334155;--gl:rgba(15,52,96,.85)}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:linear-gradient(135deg,var(--b),var(--b2),var(--b3));color:var(--f);height:100vh;overflow:hidden;user-select:none}
+    .D{position:absolute;inset:0 0 48px 0}.D::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 30%,rgba(0,217,255,.1),transparent 50%),radial-gradient(circle at 80% 70%,rgba(124,58,237,.1),transparent 50%);pointer-events:none}
+    .DI{position:absolute;top:20px;left:20px;display:flex;flex-direction:column;gap:16px}
+    .di{width:72px;text-align:center;cursor:pointer;padding:8px 4px;border-radius:10px;transition:.2s}.di:hover{background:rgba(255,255,255,.1)}.di:active{transform:scale(.95)}.di i{font-size:32px;display:block;margin-bottom:4px}.di span{font-size:10px;text-shadow:0 1px 2px #000}
+    .W{position:absolute;background:var(--gl);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);display:none;flex-direction:column;overflow:hidden;min-width:280px;min-height:180px;resize:both}
+    .W.o{display:flex}.W.a{z-index:100;box-shadow:0 12px 48px rgba(0,0,0,.5)}.W.m{inset:0!important;width:100%!important;height:100%!important;border-radius:0;resize:none}
+    .Wh{padding:10px 14px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:10px;cursor:move}
+    .Wc{display:flex;gap:6px}.Wc button{width:12px;height:12px;border-radius:50%;border:none;cursor:pointer}.Wc .c{background:var(--r)}.Wc .n{background:var(--o)}.Wc .x{background:var(--g)}
+    .Wt{flex:1;font-size:12px;font-weight:500;opacity:.9}.Wb{flex:1;overflow:hidden;display:flex;flex-direction:column}
+    .TB{position:absolute;bottom:0;left:0;right:0;height:48px;background:rgba(0,0,0,.6);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;padding:0 10px;gap:4px}
+    .Ts{padding:8px 14px;background:linear-gradient(135deg,var(--a),var(--a2));border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-right:6px}
+    .Ta{display:flex;gap:4px;flex:1}.Ta div{padding:5px 10px;background:rgba(255,255,255,.05);border:1px solid transparent;border-radius:5px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px}.Ta div:hover{background:rgba(255,255,255,.1)}.Ta div.a{background:rgba(0,217,255,.2);border-color:var(--a)}
+    .Ty{display:flex;align-items:center;gap:10px;padding:0 10px;font-size:11px}.Ty .d{width:8px;height:8px;border-radius:50%}.Ty .d.on{background:var(--g)}.Ty .d.c{background:var(--o);animation:p 1s infinite}@keyframes p{50%{opacity:.5}}
+    .trm{flex:1;background:rgba(0,0,0,.5);padding:10px;overflow-y:auto;font-family:'SF Mono',monospace;font-size:12px;line-height:1.5}.trm .l{margin-bottom:1px;white-space:pre-wrap}.trm .p{color:var(--g)}.trm .o{color:#a1a1aa}.trm .e{color:var(--r)}.trm .i{color:var(--a)}
+    .tri{display:flex;padding:6px 10px;background:rgba(0,0,0,.3);border-top:1px solid rgba(255,255,255,.05);gap:6px}.tri input{flex:1;background:0;border:0;color:var(--f);font-family:inherit;font-size:12px;outline:0}
+    .cht{flex:1;display:flex;flex-direction:column}.chm{flex:1;overflow-y:auto;padding:10px}.chm .m{margin-bottom:10px;display:flex;flex-direction:column}.chm .m.s{align-items:flex-end}.chm .mt{font-size:9px;color:#888;margin-bottom:3px}.chm .mb{max-width:75%;padding:7px 12px;background:rgba(255,255,255,.1);border-radius:14px;font-size:12px}.chm .m.s .mb{background:linear-gradient(135deg,var(--a),var(--a2));color:#fff}.chm .mb.sys{background:0;color:#666;font-style:italic;font-size:10px}
+    .chi{display:flex;padding:10px;gap:6px;background:rgba(0,0,0,.2)}.chi input{flex:1;padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:16px;color:var(--f);font-size:12px;outline:0}.chi button{padding:8px 16px;background:var(--a);border:0;border-radius:16px;color:#000;font-weight:600;cursor:pointer}
+    .fls{flex:1;display:flex;flex-direction:column}.flt{padding:6px 10px;background:rgba(0,0,0,.2);display:flex;gap:6px}.flt input{flex:1;padding:5px 8px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:5px;color:var(--f);font-size:11px}.flt button{padding:5px 10px;background:var(--a);border:0;border-radius:5px;color:#000;font-size:10px;font-weight:600;cursor:pointer}
+    .fll{flex:1;overflow-y:auto;padding:10px}.fll .fi{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.05);border-radius:6px;margin-bottom:5px;cursor:pointer;font-size:12px}.fll .fi:hover{background:rgba(255,255,255,.1)}
+    .prs{flex:1;overflow-y:auto;padding:10px}.prs .pc{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,.05);border-radius:8px;margin-bottom:6px}.prs .pc.s{border:1px solid var(--a)}.prs .av{font-size:28px}.prs .pi{flex:1}.prs .pn{font-size:13px;font-weight:500}.prs .pid{font-size:10px;color:#888;font-family:monospace}
+    .sts{flex:1;overflow-y:auto;padding:14px}.sts .sec{margin-bottom:20px}.sts .st{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}.sts .si{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,.05);border-radius:6px;margin-bottom:6px;font-size:12px}.sts .si .v{color:var(--a);font-family:monospace;font-size:11px}.sts input{padding:6px 10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:5px;color:var(--f);font-size:11px;width:140px}.sts button{padding:6px 14px;background:var(--a);border:0;border-radius:5px;color:#000;font-size:11px;font-weight:600;cursor:pointer}
+    .SM{position:absolute;bottom:56px;left:10px;width:260px;background:var(--gl);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);display:none;overflow:hidden}.SM.o{display:block}.SM h{display:block;padding:14px;background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;font-size:15px;font-weight:600}.SM h small{display:block;font-size:10px;opacity:.8;font-weight:400;margin-top:2px}.SM .si{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;transition:.2s}.SM .si:hover{background:rgba(255,255,255,.1)}.SM .si i{font-size:20px}
+    .emp{text-align:center;padding:30px;color:#666;font-size:12px}
+    .ntf{position:fixed;top:20px;right:20px;background:var(--gl);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px 16px;font-size:12px;box-shadow:0 4px 20px rgba(0,0,0,.3);animation:sIn .3s}@keyframes sIn{from{opacity:0;transform:translateY(-10px)}}
+  </style>
+</head>
+<body>
+  <div class="D" id="D"></div>
+  <div class="SM" id="SM"><h>🌍 KonomiOS<small>P2P Desktop v5</small></h><div id="SMa"></div></div>
+  <div class="TB"><div class="Ts" id="Ts">🌍</div><div class="Ta" id="Ta"></div><div class="Ty"><span class="d" id="cd"></span><span id="cs">Offline</span><span>👥</span><span id="pc">0</span><span id="clk">00:00</span></div></div>
+
+  <script type="module">
+    // =========================================================================
+    // CONFIG + TEMPLATES
+    // =========================================================================
+    const APPS = {
+      T: { n: 'Terminal', i: '💻', w: 520, h: 360, x: 100, y: 40 },
+      C: { n: 'Chat', i: '💬', w: 380, h: 420, x: 180, y: 60 },
+      F: { n: 'Files', i: '📁', w: 400, h: 320, x: 260, y: 80 },
+      P: { n: 'Peers', i: '👥', w: 300, h: 380, x: 340, y: 50 },
+      S: { n: 'Settings', i: '⚙️', w: 380, h: 360, x: 160, y: 70 }
+    };
+
+    const CMDS = {
+      help: () => `help whoami peers room ls cat write clear neofetch`,
+      whoami: () => `${ME.e} ${ME.id}`,
+      peers: () => [ME.e + ' ' + ME.n + ' (you)', ...[...peers.values()].map(p => p.e + ' ' + p.n)].join('\n'),
+      room: () => room || 'N/A',
+      ls: () => files.size ? [...files.keys()].join('\n') : '(empty)',
+      cat: a => { const f = files.get(a[0]) || files.get('/' + a[0]); return f ? f.c : 'Not found'; },
+      write: a => { if (!a[0]) return 'Usage: write <f> <c>'; const p = '/' + a[0].replace(/^\//,''), c = a.slice(1).join(' '); files.set(p, { c, o: ME.id }); updF(); bc({ t: 'f', p, c, o: ME.id }); return 'Created ' + p; },
+      clear: () => { $('trm').innerHTML = ''; return ''; },
+      neofetch: () => `\n ██╗  ██╗ ██████╗ ███████╗\n ██║ ██╔╝██╔═══██╗██╔════╝\n █████╔╝ ██║   ██║███████╗\n ██╔═██╗ ██║   ██║╚════██║\n ██║  ██╗╚██████╔╝███████║\n ╚═╝  ╚═╝ ╚═════╝ ╚══════╝\n\n KonomiOS v5 │ ${ME.e} ${ME.n}\n Room: ${room || 'N/A'} │ Peers: ${peers.size + 1} │ Files: ${files.size}`
+    };
+
+    const TPL = {
+      win: (k, app) => `<div class="W" id="W${k}" style="width:${app.w}px;height:${app.h}px;top:${app.y}px;left:${app.x}px"><div class="Wh" onmousedown="D(event,'${k}')"><div class="Wc"><button class="c" onclick="X('${k}')"></button><button class="n" onclick="N('${k}')"></button><button class="x" onclick="M('${k}')"></button></div><span class="Wt">${app.i} ${app.n}</span></div><div class="Wb" id="B${k}"></div></div>`,
+      icon: (k, app) => `<div class="di" onclick="O('${k}')"><i>${app.i}</i><span>${app.n}</span></div>`,
+      smItem: (k, app) => `<div class="si" onclick="O('${k}');SM()"><i>${app.i}</i><span>${app.n}</span></div>`,
+      // App bodies
+      T: () => `<div class="trm" id="trm"></div><div class="tri"><span style="color:var(--g)">❯</span><input id="ci" placeholder="command..."></div>`,
+      C: () => `<div class="cht"><div class="chm" id="chm"></div><div class="chi"><input id="chi" placeholder="message..."><button onclick="sC()">Send</button></div></div>`,
+      F: () => `<div class="fls"><div class="flt"><input id="nfn" placeholder="file.txt"><button onclick="nF()">+ New</button></div><div class="fll" id="fll"><div class="emp">No files</div></div></div>`,
+      P: () => `<div class="prs" id="prs"></div>`,
+      S: () => `<div class="sts"><div class="sec"><div class="st">Network</div><div class="si"><span>Room</span><input id="ri" value="konomi-global"></div><div class="si"><span>Status</span><span class="v" id="cst">Disconnected</span></div><div class="si"><button onclick="RC()">Reconnect</button></div></div><div class="sec"><div class="st">Identity</div><div class="si"><span>ID</span><span class="v" id="mid">-</span></div><div class="si"><span>Avatar</span><span class="v" id="mav">-</span></div></div><div class="sec"><div class="st">About</div><div class="si"><span>Version</span><span class="v">v5.0</span></div></div></div>`
+    };
+
+    // =========================================================================
+    // STATE
+    // =========================================================================
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const open = new Set();
+    let active = null, drag = null, zIdx = 10;
+    const peers = new Map(), files = new Map(), dcs = new Map(), pending = new Map();
+    let ws = null, hash = null, room = '';
+
+    // Identity
+    const ME = {
+      id: '-KM0001-' + [...crypto.getRandomValues(new Uint8Array(6))].map(b => b.toString(16).padStart(2,'0')).join(''),
+      e: '😀😎🤖👾🦊🐱🐶🦁🐼🐨🦋🌟'.split(/(?=.)/u)[Math.random() * 12 | 0]
+    };
+    ME.n = ME.id.slice(0, 10);
+
+    // =========================================================================
+    // RENDER
+    // =========================================================================
+    function init() {
+      let icons = '', wins = '', sm = '';
+      for (const [k, app] of Object.entries(APPS)) {
+        icons += TPL.icon(k, app);
+        wins += TPL.win(k, app);
+        sm += TPL.smItem(k, app);
+      }
+      $('D').innerHTML = `<div class="DI">${icons}</div>${wins}`;
+      $('SMa').innerHTML = sm;
+
+      // Render app bodies
+      for (const k of Object.keys(APPS)) $('B' + k).innerHTML = TPL[k]();
+
+      // Bind events
+      $('ci')?.addEventListener('keydown', e => e.key === 'Enter' && runCmd());
+      $('chi')?.addEventListener('keydown', e => e.key === 'Enter' && sC());
+      $('Ts').onclick = SM;
+
+      // Init displays
+      $('mid').textContent = ME.id.slice(0, 14) + '…';
+      $('mav').textContent = ME.e;
+      updP(); updF();
+      tP('KonomiOS v5 ready. Type "help" for commands.', 'i');
+      O('T');
+      setTimeout(() => join($('ri')?.value || 'konomi-global'), 500);
+      setInterval(clk, 1000); clk();
+    }
+
+    function clk() { $('clk').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+
+    // =========================================================================
+    // WINDOW MANAGER
+    // =========================================================================
+    window.O = k => { const w = $('W' + k); if (!w) return; w.classList.add('o'); open.add(k); F(k); updTB(); };
+    window.X = k => { const w = $('W' + k); if (!w) return; w.classList.remove('o', 'm'); open.delete(k); if (active === k) active = null; updTB(); };
+    window.N = k => $('W' + k)?.classList.remove('o');
+    window.M = k => $('W' + k)?.classList.toggle('m');
+    window.F = k => { for (const a of Object.keys(APPS)) $('W' + a)?.classList.remove('a'); const w = $('W' + k); if (w) { w.classList.add('a'); w.style.zIndex = ++zIdx; } active = k; updTB(); };
+    window.D = (e, k) => { if (e.target.tagName === 'BUTTON') return; const w = $('W' + k); if (w.classList.contains('m')) return; drag = { w, sx: e.clientX, sy: e.clientY, ox: w.offsetLeft, oy: w.offsetTop }; F(k); };
+    window.SM = () => $('SM').classList.toggle('o');
+    window.RC = () => join($('ri')?.value || 'konomi-global');
+
+    document.addEventListener('mousemove', e => { if (!drag) return; drag.w.style.left = (drag.ox + e.clientX - drag.sx) + 'px'; drag.w.style.top = (drag.oy + e.clientY - drag.sy) + 'px'; });
+    document.addEventListener('mouseup', () => drag = null);
+    document.addEventListener('click', e => { if (!e.target.closest('.SM') && !e.target.closest('.Ts')) $('SM').classList.remove('o'); });
+    for (const k of Object.keys(APPS)) $('W' + k)?.addEventListener('mousedown', () => F(k));
+
+    function updTB() {
+      $('Ta').innerHTML = [...open].map(k => `<div class="${active === k ? 'a' : ''}" onclick="O('${k}')">${APPS[k].i} ${APPS[k].n}</div>`).join('');
+    }
+
+    // =========================================================================
+    // TERMINAL
+    // =========================================================================
+    function tP(t, c = 'o') { const l = document.createElement('div'); l.className = 'l ' + c; l.textContent = t; $('trm')?.appendChild(l); $('trm').scrollTop = 1e6; }
+    function runCmd() { const v = $('ci').value.trim(); if (!v) return; $('ci').value = ''; tP('$ ' + v, 'p'); const [c, ...a] = v.split(' '); const r = CMDS[c]?.(a); if (r) tP(r); else if (c) tP('Unknown: ' + c, 'e'); }
+
+    // =========================================================================
+    // CHAT
+    // =========================================================================
+    function addMsg(id, n, e, t, sys) {
+      const me = id === ME.id;
+      const d = document.createElement('div');
+      d.className = 'm' + (me ? ' s' : '');
+      d.innerHTML = sys ? `<div class="mb sys">${esc(t)}</div>` : `<div class="mt">${esc(e)} ${esc(n)}</div><div class="mb">${esc(t)}</div>`;
+      $('chm')?.appendChild(d);
+      $('chm').scrollTop = 1e6;
+    }
+    window.sC = () => { const t = $('chi')?.value.trim(); if (!t) return; $('chi').value = ''; bc({ t: 'c', m: t }); addMsg(ME.id, ME.n, ME.e, t); };
+
+    // =========================================================================
+    // FILES
+    // =========================================================================
+    function updF() {
+      const l = $('fll'); if (!l) return;
+      if (!files.size) { l.innerHTML = '<div class="emp">No files</div>'; return; }
+      l.innerHTML = [...files].map(([p, f]) => `<div class="fi" onclick="tP('$ cat ${p}','p');tP('${esc(f.c)}');O('T')"><span>📄</span><span style="flex:1">${esc(p)}</span><span style="color:#888;font-size:10px">${f.c?.length || 0}b</span></div>`).join('');
+    }
+    window.nF = () => { const n = $('nfn')?.value.trim(); if (!n) return; $('nfn').value = ''; const c = prompt('Content:') || '', p = '/' + n.replace(/^\//,''); files.set(p, { c, o: ME.id }); updF(); bc({ t: 'f', p, c, o: ME.id }); tP('Created ' + p, 'i'); };
+
+    // =========================================================================
+    // PEERS
+    // =========================================================================
+    function updP() {
+      const g = $('prs'); if (!g) return;
+      g.innerHTML = `<div class="pc s"><div class="av">${ME.e}</div><div class="pi"><div class="pn">${esc(ME.n)} (you)</div><div class="pid">${ME.id.slice(0,14)}…</div></div></div>` +
+        [...peers].map(([id, p]) => `<div class="pc"><div class="av">${esc(p.e)}</div><div class="pi"><div class="pn">${esc(p.n)}</div><div class="pid">${id.slice(0,14)}…</div></div></div>`).join('');
+      $('pc').textContent = peers.size + 1;
+    }
+
+    // =========================================================================
+    // P2P (WebTorrent Tracker)
+    // =========================================================================
+    const TRK = 'wss://tracker.openwebtorrent.com';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    async function h2(n) { const d = new TextEncoder().encode('konomi:' + n); const h = await crypto.subtle.digest('SHA-1', d); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2,'0')).join(''); }
+
+    async function mkOff(n) {
+      const offs = [];
+      for (let i = 0; i < n; i++) {
+        const pc = new RTCPeerConnection(ICE), dc = pc.createDataChannel('m'), oid = crypto.randomUUID();
+        await new Promise(r => { pc.onicecandidate = e => { if (!e.candidate) r(); }; pc.createOffer().then(o => pc.setLocalDescription(o)); });
+        offs.push({ offer_id: oid, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+        pending.set(oid, { pc, dc }); setupPC(pc, dc, oid);
+      }
+      return offs;
+    }
+
+    function setupPC(pc, dc, id) {
+      dc.onopen = () => {
+        dcs.set(id, dc);
+        if (!peers.has(id)) { peers.set(id, { n: id.slice(0,10), e: '🌐' }); updP(); addMsg(null, null, null, '🌐 ' + id.slice(0,8) + ' joined', true); }
+        for (const [p, f] of files) dc.send(JSON.stringify({ t: 'f', p, c: f.c, o: f.o }));
+        dc.send(JSON.stringify({ t: 'a', n: ME.n, e: ME.e }));
+        tP('Peer connected: ' + id.slice(0,8), 'i');
+      };
+      dc.onclose = () => { dcs.delete(id); if (peers.has(id)) { const p = peers.get(id); addMsg(null, null, null, p.e + ' ' + p.n + ' left', true); peers.delete(id); updP(); } };
+      dc.onmessage = e => {
+        try {
+          const m = JSON.parse(e.data); if (m.sid === ME.id) return;
+          if (m.t === 'c') { const p = peers.get(m.sid) || { n: m.sid?.slice(0,10), e: '🌐' }; addMsg(m.sid, p.n, p.e, m.m); }
+          else if (m.t === 'f') { files.set(m.p, { c: m.c, o: m.o }); updF(); }
+          else if (m.t === 'a' && !peers.has(m.sid)) { peers.set(m.sid, { n: m.n || m.sid?.slice(0,10), e: m.e || '🌐' }); updP(); }
+        } catch {}
+      };
+    }
+
+    async function hOff(m) {
+      const pc = new RTCPeerConnection(ICE);
+      pc.ondatachannel = e => setupPC(pc, e.channel, m.peer_id);
+      await pc.setRemoteDescription(m.offer);
+      const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+      await new Promise(r => { if (pc.iceGatheringState === 'complete') r(); else pc.onicecandidate = e => { if (!e.candidate) r(); }; });
+      ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, to_peer_id: m.peer_id, answer: { type: 'answer', sdp: pc.localDescription.sdp }, offer_id: m.offer_id }));
+    }
+
+    async function hAns(m) { const p = pending.get(m.offer_id); if (p) await p.pc.setRemoteDescription(m.answer); }
+
+    function bc(m) { m.sid = ME.id; const d = JSON.stringify(m); for (const dc of dcs.values()) if (dc.readyState === 'open') dc.send(d); }
+
+    function setSt(s) {
+      const d = $('cd'), cs = $('cs'), cst = $('cst');
+      d.className = 'd'; cs.textContent = cst.textContent = s === 1 ? 'Online' : s === 2 ? 'Connecting…' : 'Offline';
+      if (s === 1) d.classList.add('on'); else if (s === 2) d.classList.add('c');
+    }
+
+    async function join(r) {
+      if (ws) ws.close(); dcs.clear(); pending.clear(); peers.clear();
+      room = r; hash = await h2(r); setSt(2); tP('Joining: ' + r, 'i');
+      const offs = await mkOff(5);
+      ws = new WebSocket(TRK);
+      ws.onopen = () => { setSt(1); tP('Connected!', 'i'); addMsg(null, null, null, 'Joined room: ' + r, true); ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, numwant: 10, uploaded: 0, downloaded: 0, left: 1, offers: offs })); };
+      ws.onmessage = async e => { try { const m = JSON.parse(e.data); if (m.offer && m.peer_id !== ME.id) await hOff(m); if (m.answer && m.offer_id) await hAns(m); if (m.interval) setTimeout(async () => { if (ws?.readyState === 1) { const o = await mkOff(5); ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, numwant: 10, offers: o })); } }, m.interval * 1000); } catch {} };
+      ws.onerror = () => { tP('Connection error', 'e'); setSt(0); };
+      ws.onclose = () => { tP('Disconnected, retrying…', 'i'); setSt(2); setTimeout(() => join(room), 5000); };
+      updP(); updF();
+    }
+
+    // =========================================================================
+    // STORAGE
+    // =========================================================================
+    try { const s = localStorage.getItem('kos5-files'); if (s) for (const [k, v] of JSON.parse(s)) files.set(k, v); } catch {}
+    setInterval(() => { try { localStorage.setItem('kos5-files', JSON.stringify([...files])); } catch {} }, 5000);
+
+    // =========================================================================
+    // NOTIFICATIONS
+    // =========================================================================
+    window.notify = (msg, dur = 3000) => {
+      const n = document.createElement('div'); n.className = 'ntf'; n.textContent = msg;
+      document.body.appendChild(n);
+      setTimeout(() => n.remove(), dur);
+    };
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    init();
+  </script>
+</body>
+</html>
