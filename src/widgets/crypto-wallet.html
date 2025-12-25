@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Wallet Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 30px 0; }
+        .logo { font-size: 48px; margin-bottom: 12px; }
+        h1 { font-size: 1.8rem; color: #f59e0b; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 13px; }
+
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Portfolio Summary */
+        .portfolio-value {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .total-label { font-size: 14px; color: #888; }
+        .total-value {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #f59e0b, #22c55e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 8px 0;
+        }
+
+        .total-change {
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .change-positive { color: #22c55e; }
+        .change-negative { color: #ef4444; }
+
+        /* Add Wallet */
+        .add-wallet {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .add-wallet select, .add-wallet input {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .add-wallet select { min-width: 150px; }
+        .add-wallet input { flex: 1; }
+
+        .add-wallet select:focus, .add-wallet input:focus {
+            outline: none;
+            border-color: #f59e0b;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { transform: scale(1.02); }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        /* Wallets List */
+        .wallets {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .wallet-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            transition: all 0.2s;
+        }
+
+        .wallet-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .wallet-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .wallet-icon img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .wallet-info { flex: 1; }
+
+        .wallet-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .wallet-symbol {
+            font-size: 12px;
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            color: #888;
+        }
+
+        .wallet-address {
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .wallet-balance {
+            text-align: right;
+        }
+
+        .balance-amount {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .balance-value {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .balance-change {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .wallet-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 6px;
+            color: #888;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .action-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        .action-btn.delete:hover { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+        /* Popular Coins */
+        .coins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .coin-quick {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .coin-quick:hover {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .coin-quick-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .coin-quick-icon img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .coin-quick-name {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .coin-quick-price {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* Price Ticker */
+        .ticker {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 12px 0;
+        }
+
+        .ticker-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+
+        .ticker-name { font-weight: 600; font-size: 14px; }
+        .ticker-price { font-size: 14px; }
+        .ticker-change { font-size: 12px; }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state-text { font-size: 14px; }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+            color: #888;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #f59e0b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .add-wallet { flex-direction: column; }
+            .wallet-item { flex-wrap: wrap; }
+            .wallet-actions { width: 100%; justify-content: flex-end; margin-top: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">💰</div>
+            <h1>Crypto Wallet Tracker</h1>
+            <p class="subtitle">Track any cryptocurrency across multiple wallets</p>
+        </div>
+
+        <div class="card">
+            <div class="portfolio-value">
+                <div class="total-label">Total Portfolio Value</div>
+                <div class="total-value" id="totalValue">$0.00</div>
+                <div class="total-change">
+                    <span class="change-positive" id="totalChange24h">+$0.00 (0%)</span>
+                </div>
+            </div>
+
+            <div class="ticker" id="ticker">
+                <!-- Price ticker -->
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>➕ Add Wallet</span>
+            </div>
+            <div class="add-wallet">
+                <select id="coinSelect">
+                    <option value="">Select coin...</option>
+                    <option value="bitcoin">Bitcoin (BTC)</option>
+                    <option value="ethereum">Ethereum (ETH)</option>
+                    <option value="solana">Solana (SOL)</option>
+                    <option value="cardano">Cardano (ADA)</option>
+                    <option value="ripple">XRP</option>
+                    <option value="dogecoin">Dogecoin (DOGE)</option>
+                    <option value="polkadot">Polkadot (DOT)</option>
+                    <option value="avalanche-2">Avalanche (AVAX)</option>
+                    <option value="chainlink">Chainlink (LINK)</option>
+                    <option value="polygon">Polygon (MATIC)</option>
+                    <option value="litecoin">Litecoin (LTC)</option>
+                    <option value="uniswap">Uniswap (UNI)</option>
+                    <option value="tether">USDT</option>
+                    <option value="usd-coin">USDC</option>
+                </select>
+                <input type="text" id="walletAddress" placeholder="Wallet address (optional - for tracking)">
+                <input type="number" id="walletBalance" placeholder="Balance" step="any">
+                <button class="btn" onclick="Wallet.add()">Add</button>
+            </div>
+
+            <div class="card-title" style="margin-top:20px;">
+                <span>🔍 Or search any coin</span>
+            </div>
+            <div class="add-wallet">
+                <input type="text" id="coinSearch" placeholder="Search by name or symbol (e.g., 'shiba', 'pepe')...">
+                <button class="btn btn-secondary" onclick="Wallet.search()">Search</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>📊 Your Wallets</span>
+                <button class="btn btn-secondary" onclick="Wallet.refresh()">🔄 Refresh</button>
+            </div>
+            <div class="wallets" id="walletsList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">💼</div>
+                    <div class="empty-state-text">No wallets yet. Add one above to start tracking!</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">⭐ Popular Coins</div>
+            <div class="coins-grid" id="popularCoins">
+                <div class="loading"><div class="spinner"></div> Loading prices...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class CryptoWallet {
+            constructor() {
+                this.wallets = this.load();
+                this.prices = {};
+                this.coinList = [];
+
+                this.init();
+            }
+
+            async init() {
+                await this.fetchPrices();
+                this.render();
+                this.renderTicker();
+                this.renderPopular();
+
+                // Refresh prices every 60 seconds
+                setInterval(() => this.fetchPrices(), 60000);
+            }
+
+            async fetchPrices() {
+                try {
+                    // Get prices for all coins we're tracking + popular ones
+                    const ids = [...new Set([
+                        ...this.wallets.map(w => w.coinId),
+                        'bitcoin', 'ethereum', 'solana', 'cardano', 'ripple',
+                        'dogecoin', 'polkadot', 'avalanche-2', 'chainlink', 'polygon'
+                    ])].join(',');
+
+                    const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`);
+                    const data = await res.json();
+
+                    data.forEach(coin => {
+                        this.prices[coin.id] = {
+                            price: coin.current_price,
+                            change24h: coin.price_change_percentage_24h,
+                            name: coin.name,
+                            symbol: coin.symbol.toUpperCase(),
+                            image: coin.image
+                        };
+                    });
+
+                    this.render();
+                    this.renderTicker();
+                    this.renderPopular();
+                } catch (err) {
+                    console.error('Failed to fetch prices:', err);
+                }
+            }
+
+            async search() {
+                const query = document.getElementById('coinSearch').value.trim().toLowerCase();
+                if (!query) return;
+
+                const results = document.getElementById('searchResults');
+                results.innerHTML = '<div class="loading"><div class="spinner"></div> Searching...</div>';
+
+                try {
+                    const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${query}`);
+                    const data = await res.json();
+
+                    if (data.coins.length === 0) {
+                        results.innerHTML = '<div style="color:#888;padding:12px;">No coins found</div>';
+                        return;
+                    }
+
+                    results.innerHTML = `
+                        <div class="coins-grid" style="margin-top:12px;">
+                            ${data.coins.slice(0, 12).map(coin => `
+                                <div class="coin-quick" onclick="Wallet.selectCoin('${coin.id}', '${coin.name}', '${coin.symbol}')">
+                                    <div class="coin-quick-icon"><img src="${coin.thumb}" alt="${coin.symbol}"></div>
+                                    <div class="coin-quick-name">${coin.symbol.toUpperCase()}</div>
+                                    <div class="coin-quick-price">${coin.name}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } catch (err) {
+                    results.innerHTML = '<div style="color:#ef4444;padding:12px;">Search failed. Try again.</div>';
+                }
+            }
+
+            selectCoin(id, name, symbol) {
+                // Add option to select if not exists
+                const select = document.getElementById('coinSelect');
+                let option = select.querySelector(`option[value="${id}"]`);
+                if (!option) {
+                    option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `${name} (${symbol.toUpperCase()})`;
+                    select.appendChild(option);
+                }
+                select.value = id;
+                document.getElementById('searchResults').innerHTML = '';
+                document.getElementById('coinSearch').value = '';
+            }
+
+            add() {
+                const coinId = document.getElementById('coinSelect').value;
+                const address = document.getElementById('walletAddress').value.trim();
+                const balance = parseFloat(document.getElementById('walletBalance').value) || 0;
+
+                if (!coinId) {
+                    alert('Please select a coin');
+                    return;
+                }
+
+                if (balance <= 0) {
+                    alert('Please enter a balance');
+                    return;
+                }
+
+                this.wallets.push({
+                    id: Date.now(),
+                    coinId,
+                    address,
+                    balance
+                });
+
+                this.save();
+                this.fetchPrices();
+
+                // Clear inputs
+                document.getElementById('coinSelect').value = '';
+                document.getElementById('walletAddress').value = '';
+                document.getElementById('walletBalance').value = '';
+            }
+
+            remove(id) {
+                this.wallets = this.wallets.filter(w => w.id !== id);
+                this.save();
+                this.render();
+            }
+
+            updateBalance(id) {
+                const wallet = this.wallets.find(w => w.id === id);
+                if (!wallet) return;
+
+                const newBalance = prompt('Enter new balance:', wallet.balance);
+                if (newBalance !== null && !isNaN(parseFloat(newBalance))) {
+                    wallet.balance = parseFloat(newBalance);
+                    this.save();
+                    this.render();
+                }
+            }
+
+            render() {
+                const container = document.getElementById('walletsList');
+
+                if (this.wallets.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">💼</div>
+                            <div class="empty-state-text">No wallets yet. Add one above to start tracking!</div>
+                        </div>
+                    `;
+                    document.getElementById('totalValue').textContent = '$0.00';
+                    return;
+                }
+
+                let totalValue = 0;
+                let totalChange = 0;
+
+                container.innerHTML = this.wallets.map(wallet => {
+                    const price = this.prices[wallet.coinId];
+                    const value = price ? wallet.balance * price.price : 0;
+                    const change = price ? price.change24h : 0;
+                    const changeValue = value * (change / 100);
+
+                    totalValue += value;
+                    totalChange += changeValue;
+
+                    return `
+                        <div class="wallet-item">
+                            <div class="wallet-icon">
+                                ${price?.image ? `<img src="${price.image}" alt="">` : '🪙'}
+                            </div>
+                            <div class="wallet-info">
+                                <div class="wallet-name">
+                                    ${price?.name || wallet.coinId}
+                                    <span class="wallet-symbol">${price?.symbol || ''}</span>
+                                </div>
+                                ${wallet.address ? `<div class="wallet-address">${wallet.address.slice(0, 12)}...${wallet.address.slice(-8)}</div>` : ''}
+                            </div>
+                            <div class="wallet-balance">
+                                <div class="balance-amount">${wallet.balance.toLocaleString()} ${price?.symbol || ''}</div>
+                                <div class="balance-value">$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div class="balance-change ${change >= 0 ? 'change-positive' : 'change-negative'}">
+                                    ${change >= 0 ? '+' : ''}${change.toFixed(2)}%
+                                </div>
+                            </div>
+                            <div class="wallet-actions">
+                                <button class="action-btn" onclick="Wallet.updateBalance(${wallet.id})">Edit</button>
+                                <button class="action-btn delete" onclick="Wallet.remove(${wallet.id})">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Update total
+                document.getElementById('totalValue').textContent = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                const changePercent = totalValue > 0 ? (totalChange / (totalValue - totalChange)) * 100 : 0;
+                const changeEl = document.getElementById('totalChange24h');
+                changeEl.className = totalChange >= 0 ? 'change-positive' : 'change-negative';
+                changeEl.textContent = `${totalChange >= 0 ? '+' : ''}$${Math.abs(totalChange).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${changePercent.toFixed(2)}%)`;
+            }
+
+            renderTicker() {
+                const container = document.getElementById('ticker');
+                const coins = ['bitcoin', 'ethereum', 'solana', 'cardano', 'dogecoin'];
+
+                container.innerHTML = coins.map(id => {
+                    const p = this.prices[id];
+                    if (!p) return '';
+                    return `
+                        <div class="ticker-item">
+                            <span class="ticker-name">${p.symbol}</span>
+                            <span class="ticker-price">$${p.price.toLocaleString()}</span>
+                            <span class="ticker-change ${p.change24h >= 0 ? 'change-positive' : 'change-negative'}">
+                                ${p.change24h >= 0 ? '+' : ''}${p.change24h.toFixed(2)}%
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            renderPopular() {
+                const container = document.getElementById('popularCoins');
+                const coins = ['bitcoin', 'ethereum', 'solana', 'cardano', 'ripple', 'dogecoin', 'polkadot', 'avalanche-2'];
+
+                const html = coins.map(id => {
+                    const p = this.prices[id];
+                    if (!p) return '';
+                    return `
+                        <div class="coin-quick" onclick="Wallet.selectCoin('${id}', '${p.name}', '${p.symbol}')">
+                            <div class="coin-quick-icon"><img src="${p.image}" alt="${p.symbol}"></div>
+                            <div class="coin-quick-name">${p.symbol}</div>
+                            <div class="coin-quick-price">$${p.price.toLocaleString()}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                if (html) container.innerHTML = html;
+            }
+
+            refresh() {
+                this.fetchPrices();
+            }
+
+            save() {
+                localStorage.setItem('crypto-wallets', JSON.stringify(this.wallets));
+            }
+
+            load() {
+                const saved = localStorage.getItem('crypto-wallets');
+                return saved ? JSON.parse(saved) : [];
+            }
+        }
+
+        const Wallet = new CryptoWallet();
+    </script>
+</body>
+</html>

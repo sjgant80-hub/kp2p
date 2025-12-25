@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Picker & Palette</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 30px 0; }
+        .logo { font-size: 48px; margin-bottom: 12px; }
+        h1 { font-size: 1.8rem; color: #a855f7; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 13px; }
+
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .color-main {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        @media (max-width: 600px) {
+            .color-main { flex-direction: column; }
+        }
+
+        .color-preview {
+            width: 200px;
+            height: 200px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .color-preview input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .color-info { flex: 1; }
+
+        .format-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .format-label {
+            min-width: 50px;
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .format-value {
+            flex: 1;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .format-value:hover {
+            border-color: #a855f7;
+            background: rgba(168, 85, 247, 0.1);
+        }
+
+        .format-value.copied {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .sliders { margin-top: 20px; }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .slider-label {
+            min-width: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .slider-label.r { color: #ef4444; }
+        .slider-label.g { color: #22c55e; }
+        .slider-label.b { color: #3b82f6; }
+        .slider-label.h { color: #f59e0b; }
+        .slider-label.s { color: #ec4899; }
+        .slider-label.l { color: #a855f7; }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .slider-value {
+            min-width: 40px;
+            text-align: right;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            color: #888;
+        }
+
+        #sliderR { background: linear-gradient(to right, #000, #f00); }
+        #sliderG { background: linear-gradient(to right, #000, #0f0); }
+        #sliderB { background: linear-gradient(to right, #000, #00f); }
+
+        .card-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 8px;
+        }
+
+        .palette-color {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .palette-color:hover {
+            transform: scale(1.1);
+            z-index: 1;
+        }
+
+        .palette-color.selected {
+            box-shadow: 0 0 0 3px #fff;
+        }
+
+        .harmony-section { margin-top: 20px; }
+
+        .harmony-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .harmony-tab {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 8px;
+            color: #888;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .harmony-tab:hover { background: rgba(255, 255, 255, 0.1); }
+        .harmony-tab.active {
+            background: #a855f7;
+            color: #fff;
+        }
+
+        .harmony-colors {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .harmony-color {
+            width: 80px;
+            text-align: center;
+        }
+
+        .harmony-swatch {
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .harmony-swatch:hover { transform: scale(1.05); }
+
+        .harmony-hex {
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .saved-colors {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            min-height: 50px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+        }
+
+        .saved-color {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .saved-color:hover { transform: scale(1.1); }
+
+        .saved-color .remove {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 18px;
+            height: 18px;
+            background: #ef4444;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #fff;
+        }
+
+        .saved-color:hover .remove { display: flex; }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: rgba(255, 255, 255, 0.2); }
+        .btn-primary { background: #a855f7; }
+        .btn-primary:hover { background: #9333ea; }
+
+        .empty-saved {
+            color: #666;
+            font-size: 12px;
+            width: 100%;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .eyedropper-btn {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.6);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🎨</div>
+            <h1>Color Picker</h1>
+            <p class="subtitle">Pick colors, create palettes, find harmonies</p>
+        </div>
+
+        <div class="card">
+            <div class="color-main">
+                <div class="color-preview" id="colorPreview">
+                    <input type="color" id="colorInput" value="#a855f7" oninput="Color.setHex(this.value)">
+                    <button class="eyedropper-btn" onclick="Color.eyedropper()" title="Pick from screen">💧</button>
+                </div>
+                <div class="color-info">
+                    <div class="format-row">
+                        <span class="format-label">HEX</span>
+                        <div class="format-value" id="hexValue" onclick="Color.copy('hex')">#A855F7</div>
+                    </div>
+                    <div class="format-row">
+                        <span class="format-label">RGB</span>
+                        <div class="format-value" id="rgbValue" onclick="Color.copy('rgb')">rgb(168, 85, 247)</div>
+                    </div>
+                    <div class="format-row">
+                        <span class="format-label">HSL</span>
+                        <div class="format-value" id="hslValue" onclick="Color.copy('hsl')">hsl(271, 91%, 65%)</div>
+                    </div>
+
+                    <div class="sliders">
+                        <div class="slider-row">
+                            <span class="slider-label r">R</span>
+                            <input type="range" class="slider" id="sliderR" min="0" max="255" value="168" oninput="Color.updateFromRGB()">
+                            <span class="slider-value" id="valueR">168</span>
+                        </div>
+                        <div class="slider-row">
+                            <span class="slider-label g">G</span>
+                            <input type="range" class="slider" id="sliderG" min="0" max="255" value="85" oninput="Color.updateFromRGB()">
+                            <span class="slider-value" id="valueG">85</span>
+                        </div>
+                        <div class="slider-row">
+                            <span class="slider-label b">B</span>
+                            <input type="range" class="slider" id="sliderB" min="0" max="255" value="247" oninput="Color.updateFromRGB()">
+                            <span class="slider-value" id="valueB">247</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="harmony-section">
+                <div class="harmony-tabs">
+                    <button class="harmony-tab active" onclick="Color.setHarmony('complementary', this)">Complementary</button>
+                    <button class="harmony-tab" onclick="Color.setHarmony('analogous', this)">Analogous</button>
+                    <button class="harmony-tab" onclick="Color.setHarmony('triadic', this)">Triadic</button>
+                    <button class="harmony-tab" onclick="Color.setHarmony('split', this)">Split</button>
+                    <button class="harmony-tab" onclick="Color.setHarmony('tetradic', this)">Tetradic</button>
+                    <button class="harmony-tab" onclick="Color.setHarmony('shades', this)">Shades</button>
+                </div>
+                <div class="harmony-colors" id="harmonyColors"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">💾 Saved Colors</div>
+            <div class="saved-colors" id="savedColors">
+                <div class="empty-saved">Click + to save current color</div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="Color.save()">+ Save Color</button>
+                <button class="btn" onclick="Color.exportPalette()">Export CSS</button>
+                <button class="btn" onclick="Color.clearSaved()">Clear All</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🎯 Quick Palette</div>
+            <div class="palette" id="palette"></div>
+        </div>
+    </div>
+
+    <script>
+        class ColorPicker {
+            constructor() {
+                this.r = 168;
+                this.g = 85;
+                this.b = 247;
+                this.harmony = 'complementary';
+                this.saved = this.loadSaved();
+
+                this.generatePalette();
+                this.update();
+                this.renderSaved();
+            }
+
+            setHex(hex) {
+                const rgb = this.hexToRgb(hex);
+                this.r = rgb.r;
+                this.g = rgb.g;
+                this.b = rgb.b;
+                this.update();
+            }
+
+            setRGB(r, g, b) {
+                this.r = r;
+                this.g = g;
+                this.b = b;
+                this.update();
+            }
+
+            updateFromRGB() {
+                this.r = parseInt(document.getElementById('sliderR').value);
+                this.g = parseInt(document.getElementById('sliderG').value);
+                this.b = parseInt(document.getElementById('sliderB').value);
+                this.update();
+            }
+
+            update() {
+                const hex = this.rgbToHex(this.r, this.g, this.b);
+                const hsl = this.rgbToHsl(this.r, this.g, this.b);
+
+                document.getElementById('colorPreview').style.background = hex;
+                document.getElementById('colorInput').value = hex;
+
+                document.getElementById('hexValue').textContent = hex.toUpperCase();
+                document.getElementById('rgbValue').textContent = `rgb(${this.r}, ${this.g}, ${this.b})`;
+                document.getElementById('hslValue').textContent = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+
+                document.getElementById('sliderR').value = this.r;
+                document.getElementById('sliderG').value = this.g;
+                document.getElementById('sliderB').value = this.b;
+
+                document.getElementById('valueR').textContent = this.r;
+                document.getElementById('valueG').textContent = this.g;
+                document.getElementById('valueB').textContent = this.b;
+
+                this.updateHarmony();
+            }
+
+            setHarmony(type, el) {
+                this.harmony = type;
+                document.querySelectorAll('.harmony-tab').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+                this.updateHarmony();
+            }
+
+            updateHarmony() {
+                const hsl = this.rgbToHsl(this.r, this.g, this.b);
+                let colors = [];
+
+                switch (this.harmony) {
+                    case 'complementary':
+                        colors = [
+                            hsl,
+                            { h: (hsl.h + 180) % 360, s: hsl.s, l: hsl.l }
+                        ];
+                        break;
+                    case 'analogous':
+                        colors = [
+                            { h: (hsl.h - 30 + 360) % 360, s: hsl.s, l: hsl.l },
+                            hsl,
+                            { h: (hsl.h + 30) % 360, s: hsl.s, l: hsl.l }
+                        ];
+                        break;
+                    case 'triadic':
+                        colors = [
+                            hsl,
+                            { h: (hsl.h + 120) % 360, s: hsl.s, l: hsl.l },
+                            { h: (hsl.h + 240) % 360, s: hsl.s, l: hsl.l }
+                        ];
+                        break;
+                    case 'split':
+                        colors = [
+                            hsl,
+                            { h: (hsl.h + 150) % 360, s: hsl.s, l: hsl.l },
+                            { h: (hsl.h + 210) % 360, s: hsl.s, l: hsl.l }
+                        ];
+                        break;
+                    case 'tetradic':
+                        colors = [
+                            hsl,
+                            { h: (hsl.h + 90) % 360, s: hsl.s, l: hsl.l },
+                            { h: (hsl.h + 180) % 360, s: hsl.s, l: hsl.l },
+                            { h: (hsl.h + 270) % 360, s: hsl.s, l: hsl.l }
+                        ];
+                        break;
+                    case 'shades':
+                        colors = [
+                            { h: hsl.h, s: hsl.s, l: 90 },
+                            { h: hsl.h, s: hsl.s, l: 70 },
+                            { h: hsl.h, s: hsl.s, l: 50 },
+                            { h: hsl.h, s: hsl.s, l: 30 },
+                            { h: hsl.h, s: hsl.s, l: 10 }
+                        ];
+                        break;
+                }
+
+                const container = document.getElementById('harmonyColors');
+                container.innerHTML = colors.map(c => {
+                    const rgb = this.hslToRgb(c.h, c.s, c.l);
+                    const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
+                    return `
+                        <div class="harmony-color">
+                            <div class="harmony-swatch" style="background:${hex}" onclick="Color.setHex('${hex}')"></div>
+                            <div class="harmony-hex">${hex}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            generatePalette() {
+                const colors = [];
+                // Generate a nice palette
+                for (let h = 0; h < 360; h += 30) {
+                    colors.push(this.hslToRgb(h, 70, 60));
+                }
+                // Add grays
+                for (let l = 10; l <= 90; l += 20) {
+                    colors.push(this.hslToRgb(0, 0, l));
+                }
+
+                const container = document.getElementById('palette');
+                container.innerHTML = colors.map(c => {
+                    const hex = this.rgbToHex(c.r, c.g, c.b);
+                    return `<div class="palette-color" style="background:${hex}" onclick="Color.setHex('${hex}')"></div>`;
+                }).join('');
+            }
+
+            copy(format) {
+                let text;
+                switch (format) {
+                    case 'hex':
+                        text = this.rgbToHex(this.r, this.g, this.b);
+                        break;
+                    case 'rgb':
+                        text = `rgb(${this.r}, ${this.g}, ${this.b})`;
+                        break;
+                    case 'hsl':
+                        const hsl = this.rgbToHsl(this.r, this.g, this.b);
+                        text = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+                        break;
+                }
+
+                navigator.clipboard.writeText(text).then(() => {
+                    const el = document.getElementById(`${format}Value`);
+                    el.classList.add('copied');
+                    setTimeout(() => el.classList.remove('copied'), 1000);
+                });
+            }
+
+            async eyedropper() {
+                if ('EyeDropper' in window) {
+                    try {
+                        const eyeDropper = new EyeDropper();
+                        const result = await eyeDropper.open();
+                        this.setHex(result.sRGBHex);
+                    } catch (e) {}
+                } else {
+                    alert('EyeDropper API not supported in this browser');
+                }
+            }
+
+            save() {
+                const hex = this.rgbToHex(this.r, this.g, this.b);
+                if (!this.saved.includes(hex)) {
+                    this.saved.push(hex);
+                    this.saveSaved();
+                    this.renderSaved();
+                }
+            }
+
+            removeSaved(hex) {
+                this.saved = this.saved.filter(c => c !== hex);
+                this.saveSaved();
+                this.renderSaved();
+            }
+
+            clearSaved() {
+                this.saved = [];
+                this.saveSaved();
+                this.renderSaved();
+            }
+
+            renderSaved() {
+                const container = document.getElementById('savedColors');
+                if (this.saved.length === 0) {
+                    container.innerHTML = '<div class="empty-saved">Click + to save current color</div>';
+                    return;
+                }
+
+                container.innerHTML = this.saved.map(hex => `
+                    <div class="saved-color" style="background:${hex}" onclick="Color.setHex('${hex}')">
+                        <div class="remove" onclick="event.stopPropagation();Color.removeSaved('${hex}')">×</div>
+                    </div>
+                `).join('');
+            }
+
+            saveSaved() {
+                localStorage.setItem('color-picker-saved', JSON.stringify(this.saved));
+            }
+
+            loadSaved() {
+                const saved = localStorage.getItem('color-picker-saved');
+                return saved ? JSON.parse(saved) : [];
+            }
+
+            exportPalette() {
+                if (this.saved.length === 0) {
+                    alert('Save some colors first!');
+                    return;
+                }
+
+                const css = `:root {\n${this.saved.map((hex, i) => `  --color-${i + 1}: ${hex};`).join('\n')}\n}`;
+                navigator.clipboard.writeText(css).then(() => {
+                    alert('CSS variables copied to clipboard!');
+                });
+            }
+
+            // Color conversion utilities
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : { r: 0, g: 0, b: 0 };
+            }
+
+            rgbToHex(r, g, b) {
+                return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+            }
+
+            rgbToHsl(r, g, b) {
+                r /= 255; g /= 255; b /= 255;
+                const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                let h, s, l = (max + min) / 2;
+
+                if (max === min) {
+                    h = s = 0;
+                } else {
+                    const d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    switch (max) {
+                        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                        case g: h = ((b - r) / d + 2) / 6; break;
+                        case b: h = ((r - g) / d + 4) / 6; break;
+                    }
+                }
+
+                return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+            }
+
+            hslToRgb(h, s, l) {
+                h /= 360; s /= 100; l /= 100;
+                let r, g, b;
+
+                if (s === 0) {
+                    r = g = b = l;
+                } else {
+                    const hue2rgb = (p, q, t) => {
+                        if (t < 0) t += 1;
+                        if (t > 1) t -= 1;
+                        if (t < 1/6) return p + (q - p) * 6 * t;
+                        if (t < 1/2) return q;
+                        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                        return p;
+                    };
+
+                    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                    const p = 2 * l - q;
+                    r = hue2rgb(p, q, h + 1/3);
+                    g = hue2rgb(p, q, h);
+                    b = hue2rgb(p, q, h - 1/3);
+                }
+
+                return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+            }
+        }
+
+        const Color = new ColorPicker();
+    </script>
+</body>
+</html>

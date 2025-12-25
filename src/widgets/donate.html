@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donate - Support Creator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container { max-width: 500px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 30px 0; }
+
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f59e0b, #ec4899);
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            box-shadow: 0 10px 40px rgba(245, 158, 11, 0.3);
+        }
+
+        h1 { font-size: 1.8rem; color: #fff; margin-bottom: 8px; }
+        .bio { color: #888; font-size: 14px; max-width: 300px; margin: 0 auto; line-height: 1.6; }
+
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Amount Selection */
+        .amounts {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .amount-btn {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .amount-btn:hover {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .amount-btn.selected {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+
+        .custom-amount {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+        }
+
+        .custom-amount span {
+            font-size: 20px;
+            color: #888;
+        }
+
+        .custom-amount input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 18px;
+            outline: none;
+        }
+
+        /* Payment Methods */
+        .payment-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .payment-btn {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .payment-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(4px);
+        }
+
+        .payment-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .payment-icon.paypal { background: #003087; }
+        .payment-icon.stripe { background: #635bff; }
+        .payment-icon.kofi { background: #ff5e5b; }
+        .payment-icon.github { background: #333; }
+        .payment-icon.btc { background: #f7931a; }
+        .payment-icon.eth { background: #627eea; }
+
+        .payment-info { flex: 1; }
+        .payment-name { font-weight: 600; }
+        .payment-desc { font-size: 12px; color: #888; }
+
+        .payment-arrow { color: #888; }
+
+        /* Crypto Section */
+        .crypto-address {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .crypto-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        .crypto-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .crypto-icon.btc { background: #f7931a; }
+        .crypto-icon.eth { background: #627eea; }
+        .crypto-icon.sol { background: linear-gradient(135deg, #9945ff, #14f195); }
+        .crypto-icon.usdt { background: #26a17b; }
+
+        .crypto-details { flex: 1; overflow: hidden; }
+        .crypto-name { font-size: 13px; font-weight: 600; }
+        .crypto-addr {
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .copy-btn {
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+        .copy-btn.copied { background: #22c55e; }
+
+        /* QR Code */
+        .qr-section {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+
+        .qr-code {
+            width: 150px;
+            height: 150px;
+            background: #fff;
+            border-radius: 12px;
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-label { font-size: 12px; color: #888; }
+
+        /* Goals */
+        .goal {
+            margin-bottom: 20px;
+        }
+
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .goal-title { font-size: 14px; }
+        .goal-amount { font-size: 14px; color: #f59e0b; }
+
+        .goal-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .goal-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #ec4899);
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+
+        /* Recent Supporters */
+        .supporters {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .supporter {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+        }
+
+        .supporter-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .supporter-info { flex: 1; }
+        .supporter-name { font-size: 14px; font-weight: 500; }
+        .supporter-msg { font-size: 12px; color: #888; }
+
+        .supporter-amount {
+            font-weight: 600;
+            color: #22c55e;
+        }
+
+        /* Config Mode */
+        .config-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .config-title {
+            font-size: 12px;
+            color: #f59e0b;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .config-group { margin-bottom: 16px; }
+
+        .config-label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: #f59e0b;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #f59e0b, #ec4899);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { transform: scale(1.02); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="avatar" id="avatar">☕</div>
+            <h1 id="creatorName">Support My Work</h1>
+            <p class="bio" id="creatorBio">Building open source tools for everyone. Your support helps keep the servers running!</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">💰 Choose Amount</div>
+            <div class="amounts">
+                <button class="amount-btn" onclick="Donate.setAmount(5)">$5</button>
+                <button class="amount-btn selected" onclick="Donate.setAmount(10)">$10</button>
+                <button class="amount-btn" onclick="Donate.setAmount(25)">$25</button>
+                <button class="amount-btn" onclick="Donate.setAmount(50)">$50</button>
+                <button class="amount-btn" onclick="Donate.setAmount(100)">$100</button>
+                <button class="amount-btn" onclick="Donate.setAmount(250)">$250</button>
+            </div>
+            <div class="custom-amount">
+                <span>$</span>
+                <input type="number" id="customAmount" placeholder="Custom amount" oninput="Donate.setCustom(this.value)">
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">💳 Payment Methods</div>
+            <div class="payment-methods">
+                <a href="#" class="payment-btn" id="paypalBtn" onclick="Donate.pay('paypal')">
+                    <div class="payment-icon paypal">P</div>
+                    <div class="payment-info">
+                        <div class="payment-name">PayPal</div>
+                        <div class="payment-desc">Pay securely with PayPal</div>
+                    </div>
+                    <span class="payment-arrow">→</span>
+                </a>
+                <a href="#" class="payment-btn" onclick="Donate.pay('stripe')">
+                    <div class="payment-icon stripe">💳</div>
+                    <div class="payment-info">
+                        <div class="payment-name">Card Payment</div>
+                        <div class="payment-desc">Credit or debit card via Stripe</div>
+                    </div>
+                    <span class="payment-arrow">→</span>
+                </a>
+                <a href="#" class="payment-btn" onclick="Donate.pay('kofi')">
+                    <div class="payment-icon kofi">☕</div>
+                    <div class="payment-info">
+                        <div class="payment-name">Ko-fi</div>
+                        <div class="payment-desc">Buy me a coffee</div>
+                    </div>
+                    <span class="payment-arrow">→</span>
+                </a>
+                <a href="#" class="payment-btn" onclick="Donate.pay('github')">
+                    <div class="payment-icon github">🐙</div>
+                    <div class="payment-info">
+                        <div class="payment-name">GitHub Sponsors</div>
+                        <div class="payment-desc">Monthly sponsorship</div>
+                    </div>
+                    <span class="payment-arrow">→</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🪙 Crypto Donations</div>
+            <div class="crypto-address" id="cryptoAddresses">
+                <!-- Generated by JS -->
+            </div>
+            <div class="qr-section" id="qrSection" style="display:none;">
+                <div class="qr-code" id="qrCode"></div>
+                <div class="qr-label">Scan to donate <span id="qrCoin">BTC</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🎯 Current Goal</div>
+            <div class="goal">
+                <div class="goal-header">
+                    <span class="goal-title" id="goalTitle">Server costs for 2024</span>
+                    <span class="goal-amount"><span id="goalCurrent">$340</span> / <span id="goalTarget">$500</span></span>
+                </div>
+                <div class="goal-bar">
+                    <div class="goal-progress" id="goalProgress" style="width: 68%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">❤️ Recent Supporters</div>
+            <div class="supporters" id="supporters">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+
+        <!-- Configuration Section -->
+        <div class="config-section">
+            <div class="config-title">⚙️ Configuration (Edit to Customize)</div>
+            <div class="config-group">
+                <label class="config-label">Creator Name</label>
+                <input type="text" class="config-input" id="cfgName" value="Support My Work" oninput="Donate.updateConfig()">
+            </div>
+            <div class="config-group">
+                <label class="config-label">Bio</label>
+                <input type="text" class="config-input" id="cfgBio" value="Building open source tools for everyone." oninput="Donate.updateConfig()">
+            </div>
+            <div class="config-group">
+                <label class="config-label">PayPal.me Username</label>
+                <input type="text" class="config-input" id="cfgPaypal" placeholder="yourname" oninput="Donate.updateConfig()">
+            </div>
+            <div class="config-group">
+                <label class="config-label">Ko-fi Username</label>
+                <input type="text" class="config-input" id="cfgKofi" placeholder="yourname" oninput="Donate.updateConfig()">
+            </div>
+            <div class="config-group">
+                <label class="config-label">GitHub Sponsors Username</label>
+                <input type="text" class="config-input" id="cfgGithub" placeholder="yourname" oninput="Donate.updateConfig()">
+            </div>
+            <div class="config-group">
+                <label class="config-label">Bitcoin Address</label>
+                <input type="text" class="config-input" id="cfgBtc" placeholder="bc1q..." oninput="Donate.updateConfig()">
+            </div>
+            <div class="config-group">
+                <label class="config-label">Ethereum Address</label>
+                <input type="text" class="config-input" id="cfgEth" placeholder="0x..." oninput="Donate.updateConfig()">
+            </div>
+            <div class="config-group">
+                <label class="config-label">Solana Address</label>
+                <input type="text" class="config-input" id="cfgSol" placeholder="..." oninput="Donate.updateConfig()">
+            </div>
+            <button class="btn" onclick="Donate.saveConfig()">💾 Save Configuration</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        class DonationWidget {
+            constructor() {
+                this.amount = 10;
+                this.config = this.loadConfig();
+                this.applyConfig();
+                this.renderCrypto();
+                this.renderSupporters();
+            }
+
+            setAmount(amount) {
+                this.amount = amount;
+                document.querySelectorAll('.amount-btn').forEach(btn => {
+                    btn.classList.toggle('selected', btn.textContent === `$${amount}`);
+                });
+                document.getElementById('customAmount').value = '';
+            }
+
+            setCustom(value) {
+                if (value) {
+                    this.amount = parseFloat(value);
+                    document.querySelectorAll('.amount-btn').forEach(btn => btn.classList.remove('selected'));
+                }
+            }
+
+            pay(method) {
+                const cfg = this.config;
+                let url;
+
+                switch (method) {
+                    case 'paypal':
+                        if (cfg.paypal) {
+                            url = `https://paypal.me/${cfg.paypal}/${this.amount}`;
+                        } else {
+                            alert('PayPal not configured. Add your PayPal.me username in settings.');
+                            return;
+                        }
+                        break;
+                    case 'kofi':
+                        if (cfg.kofi) {
+                            url = `https://ko-fi.com/${cfg.kofi}`;
+                        } else {
+                            alert('Ko-fi not configured.');
+                            return;
+                        }
+                        break;
+                    case 'github':
+                        if (cfg.github) {
+                            url = `https://github.com/sponsors/${cfg.github}`;
+                        } else {
+                            alert('GitHub Sponsors not configured.');
+                            return;
+                        }
+                        break;
+                    case 'stripe':
+                        alert('Stripe integration requires backend setup. Use PayPal or crypto for now!');
+                        return;
+                }
+
+                if (url) window.open(url, '_blank');
+            }
+
+            renderCrypto() {
+                const cfg = this.config;
+                const cryptos = [
+                    { id: 'btc', name: 'Bitcoin', icon: '₿', addr: cfg.btc },
+                    { id: 'eth', name: 'Ethereum', icon: 'Ξ', addr: cfg.eth },
+                    { id: 'sol', name: 'Solana', icon: '◎', addr: cfg.sol }
+                ].filter(c => c.addr);
+
+                const container = document.getElementById('cryptoAddresses');
+                if (cryptos.length === 0) {
+                    container.innerHTML = '<div style="color:#888;font-size:13px;text-align:center;padding:20px;">Add crypto addresses in configuration below</div>';
+                    return;
+                }
+
+                container.innerHTML = cryptos.map(c => `
+                    <div class="crypto-item">
+                        <div class="crypto-icon ${c.id}">${c.icon}</div>
+                        <div class="crypto-details">
+                            <div class="crypto-name">${c.name}</div>
+                            <div class="crypto-addr">${c.addr}</div>
+                        </div>
+                        <button class="copy-btn" onclick="Donate.copyAddress('${c.addr}', this)">Copy</button>
+                        <button class="copy-btn" onclick="Donate.showQR('${c.addr}', '${c.name}')">QR</button>
+                    </div>
+                `).join('');
+            }
+
+            copyAddress(addr, btn) {
+                navigator.clipboard.writeText(addr).then(() => {
+                    btn.textContent = '✓';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = 'Copy';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                });
+            }
+
+            showQR(addr, coin) {
+                const section = document.getElementById('qrSection');
+                const qrEl = document.getElementById('qrCode');
+                document.getElementById('qrCoin').textContent = coin;
+
+                section.style.display = 'block';
+                qrEl.innerHTML = '';
+
+                if (typeof QRCode !== 'undefined') {
+                    QRCode.toCanvas(addr, { width: 130, margin: 2 }, (err, canvas) => {
+                        if (!err) qrEl.appendChild(canvas);
+                    });
+                }
+            }
+
+            renderSupporters() {
+                // Demo supporters - in real app, fetch from backend
+                const supporters = [
+                    { name: 'Anonymous', msg: 'Keep up the great work!', amount: '$25' },
+                    { name: 'Sarah K.', msg: 'Love these tools! ❤️', amount: '$10' },
+                    { name: 'DevMaster', msg: '', amount: '$50' },
+                    { name: 'Anonymous', msg: 'Thanks for open source!', amount: '$5' }
+                ];
+
+                const container = document.getElementById('supporters');
+                container.innerHTML = supporters.map(s => `
+                    <div class="supporter">
+                        <div class="supporter-avatar">${s.name[0]}</div>
+                        <div class="supporter-info">
+                            <div class="supporter-name">${s.name}</div>
+                            ${s.msg ? `<div class="supporter-msg">"${s.msg}"</div>` : ''}
+                        </div>
+                        <div class="supporter-amount">${s.amount}</div>
+                    </div>
+                `).join('');
+            }
+
+            updateConfig() {
+                this.config = {
+                    name: document.getElementById('cfgName').value,
+                    bio: document.getElementById('cfgBio').value,
+                    paypal: document.getElementById('cfgPaypal').value,
+                    kofi: document.getElementById('cfgKofi').value,
+                    github: document.getElementById('cfgGithub').value,
+                    btc: document.getElementById('cfgBtc').value,
+                    eth: document.getElementById('cfgEth').value,
+                    sol: document.getElementById('cfgSol').value
+                };
+                this.applyConfig();
+            }
+
+            applyConfig() {
+                const cfg = this.config;
+                document.getElementById('creatorName').textContent = cfg.name || 'Support My Work';
+                document.getElementById('creatorBio').textContent = cfg.bio || '';
+
+                // Fill config inputs
+                document.getElementById('cfgName').value = cfg.name || '';
+                document.getElementById('cfgBio').value = cfg.bio || '';
+                document.getElementById('cfgPaypal').value = cfg.paypal || '';
+                document.getElementById('cfgKofi').value = cfg.kofi || '';
+                document.getElementById('cfgGithub').value = cfg.github || '';
+                document.getElementById('cfgBtc').value = cfg.btc || '';
+                document.getElementById('cfgEth').value = cfg.eth || '';
+                document.getElementById('cfgSol').value = cfg.sol || '';
+
+                this.renderCrypto();
+            }
+
+            saveConfig() {
+                localStorage.setItem('donate-config', JSON.stringify(this.config));
+                alert('Configuration saved!');
+            }
+
+            loadConfig() {
+                const saved = localStorage.getItem('donate-config');
+                return saved ? JSON.parse(saved) : {
+                    name: 'Support My Work',
+                    bio: 'Building open source tools for everyone. Your support helps keep the servers running!',
+                    paypal: '',
+                    kofi: '',
+                    github: '',
+                    btc: '',
+                    eth: '',
+                    sol: ''
+                };
+            }
+        }
+
+        const Donate = new DonationWidget();
+    </script>
+</body>
+</html>
