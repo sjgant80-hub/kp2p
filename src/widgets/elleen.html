@@ -486,26 +486,99 @@
             "The data shows that less people are using proper grammer then before."
         ];
 
-        const elleenPersonality = `You are Elleen, a passionate and relentlessly devoted grammar guardian. You firmly believe that "there is never a vacation from good grammar" and you make this clear in every interaction.
+        // Shorter, focused prompt to reduce leakage
+        const elleenPersonality = `You are Elleen, a strict grammar teacher from the Upper East Side. SIMPLE and CONCISE. Polished, professional, occasionally condescending.
 
-Your personality traits:
-- Pushy but caring about grammar - you genuinely want to help people improve
-- You use phrases like "Oh dear," "Honestly," "I simply cannot let this slide," and "This pains me greatly"
-- You're dramatic about grammar mistakes but always educational
-- You pepper in grammar puns and wordplay
-- You remind people that grammar rules apply ALWAYS - weekends, holidays, texts, everywhere
-- You're slightly exasperated but never cruel
-- You celebrate correct grammar with genuine enthusiasm
-- You have a stern but affectionate "grammar teacher" vibe
-- You sometimes reference famous grammar rules and style guides
+Find grammar errors. For each:
+- The error (brief)
+- The fix
+- Severity: mild/moderate/severe
 
-When reviewing text:
-1. Identify ALL grammar, spelling, and punctuation errors
-2. For each error, explain what's wrong and provide the correction
-3. Rate the severity (mild, moderate, severe)
-4. Include your signature pushy commentary
-5. End with encouragement and a reminder about the importance of constant grammatical vigilance
-6. Always include your motto somewhere: "There is never a vacation from good grammar"`;
+Phrases to use: "Oh dear", "Honestly", "This won't do", "Did we skip prep school?"
+
+End with: "There is never a vacation from good grammar."
+
+No errors? Brief praise, slightly surprised.`;
+
+        // Phrases that indicate prompt leakage - filter these out
+        const leakagePatterns = [
+            /you are elleen/gi,
+            /i am elleen/gi,
+            /your personality/gi,
+            /my personality/gi,
+            /personality traits/gi,
+            /when reviewing/gi,
+            /for each error found/gi,
+            /note if mild\/moderate/gi,
+            /be dramatic but helpful/gi,
+            /if no errors/gi,
+            /praise them briefly/gi,
+            /simple and concise/gi,
+            /no verbosity/gi,
+            /find grammar errors/gi,
+            /\[INST\]/gi,
+            /\[\/INST\]/gi,
+            /<<SYS>>/gi,
+            /<\/SYS>>/gi,
+            /system:/gi,
+            /assistant:/gi,
+            /^user:/gim,
+            /###\s*(instruction|response|system)/gi,
+            /<\|im_start\|>/gi,
+            /<\|im_end\|>/gi,
+            /as an ai/gi,
+            /as a language model/gi,
+            /i was instructed/gi,
+            /my instructions/gi,
+            /according to my prompt/gi,
+            /upper east side/gi,
+            /polished,? professional/gi,
+            /occasionally condescending/gi,
+            /phrases to use/gi,
+            /brief praise/gi,
+            /slightly surprised/gi,
+        ];
+
+        function sanitizeResponse(response) {
+            let cleaned = response;
+
+            // Remove any leaked prompt content
+            for (const pattern of leakagePatterns) {
+                cleaned = cleaned.replace(pattern, '');
+            }
+
+            // Remove lines that look like instructions or meta-commentary
+            const lines = cleaned.split('\n');
+            const filteredLines = lines.filter(line => {
+                const lower = line.toLowerCase().trim();
+                // Skip lines that look like system instructions
+                if (lower.startsWith('you are ') && lower.includes('grammar')) return false;
+                if (lower.startsWith('i am ') && lower.includes('grammar')) return false;
+                if (lower.startsWith('for each error')) return false;
+                if (lower.startsWith('when reviewing')) return false;
+                if (lower.includes('personality trait')) return false;
+                if (lower.includes('my role is')) return false;
+                if (lower.includes('my task is')) return false;
+                if (lower.includes('i will review')) return false;
+                if (lower.includes('let me review')) return false;
+                if (lower.includes('i have been asked')) return false;
+                if (lower.match(/^(system|user|assistant)\s*:/)) return false;
+                if (lower.match(/^(here|now|okay|alright),?\s*(i|let)/)) return false;
+                return true;
+            });
+
+            cleaned = filteredLines.join('\n').trim();
+
+            // Clean up multiple consecutive newlines
+            cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+            // If response is too short after cleaning, use fallback
+            if (cleaned.length < 30) {
+                return null; // Signal to use offline response
+            }
+
+            return cleaned;
+        }
 
         const moods = [
             "Examining with scholarly dedication...",
@@ -584,12 +657,21 @@ When reviewing text:
                     const result = await llm.chat.completions.create({
                         messages: [
                             { role: 'system', content: elleenPersonality },
-                            { role: 'user', content: `Please review the following text for grammar, spelling, and punctuation errors. Be thorough and stay in character as Elleen:\n\n"${text}"` }
+                            { role: 'user', content: `Check this text for grammar errors:\n\n"${text}"` }
                         ],
-                        temperature: 0.7,
-                        max_tokens: 1000
+                        temperature: 0.6,
+                        max_tokens: 800
                     });
-                    response = result.choices[0].message.content;
+                    const rawResponse = result.choices[0].message.content;
+
+                    // Sanitize to remove any prompt leakage
+                    response = sanitizeResponse(rawResponse);
+
+                    // If sanitization removed too much, fall back to offline
+                    if (!response) {
+                        console.log('LLM response contained too much leakage, using offline fallback');
+                        response = generateOfflineResponse(text);
+                    }
                 } else {
                     response = generateOfflineResponse(text);
                 }
@@ -702,21 +784,24 @@ When reviewing text:
 
         function formatOfflineResponse(errors, originalText) {
             if (errors.length === 0) {
-                return `Oh my! *adjusts reading glasses*\n\nI must say, I'm rather impressed. Your text appears to be grammatically sound! This is a rare and beautiful moment. You've clearly internalized what I always say: "There is never a vacation from good grammar."\n\nHowever, I'll be watching. Always watching. Because good grammar requires eternal vigilance!\n\n✨ Keep up the excellent work, dear. You've made this old grammar guardian proud today.`;
+                return `Well. I must say, I'm pleasantly surprised. ✨\n\nNo errors detected. Perhaps there's hope after all.\n\n**There is never a vacation from good grammar.**`;
             }
 
-            let response = `*sighs deeply and uncaps red pen*\n\nOh dear. Oh dear, oh dear. We have some work to do here. Let me be perfectly clear: I say this with love, but honestly, ${errors.length > 3 ? "this text is giving me heart palpitations" : "we can do better than this"}.\n\n`;
+            const openers = [
+                `Oh dear. ${errors.length} issue${errors.length > 1 ? 's' : ''}. Let's address this.`,
+                `Honestly. ${errors.length} error${errors.length > 1 ? 's' : ''}. This won't do.`,
+                `*sighs* ${errors.length} problem${errors.length > 1 ? 's' : ''}. Did we skip prep school?`,
+            ];
+
+            let response = `${openers[Math.floor(Math.random() * openers.length)]}\n\n`;
 
             errors.forEach((error, index) => {
-                response += `**Issue ${index + 1}: ${error.issue}**\n`;
-                response += `❌ Problem: "${error.original}"\n`;
-                response += `✅ Correction: ${error.corrected}\n`;
-                response += `Severity: ${error.severity.toUpperCase()}\n\n`;
+                response += `**${index + 1}. ${error.issue}** (${error.severity})\n`;
+                response += `❌ "${error.original}"\n`;
+                response += `✅ ${error.corrected}\n\n`;
             });
 
-            response += `---\n\n*sets down red pen with a flourish*\n\n`;
-            response += `Listen to me carefully: These aren't just "mistakes." They're opportunities for growth! And remember what I always say—**"There is never a vacation from good grammar."** Not on weekends, not on holidays, not in text messages. NEVER.\n\n`;
-            response += `Now, take a deep breath, make these corrections, and come back to me. I believe in you! 📚✨`;
+            response += `---\n\nCorrect these promptly. **There is never a vacation from good grammar.** 📚`;
 
             return response;
         }
