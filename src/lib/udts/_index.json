@@ -1,24 +1,53 @@
 {
-  "@t": "100|udt-registry|v1.0",
-  "@h": {"A":"index","C":"2024-12","L":"MIT","S":"stable"},
-  "@p": "KP2P UDT Registry - auto-load all domains",
-  "@a": "load→parse→cache→inject",
-  "domains": {
-    "os": "os/_index.json",
-    "core": "core/_index.json",
-    "network": "network/_index.json",
-    "p2p": "p2p/_index.json",
-    "sync": "sync/_index.json",
-    "protocols": "protocols/_index.json",
-    "enterprise": "enterprise/_index.json"
+  "@t": "150|udt-registry|v2.0",
+  "@h": {"A":"index","C":"2024-12","L":"MIT","S":"stable","U":"udt-reg-001"},
+  "@p": "KP2P UDT Registry - auto-discovery enabled",
+  "@a": "scan→discover→load→cache",
+
+  "autoDiscovery": {
+    "enabled": true,
+    "patterns": [
+      "src/*/udts.js",
+      "src/lib/udts/*/_index.json",
+      "src/lib/udts/*/*.json"
+    ],
+    "exclude": ["node_modules", "dist", ".git"],
+    "trackBy": "uuid"
   },
-  "version": "1.0.0",
+
+  "domains": {
+    "os": {"path": "os/_index.json", "uuid": "udt-os-001", "auto": true},
+    "core": {"path": "core/_index.json", "uuid": "udt-core-001", "auto": true},
+    "network": {"path": "network/_index.json", "uuid": "udt-net-001", "auto": true},
+    "p2p": {"path": "p2p/_index.json", "uuid": "udt-p2p-001", "auto": true},
+    "sync": {"path": "sync/_index.json", "uuid": "udt-sync-001", "auto": true},
+    "protocols": {"path": "protocols/_index.json", "uuid": "udt-proto-001", "auto": true},
+    "enterprise": {"path": "enterprise/_index.json", "uuid": "udt-ent-001", "auto": true},
+    "widgets": {"path": "../../widgets/udts.js", "uuid": "udt-widget-001", "auto": true}
+  },
+
+  "modules": {
+    "os": {"src": "../../os/udts.js", "export": "OS_UDTS", "uuid": "mod-os-001"},
+    "core": {"src": "../../core/udts.js", "export": "CORE_UDTS", "uuid": "mod-core-001"},
+    "network": {"src": "../../network/udts.js", "export": "NETWORK_UDTS", "uuid": "mod-net-001"},
+    "p2p": {"src": "../../p2p/udts.js", "export": "P2P_UDTS", "uuid": "mod-p2p-001"},
+    "sync": {"src": "../../sync/udts.js", "export": "SYNC_UDTS", "uuid": "mod-sync-001"},
+    "protocols": {"src": "../../protocols/udts.js", "export": "PROTOCOL_UDTS", "uuid": "mod-proto-001"},
+    "enterprise": {"src": "../../enterprise/udts.js", "export": "ENTERPRISE_UDTS", "uuid": "mod-ent-001"},
+    "widgets": {"src": "../../widgets/udts.js", "export": "TELEPHONY_UDTS", "uuid": "mod-widget-001"},
+    "llm": {"src": "../../llm/tools-udt.js", "export": "TOOLS", "uuid": "mod-llm-001"},
+    "graphics": {"src": "../graphics/udts.js", "exports": ["TYPE_MAP", "STYLE_MAP", "SHORTCODES"], "uuid": "mod-gfx-001"}
+  },
+
+  "version": "2.0.0",
+
   "schema": {
     "@t": "tokens|name|version",
-    "@h": "{A:archetype,C:category,L:license,S:status}",
+    "@h": "{A:archetype,C:category,L:license,S:status,U:uuid}",
     "@p": "purpose",
     "@a": "action→flow"
   },
+
   "keymap": {
     "N": "name",
     "C": "category",
@@ -27,6 +56,8 @@
     "P": "properties",
     "R": "required",
     "T": "type",
-    "X": "defaults"
+    "X": "defaults",
+    "U": "uuid",
+    "O": "optional"
   }
 }

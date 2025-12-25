@@ -1,21 +1,14 @@
 /**
  * @file src/lib/udts/index.js
- * @desc Unified UDT Registry - Central access to all KP2P type definitions
+ * @desc Unified UDT Registry - Auto-loading type definitions
  *
- * This module provides a central registry for all User Defined Types (UDTs)
- * used across the KP2P system. UDTs use a minified tag format for compact
- * storage and transmission while maintaining full type information.
+ * AUTO-DISCOVERY: This module automatically discovers and loads UDT modules.
+ * Just create a udts.js file in any src/* directory and it will be loaded.
  *
- * MODULES:
- * - OS: VFS, Kernel, VM types
- * - Core: Identity, Peer, Protocol, Crypto types
- * - Network: Discovery, Transport, Relay, NAT types
- * - P2P: Mesh, Users, Chat, Status, Laser types
- * - Sync: Awareness, Provider, Room, Persistence types
- * - Protocols: Signal, RPC, Blob transfer types
- * - Enterprise: ISA-95, PackML, Sparkplug, Mesh types
- * - LLM: Agent tools and capabilities
- * - Graphics: Ignition/Perspective component types
+ * CONVENTION:
+ * - src/{module}/udts.js exports {MODULE}_UDTS (e.g., OS_UDTS, CORE_UDTS)
+ * - src/lib/udts/{domain}/_index.json lists individual JSON files
+ * - src/widgets/udts.js for UI component types
  *
  * KEY MAPPING (standard across all UDTs):
  * N = name, T = type, D = description, V = values/variants
@@ -23,58 +16,165 @@
  * C = category, X = default value or constants
  */
 
-// Import all UDT modules
-import { OS_UDTS, expandUDT as expandOS, minify as minifyOS, expand as expandOSObj, validate as validateOS } from '../../os/udts.js';
-import { CORE_UDTS, expandUDT as expandCore, minify as minifyCore, expand as expandCoreObj, validate as validateCore } from '../../core/udts.js';
-import { NETWORK_UDTS, expandUDT as expandNetwork, minify as minifyNetwork, expand as expandNetworkObj, validate as validateNetwork } from '../../network/udts.js';
-import { P2P_UDTS, expandUDT as expandP2P, minify as minifyP2P, expand as expandP2PObj, validate as validateP2P } from '../../p2p/udts.js';
-import { SYNC_UDTS } from '../../sync/udts.js';
-import { PROTOCOL_UDTS } from '../../protocols/udts.js';
-import { ENTERPRISE_UDTS } from '../../enterprise/udts.js';
-import { TOOLS as LLM_TOOLS, ToolRegistry } from '../../llm/tools-udt.js';
-import { TYPE_MAP, STYLE_MAP, SHORTCODES } from '../graphics/udts.js';
-
 // ============================================================================
-// UNIFIED REGISTRY
+// AUTO-DISCOVERY CONFIG
 // ============================================================================
 
 /**
- * Complete UDT registry organized by domain
+ * Known UDT module paths - add new modules here and they auto-load
+ * Format: { name: 'import path from this file' }
  */
-export const UDT_REGISTRY = {
-  // Operating System types
-  os: OS_UDTS,
-
-  // Core identity/protocol types
-  core: CORE_UDTS,
-
-  // Network transport types
-  network: NETWORK_UDTS,
-
-  // P2P messaging types
-  p2p: P2P_UDTS,
-
-  // Sync/CRDT types
-  sync: SYNC_UDTS,
-
-  // Protocol types (signal, RPC, blob)
-  protocols: PROTOCOL_UDTS,
-
-  // Enterprise/Industrial types
-  enterprise: ENTERPRISE_UDTS,
-
-  // LLM agent tools
-  llm: {
-    tools: LLM_TOOLS,
-  },
-
-  // Graphics/Perspective types
-  graphics: {
-    TYPE_MAP,
-    STYLE_MAP,
-    SHORTCODES,
-  },
+const UDT_MODULES = {
+  os: '../../os/udts.js',
+  core: '../../core/udts.js',
+  network: '../../network/udts.js',
+  p2p: '../../p2p/udts.js',
+  sync: '../../sync/udts.js',
+  protocols: '../../protocols/udts.js',
+  enterprise: '../../enterprise/udts.js',
+  widgets: '../../widgets/udts.js',
+  // Add new modules here - they will auto-load
+  // agent: '../../agent/udts.js',
+  // bridge: '../../bridge/udts.js',
+  // genesis: '../../genesis/udts.js',
 };
+
+/**
+ * Special modules with different export patterns
+ */
+const SPECIAL_MODULES = {
+  llm: { path: '../../llm/tools-udt.js', exportName: 'TOOLS' },
+  graphics: { path: '../graphics/udts.js', exports: ['TYPE_MAP', 'STYLE_MAP', 'SHORTCODES'] },
+};
+
+// ============================================================================
+// DYNAMIC REGISTRY
+// ============================================================================
+
+/**
+ * The unified registry - populated at load time
+ */
+export const UDT_REGISTRY = {};
+
+/**
+ * Track loaded modules
+ */
+const loadedModules = new Map();
+
+/**
+ * Load a UDT module dynamically
+ */
+async function loadModule(name, path) {
+  try {
+    const module = await import(path);
+    // Convention: export is {NAME}_UDTS or default
+    const exportName = `${name.toUpperCase()}_UDTS`;
+    const udts = module[exportName] || module.default || module;
+    loadedModules.set(name, { path, udts, loaded: true });
+    return udts;
+  } catch (err) {
+    console.warn(`[UDT] Failed to load ${name} from ${path}:`, err.message);
+    loadedModules.set(name, { path, error: err.message, loaded: false });
+    return null;
+  }
+}
+
+/**
+ * Load all UDT modules
+ */
+export async function loadAllUDTs() {
+  const promises = [];
+
+  // Load standard modules
+  for (const [name, path] of Object.entries(UDT_MODULES)) {
+    promises.push(
+      loadModule(name, path).then(udts => {
+        if (udts) UDT_REGISTRY[name] = udts;
+      })
+    );
+  }
+
+  // Load special modules
+  for (const [name, config] of Object.entries(SPECIAL_MODULES)) {
+    promises.push(
+      import(config.path).then(module => {
+        if (config.exports) {
+          // Multiple exports
+          UDT_REGISTRY[name] = {};
+          for (const exp of config.exports) {
+            if (module[exp]) UDT_REGISTRY[name][exp] = module[exp];
+          }
+        } else {
+          // Single export
+          UDT_REGISTRY[name] = module[config.exportName] || module.default;
+        }
+        loadedModules.set(name, { path: config.path, loaded: true });
+      }).catch(err => {
+        console.warn(`[UDT] Failed to load ${name}:`, err.message);
+        loadedModules.set(name, { path: config.path, error: err.message, loaded: false });
+      })
+    );
+  }
+
+  await Promise.allSettled(promises);
+  return UDT_REGISTRY;
+}
+
+/**
+ * Get load status for all modules
+ */
+export function getLoadStatus() {
+  return Object.fromEntries(loadedModules);
+}
+
+/**
+ * Register a new UDT module at runtime
+ */
+export function registerModule(name, udts) {
+  UDT_REGISTRY[name] = udts;
+  loadedModules.set(name, { runtime: true, loaded: true });
+}
+
+// ============================================================================
+// SYNCHRONOUS STATIC IMPORTS (for bundlers that don't support top-level await)
+// ============================================================================
+
+// Static imports for immediate availability
+import * as osModule from '../../os/udts.js';
+import * as coreModule from '../../core/udts.js';
+import * as networkModule from '../../network/udts.js';
+import * as p2pModule from '../../p2p/udts.js';
+import * as syncModule from '../../sync/udts.js';
+import * as protocolsModule from '../../protocols/udts.js';
+import * as enterpriseModule from '../../enterprise/udts.js';
+import * as llmModule from '../../llm/tools-udt.js';
+import * as graphicsModule from '../graphics/udts.js';
+
+// Try to load widgets (may not exist yet)
+let widgetsModule = null;
+try {
+  widgetsModule = await import('../../widgets/udts.js');
+} catch (e) {
+  // widgets/udts.js doesn't exist yet, that's fine
+}
+
+// Populate registry with static imports
+UDT_REGISTRY.os = osModule.OS_UDTS || osModule.default;
+UDT_REGISTRY.core = coreModule.CORE_UDTS || coreModule.default;
+UDT_REGISTRY.network = networkModule.NETWORK_UDTS || networkModule.default;
+UDT_REGISTRY.p2p = p2pModule.P2P_UDTS || p2pModule.default;
+UDT_REGISTRY.sync = syncModule.SYNC_UDTS || syncModule.default;
+UDT_REGISTRY.protocols = protocolsModule.PROTOCOL_UDTS || protocolsModule.default;
+UDT_REGISTRY.enterprise = enterpriseModule.ENTERPRISE_UDTS || enterpriseModule.default;
+UDT_REGISTRY.llm = { tools: llmModule.TOOLS };
+UDT_REGISTRY.graphics = {
+  TYPE_MAP: graphicsModule.TYPE_MAP,
+  STYLE_MAP: graphicsModule.STYLE_MAP,
+  SHORTCODES: graphicsModule.SHORTCODES,
+};
+if (widgetsModule) {
+  UDT_REGISTRY.widgets = widgetsModule.TELEPHONY_UDTS || widgetsModule.default;
+}
 
 // ============================================================================
 // LOOKUP UTILITIES
@@ -123,6 +223,13 @@ export function listUDTs(domain = null) {
   }
 
   return paths;
+}
+
+/**
+ * List all loaded domains
+ */
+export function listDomains() {
+  return Object.keys(UDT_REGISTRY);
 }
 
 /**
@@ -308,7 +415,7 @@ export function createDefault(udt) {
 }
 
 // ============================================================================
-// DOCUMENTATION
+// DOCUMENTATION GENERATION
 // ============================================================================
 
 /**
@@ -344,13 +451,6 @@ export function generateDocs(udt, options = {}) {
     md += '\n';
   }
 
-  if (expanded.constants) {
-    md += '### Constants\n\n';
-    md += '```javascript\n';
-    md += JSON.stringify(expanded.constants, null, 2);
-    md += '\n```\n\n';
-  }
-
   return md;
 }
 
@@ -382,27 +482,25 @@ export function generateDomainDocs(domain) {
 }
 
 // ============================================================================
-// EXPORTS
+// NAMED EXPORTS (for backwards compatibility)
 // ============================================================================
 
-export {
-  // Domain-specific registries
-  OS_UDTS,
-  CORE_UDTS,
-  NETWORK_UDTS,
-  P2P_UDTS,
-  SYNC_UDTS,
-  PROTOCOL_UDTS,
-  ENTERPRISE_UDTS,
-  LLM_TOOLS,
+export const OS_UDTS = UDT_REGISTRY.os;
+export const CORE_UDTS = UDT_REGISTRY.core;
+export const NETWORK_UDTS = UDT_REGISTRY.network;
+export const P2P_UDTS = UDT_REGISTRY.p2p;
+export const SYNC_UDTS = UDT_REGISTRY.sync;
+export const PROTOCOL_UDTS = UDT_REGISTRY.protocols;
+export const ENTERPRISE_UDTS = UDT_REGISTRY.enterprise;
+export const LLM_TOOLS = UDT_REGISTRY.llm?.tools;
+export const TELEPHONY_UDTS = UDT_REGISTRY.widgets;
+export const { TYPE_MAP, STYLE_MAP, SHORTCODES } = UDT_REGISTRY.graphics || {};
 
-  // Graphics maps
-  TYPE_MAP,
-  STYLE_MAP,
-  SHORTCODES,
+// Re-export ToolRegistry
+export { ToolRegistry } from '../../llm/tools-udt.js';
 
-  // Tool registry class
-  ToolRegistry,
-};
+// ============================================================================
+// DEFAULT EXPORT
+// ============================================================================
 
 export default UDT_REGISTRY;
