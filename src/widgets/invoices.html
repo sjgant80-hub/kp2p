@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<!--
+@file invoices.html
+@desc Invoices Widget - Invoice generator & tracker (Wave/FreshBooks killer)
+@api  window.Invoices - invoice controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Invoices</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:20px 24px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .logo{font-size:28px}
+    .header h1{flex:1;font-size:20px}
+    .create-btn{padding:12px 20px;background:var(--g);border:0;border-radius:10px;color:#000;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+
+    .container{max-width:1200px;margin:0 auto;padding:24px}
+
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+    @media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}}
+    .stat{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px}
+    .stat .label{font-size:12px;color:#64748b;margin-bottom:4px}
+    .stat .value{font-size:24px;font-weight:700}
+    .stat.total .value{color:var(--a)}
+    .stat.paid .value{color:var(--g)}
+    .stat.pending .value{color:var(--y)}
+    .stat.overdue .value{color:var(--r)}
+
+    .filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+    .filter{padding:8px 16px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:20px;color:#94a3b8;font-size:12px;cursor:pointer}
+    .filter:hover{border-color:rgba(255,255,255,.15)}
+    .filter.active{background:var(--a);border-color:var(--a);color:#000}
+
+    .invoice-list{display:flex;flex-direction:column;gap:12px}
+
+    .invoice{display:flex;align-items:center;gap:16px;padding:20px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;cursor:pointer;transition:border-color .15s}
+    .invoice:hover{border-color:rgba(255,255,255,.15)}
+
+    .invoice-id{font-weight:600;color:var(--a);min-width:100px}
+    .invoice-client{flex:1;min-width:0}
+    .invoice-client .name{font-weight:500}
+    .invoice-client .email{font-size:12px;color:#64748b}
+    .invoice-date{font-size:13px;color:#94a3b8;min-width:100px}
+    .invoice-amount{font-size:18px;font-weight:700;min-width:120px;text-align:right}
+    .invoice-status{padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;min-width:80px;text-align:center}
+    .status-paid{background:rgba(16,185,129,.15);color:var(--g)}
+    .status-pending{background:rgba(234,179,8,.15);color:var(--y)}
+    .status-overdue{background:rgba(239,68,68,.15);color:var(--r)}
+    .status-draft{background:rgba(255,255,255,.08);color:#94a3b8}
+
+    .invoice-actions{display:flex;gap:6px}
+    .invoice-actions button{width:36px;height:36px;background:rgba(255,255,255,.05);border:0;border-radius:8px;color:#94a3b8;cursor:pointer}
+    .invoice-actions button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow-y:auto}
+    .modal.open{display:flex}
+    .modal-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;width:100%;max-width:700px;margin:40px 0}
+
+    .modal h2{margin-bottom:24px;font-size:20px;display:flex;align-items:center;gap:12px}
+
+    .section{margin-bottom:24px}
+    .section-title{font-size:12px;color:#64748b;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+
+    .row{display:flex;gap:16px}
+    .row > *{flex:1}
+
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:12px 14px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:inherit}
+    .form-group input:focus,.form-group select:focus{outline:0;border-color:var(--a)}
+
+    .items-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    .items-table th{text-align:left;font-size:11px;color:#64748b;padding:8px;border-bottom:1px solid rgba(255,255,255,.1)}
+    .items-table td{padding:8px}
+    .items-table input{width:100%;padding:10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f)}
+    .items-table .qty,.items-table .rate,.items-table .amount{width:100px}
+    .items-table .amount input{background:0;border:0;color:var(--a);font-weight:600}
+    .items-table .remove{width:40px;text-align:center}
+    .items-table .remove button{background:0;border:0;color:var(--r);cursor:pointer;font-size:16px}
+
+    .add-item{padding:10px 16px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.15);border-radius:8px;color:#94a3b8;cursor:pointer;width:100%;text-align:left}
+    .add-item:hover{background:rgba(255,255,255,.08)}
+
+    .totals{margin-left:auto;width:250px;margin-top:20px}
+    .total-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px}
+    .total-row.grand{font-size:18px;font-weight:700;border-top:1px solid rgba(255,255,255,.1);padding-top:12px;margin-top:8px}
+    .total-row.grand .value{color:var(--a)}
+
+    .modal-btns{display:flex;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid rgba(255,255,255,.06)}
+    .modal-btns button{padding:14px 24px;border:0;border-radius:10px;font-weight:600;cursor:pointer}
+    .modal-btns .cancel{background:rgba(255,255,255,.08);color:var(--f)}
+    .modal-btns .save{background:var(--a);color:#000}
+    .modal-btns .send{background:var(--g);color:#000}
+
+    .empty{text-align:center;padding:60px;color:#64748b}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+
+    @media print{
+      body{background:#fff;color:#000}
+      .header,.filters,.invoice-actions,.modal-btns{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🧾</span>
+    <h1>Invoices</h1>
+    <button class="create-btn" id="createBtn">+ New Invoice</button>
+  </div>
+
+  <div class="container">
+    <div class="stats">
+      <div class="stat total"><div class="label">Total Revenue</div><div class="value" id="totalRevenue">$0</div></div>
+      <div class="stat paid"><div class="label">Paid</div><div class="value" id="paidAmount">$0</div></div>
+      <div class="stat pending"><div class="label">Pending</div><div class="value" id="pendingAmount">$0</div></div>
+      <div class="stat overdue"><div class="label">Overdue</div><div class="value" id="overdueAmount">$0</div></div>
+    </div>
+
+    <div class="filters">
+      <div class="filter active" data-status="all">All</div>
+      <div class="filter" data-status="paid">Paid</div>
+      <div class="filter" data-status="pending">Pending</div>
+      <div class="filter" data-status="overdue">Overdue</div>
+      <div class="filter" data-status="draft">Draft</div>
+    </div>
+
+    <div class="invoice-list" id="invoiceList"></div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>🧾 <span id="modalTitle">New Invoice</span></h2>
+
+      <div class="section">
+        <div class="section-title">Invoice Details</div>
+        <div class="row">
+          <div class="form-group">
+            <label>Invoice Number</label>
+            <input type="text" id="invoiceNum" placeholder="INV-001">
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="invoiceDate">
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" id="dueDate">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Client</div>
+        <div class="row">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="clientName" placeholder="Client name">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="clientEmail" placeholder="client@example.com">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Items</div>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="qty">Qty</th>
+              <th class="rate">Rate</th>
+              <th class="amount">Amount</th>
+              <th class="remove"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+        <button class="add-item" id="addItemBtn">+ Add Item</button>
+
+        <div class="totals">
+          <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+          <div class="total-row"><span>Tax (10%)</span><span id="taxAmount">$0.00</span></div>
+          <div class="total-row grand"><span>Total</span><span class="value" id="grandTotal">$0.00</span></div>
+        </div>
+      </div>
+
+      <div class="modal-btns">
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="save" id="saveBtn">Save Draft</button>
+        <button class="send" id="sendBtn">Save & Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const fmt = n => '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+    class Invoices {
+      constructor() {
+        this.invoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+        this.items = [];
+        this.editId = null;
+        this.filter = 'all';
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('invoices', JSON.stringify(this.invoices));
+      }
+
+      getNextNum() {
+        const nums = this.invoices.map(i => parseInt(i.num.replace(/\D/g, '')) || 0);
+        const max = nums.length ? Math.max(...nums) : 0;
+        return 'INV-' + String(max + 1).padStart(3, '0');
+      }
+
+      add(data) {
+        this.invoices.unshift({
+          id: Date.now().toString(36),
+          ...data,
+          created: Date.now()
+        });
+        this.save();
+        this.render();
+      }
+
+      update(id, data) {
+        const inv = this.invoices.find(i => i.id === id);
+        if (inv) {
+          Object.assign(inv, data);
+          this.save();
+          this.render();
+        }
+      }
+
+      delete(id) {
+        this.invoices = this.invoices.filter(i => i.id !== id);
+        this.save();
+        this.render();
+      }
+
+      markPaid(id) {
+        const inv = this.invoices.find(i => i.id === id);
+        if (inv) {
+          inv.status = 'paid';
+          this.save();
+          this.render();
+        }
+      }
+
+      getStatus(inv) {
+        if (inv.status === 'paid' || inv.status === 'draft') return inv.status;
+        const due = new Date(inv.dueDate);
+        return due < new Date() ? 'overdue' : 'pending';
+      }
+
+      getFiltered() {
+        if (this.filter === 'all') return this.invoices;
+        return this.invoices.filter(i => this.getStatus(i) === this.filter);
+      }
+
+      getStats() {
+        let total = 0, paid = 0, pending = 0, overdue = 0;
+        this.invoices.forEach(inv => {
+          const status = this.getStatus(inv);
+          total += inv.total;
+          if (status === 'paid') paid += inv.total;
+          if (status === 'pending') pending += inv.total;
+          if (status === 'overdue') overdue += inv.total;
+        });
+        return { total, paid, pending, overdue };
+      }
+
+      updateTotals() {
+        const subtotal = this.items.reduce((a, b) => a + (b.qty * b.rate), 0);
+        const tax = subtotal * 0.1;
+        const total = subtotal + tax;
+        $('subtotal').textContent = fmt(subtotal);
+        $('taxAmount').textContent = fmt(tax);
+        $('grandTotal').textContent = fmt(total);
+        return { subtotal, tax, total };
+      }
+
+      renderItems() {
+        $('itemsBody').innerHTML = this.items.map((item, idx) => `
+          <tr>
+            <td><input type="text" value="${esc(item.desc)}" data-idx="${idx}" data-field="desc"></td>
+            <td class="qty"><input type="number" value="${item.qty}" min="1" data-idx="${idx}" data-field="qty"></td>
+            <td class="rate"><input type="number" value="${item.rate}" step="0.01" data-idx="${idx}" data-field="rate"></td>
+            <td class="amount"><input readonly value="${fmt(item.qty * item.rate)}"></td>
+            <td class="remove"><button data-idx="${idx}">×</button></td>
+          </tr>
+        `).join('');
+
+        this.updateTotals();
+      }
+
+      render() {
+        const items = this.getFiltered();
+        const list = $('invoiceList');
+
+        if (items.length === 0) {
+          list.innerHTML = `<div class="empty"><div class="icon">🧾</div><div>No invoices yet. Create your first one!</div></div>`;
+        } else {
+          list.innerHTML = items.map(inv => {
+            const status = this.getStatus(inv);
+            return `
+              <div class="invoice" data-id="${inv.id}">
+                <div class="invoice-id">${esc(inv.num)}</div>
+                <div class="invoice-client">
+                  <div class="name">${esc(inv.clientName)}</div>
+                  <div class="email">${esc(inv.clientEmail)}</div>
+                </div>
+                <div class="invoice-date">${new Date(inv.date).toLocaleDateString()}</div>
+                <div class="invoice-amount">${fmt(inv.total)}</div>
+                <div class="invoice-status status-${status}">${status}</div>
+                <div class="invoice-actions">
+                  ${status !== 'paid' ? `<button onclick="event.stopPropagation();Invoices.markPaid('${inv.id}')" title="Mark Paid">✓</button>` : ''}
+                  <button onclick="event.stopPropagation();Invoices.print('${inv.id}')" title="Print">🖨</button>
+                  <button onclick="event.stopPropagation();Invoices.delete('${inv.id}')" title="Delete">🗑</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        const stats = this.getStats();
+        $('totalRevenue').textContent = fmt(stats.total);
+        $('paidAmount').textContent = fmt(stats.paid);
+        $('pendingAmount').textContent = fmt(stats.pending);
+        $('overdueAmount').textContent = fmt(stats.overdue);
+      }
+
+      print(id) {
+        const inv = this.invoices.find(i => i.id === id);
+        if (!inv) return;
+
+        const win = window.open('', '_blank');
+        win.document.write(`
+          <!DOCTYPE html>
+          <html><head><title>Invoice ${inv.num}</title>
+          <style>
+            body{font-family:system-ui;max-width:800px;margin:40px auto;padding:20px}
+            h1{color:#333}
+            table{width:100%;border-collapse:collapse;margin:20px 0}
+            th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd}
+            th{background:#f5f5f5}
+            .total{font-size:24px;font-weight:bold;text-align:right}
+          </style>
+          </head><body>
+          <h1>Invoice ${esc(inv.num)}</h1>
+          <p><strong>To:</strong> ${esc(inv.clientName)} (${esc(inv.clientEmail)})</p>
+          <p><strong>Date:</strong> ${new Date(inv.date).toLocaleDateString()}</p>
+          <p><strong>Due:</strong> ${new Date(inv.dueDate).toLocaleDateString()}</p>
+          <table>
+            <tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>
+            ${inv.items.map(i => `<tr><td>${esc(i.desc)}</td><td>${i.qty}</td><td>${fmt(i.rate)}</td><td>${fmt(i.qty * i.rate)}</td></tr>`).join('')}
+          </table>
+          <p class="total">Total: ${fmt(inv.total)}</p>
+          </body></html>
+        `);
+        win.document.close();
+        win.print();
+      }
+
+      openModal(inv = null) {
+        this.editId = inv?.id || null;
+        $('modalTitle').textContent = inv ? 'Edit Invoice' : 'New Invoice';
+
+        if (inv) {
+          $('invoiceNum').value = inv.num;
+          $('invoiceDate').value = inv.date;
+          $('dueDate').value = inv.dueDate;
+          $('clientName').value = inv.clientName;
+          $('clientEmail').value = inv.clientEmail;
+          this.items = [...inv.items];
+        } else {
+          const today = new Date().toISOString().split('T')[0];
+          const due = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+          $('invoiceNum').value = this.getNextNum();
+          $('invoiceDate').value = today;
+          $('dueDate').value = due;
+          $('clientName').value = '';
+          $('clientEmail').value = '';
+          this.items = [{ desc: '', qty: 1, rate: 0 }];
+        }
+
+        this.renderItems();
+        $('modal').classList.add('open');
+      }
+
+      saveInvoice(status = 'pending') {
+        const { total } = this.updateTotals();
+        const data = {
+          num: $('invoiceNum').value,
+          date: $('invoiceDate').value,
+          dueDate: $('dueDate').value,
+          clientName: $('clientName').value,
+          clientEmail: $('clientEmail').value,
+          items: this.items,
+          total,
+          status
+        };
+
+        if (this.editId) {
+          this.update(this.editId, data);
+        } else {
+          this.add(data);
+        }
+        $('modal').classList.remove('open');
+      }
+
+      init() {
+        // Demo data
+        if (this.invoices.length === 0) {
+          this.invoices = [
+            { id: '1', num: 'INV-001', date: '2024-01-15', dueDate: '2024-02-15', clientName: 'Acme Corp', clientEmail: 'billing@acme.com', items: [{ desc: 'Web Development', qty: 40, rate: 150 }], total: 6600, status: 'paid' },
+            { id: '2', num: 'INV-002', date: '2024-01-20', dueDate: '2024-02-20', clientName: 'TechStart Inc', clientEmail: 'pay@techstart.io', items: [{ desc: 'UI Design', qty: 20, rate: 120 }], total: 2640, status: 'pending' },
+            { id: '3', num: 'INV-003', date: '2024-01-05', dueDate: '2024-01-20', clientName: 'Old Client LLC', clientEmail: 'ap@oldclient.com', items: [{ desc: 'Consulting', qty: 8, rate: 200 }], total: 1760, status: 'pending' }
+          ];
+          this.save();
+        }
+
+        this.render();
+
+        // Create button
+        $('createBtn').onclick = () => this.openModal();
+        $('cancelBtn').onclick = () => $('modal').classList.remove('open');
+        $('saveBtn').onclick = () => this.saveInvoice('draft');
+        $('sendBtn').onclick = () => this.saveInvoice('pending');
+
+        // Add item
+        $('addItemBtn').onclick = () => {
+          this.items.push({ desc: '', qty: 1, rate: 0 });
+          this.renderItems();
+        };
+
+        // Item events
+        $('itemsBody').oninput = e => {
+          const idx = parseInt(e.target.dataset.idx);
+          const field = e.target.dataset.field;
+          if (field && !isNaN(idx)) {
+            this.items[idx][field] = field === 'desc' ? e.target.value : parseFloat(e.target.value) || 0;
+            this.renderItems();
+          }
+        };
+
+        $('itemsBody').onclick = e => {
+          if (e.target.matches('.remove button')) {
+            const idx = parseInt(e.target.dataset.idx);
+            this.items.splice(idx, 1);
+            if (this.items.length === 0) this.items.push({ desc: '', qty: 1, rate: 0 });
+            this.renderItems();
+          }
+        };
+
+        // Filters
+        document.querySelectorAll('.filter').forEach(f => {
+          f.onclick = () => {
+            document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
+            f.classList.add('active');
+            this.filter = f.dataset.status;
+            this.render();
+          };
+        });
+
+        // Click invoice to edit
+        $('invoiceList').onclick = e => {
+          const inv = e.target.closest('.invoice');
+          if (inv && !e.target.closest('.invoice-actions')) {
+            const item = this.invoices.find(i => i.id === inv.dataset.id);
+            if (item) this.openModal(item);
+          }
+        };
+      }
+    }
+
+    window.Invoices = new Invoices();
+  </script>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<!--
+@file snippets.html
+@desc Snippets Widget - Code snippet manager (GitHub Gists killer)
+@api  window.Snippets - snippets controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Snippets</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:20px 24px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .logo{font-size:28px}
+    .header h1{font-size:20px}
+    .search{flex:1;min-width:200px;padding:12px 16px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:var(--f)}
+    .search:focus{outline:0;border-color:var(--a)}
+    .add-btn{padding:12px 20px;background:var(--a);border:0;border-radius:10px;color:#000;font-weight:600;cursor:pointer}
+
+    .container{display:flex;min-height:calc(100vh - 80px)}
+
+    .sidebar{width:220px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);padding:16px 0;flex-shrink:0;overflow-y:auto}
+    .sidebar-item{display:flex;align-items:center;gap:10px;padding:12px 20px;cursor:pointer;color:#94a3b8;font-size:13px}
+    .sidebar-item:hover{background:rgba(255,255,255,.04);color:var(--f)}
+    .sidebar-item.active{background:rgba(0,217,255,.1);color:var(--a);border-right:2px solid var(--a)}
+    .sidebar-item .count{margin-left:auto;font-size:11px;padding:2px 8px;background:rgba(255,255,255,.08);border-radius:10px}
+    .sidebar-header{padding:12px 20px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-top:12px}
+
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+    .snippet-list{flex:1;overflow-y:auto;padding:20px}
+
+    .snippet{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;margin-bottom:16px;overflow:hidden}
+    .snippet:hover{border-color:rgba(255,255,255,.15)}
+
+    .snippet-header{padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .snippet-title{flex:1;font-weight:600;font-size:15px}
+    .snippet-lang{padding:4px 10px;background:rgba(255,255,255,.08);border-radius:6px;font-size:11px;color:#94a3b8}
+    .snippet-actions{display:flex;gap:6px}
+    .snippet-actions button{width:32px;height:32px;background:rgba(255,255,255,.05);border:0;border-radius:6px;color:#94a3b8;cursor:pointer}
+    .snippet-actions button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+    .snippet-actions button.copied{background:var(--g);color:#000}
+
+    .snippet-code{background:#000;font-family:'SF Mono',Consolas,monospace;font-size:13px;line-height:1.6;overflow-x:auto;max-height:300px}
+    .snippet-code pre{padding:16px 20px;margin:0}
+    .snippet-code code{color:#e4e4e7}
+
+    .snippet-desc{padding:12px 20px;font-size:13px;color:#94a3b8;border-top:1px solid rgba(255,255,255,.06)}
+
+    .snippet-meta{padding:12px 20px;display:flex;gap:16px;font-size:12px;color:#64748b;border-top:1px solid rgba(255,255,255,.06)}
+    .snippet-tags{display:flex;gap:6px}
+    .snippet-tag{padding:3px 8px;background:rgba(124,58,237,.2);border-radius:6px;color:var(--a2);font-size:10px}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow-y:auto}
+    .modal.open{display:flex}
+    .modal-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:28px;width:100%;max-width:700px;margin:40px 0}
+    .modal h2{margin-bottom:20px;font-size:18px}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:12px 14px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:inherit}
+    .form-group textarea{min-height:200px;font-family:'SF Mono',Consolas,monospace;font-size:13px;resize:vertical}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:0;border-color:var(--a)}
+    .row{display:flex;gap:12px}
+    .row > *{flex:1}
+    .modal-btns{display:flex;gap:12px;margin-top:20px}
+    .modal-btns button{flex:1;padding:12px;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+    .modal-btns .cancel{background:rgba(255,255,255,.08);color:var(--f)}
+    .modal-btns .save{background:var(--a);color:#000}
+    .modal-btns .delete{background:rgba(239,68,68,.15);color:#ef4444}
+
+    .empty{text-align:center;padding:60px;color:#64748b}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+
+    @media(max-width:768px){
+      .sidebar{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">✂️</span>
+    <h1>Snippets</h1>
+    <input type="text" class="search" id="search" placeholder="Search snippets...">
+    <button class="add-btn" id="addBtn">+ New Snippet</button>
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-item active" data-filter="all">
+        📚 All Snippets
+        <span class="count" id="allCount">0</span>
+      </div>
+      <div class="sidebar-item" data-filter="favorites">
+        ⭐ Favorites
+        <span class="count" id="favCount">0</span>
+      </div>
+
+      <div class="sidebar-header">Languages</div>
+      <div id="langList"></div>
+
+      <div class="sidebar-header">Tags</div>
+      <div id="tagList"></div>
+    </div>
+
+    <div class="main">
+      <div class="snippet-list" id="snippetList"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">New Snippet</h2>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="title" placeholder="What does this code do?">
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label>Language</label>
+          <select id="language">
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="python">Python</option>
+            <option value="go">Go</option>
+            <option value="rust">Rust</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+            <option value="sql">SQL</option>
+            <option value="bash">Bash</option>
+            <option value="json">JSON</option>
+            <option value="yaml">YAML</option>
+            <option value="markdown">Markdown</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tags (comma separated)</label>
+          <input type="text" id="tags" placeholder="util, api, auth">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Code</label>
+        <textarea id="code" placeholder="Paste your code here..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <input type="text" id="desc" placeholder="Brief explanation">
+      </div>
+      <div class="modal-btns">
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="delete" id="deleteBtn" style="display:none">Delete</button>
+        <button class="save" id="saveBtn">Save Snippet</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    const LANG_ICONS = {
+      javascript: '🟨', typescript: '🔷', python: '🐍', go: '🔵',
+      rust: '🦀', html: '🌐', css: '🎨', sql: '🗃️',
+      bash: '💻', json: '📋', yaml: '⚙️', markdown: '📝', other: '📄'
+    };
+
+    class Snippets {
+      constructor() {
+        this.items = JSON.parse(localStorage.getItem('snippets') || '[]');
+        this.filter = 'all';
+        this.langFilter = null;
+        this.tagFilter = null;
+        this.searchQuery = '';
+        this.editId = null;
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('snippets', JSON.stringify(this.items));
+      }
+
+      add(data) {
+        this.items.unshift({
+          id: Date.now().toString(36),
+          ...data,
+          favorite: false,
+          created: Date.now()
+        });
+        this.save();
+        this.render();
+      }
+
+      update(id, data) {
+        const item = this.items.find(i => i.id === id);
+        if (item) {
+          Object.assign(item, data);
+          this.save();
+          this.render();
+        }
+      }
+
+      delete(id) {
+        this.items = this.items.filter(i => i.id !== id);
+        this.save();
+        this.render();
+      }
+
+      toggleFavorite(id) {
+        const item = this.items.find(i => i.id === id);
+        if (item) {
+          item.favorite = !item.favorite;
+          this.save();
+          this.render();
+        }
+      }
+
+      copy(id) {
+        const item = this.items.find(i => i.id === id);
+        if (item) {
+          navigator.clipboard.writeText(item.code);
+          const btn = document.querySelector(`[data-copy="${id}"]`);
+          if (btn) {
+            btn.classList.add('copied');
+            btn.textContent = '✓';
+            setTimeout(() => {
+              btn.classList.remove('copied');
+              btn.textContent = '📋';
+            }, 2000);
+          }
+        }
+      }
+
+      getLangs() {
+        const langs = {};
+        this.items.forEach(i => {
+          langs[i.language] = (langs[i.language] || 0) + 1;
+        });
+        return Object.entries(langs).sort((a, b) => b[1] - a[1]);
+      }
+
+      getTags() {
+        const tags = {};
+        this.items.forEach(i => {
+          i.tags.forEach(t => {
+            tags[t] = (tags[t] || 0) + 1;
+          });
+        });
+        return Object.entries(tags).sort((a, b) => b[1] - a[1]);
+      }
+
+      getFiltered() {
+        let items = this.items;
+
+        if (this.filter === 'favorites') items = items.filter(i => i.favorite);
+        if (this.langFilter) items = items.filter(i => i.language === this.langFilter);
+        if (this.tagFilter) items = items.filter(i => i.tags.includes(this.tagFilter));
+
+        if (this.searchQuery) {
+          const q = this.searchQuery.toLowerCase();
+          items = items.filter(i =>
+            i.title.toLowerCase().includes(q) ||
+            i.code.toLowerCase().includes(q) ||
+            i.desc?.toLowerCase().includes(q) ||
+            i.tags.some(t => t.includes(q))
+          );
+        }
+
+        return items;
+      }
+
+      render() {
+        const items = this.getFiltered();
+        const list = $('snippetList');
+
+        if (items.length === 0) {
+          list.innerHTML = `<div class="empty"><div class="icon">✂️</div><div>No snippets yet. Add your first one!</div></div>`;
+        } else {
+          list.innerHTML = items.map(item => `
+            <div class="snippet" data-id="${item.id}">
+              <div class="snippet-header">
+                <div class="snippet-title">${esc(item.title)}</div>
+                <div class="snippet-lang">${LANG_ICONS[item.language] || '📄'} ${item.language}</div>
+                <div class="snippet-actions">
+                  <button onclick="Snippets.toggleFavorite('${item.id}')" title="Favorite">${item.favorite ? '⭐' : '☆'}</button>
+                  <button data-copy="${item.id}" onclick="Snippets.copy('${item.id}')" title="Copy">📋</button>
+                  <button onclick="Snippets.edit('${item.id}')" title="Edit">✏️</button>
+                </div>
+              </div>
+              <div class="snippet-code">
+                <pre><code>${esc(item.code)}</code></pre>
+              </div>
+              ${item.desc ? `<div class="snippet-desc">${esc(item.desc)}</div>` : ''}
+              <div class="snippet-meta">
+                <span>${new Date(item.created).toLocaleDateString()}</span>
+                ${item.tags.length ? `
+                  <div class="snippet-tags">
+                    ${item.tags.map(t => `<span class="snippet-tag">#${esc(t)}</span>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `).join('');
+        }
+
+        // Counts
+        $('allCount').textContent = this.items.length;
+        $('favCount').textContent = this.items.filter(i => i.favorite).length;
+
+        // Language list
+        const langs = this.getLangs();
+        $('langList').innerHTML = langs.map(([lang, count]) => `
+          <div class="sidebar-item ${this.langFilter === lang ? 'active' : ''}" data-lang="${lang}">
+            ${LANG_ICONS[lang] || '📄'} ${lang}
+            <span class="count">${count}</span>
+          </div>
+        `).join('');
+
+        // Tag list
+        const tags = this.getTags();
+        $('tagList').innerHTML = tags.slice(0, 8).map(([tag, count]) => `
+          <div class="sidebar-item ${this.tagFilter === tag ? 'active' : ''}" data-tag="${tag}">
+            🏷️ ${tag}
+            <span class="count">${count}</span>
+          </div>
+        `).join('');
+      }
+
+      edit(id) {
+        const item = this.items.find(i => i.id === id);
+        if (item) {
+          this.editId = id;
+          $('modalTitle').textContent = 'Edit Snippet';
+          $('deleteBtn').style.display = 'block';
+          $('title').value = item.title;
+          $('language').value = item.language;
+          $('tags').value = item.tags.join(', ');
+          $('code').value = item.code;
+          $('desc').value = item.desc || '';
+          $('modal').classList.add('open');
+        }
+      }
+
+      openModal() {
+        this.editId = null;
+        $('modalTitle').textContent = 'New Snippet';
+        $('deleteBtn').style.display = 'none';
+        $('title').value = '';
+        $('language').value = 'javascript';
+        $('tags').value = '';
+        $('code').value = '';
+        $('desc').value = '';
+        $('modal').classList.add('open');
+      }
+
+      init() {
+        // Demo data
+        if (this.items.length === 0) {
+          this.items = [
+            {
+              id: '1',
+              title: 'Debounce Function',
+              language: 'javascript',
+              tags: ['util', 'performance'],
+              code: `function debounce(fn, delay) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn(...args), delay);
+  };
+}`,
+              desc: 'Delays function execution until after wait milliseconds',
+              favorite: true,
+              created: Date.now()
+            },
+            {
+              id: '2',
+              title: 'Fetch with Retry',
+              language: 'typescript',
+              tags: ['api', 'util'],
+              code: `async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fetch(url);
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Failed after retries');
+}`,
+              desc: 'Fetch wrapper with exponential backoff retry',
+              favorite: false,
+              created: Date.now()
+            },
+            {
+              id: '3',
+              title: 'UUID Generator',
+              language: 'javascript',
+              tags: ['util'],
+              code: `const uuid = () =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });`,
+              desc: 'Generate RFC4122 compliant UUID',
+              favorite: true,
+              created: Date.now()
+            }
+          ];
+          this.save();
+        }
+
+        this.render();
+
+        // Search
+        $('search').oninput = e => {
+          this.searchQuery = e.target.value;
+          this.render();
+        };
+
+        // Add button
+        $('addBtn').onclick = () => this.openModal();
+        $('cancelBtn').onclick = () => $('modal').classList.remove('open');
+        $('deleteBtn').onclick = () => {
+          if (this.editId) {
+            this.delete(this.editId);
+            $('modal').classList.remove('open');
+          }
+        };
+        $('saveBtn').onclick = () => {
+          const data = {
+            title: $('title').value.trim(),
+            language: $('language').value,
+            tags: $('tags').value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
+            code: $('code').value,
+            desc: $('desc').value.trim()
+          };
+
+          if (data.title && data.code) {
+            if (this.editId) {
+              this.update(this.editId, data);
+            } else {
+              this.add(data);
+            }
+            $('modal').classList.remove('open');
+          }
+        };
+
+        // Sidebar filters
+        document.querySelectorAll('.sidebar-item[data-filter]').forEach(item => {
+          item.onclick = () => {
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            this.filter = item.dataset.filter;
+            this.langFilter = null;
+            this.tagFilter = null;
+            this.render();
+          };
+        });
+
+        // Language/tag filters
+        document.querySelector('.sidebar').onclick = e => {
+          const langItem = e.target.closest('[data-lang]');
+          if (langItem) {
+            this.langFilter = this.langFilter === langItem.dataset.lang ? null : langItem.dataset.lang;
+            this.tagFilter = null;
+            this.filter = 'all';
+            this.render();
+          }
+
+          const tagItem = e.target.closest('[data-tag]');
+          if (tagItem) {
+            this.tagFilter = this.tagFilter === tagItem.dataset.tag ? null : tagItem.dataset.tag;
+            this.langFilter = null;
+            this.filter = 'all';
+            this.render();
+          }
+        };
+      }
+    }
+
+    window.Snippets = new Snippets();
+  </script>
+</body>
+</html>

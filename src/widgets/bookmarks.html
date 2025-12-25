@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<!--
+@file bookmarks.html
+@desc Bookmarks Widget - Link saving & organization (Pocket/Raindrop killer)
+@api  window.Bookmarks - bookmarks controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bookmarks</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:20px 24px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .logo{font-size:28px}
+    .header h1{font-size:20px;flex:1}
+    .search{padding:12px 16px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:var(--f);min-width:250px}
+    .search:focus{outline:0;border-color:var(--a)}
+    .add-btn{padding:12px 20px;background:var(--a);border:0;border-radius:10px;color:#000;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+    .add-btn:hover{opacity:.9}
+
+    .container{display:flex;min-height:calc(100vh - 80px)}
+
+    .sidebar{width:240px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);padding:20px 0;flex-shrink:0}
+    .sidebar-item{display:flex;align-items:center;gap:12px;padding:12px 20px;cursor:pointer;color:#94a3b8;transition:all .15s}
+    .sidebar-item:hover{background:rgba(255,255,255,.04);color:var(--f)}
+    .sidebar-item.active{background:rgba(0,217,255,.1);color:var(--a);border-right:2px solid var(--a)}
+    .sidebar-item .icon{font-size:16px}
+    .sidebar-item .count{margin-left:auto;font-size:11px;padding:2px 8px;background:rgba(255,255,255,.08);border-radius:10px}
+    .sidebar-header{padding:12px 20px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-top:16px}
+
+    .tag-list{padding:0 12px}
+    .tag{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;margin:4px;background:rgba(255,255,255,.05);border-radius:20px;font-size:11px;color:#94a3b8;cursor:pointer}
+    .tag:hover{background:rgba(255,255,255,.1)}
+    .tag.active{background:var(--a2);color:#fff}
+
+    .main{flex:1;padding:24px;overflow-y:auto}
+
+    .view-toggle{display:flex;gap:4px;margin-bottom:20px}
+    .view-toggle button{padding:8px 16px;background:rgba(255,255,255,.05);border:0;border-radius:8px;color:#94a3b8;cursor:pointer}
+    .view-toggle button.active{background:var(--a);color:#000}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+    .list .bookmark{display:flex;align-items:center}
+    .list .bookmark-img{width:60px;height:60px;border-radius:8px}
+    .list .bookmark-content{flex:1}
+
+    .bookmark{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;transition:transform .15s,border-color .15s}
+    .bookmark:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.15)}
+    .bookmark-img{width:100%;height:140px;background:linear-gradient(135deg,var(--a2),var(--a));display:flex;align-items:center;justify-content:center;font-size:48px;color:rgba(255,255,255,.3)}
+    .bookmark-img img{width:100%;height:100%;object-fit:cover}
+    .bookmark-content{padding:16px}
+    .bookmark-title{font-weight:600;font-size:14px;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .bookmark-title a{color:var(--f);text-decoration:none}
+    .bookmark-title a:hover{color:var(--a)}
+    .bookmark-domain{font-size:11px;color:#64748b;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+    .bookmark-domain img{width:14px;height:14px;border-radius:2px}
+    .bookmark-desc{font-size:12px;color:#94a3b8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:12px}
+    .bookmark-tags{display:flex;flex-wrap:wrap;gap:4px}
+    .bookmark-tag{font-size:10px;padding:3px 8px;background:rgba(255,255,255,.06);border-radius:10px;color:#94a3b8}
+    .bookmark-actions{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)}
+    .bookmark-actions button{flex:1;padding:8px;background:rgba(255,255,255,.05);border:0;border-radius:6px;color:#94a3b8;font-size:12px;cursor:pointer}
+    .bookmark-actions button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+    .modal.open{display:flex}
+    .modal-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:28px;width:100%;max-width:480px}
+    .modal h2{margin-bottom:20px;font-size:18px}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+    .form-group input,.form-group textarea{width:100%;padding:12px 14px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:inherit}
+    .form-group textarea{min-height:80px;resize:vertical}
+    .form-group input:focus,.form-group textarea:focus{outline:0;border-color:var(--a)}
+    .modal-btns{display:flex;gap:12px;margin-top:20px}
+    .modal-btns button{flex:1;padding:12px;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+    .modal-btns .cancel{background:rgba(255,255,255,.08);color:var(--f)}
+    .modal-btns .save{background:var(--a);color:#000}
+
+    .empty{text-align:center;padding:60px;color:#64748b}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+
+    @media(max-width:768px){
+      .sidebar{display:none}
+      .header{flex-direction:column}
+      .search{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🔖</span>
+    <h1>Bookmarks</h1>
+    <input type="text" class="search" id="search" placeholder="Search bookmarks...">
+    <button class="add-btn" id="addBtn">+ Add Bookmark</button>
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-item active" data-filter="all">
+        <span class="icon">📚</span> All Bookmarks
+        <span class="count" id="allCount">0</span>
+      </div>
+      <div class="sidebar-item" data-filter="favorites">
+        <span class="icon">⭐</span> Favorites
+        <span class="count" id="favCount">0</span>
+      </div>
+      <div class="sidebar-item" data-filter="unread">
+        <span class="icon">📖</span> Read Later
+        <span class="count" id="unreadCount">0</span>
+      </div>
+      <div class="sidebar-item" data-filter="archive">
+        <span class="icon">📦</span> Archive
+      </div>
+
+      <div class="sidebar-header">Tags</div>
+      <div class="tag-list" id="tagList"></div>
+    </div>
+
+    <div class="main">
+      <div class="view-toggle">
+        <button class="active" data-view="grid">Grid</button>
+        <button data-view="list">List</button>
+      </div>
+      <div class="grid" id="bookmarks"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Add Bookmark</h2>
+      <div class="form-group">
+        <label>URL</label>
+        <input type="url" id="urlInput" placeholder="https://example.com">
+      </div>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="titleInput" placeholder="Page title">
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea id="descInput" placeholder="What's this about?"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Tags (comma separated)</label>
+        <input type="text" id="tagsInput" placeholder="dev, tools, reference">
+      </div>
+      <div class="modal-btns">
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="save" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class Bookmarks {
+      constructor() {
+        this.items = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+        this.filter = 'all';
+        this.tagFilter = null;
+        this.searchQuery = '';
+        this.view = 'grid';
+        this.editId = null;
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('bookmarks', JSON.stringify(this.items));
+      }
+
+      getDomain(url) {
+        try {
+          return new URL(url).hostname.replace('www.', '');
+        } catch {
+          return url;
+        }
+      }
+
+      getFavicon(url) {
+        try {
+          const domain = new URL(url).origin;
+          return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+        } catch {
+          return '';
+        }
+      }
+
+      add(url, title, desc, tags) {
+        const bookmark = {
+          id: Date.now().toString(36),
+          url,
+          title: title || this.getDomain(url),
+          desc,
+          tags: tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
+          favorite: false,
+          unread: true,
+          archived: false,
+          created: Date.now()
+        };
+        this.items.unshift(bookmark);
+        this.save();
+        this.render();
+      }
+
+      update(id, data) {
+        const item = this.items.find(b => b.id === id);
+        if (item) {
+          Object.assign(item, data);
+          if (data.tags && typeof data.tags === 'string') {
+            item.tags = data.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+          }
+          this.save();
+          this.render();
+        }
+      }
+
+      delete(id) {
+        this.items = this.items.filter(b => b.id !== id);
+        this.save();
+        this.render();
+      }
+
+      toggleFavorite(id) {
+        const item = this.items.find(b => b.id === id);
+        if (item) {
+          item.favorite = !item.favorite;
+          this.save();
+          this.render();
+        }
+      }
+
+      markRead(id) {
+        const item = this.items.find(b => b.id === id);
+        if (item) {
+          item.unread = false;
+          this.save();
+          this.render();
+        }
+      }
+
+      getAllTags() {
+        const tags = {};
+        this.items.forEach(b => {
+          b.tags.forEach(t => {
+            tags[t] = (tags[t] || 0) + 1;
+          });
+        });
+        return Object.entries(tags).sort((a, b) => b[1] - a[1]);
+      }
+
+      getFiltered() {
+        let items = this.items;
+
+        if (this.filter === 'favorites') items = items.filter(b => b.favorite);
+        if (this.filter === 'unread') items = items.filter(b => b.unread);
+        if (this.filter === 'archive') items = items.filter(b => b.archived);
+        if (this.tagFilter) items = items.filter(b => b.tags.includes(this.tagFilter));
+
+        if (this.searchQuery) {
+          const q = this.searchQuery.toLowerCase();
+          items = items.filter(b =>
+            b.title.toLowerCase().includes(q) ||
+            b.desc?.toLowerCase().includes(q) ||
+            b.url.toLowerCase().includes(q) ||
+            b.tags.some(t => t.includes(q))
+          );
+        }
+
+        return items;
+      }
+
+      render() {
+        const items = this.getFiltered();
+        const container = $('bookmarks');
+
+        container.className = this.view;
+
+        if (items.length === 0) {
+          container.innerHTML = `<div class="empty"><div class="icon">🔖</div><div>No bookmarks yet. Add your first one!</div></div>`;
+        } else {
+          container.innerHTML = items.map(b => `
+            <div class="bookmark" data-id="${b.id}">
+              <div class="bookmark-img">
+                <img src="https://api.microlink.io/?url=${encodeURIComponent(b.url)}&screenshot=true&meta=false&embed=screenshot.url" onerror="this.style.display='none';this.parentNode.innerHTML='🔗'">
+              </div>
+              <div class="bookmark-content">
+                <div class="bookmark-title"><a href="${esc(b.url)}" target="_blank" onclick="Bookmarks.markRead('${b.id}')">${esc(b.title)}</a></div>
+                <div class="bookmark-domain">
+                  <img src="${this.getFavicon(b.url)}" onerror="this.style.display='none'">
+                  ${esc(this.getDomain(b.url))}
+                  ${b.unread ? '<span style="color:var(--a)">• Unread</span>' : ''}
+                </div>
+                ${b.desc ? `<div class="bookmark-desc">${esc(b.desc)}</div>` : ''}
+                <div class="bookmark-tags">
+                  ${b.tags.map(t => `<span class="bookmark-tag">#${esc(t)}</span>`).join('')}
+                </div>
+                <div class="bookmark-actions">
+                  <button onclick="Bookmarks.toggleFavorite('${b.id}')">${b.favorite ? '⭐' : '☆'}</button>
+                  <button onclick="Bookmarks.edit('${b.id}')">Edit</button>
+                  <button onclick="Bookmarks.delete('${b.id}')">Delete</button>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        // Update counts
+        $('allCount').textContent = this.items.length;
+        $('favCount').textContent = this.items.filter(b => b.favorite).length;
+        $('unreadCount').textContent = this.items.filter(b => b.unread).length;
+
+        // Render tags
+        const tags = this.getAllTags();
+        $('tagList').innerHTML = tags.slice(0, 10).map(([tag, count]) => `
+          <span class="tag ${this.tagFilter === tag ? 'active' : ''}" data-tag="${tag}">#${tag} (${count})</span>
+        `).join('');
+      }
+
+      edit(id) {
+        const item = this.items.find(b => b.id === id);
+        if (item) {
+          this.editId = id;
+          $('modalTitle').textContent = 'Edit Bookmark';
+          $('urlInput').value = item.url;
+          $('titleInput').value = item.title;
+          $('descInput').value = item.desc || '';
+          $('tagsInput').value = item.tags.join(', ');
+          $('modal').classList.add('open');
+        }
+      }
+
+      init() {
+        // Demo data
+        if (this.items.length === 0) {
+          this.items = [
+            { id: '1', url: 'https://github.com', title: 'GitHub', desc: 'Where the world builds software', tags: ['dev', 'code'], favorite: true, unread: false, created: Date.now() },
+            { id: '2', url: 'https://news.ycombinator.com', title: 'Hacker News', desc: 'Tech news and discussion', tags: ['news', 'tech'], favorite: false, unread: true, created: Date.now() },
+            { id: '3', url: 'https://developer.mozilla.org', title: 'MDN Web Docs', desc: 'Resources for developers', tags: ['dev', 'docs', 'reference'], favorite: true, unread: false, created: Date.now() }
+          ];
+          this.save();
+        }
+
+        this.render();
+
+        // Add button
+        $('addBtn').onclick = () => {
+          this.editId = null;
+          $('modalTitle').textContent = 'Add Bookmark';
+          $('urlInput').value = '';
+          $('titleInput').value = '';
+          $('descInput').value = '';
+          $('tagsInput').value = '';
+          $('modal').classList.add('open');
+        };
+
+        // Modal
+        $('cancelBtn').onclick = () => $('modal').classList.remove('open');
+        $('saveBtn').onclick = () => {
+          const url = $('urlInput').value.trim();
+          const title = $('titleInput').value.trim();
+          const desc = $('descInput').value.trim();
+          const tags = $('tagsInput').value;
+
+          if (url) {
+            if (this.editId) {
+              this.update(this.editId, { url, title, desc, tags });
+            } else {
+              this.add(url, title, desc, tags);
+            }
+            $('modal').classList.remove('open');
+          }
+        };
+
+        // Search
+        $('search').oninput = e => {
+          this.searchQuery = e.target.value;
+          this.render();
+        };
+
+        // Sidebar filters
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+          item.onclick = () => {
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            this.filter = item.dataset.filter;
+            this.tagFilter = null;
+            this.render();
+          };
+        });
+
+        // Tag filters
+        $('tagList').onclick = e => {
+          if (e.target.classList.contains('tag')) {
+            const tag = e.target.dataset.tag;
+            this.tagFilter = this.tagFilter === tag ? null : tag;
+            this.render();
+          }
+        };
+
+        // View toggle
+        document.querySelectorAll('.view-toggle button').forEach(btn => {
+          btn.onclick = () => {
+            document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.view = btn.dataset.view;
+            this.render();
+          };
+        });
+      }
+    }
+
+    window.Bookmarks = new Bookmarks();
+  </script>
+</body>
+</html>

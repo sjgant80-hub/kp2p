@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<!--
+@file faq.html
+@desc FAQ Widget - Frequently asked questions (HelpScout/Intercom killer)
+@api  window.FAQ - FAQ controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FAQ</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.6 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:48px 24px;background:linear-gradient(135deg,var(--a2),var(--a));text-align:center}
+    .header h1{font-size:32px;margin-bottom:12px;color:#fff}
+    .header p{color:rgba(255,255,255,.8);font-size:15px;margin-bottom:24px}
+
+    .search-box{max-width:500px;margin:0 auto;position:relative}
+    .search-box input{width:100%;padding:16px 20px 16px 48px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:12px;color:#fff;font-size:15px}
+    .search-box input::placeholder{color:rgba(255,255,255,.6)}
+    .search-box input:focus{outline:0;background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
+    .search-box .icon{position:absolute;left:18px;top:50%;transform:translateY(-50%);font-size:18px}
+
+    .container{max-width:800px;margin:0 auto;padding:40px 24px}
+
+    .categories{display:flex;gap:12px;margin-bottom:32px;flex-wrap:wrap;justify-content:center}
+    .cat-btn{padding:10px 20px;background:var(--b2);border:1px solid rgba(255,255,255,.08);border-radius:20px;color:#94a3b8;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
+    .cat-btn:hover{border-color:rgba(255,255,255,.2)}
+    .cat-btn.active{background:var(--a);border-color:var(--a);color:#000}
+    .cat-btn .icon{font-size:16px}
+
+    .faq-section{margin-bottom:32px}
+    .section-title{font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+    .section-title .icon{font-size:24px}
+
+    .faq-item{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;margin-bottom:12px;overflow:hidden;transition:border-color .15s}
+    .faq-item:hover{border-color:rgba(255,255,255,.15)}
+    .faq-item.open{border-color:var(--a)}
+
+    .faq-q{padding:20px;cursor:pointer;display:flex;align-items:center;gap:12px;font-weight:500}
+    .faq-q:hover{background:rgba(255,255,255,.02)}
+    .faq-q .arrow{margin-left:auto;transition:transform .2s;color:#64748b}
+    .faq-item.open .faq-q .arrow{transform:rotate(180deg);color:var(--a)}
+
+    .faq-a{padding:0 20px;max-height:0;overflow:hidden;transition:max-height .3s,padding .3s}
+    .faq-item.open .faq-a{max-height:500px;padding:0 20px 20px}
+    .faq-a p{color:#94a3b8;line-height:1.8}
+    .faq-a code{background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;font-size:13px}
+
+    .helpful{display:flex;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);align-items:center}
+    .helpful span{font-size:12px;color:#64748b}
+    .helpful button{padding:6px 12px;background:rgba(255,255,255,.06);border:0;border-radius:6px;color:#94a3b8;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px}
+    .helpful button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+    .helpful button.voted{background:var(--g);color:#000}
+
+    .no-results{text-align:center;padding:48px;color:#64748b}
+    .no-results .icon{font-size:48px;margin-bottom:16px}
+
+    .admin-toggle{position:fixed;bottom:24px;right:24px;padding:14px 20px;background:var(--a2);border:0;border-radius:50px;color:#fff;font-weight:600;cursor:pointer;box-shadow:0 4px 20px rgba(124,58,237,.3)}
+    .admin-toggle:hover{transform:scale(1.05)}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+    .modal.open{display:flex}
+    .modal-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:28px;width:100%;max-width:500px}
+    .modal h2{margin-bottom:20px;font-size:18px}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:12px 14px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:inherit}
+    .form-group textarea{min-height:120px;resize:vertical}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:0;border-color:var(--a)}
+    .modal-btns{display:flex;gap:12px;margin-top:20px}
+    .modal-btns button{flex:1;padding:12px;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+    .modal-btns .cancel{background:rgba(255,255,255,.08);color:var(--f)}
+    .modal-btns .save{background:var(--a);color:#000}
+
+    .stats{display:flex;gap:24px;margin-bottom:24px;justify-content:center}
+    .stat{text-align:center}
+    .stat .value{font-size:28px;font-weight:700;color:var(--a)}
+    .stat .label{font-size:11px;color:#64748b;text-transform:uppercase}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>❓ How can we help?</h1>
+    <p>Search our knowledge base or browse categories below</p>
+    <div class="search-box">
+      <span class="icon">🔍</span>
+      <input type="text" id="search" placeholder="Search for answers...">
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stats">
+      <div class="stat"><div class="value" id="totalFaqs">0</div><div class="label">Articles</div></div>
+      <div class="stat"><div class="value" id="totalCategories">0</div><div class="label">Categories</div></div>
+      <div class="stat"><div class="value" id="helpfulVotes">0</div><div class="label">Helpful Votes</div></div>
+    </div>
+
+    <div class="categories" id="categories"></div>
+
+    <div id="faqList"></div>
+  </div>
+
+  <button class="admin-toggle" id="adminBtn">+ Add FAQ</button>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Add FAQ</h2>
+      <div class="form-group">
+        <label>Question</label>
+        <input type="text" id="question" placeholder="What's the question?">
+      </div>
+      <div class="form-group">
+        <label>Answer</label>
+        <textarea id="answer" placeholder="Provide a helpful answer..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="category">
+          <option value="getting-started">🚀 Getting Started</option>
+          <option value="features">✨ Features</option>
+          <option value="billing">💳 Billing</option>
+          <option value="technical">🔧 Technical</option>
+          <option value="account">👤 Account</option>
+        </select>
+      </div>
+      <div class="modal-btns">
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="save" id="saveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    const CATEGORIES = {
+      'getting-started': { icon: '🚀', name: 'Getting Started' },
+      'features': { icon: '✨', name: 'Features' },
+      'billing': { icon: '💳', name: 'Billing' },
+      'technical': { icon: '🔧', name: 'Technical' },
+      'account': { icon: '👤', name: 'Account' }
+    };
+
+    class FAQ {
+      constructor() {
+        this.items = JSON.parse(localStorage.getItem('faq-items') || '[]');
+        this.votes = JSON.parse(localStorage.getItem('faq-votes') || '{}');
+        this.filter = 'all';
+        this.searchQuery = '';
+        this.editId = null;
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('faq-items', JSON.stringify(this.items));
+        localStorage.setItem('faq-votes', JSON.stringify(this.votes));
+      }
+
+      add(question, answer, category) {
+        this.items.push({
+          id: Date.now().toString(36),
+          question,
+          answer,
+          category,
+          helpful: 0,
+          notHelpful: 0,
+          created: Date.now()
+        });
+        this.save();
+        this.render();
+      }
+
+      update(id, data) {
+        const item = this.items.find(i => i.id === id);
+        if (item) {
+          Object.assign(item, data);
+          this.save();
+          this.render();
+        }
+      }
+
+      delete(id) {
+        this.items = this.items.filter(i => i.id !== id);
+        this.save();
+        this.render();
+      }
+
+      vote(id, helpful) {
+        if (this.votes[id]) return;
+        const item = this.items.find(i => i.id === id);
+        if (item) {
+          if (helpful) item.helpful++;
+          else item.notHelpful++;
+          this.votes[id] = helpful ? 'helpful' : 'not';
+          this.save();
+          this.render();
+        }
+      }
+
+      getFiltered() {
+        let items = this.items;
+
+        if (this.filter !== 'all') {
+          items = items.filter(i => i.category === this.filter);
+        }
+
+        if (this.searchQuery) {
+          const q = this.searchQuery.toLowerCase();
+          items = items.filter(i =>
+            i.question.toLowerCase().includes(q) ||
+            i.answer.toLowerCase().includes(q)
+          );
+        }
+
+        return items;
+      }
+
+      getByCategory() {
+        const items = this.getFiltered();
+        const grouped = {};
+        items.forEach(item => {
+          if (!grouped[item.category]) grouped[item.category] = [];
+          grouped[item.category].push(item);
+        });
+        return grouped;
+      }
+
+      updateStats() {
+        $('totalFaqs').textContent = this.items.length;
+        $('totalCategories').textContent = Object.keys(CATEGORIES).length;
+        $('helpfulVotes').textContent = this.items.reduce((a, b) => a + b.helpful, 0);
+      }
+
+      render() {
+        // Categories
+        const catCounts = {};
+        this.items.forEach(i => {
+          catCounts[i.category] = (catCounts[i.category] || 0) + 1;
+        });
+
+        $('categories').innerHTML = `
+          <button class="cat-btn ${this.filter === 'all' ? 'active' : ''}" data-cat="all">
+            All (${this.items.length})
+          </button>
+          ${Object.entries(CATEGORIES).map(([key, cat]) => `
+            <button class="cat-btn ${this.filter === key ? 'active' : ''}" data-cat="${key}">
+              <span class="icon">${cat.icon}</span>
+              ${cat.name} (${catCounts[key] || 0})
+            </button>
+          `).join('')}
+        `;
+
+        // FAQ list
+        const grouped = this.getByCategory();
+        const categories = Object.keys(grouped);
+
+        if (categories.length === 0) {
+          $('faqList').innerHTML = `
+            <div class="no-results">
+              <div class="icon">🔍</div>
+              <div>No FAQs found. ${this.searchQuery ? 'Try a different search.' : 'Add your first FAQ!'}</div>
+            </div>
+          `;
+        } else {
+          $('faqList').innerHTML = categories.map(cat => {
+            const catInfo = CATEGORIES[cat] || { icon: '📌', name: cat };
+            return `
+              <div class="faq-section">
+                <div class="section-title">
+                  <span class="icon">${catInfo.icon}</span>
+                  ${catInfo.name}
+                </div>
+                ${grouped[cat].map(item => `
+                  <div class="faq-item" data-id="${item.id}">
+                    <div class="faq-q">
+                      ${esc(item.question)}
+                      <span class="arrow">▼</span>
+                    </div>
+                    <div class="faq-a">
+                      <p>${esc(item.answer).replace(/\n/g, '<br>')}</p>
+                      <div class="helpful">
+                        <span>Was this helpful?</span>
+                        <button class="${this.votes[item.id] === 'helpful' ? 'voted' : ''}" data-vote="helpful" data-id="${item.id}">
+                          👍 ${item.helpful}
+                        </button>
+                        <button class="${this.votes[item.id] === 'not' ? 'voted' : ''}" data-vote="not" data-id="${item.id}">
+                          👎 ${item.notHelpful}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          }).join('');
+        }
+
+        this.updateStats();
+      }
+
+      init() {
+        // Demo data
+        if (this.items.length === 0) {
+          this.items = [
+            { id: '1', question: 'How do I get started?', answer: 'Simply embed our widget on your site and you\'re ready to go! No account required, no API keys needed. Everything runs in your browser.', category: 'getting-started', helpful: 15, notHelpful: 1 },
+            { id: '2', question: 'Is this really free?', answer: 'Yes! KISS MySaaS widgets are 100% free and open source. No hidden fees, no premium tiers, no catches. We believe software should be accessible to everyone.', category: 'billing', helpful: 42, notHelpful: 0 },
+            { id: '3', question: 'How does P2P sync work?', answer: 'We use WebRTC for peer-to-peer connections and WebTorrent for signaling. Your data syncs directly between devices without going through our servers. This means faster sync and better privacy.', category: 'technical', helpful: 28, notHelpful: 2 },
+            { id: '4', question: 'Can I self-host?', answer: 'Absolutely! All widgets are standalone HTML files. Download them and host anywhere - your own server, GitHub Pages, Netlify, wherever you like.', category: 'technical', helpful: 19, notHelpful: 0 },
+            { id: '5', question: 'How do I customize the appearance?', answer: 'Each widget uses CSS custom properties (variables) for theming. Just override the :root variables to match your brand colors. Check the source code for available options.', category: 'features', helpful: 12, notHelpful: 1 },
+            { id: '6', question: 'Where is my data stored?', answer: 'Data is stored locally in your browser using localStorage. For P2P widgets, data syncs directly between connected peers. We never store your data on our servers.', category: 'account', helpful: 33, notHelpful: 0 }
+          ];
+          this.save();
+        }
+
+        this.render();
+
+        // Search
+        $('search').oninput = e => {
+          this.searchQuery = e.target.value;
+          this.render();
+        };
+
+        // Category filter
+        $('categories').onclick = e => {
+          const btn = e.target.closest('.cat-btn');
+          if (btn) {
+            this.filter = btn.dataset.cat;
+            this.render();
+          }
+        };
+
+        // Accordion
+        $('faqList').onclick = e => {
+          const faqQ = e.target.closest('.faq-q');
+          if (faqQ) {
+            const item = faqQ.closest('.faq-item');
+            item.classList.toggle('open');
+          }
+
+          // Voting
+          const voteBtn = e.target.closest('[data-vote]');
+          if (voteBtn) {
+            e.stopPropagation();
+            this.vote(voteBtn.dataset.id, voteBtn.dataset.vote === 'helpful');
+          }
+        };
+
+        // Admin
+        $('adminBtn').onclick = () => {
+          this.editId = null;
+          $('modalTitle').textContent = 'Add FAQ';
+          $('question').value = '';
+          $('answer').value = '';
+          $('category').value = 'getting-started';
+          $('modal').classList.add('open');
+        };
+
+        $('cancelBtn').onclick = () => $('modal').classList.remove('open');
+
+        $('saveBtn').onclick = () => {
+          const question = $('question').value.trim();
+          const answer = $('answer').value.trim();
+          const category = $('category').value;
+
+          if (question && answer) {
+            if (this.editId) {
+              this.update(this.editId, { question, answer, category });
+            } else {
+              this.add(question, answer, category);
+            }
+            $('modal').classList.remove('open');
+          }
+        };
+      }
+    }
+
+    window.FAQ = new FAQ();
+  </script>
+</body>
+</html>

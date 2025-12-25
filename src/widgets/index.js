@@ -40,6 +40,11 @@ export const WIDGET_PATHS = {
   testimonials: './testimonials.html',
   timer: './timer.html',
   docs: './docs.html',
+  bookmarks: './bookmarks.html',
+  invoices: './invoices.html',
+  roadmap: './roadmap.html',
+  faq: './faq.html',
+  snippets: './snippets.html',
 }
 
 /**
