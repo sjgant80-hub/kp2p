@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<!--
+@file block-array.html
+@desc BlockArray - 1000³ 3D compute grid with LLM at each coordinate
+@api  window.BlockArray - Grid controller
+
+Features:
+- Sparse 3D grid up to 1000³
+- LLM instance at any coordinate
+- Face/edge/vertex operations
+- Interlock patterns for parallel compute
+- Visual 3D navigation
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>🧊 BlockArray</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--a:#06b6d4;--a2:#0891b2;--g:#22c55e;--r:#ef4444;--y:#eab308;--p:#a855f7}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{padding:14px 24px;background:linear-gradient(135deg,var(--a),var(--a2));display:flex;align-items:center;gap:16px}
+    .header h1{font-size:20px;color:#fff}
+    .header .badge{padding:6px 12px;background:rgba(0,0,0,.2);border-radius:20px;font-size:11px;color:#fff}
+    .header-stats{margin-left:auto;display:flex;gap:12px}
+    .stat{padding:8px 14px;background:rgba(0,0,0,.2);border-radius:8px;text-align:center}
+    .stat-value{font-size:16px;font-weight:700;color:#fff}
+    .stat-label{font-size:9px;color:rgba(255,255,255,.7)}
+
+    .main{flex:1;display:grid;grid-template-columns:280px 1fr 320px;overflow:hidden}
+
+    /* Sidebar */
+    .sidebar{background:var(--b2);border-right:1px solid rgba(255,255,255,.06);padding:16px;overflow-y:auto}
+    .sidebar h3{font-size:12px;color:var(--a);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+    .coord-inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+    .coord-input{background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:8px;text-align:center}
+    .coord-input label{display:block;font-size:9px;color:#64748b;margin-bottom:4px}
+    .coord-input input{width:100%;background:transparent;border:0;color:var(--f);font-size:14px;text-align:center;font-weight:600}
+    .coord-input input:focus{outline:none}
+
+    .action-btn{width:100%;padding:10px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:11px;cursor:pointer;margin-bottom:8px;text-align:left;display:flex;align-items:center;gap:8px}
+    .action-btn:hover{border-color:var(--a);background:rgba(6,182,212,.1)}
+    .action-btn .icon{font-size:16px}
+
+    .section{margin-bottom:24px}
+
+    /* Value input */
+    .value-row{display:flex;gap:8px;margin-bottom:8px}
+    .value-row input{flex:1;padding:8px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:12px}
+    .value-row input:focus{outline:none;border-color:var(--a)}
+    .value-row button{padding:8px 16px;background:var(--a);border:0;border-radius:6px;color:#fff;font-size:11px;cursor:pointer}
+
+    /* Grid view */
+    .grid-view{flex:1;background:var(--b3);position:relative;overflow:hidden}
+    .grid-canvas{width:100%;height:100%}
+
+    /* Controls overlay */
+    .grid-controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:rgba(0,0,0,.8);padding:10px;border-radius:10px}
+    .grid-controls button{width:36px;height:36px;background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:14px;cursor:pointer}
+    .grid-controls button:hover{border-color:var(--a)}
+
+    .layer-indicator{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.8);padding:10px 16px;border-radius:8px;font-size:12px}
+    .layer-indicator span{color:var(--a);font-weight:600}
+
+    /* Info panel */
+    .info-panel{background:var(--b2);border-left:1px solid rgba(255,255,255,.06);padding:16px;overflow-y:auto}
+    .info-panel h3{font-size:12px;color:var(--a);margin-bottom:12px}
+
+    .cell-info{background:var(--b3);border-radius:8px;padding:14px;margin-bottom:16px}
+    .cell-info .coords{font-size:18px;font-weight:700;color:var(--a);margin-bottom:8px}
+    .cell-info .value{font-size:14px;margin-bottom:4px}
+    .cell-info .llm-status{display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b}
+    .cell-info .llm-status .dot{width:8px;height:8px;border-radius:50%;background:var(--g)}
+    .cell-info .llm-status .dot.inactive{background:#64748b}
+
+    /* LLM panel */
+    .llm-panel{background:var(--b3);border-radius:8px;padding:14px;margin-bottom:16px}
+    .llm-panel h4{font-size:11px;color:#64748b;margin-bottom:10px}
+    .llm-input{width:100%;padding:10px;background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:12px;margin-bottom:8px;resize:vertical;min-height:60px}
+    .llm-input:focus{outline:none;border-color:var(--a)}
+    .llm-output{background:var(--b2);border-radius:6px;padding:10px;font-size:11px;color:var(--g);min-height:40px}
+
+    /* Stats */
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .stats-card{background:var(--b3);border-radius:8px;padding:12px;text-align:center}
+    .stats-card .val{font-size:18px;font-weight:700;color:var(--a)}
+    .stats-card .lbl{font-size:9px;color:#64748b}
+
+    /* Log */
+    .log-section{margin-top:16px}
+    .log-panel{background:#000;border-radius:8px;padding:10px;font:11px monospace;max-height:150px;overflow-y:auto}
+    .log-line{margin-bottom:2px;padding:2px 4px}
+    .log-line.set{color:var(--a)}
+    .log-line.get{color:var(--g)}
+    .log-line.llm{color:var(--p)}
+    .log-line.error{color:var(--r)}
+
+    /* Interlock patterns */
+    .pattern-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px}
+    .pattern-cell{aspect-ratio:1;background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer}
+    .pattern-cell.active{background:rgba(6,182,212,.2);border-color:var(--a)}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span style="font-size:28px">🧊</span>
+    <h1>BlockArray</h1>
+    <span class="badge">1000³ Grid</span>
+    <div class="header-stats">
+      <div class="stat">
+        <div class="stat-value" id="activeCount">0</div>
+        <div class="stat-label">Active Cells</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="llmCount">0</div>
+        <div class="stat-label">LLMs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="memUsage">0MB</div>
+        <div class="stat-label">Memory</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="section">
+        <h3>📍 Coordinates</h3>
+        <div class="coord-inputs">
+          <div class="coord-input">
+            <label>X</label>
+            <input type="number" id="coordX" value="0" min="0" max="999">
+          </div>
+          <div class="coord-input">
+            <label>Y</label>
+            <input type="number" id="coordY" value="0" min="0" max="999">
+          </div>
+          <div class="coord-input">
+            <label>Z</label>
+            <input type="number" id="coordZ" value="0" min="0" max="999">
+          </div>
+        </div>
+        <button class="action-btn" onclick="BlockArray.goToCoord()">
+          <span class="icon">🎯</span> Go to Coordinate
+        </button>
+      </div>
+
+      <div class="section">
+        <h3>📝 Set Value</h3>
+        <div class="value-row">
+          <input type="number" id="cellValue" value="1.0" step="0.1">
+          <button onclick="BlockArray.setValue()">Set</button>
+        </div>
+        <button class="action-btn" onclick="BlockArray.clearCell()">
+          <span class="icon">🗑️</span> Clear Cell
+        </button>
+      </div>
+
+      <div class="section">
+        <h3>🧠 LLM Operations</h3>
+        <button class="action-btn" onclick="BlockArray.spawnLLM()">
+          <span class="icon">➕</span> Spawn LLM at Coord
+        </button>
+        <button class="action-btn" onclick="BlockArray.removeLLM()">
+          <span class="icon">➖</span> Remove LLM
+        </button>
+        <button class="action-btn" onclick="BlockArray.processLLM()">
+          <span class="icon">⚡</span> Process LLM
+        </button>
+      </div>
+
+      <div class="section">
+        <h3>🔗 Interlock Patterns</h3>
+        <div class="pattern-grid" id="patternGrid">
+          <div class="pattern-cell" data-pattern="face">F</div>
+          <div class="pattern-cell" data-pattern="edge">E</div>
+          <div class="pattern-cell" data-pattern="vertex">V</div>
+          <div class="pattern-cell" data-pattern="cross">+</div>
+          <div class="pattern-cell active" data-pattern="single">·</div>
+          <div class="pattern-cell" data-pattern="cube">□</div>
+          <div class="pattern-cell" data-pattern="line-x">―</div>
+          <div class="pattern-cell" data-pattern="line-y">|</div>
+          <div class="pattern-cell" data-pattern="line-z">/</div>
+        </div>
+        <button class="action-btn" style="margin-top:12px" onclick="BlockArray.applyPattern()">
+          <span class="icon">🔄</span> Apply Pattern
+        </button>
+      </div>
+
+      <div class="section">
+        <h3>📊 Bulk Operations</h3>
+        <button class="action-btn" onclick="BlockArray.fillRegion()">
+          <span class="icon">🔲</span> Fill 10³ Region
+        </button>
+        <button class="action-btn" onclick="BlockArray.clearAll()">
+          <span class="icon">🧹</span> Clear All
+        </button>
+        <button class="action-btn" onclick="BlockArray.randomFill()">
+          <span class="icon">🎲</span> Random Fill
+        </button>
+      </div>
+    </div>
+
+    <div class="grid-view">
+      <canvas class="grid-canvas" id="gridCanvas"></canvas>
+      <div class="layer-indicator">
+        Layer Z = <span id="currentLayer">0</span>
+      </div>
+      <div class="grid-controls">
+        <button onclick="BlockArray.prevLayer()">↓</button>
+        <button onclick="BlockArray.nextLayer()">↑</button>
+        <button onclick="BlockArray.zoomIn()">+</button>
+        <button onclick="BlockArray.zoomOut()">−</button>
+        <button onclick="BlockArray.resetView()">⟲</button>
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <h3>📋 Cell Info</h3>
+      <div class="cell-info">
+        <div class="coords" id="selectedCoords">(0, 0, 0)</div>
+        <div class="value">Value: <span id="selectedValue">empty</span></div>
+        <div class="llm-status">
+          <span class="dot inactive" id="llmDot"></span>
+          <span id="llmStatusText">No LLM</span>
+        </div>
+      </div>
+
+      <div class="llm-panel">
+        <h4>🧠 LLM at Selected Cell</h4>
+        <textarea class="llm-input" id="llmInput" placeholder="Enter prompt for LLM..."></textarea>
+        <button class="action-btn" onclick="BlockArray.runLLM()">
+          <span class="icon">▶️</span> Run
+        </button>
+        <div class="llm-output" id="llmOutput">Output will appear here...</div>
+      </div>
+
+      <h3>📊 Statistics</h3>
+      <div class="stats-grid">
+        <div class="stats-card">
+          <div class="val" id="statDimX">1000</div>
+          <div class="lbl">Dim X</div>
+        </div>
+        <div class="stats-card">
+          <div class="val" id="statDimY">1000</div>
+          <div class="lbl">Dim Y</div>
+        </div>
+        <div class="stats-card">
+          <div class="val" id="statDimZ">1000</div>
+          <div class="lbl">Dim Z</div>
+        </div>
+        <div class="stats-card">
+          <div class="val" id="statTotal">1B</div>
+          <div class="lbl">Total Cells</div>
+        </div>
+      </div>
+
+      <div class="log-section">
+        <h3>📜 Log</h3>
+        <div class="log-panel" id="logPanel"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class BlockArrayEngine {
+      constructor() {
+        this.dimensions = [1000, 1000, 1000];
+        this.cells = new Map(); // Sparse storage: "x,y,z" -> value
+        this.llms = new Map(); // "x,y,z" -> FemtoLLM instance
+        this.currentLayer = 0;
+        this.zoom = 1;
+        this.offset = { x: 0, y: 0 };
+        this.selected = { x: 0, y: 0, z: 0 };
+        this.currentPattern = 'single';
+
+        this.canvas = document.getElementById('gridCanvas');
+        this.ctx = this.canvas.getContext('2d');
+
+        this.init();
+      }
+
+      init() {
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
+        // Canvas interaction
+        this.canvas.addEventListener('click', (e) => this.handleClick(e));
+        this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+
+        // Pattern selection
+        document.querySelectorAll('.pattern-cell').forEach(cell => {
+          cell.onclick = () => {
+            document.querySelectorAll('.pattern-cell').forEach(c => c.classList.remove('active'));
+            cell.classList.add('active');
+            this.currentPattern = cell.dataset.pattern;
+          };
+        });
+
+        // Coordinate inputs
+        ['coordX', 'coordY', 'coordZ'].forEach(id => {
+          document.getElementById(id).onchange = () => this.goToCoord();
+        });
+
+        this.render();
+        this.log('BlockArray initialized: 1000³ sparse grid', 'info');
+      }
+
+      resizeCanvas() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+        this.render();
+      }
+
+      key(x, y, z) {
+        return `${x},${y},${z}`;
+      }
+
+      set(x, y, z, value) {
+        const k = this.key(x, y, z);
+        if (value === 0 || value === null) {
+          this.cells.delete(k);
+        } else {
+          this.cells.set(k, value);
+        }
+        this.updateStats();
+        this.render();
+      }
+
+      get(x, y, z) {
+        return this.cells.get(this.key(x, y, z)) ?? null;
+      }
+
+      setValue() {
+        const x = parseInt(document.getElementById('coordX').value);
+        const y = parseInt(document.getElementById('coordY').value);
+        const z = parseInt(document.getElementById('coordZ').value);
+        const v = parseFloat(document.getElementById('cellValue').value);
+
+        this.set(x, y, z, v);
+        this.log(`Set (${x},${y},${z}) = ${v}`, 'set');
+      }
+
+      clearCell() {
+        const { x, y, z } = this.selected;
+        this.set(x, y, z, null);
+        this.llms.delete(this.key(x, y, z));
+        this.log(`Cleared (${x},${y},${z})`, 'set');
+        this.updateCellInfo();
+      }
+
+      goToCoord() {
+        this.selected.x = parseInt(document.getElementById('coordX').value) || 0;
+        this.selected.y = parseInt(document.getElementById('coordY').value) || 0;
+        this.selected.z = parseInt(document.getElementById('coordZ').value) || 0;
+        this.currentLayer = this.selected.z;
+        document.getElementById('currentLayer').textContent = this.currentLayer;
+        this.updateCellInfo();
+        this.render();
+      }
+
+      // Mini FemtoLLM class for each cell
+      createLLM() {
+        return {
+          h: 16,
+          W: Array(16).fill(null).map(() => Array(16).fill(null).map(() => Math.random() * 0.2 - 0.1)),
+          process: async function(text) {
+            // Simple response based on text
+            await new Promise(r => setTimeout(r, 100));
+            const words = text.split(' ');
+            const response = words.map(w => w.split('').reverse().join('')).join(' ');
+            return `[LLM@16d] ${response}`;
+          }
+        };
+      }
+
+      spawnLLM() {
+        const { x, y, z } = this.selected;
+        const k = this.key(x, y, z);
+        this.llms.set(k, this.createLLM());
+        this.log(`Spawned LLM at (${x},${y},${z})`, 'llm');
+        this.updateCellInfo();
+        this.updateStats();
+      }
+
+      removeLLM() {
+        const { x, y, z } = this.selected;
+        this.llms.delete(this.key(x, y, z));
+        this.log(`Removed LLM from (${x},${y},${z})`, 'llm');
+        this.updateCellInfo();
+        this.updateStats();
+      }
+
+      async runLLM() {
+        const { x, y, z } = this.selected;
+        const k = this.key(x, y, z);
+        const llm = this.llms.get(k);
+
+        if (!llm) {
+          this.log('No LLM at selected cell', 'error');
+          return;
+        }
+
+        const input = document.getElementById('llmInput').value;
+        document.getElementById('llmOutput').textContent = 'Processing...';
+
+        const result = await llm.process(input);
+        document.getElementById('llmOutput').textContent = result;
+        this.log(`LLM@(${x},${y},${z}) processed`, 'llm');
+      }
+
+      processLLM() {
+        this.runLLM();
+      }
+
+      applyPattern() {
+        const { x, y, z } = this.selected;
+        const value = parseFloat(document.getElementById('cellValue').value);
+        const patterns = {
+          single: [[0,0,0]],
+          face: [[0,0,0],[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]],
+          edge: [[1,1,0],[1,-1,0],[-1,1,0],[-1,-1,0],[1,0,1],[1,0,-1],[-1,0,1],[-1,0,-1],[0,1,1],[0,1,-1],[0,-1,1],[0,-1,-1]],
+          vertex: [[1,1,1],[1,1,-1],[1,-1,1],[1,-1,-1],[-1,1,1],[-1,1,-1],[-1,-1,1],[-1,-1,-1]],
+          cross: [[0,0,0],[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]],
+          cube: [],
+          'line-x': Array.from({length:10}, (_,i) => [i,0,0]),
+          'line-y': Array.from({length:10}, (_,i) => [0,i,0]),
+          'line-z': Array.from({length:10}, (_,i) => [0,0,i])
+        };
+
+        // Cube pattern
+        if (this.currentPattern === 'cube') {
+          for (let dx = 0; dx < 3; dx++) {
+            for (let dy = 0; dy < 3; dy++) {
+              for (let dz = 0; dz < 3; dz++) {
+                patterns.cube.push([dx, dy, dz]);
+              }
+            }
+          }
+        }
+
+        const offsets = patterns[this.currentPattern] || patterns.single;
+        let count = 0;
+
+        offsets.forEach(([dx, dy, dz]) => {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          if (nx >= 0 && nx < 1000 && ny >= 0 && ny < 1000 && nz >= 0 && nz < 1000) {
+            this.set(nx, ny, nz, value);
+            count++;
+          }
+        });
+
+        this.log(`Applied ${this.currentPattern} pattern: ${count} cells`, 'set');
+      }
+
+      fillRegion() {
+        const { x, y, z } = this.selected;
+        let count = 0;
+        for (let dx = 0; dx < 10; dx++) {
+          for (let dy = 0; dy < 10; dy++) {
+            for (let dz = 0; dz < 10; dz++) {
+              this.cells.set(this.key(x+dx, y+dy, z+dz), 1.0);
+              count++;
+            }
+          }
+        }
+        this.log(`Filled 10³ region: ${count} cells`, 'set');
+        this.updateStats();
+        this.render();
+      }
+
+      randomFill() {
+        for (let i = 0; i < 100; i++) {
+          const x = Math.floor(Math.random() * 100);
+          const y = Math.floor(Math.random() * 100);
+          const z = Math.floor(Math.random() * 100);
+          this.cells.set(this.key(x, y, z), Math.random());
+        }
+        this.log('Random filled 100 cells', 'set');
+        this.updateStats();
+        this.render();
+      }
+
+      clearAll() {
+        this.cells.clear();
+        this.llms.clear();
+        this.log('Cleared all cells', 'set');
+        this.updateStats();
+        this.render();
+      }
+
+      prevLayer() {
+        this.currentLayer = Math.max(0, this.currentLayer - 1);
+        document.getElementById('currentLayer').textContent = this.currentLayer;
+        document.getElementById('coordZ').value = this.currentLayer;
+        this.selected.z = this.currentLayer;
+        this.render();
+      }
+
+      nextLayer() {
+        this.currentLayer = Math.min(999, this.currentLayer + 1);
+        document.getElementById('currentLayer').textContent = this.currentLayer;
+        document.getElementById('coordZ').value = this.currentLayer;
+        this.selected.z = this.currentLayer;
+        this.render();
+      }
+
+      zoomIn() {
+        this.zoom = Math.min(4, this.zoom * 1.2);
+        this.render();
+      }
+
+      zoomOut() {
+        this.zoom = Math.max(0.1, this.zoom / 1.2);
+        this.render();
+      }
+
+      resetView() {
+        this.zoom = 1;
+        this.offset = { x: 0, y: 0 };
+        this.render();
+      }
+
+      handleClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        const cellSize = 20 * this.zoom;
+        const gridX = Math.floor((mx - this.canvas.width/2 + this.offset.x) / cellSize + 50);
+        const gridY = Math.floor((my - this.canvas.height/2 + this.offset.y) / cellSize + 50);
+
+        if (gridX >= 0 && gridX < 1000 && gridY >= 0 && gridY < 1000) {
+          this.selected = { x: gridX, y: gridY, z: this.currentLayer };
+          document.getElementById('coordX').value = gridX;
+          document.getElementById('coordY').value = gridY;
+          document.getElementById('coordZ').value = this.currentLayer;
+          this.updateCellInfo();
+          this.render();
+        }
+      }
+
+      handleWheel(e) {
+        e.preventDefault();
+        if (e.deltaY < 0) this.zoomIn();
+        else this.zoomOut();
+      }
+
+      updateCellInfo() {
+        const { x, y, z } = this.selected;
+        document.getElementById('selectedCoords').textContent = `(${x}, ${y}, ${z})`;
+
+        const value = this.get(x, y, z);
+        document.getElementById('selectedValue').textContent = value !== null ? value.toFixed(4) : 'empty';
+
+        const hasLLM = this.llms.has(this.key(x, y, z));
+        document.getElementById('llmDot').classList.toggle('inactive', !hasLLM);
+        document.getElementById('llmStatusText').textContent = hasLLM ? 'LLM Active (16d)' : 'No LLM';
+      }
+
+      updateStats() {
+        document.getElementById('activeCount').textContent = this.cells.size;
+        document.getElementById('llmCount').textContent = this.llms.size;
+        document.getElementById('memUsage').textContent =
+          ((this.cells.size * 16 + this.llms.size * 4096) / 1024 / 1024).toFixed(2) + 'MB';
+      }
+
+      render() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(0, 0, w, h);
+
+        const cellSize = 20 * this.zoom;
+        const gridSize = 100; // Show 100x100 at a time
+        const startX = w/2 - gridSize/2 * cellSize - this.offset.x;
+        const startY = h/2 - gridSize/2 * cellSize - this.offset.y;
+
+        // Draw grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i <= gridSize; i++) {
+          ctx.beginPath();
+          ctx.moveTo(startX + i * cellSize, startY);
+          ctx.lineTo(startX + i * cellSize, startY + gridSize * cellSize);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(startX, startY + i * cellSize);
+          ctx.lineTo(startX + gridSize * cellSize, startY + i * cellSize);
+          ctx.stroke();
+        }
+
+        // Draw active cells at current layer
+        for (const [key, value] of this.cells) {
+          const [x, y, z] = key.split(',').map(Number);
+          if (z !== this.currentLayer) continue;
+          if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) continue;
+
+          const px = startX + x * cellSize;
+          const py = startY + y * cellSize;
+
+          const intensity = Math.min(1, Math.abs(value));
+          const hasLLM = this.llms.has(key);
+
+          if (hasLLM) {
+            ctx.fillStyle = `rgba(168, 85, 247, ${0.5 + intensity * 0.5})`;
+          } else {
+            ctx.fillStyle = `rgba(6, 182, 212, ${0.3 + intensity * 0.7})`;
+          }
+
+          ctx.fillRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+
+          if (hasLLM) {
+            ctx.fillStyle = '#fff';
+            ctx.font = `${cellSize * 0.4}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🧠', px + cellSize/2, py + cellSize/2);
+          }
+        }
+
+        // Draw selection
+        const selX = startX + this.selected.x * cellSize;
+        const selY = startY + this.selected.y * cellSize;
+        if (this.selected.z === this.currentLayer) {
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(selX, selY, cellSize, cellSize);
+        }
+
+        // Draw origin marker
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath();
+        ctx.arc(startX, startY, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      log(msg, type = 'info') {
+        const panel = document.getElementById('logPanel');
+        const line = document.createElement('div');
+        line.className = 'log-line ' + type;
+        line.textContent = msg;
+        panel.appendChild(line);
+        panel.scrollTop = panel.scrollHeight;
+
+        // Limit log size
+        while (panel.children.length > 50) {
+          panel.removeChild(panel.firstChild);
+        }
+      }
+    }
+
+    window.BlockArray = new BlockArrayEngine();
+  </script>
+</body>
+</html>

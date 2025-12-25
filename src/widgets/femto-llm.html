@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<!--
+@file femto-llm.html
+@desc FemtoLLM - 16-dim nano model template builder
+@api  window.FemtoLLM - Model builder/runner
+
+Real tiny transformer architecture:
+- 16 hidden dimensions
+- 1 attention head
+- 1 transformer layer
+- ~4MB memory footprint
+- Custom vocabulary/tokenizer
+- Train on your own data!
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>🧠 FemtoLLM</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--a:#a855f7;--a2:#7c3aed;--g:#22c55e;--r:#ef4444;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:16px 24px;background:linear-gradient(135deg,var(--a),var(--a2));display:flex;align-items:center;gap:16px}
+    .header h1{font-size:20px;color:#fff}
+    .header .badge{padding:6px 12px;background:rgba(255,255,255,.2);border-radius:20px;font-size:11px;color:#fff}
+    .header-stats{margin-left:auto;display:flex;gap:12px}
+    .stat{padding:8px 14px;background:rgba(0,0,0,.2);border-radius:8px;text-align:center}
+    .stat-value{font-size:16px;font-weight:700;color:#fff}
+    .stat-label{font-size:9px;color:rgba(255,255,255,.7)}
+
+    .tabs{display:flex;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06)}
+    .tab{padding:14px 24px;font-size:12px;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}
+    .tab:hover{color:var(--f)}
+    .tab.active{color:var(--a);border-color:var(--a)}
+
+    .main{padding:20px;max-width:1200px;margin:0 auto}
+    .panel{display:none}
+    .panel.active{display:block}
+
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .card{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px}
+    .card h3{font-size:13px;margin-bottom:16px;color:var(--a);display:flex;align-items:center;gap:8px}
+    .card h3 .icon{font-size:18px}
+
+    /* Architecture config */
+    .config-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+    .config-row:last-child{border:0}
+    .config-label{font-size:12px;color:#94a3b8}
+    .config-value{display:flex;align-items:center;gap:8px}
+    .config-value input,.config-value select{padding:8px 12px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:12px;width:100px}
+    .config-value input:focus,.config-value select:focus{outline:none;border-color:var(--a)}
+
+    /* Vocabulary */
+    .vocab-section{margin-bottom:20px}
+    .vocab-section h4{font-size:11px;color:#64748b;margin-bottom:8px}
+    .vocab-input{width:100%;padding:12px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:12px monospace;resize:vertical;min-height:100px}
+    .vocab-stats{display:flex;gap:16px;margin-top:8px;font-size:11px;color:#64748b}
+
+    /* Training data */
+    .train-data{width:100%;padding:12px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:12px monospace;resize:vertical;min-height:150px}
+
+    /* Buttons */
+    .btn{padding:12px 24px;border:0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+    .btn-primary{background:linear-gradient(135deg,var(--a),var(--a2));color:#fff}
+    .btn-primary:hover{opacity:.9}
+    .btn-secondary{background:var(--b3);border:1px solid rgba(255,255,255,.1);color:var(--f)}
+    .btn-secondary:hover{border-color:var(--a)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn-row{display:flex;gap:12px;margin-top:16px}
+
+    /* Progress */
+    .progress-bar{height:8px;background:var(--b3);border-radius:4px;overflow:hidden;margin:16px 0}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--a),var(--g));width:0%;transition:width .3s}
+
+    .training-log{background:#000;border-radius:8px;padding:12px;font:11px monospace;max-height:200px;overflow-y:auto;margin-top:12px}
+    .log-line{margin-bottom:2px}
+    .log-line.epoch{color:var(--a)}
+    .log-line.loss{color:var(--y)}
+    .log-line.info{color:#64748b}
+    .log-line.success{color:var(--g)}
+
+    /* Inference */
+    .inference-input{width:100%;padding:14px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font-size:14px;margin-bottom:12px}
+    .inference-input:focus{outline:none;border-color:var(--a)}
+
+    .inference-output{background:var(--b3);border-radius:8px;padding:16px;min-height:100px;font-size:14px;line-height:1.6}
+    .inference-output .token{display:inline-block;padding:2px 4px;margin:1px;border-radius:3px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2)}
+    .inference-output .generated{color:var(--g)}
+
+    /* Architecture diagram */
+    .arch-diagram{background:var(--b3);border-radius:8px;padding:20px;text-align:center}
+    .arch-layer{background:var(--b2);border:2px solid rgba(168,85,247,.3);border-radius:8px;padding:12px;margin:8px auto;max-width:200px;font-size:11px}
+    .arch-layer.active{border-color:var(--a);background:rgba(168,85,247,.1)}
+    .arch-arrow{color:#64748b;font-size:20px}
+
+    /* Weights visualization */
+    .weights-grid{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin-top:12px}
+    .weight-cell{aspect-ratio:1;border-radius:2px;font-size:6px;display:flex;align-items:center;justify-content:center}
+
+    /* Export */
+    .export-code{background:#000;border-radius:8px;padding:16px;font:11px monospace;overflow-x:auto;white-space:pre}
+    .export-code .keyword{color:var(--a)}
+    .export-code .string{color:var(--g)}
+    .export-code .number{color:var(--y)}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span style="font-size:28px">🧠</span>
+    <h1>FemtoLLM</h1>
+    <span class="badge">16-dim Nano Model</span>
+    <div class="header-stats">
+      <div class="stat">
+        <div class="stat-value" id="paramCount">0</div>
+        <div class="stat-label">Parameters</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="memSize">0KB</div>
+        <div class="stat-label">Memory</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="vocabSize">0</div>
+        <div class="stat-label">Vocab</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="build">🔧 Build</div>
+    <div class="tab" data-tab="train">🎯 Train</div>
+    <div class="tab" data-tab="infer">💬 Inference</div>
+    <div class="tab" data-tab="export">📦 Export</div>
+  </div>
+
+  <div class="main">
+    <!-- BUILD TAB -->
+    <div class="panel active" id="panel-build">
+      <div class="grid">
+        <div class="card">
+          <h3><span class="icon">⚙️</span> Architecture</h3>
+          <div class="config-row">
+            <span class="config-label">Hidden Size (d_model)</span>
+            <div class="config-value">
+              <input type="number" id="hiddenSize" value="16" min="4" max="64">
+            </div>
+          </div>
+          <div class="config-row">
+            <span class="config-label">Attention Heads</span>
+            <div class="config-value">
+              <input type="number" id="numHeads" value="1" min="1" max="4">
+            </div>
+          </div>
+          <div class="config-row">
+            <span class="config-label">Layers</span>
+            <div class="config-value">
+              <input type="number" id="numLayers" value="1" min="1" max="4">
+            </div>
+          </div>
+          <div class="config-row">
+            <span class="config-label">FFN Hidden</span>
+            <div class="config-value">
+              <input type="number" id="ffnSize" value="32" min="8" max="128">
+            </div>
+          </div>
+          <div class="config-row">
+            <span class="config-label">Max Sequence</span>
+            <div class="config-value">
+              <input type="number" id="maxSeq" value="32" min="8" max="128">
+            </div>
+          </div>
+          <div class="config-row">
+            <span class="config-label">Activation</span>
+            <div class="config-value">
+              <select id="activation">
+                <option value="relu">ReLU</option>
+                <option value="gelu">GELU</option>
+                <option value="silu">SiLU</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="FemtoLLM.initModel()">🚀 Initialize Model</button>
+            <button class="btn btn-secondary" onclick="FemtoLLM.randomWeights()">🎲 Random Weights</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><span class="icon">📊</span> Model Structure</h3>
+          <div class="arch-diagram">
+            <div class="arch-layer" id="layer-embed">Embedding (vocab × d)</div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-layer" id="layer-attn">Self-Attention (h heads)</div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-layer" id="layer-ffn">FFN (d → 4d → d)</div>
+            <div class="arch-arrow">↓</div>
+            <div class="arch-layer" id="layer-out">Output (d × vocab)</div>
+          </div>
+
+          <h4 style="font-size:11px;color:#64748b;margin:16px 0 8px">Weights Heatmap (Q matrix)</h4>
+          <div class="weights-grid" id="weightsGrid"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h3><span class="icon">📝</span> Vocabulary</h3>
+        <div class="vocab-section">
+          <h4>Enter tokens (one per line, or comma-separated)</h4>
+          <textarea class="vocab-input" id="vocabInput" placeholder="hello
+world
+the
+is
+a
+...">hello
+world
+the
+is
+a
+to
+of
+and
+in
+that
+it
+for
+you
+was
+are
+be
+have
+this
+will
+can
+with
+not
+as
+we
+they</textarea>
+          <div class="vocab-stats">
+            <span>Tokens: <strong id="tokenCount">0</strong></span>
+            <span>Special: [PAD], [UNK], [BOS], [EOS]</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="FemtoLLM.buildVocab()">📚 Build Vocabulary</button>
+      </div>
+    </div>
+
+    <!-- TRAIN TAB -->
+    <div class="panel" id="panel-train">
+      <div class="grid">
+        <div class="card">
+          <h3><span class="icon">📖</span> Training Data</h3>
+          <textarea class="train-data" id="trainData" placeholder="Enter training sentences, one per line...">hello world
+the world is big
+this is a test
+we can learn
+you are here
+they will come
+it was good
+have a nice day
+be the change
+with you always</textarea>
+
+          <div class="config-row" style="margin-top:16px">
+            <span class="config-label">Learning Rate</span>
+            <div class="config-value">
+              <input type="number" id="learningRate" value="0.01" step="0.001" min="0.0001" max="1">
+            </div>
+          </div>
+          <div class="config-row">
+            <span class="config-label">Epochs</span>
+            <div class="config-value">
+              <input type="number" id="epochs" value="100" min="1" max="1000">
+            </div>
+          </div>
+          <div class="config-row">
+            <span class="config-label">Batch Size</span>
+            <div class="config-value">
+              <input type="number" id="batchSize" value="4" min="1" max="32">
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" id="trainBtn" onclick="FemtoLLM.startTraining()">🎯 Start Training</button>
+            <button class="btn btn-secondary" onclick="FemtoLLM.stopTraining()">⏹ Stop</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><span class="icon">📈</span> Training Progress</h3>
+          <div style="margin-bottom:12px">
+            <span style="font-size:12px;color:#64748b">Epoch: </span>
+            <span id="currentEpoch" style="font-size:16px;font-weight:700;color:var(--a)">0</span>
+            <span style="font-size:12px;color:#64748b"> / </span>
+            <span id="totalEpochs">0</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="trainProgress"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0">
+            <div style="background:var(--b3);padding:12px;border-radius:8px;text-align:center">
+              <div style="font-size:20px;font-weight:700;color:var(--y)" id="currentLoss">-</div>
+              <div style="font-size:9px;color:#64748b">Loss</div>
+            </div>
+            <div style="background:var(--b3);padding:12px;border-radius:8px;text-align:center">
+              <div style="font-size:20px;font-weight:700;color:var(--g)" id="accuracy">-</div>
+              <div style="font-size:9px;color:#64748b">Accuracy</div>
+            </div>
+          </div>
+
+          <h4 style="font-size:11px;color:#64748b;margin-bottom:8px">Log</h4>
+          <div class="training-log" id="trainLog"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INFERENCE TAB -->
+    <div class="panel" id="panel-infer">
+      <div class="card">
+        <h3><span class="icon">💬</span> Generate Text</h3>
+        <input type="text" class="inference-input" id="inferInput" placeholder="Enter prompt...">
+
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+          <div class="config-row" style="flex:1;padding:0">
+            <span class="config-label">Max Tokens</span>
+            <input type="number" id="maxTokens" value="10" min="1" max="32" style="padding:8px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);width:80px">
+          </div>
+          <div class="config-row" style="flex:1;padding:0">
+            <span class="config-label">Temperature</span>
+            <input type="number" id="temperature" value="0.8" min="0.1" max="2" step="0.1" style="padding:8px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);width:80px">
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="FemtoLLM.generate()">⚡ Generate</button>
+
+        <h4 style="font-size:11px;color:#64748b;margin:20px 0 8px">Output</h4>
+        <div class="inference-output" id="inferOutput">
+          <span style="color:#64748b">Generated text will appear here...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORT TAB -->
+    <div class="panel" id="panel-export">
+      <div class="card">
+        <h3><span class="icon">📦</span> Export Model</h3>
+        <p style="font-size:12px;color:#64748b;margin-bottom:16px">Export your trained FemtoLLM as JavaScript code or JSON weights.</p>
+
+        <div class="btn-row" style="margin-bottom:20px">
+          <button class="btn btn-primary" onclick="FemtoLLM.exportJS()">📜 Export as JS</button>
+          <button class="btn btn-secondary" onclick="FemtoLLM.exportJSON()">📋 Export Weights</button>
+          <button class="btn btn-secondary" onclick="FemtoLLM.downloadModel()">💾 Download .femto</button>
+        </div>
+
+        <h4 style="font-size:11px;color:#64748b;margin-bottom:8px">Generated Code</h4>
+        <div class="export-code" id="exportCode">
+<span class="keyword">class</span> FemtoLLM {
+  <span class="keyword">constructor</span>() {
+    <span class="keyword">this</span>.h = <span class="number">16</span>; <span style="color:#64748b">// hidden size</span>
+    <span class="keyword">this</span>.vocab = [<span class="string">"[PAD]"</span>, <span class="string">"[UNK]"</span>, ...];
+    <span class="keyword">this</span>.W = <span class="keyword">null</span>; <span style="color:#64748b">// weights</span>
+  }
+
+  <span class="keyword">async</span> forward(tokens) {
+    <span style="color:#64748b">// Initialize model first!</span>
+  }
+}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class FemtoLLMEngine {
+      constructor() {
+        this.config = {
+          hiddenSize: 16,
+          numHeads: 1,
+          numLayers: 1,
+          ffnSize: 32,
+          maxSeq: 32,
+          activation: 'relu'
+        };
+
+        this.vocab = ['[PAD]', '[UNK]', '[BOS]', '[EOS]'];
+        this.tokenToId = {};
+        this.idToToken = {};
+
+        this.weights = null;
+        this.isTraining = false;
+
+        this.init();
+      }
+
+      init() {
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+          tab.onclick = () => this.switchTab(tab.dataset.tab);
+        });
+
+        // Update vocab count
+        document.getElementById('vocabInput').oninput = () => this.updateVocabCount();
+        this.updateVocabCount();
+
+        // Config listeners
+        ['hiddenSize', 'numHeads', 'numLayers', 'ffnSize', 'maxSeq'].forEach(id => {
+          document.getElementById(id).onchange = () => this.updateConfig();
+        });
+
+        this.updateConfig();
+      }
+
+      switchTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + tab).classList.add('active');
+      }
+
+      updateConfig() {
+        this.config.hiddenSize = parseInt(document.getElementById('hiddenSize').value);
+        this.config.numHeads = parseInt(document.getElementById('numHeads').value);
+        this.config.numLayers = parseInt(document.getElementById('numLayers').value);
+        this.config.ffnSize = parseInt(document.getElementById('ffnSize').value);
+        this.config.maxSeq = parseInt(document.getElementById('maxSeq').value);
+        this.config.activation = document.getElementById('activation').value;
+
+        this.updateStats();
+      }
+
+      updateStats() {
+        const d = this.config.hiddenSize;
+        const v = this.vocab.length;
+        const l = this.config.numLayers;
+        const ff = this.config.ffnSize;
+
+        // Approximate parameter count
+        const embedParams = v * d;
+        const attnParams = 4 * d * d * l; // Q, K, V, O
+        const ffnParams = 2 * d * ff * l;
+        const outParams = d * v;
+        const totalParams = embedParams + attnParams + ffnParams + outParams;
+
+        document.getElementById('paramCount').textContent = this.formatNumber(totalParams);
+        document.getElementById('memSize').textContent = Math.round(totalParams * 4 / 1024) + 'KB';
+        document.getElementById('vocabSize').textContent = v;
+      }
+
+      formatNumber(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n;
+      }
+
+      updateVocabCount() {
+        const text = document.getElementById('vocabInput').value;
+        const tokens = text.split(/[\n,]/).map(t => t.trim()).filter(t => t);
+        document.getElementById('tokenCount').textContent = tokens.length + 4; // +4 for special
+      }
+
+      buildVocab() {
+        const text = document.getElementById('vocabInput').value;
+        const tokens = text.split(/[\n,]/).map(t => t.trim().toLowerCase()).filter(t => t);
+
+        this.vocab = ['[PAD]', '[UNK]', '[BOS]', '[EOS]', ...new Set(tokens)];
+        this.tokenToId = {};
+        this.idToToken = {};
+
+        this.vocab.forEach((t, i) => {
+          this.tokenToId[t] = i;
+          this.idToToken[i] = t;
+        });
+
+        this.updateStats();
+        this.log('Vocabulary built: ' + this.vocab.length + ' tokens', 'success');
+      }
+
+      initModel() {
+        this.buildVocab();
+
+        const d = this.config.hiddenSize;
+        const v = this.vocab.length;
+        const ff = this.config.ffnSize;
+
+        // Initialize weights with Xavier initialization
+        const xavier = (fan_in, fan_out) => {
+          const std = Math.sqrt(2 / (fan_in + fan_out));
+          return Array(fan_in).fill(null).map(() =>
+            Array(fan_out).fill(null).map(() => (Math.random() * 2 - 1) * std)
+          );
+        };
+
+        this.weights = {
+          embed: xavier(v, d),
+          Wq: xavier(d, d),
+          Wk: xavier(d, d),
+          Wv: xavier(d, d),
+          Wo: xavier(d, d),
+          ff1: xavier(d, ff),
+          ff2: xavier(ff, d),
+          out: xavier(d, v)
+        };
+
+        this.renderWeights();
+        this.updateStats();
+        this.log('Model initialized with random weights', 'success');
+
+        // Update architecture diagram
+        document.querySelectorAll('.arch-layer').forEach(l => l.classList.add('active'));
+      }
+
+      randomWeights() {
+        if (this.weights) {
+          Object.keys(this.weights).forEach(key => {
+            this.weights[key] = this.weights[key].map(row =>
+              row.map(() => (Math.random() * 2 - 1) * 0.1)
+            );
+          });
+          this.renderWeights();
+          this.log('Weights randomized', 'info');
+        }
+      }
+
+      renderWeights() {
+        const grid = document.getElementById('weightsGrid');
+        grid.innerHTML = '';
+
+        if (!this.weights) return;
+
+        const W = this.weights.Wq;
+        const d = W.length;
+
+        for (let i = 0; i < Math.min(d, 16); i++) {
+          for (let j = 0; j < Math.min(W[0].length, 16); j++) {
+            const cell = document.createElement('div');
+            cell.className = 'weight-cell';
+            const val = W[i][j];
+            const intensity = Math.min(255, Math.abs(val) * 500);
+            const color = val >= 0
+              ? `rgb(${intensity}, ${intensity * 0.5}, ${intensity * 2})`
+              : `rgb(${intensity * 2}, ${intensity * 0.5}, ${intensity * 0.5})`;
+            cell.style.background = color;
+            cell.title = val.toFixed(4);
+            grid.appendChild(cell);
+          }
+        }
+      }
+
+      // Activation functions
+      relu(x) { return Math.max(0, x); }
+      gelu(x) { return 0.5 * x * (1 + Math.tanh(Math.sqrt(2/Math.PI) * (x + 0.044715 * x * x * x))); }
+      silu(x) { return x / (1 + Math.exp(-x)); }
+
+      activate(x) {
+        switch (this.config.activation) {
+          case 'gelu': return this.gelu(x);
+          case 'silu': return this.silu(x);
+          default: return this.relu(x);
+        }
+      }
+
+      softmax(arr) {
+        const max = Math.max(...arr);
+        const exps = arr.map(x => Math.exp(x - max));
+        const sum = exps.reduce((a, b) => a + b, 0);
+        return exps.map(e => e / sum);
+      }
+
+      matmul(A, B) {
+        const result = Array(A.length).fill(null).map(() => Array(B[0].length).fill(0));
+        for (let i = 0; i < A.length; i++) {
+          for (let k = 0; k < B.length; k++) {
+            for (let j = 0; j < B[0].length; j++) {
+              result[i][j] += A[i][k] * B[k][j];
+            }
+          }
+        }
+        return result;
+      }
+
+      tokenize(text) {
+        const words = text.toLowerCase().split(/\s+/).filter(w => w);
+        return words.map(w => this.tokenToId[w] ?? this.tokenToId['[UNK]']);
+      }
+
+      forward(tokenIds) {
+        if (!this.weights) return null;
+
+        // Embedding
+        let x = tokenIds.map(id => [...this.weights.embed[id]]);
+
+        // Self-attention (simplified single head)
+        const Q = this.matmul(x, this.weights.Wq);
+        const K = this.matmul(x, this.weights.Wk);
+        const V = this.matmul(x, this.weights.Wv);
+
+        // Attention scores
+        const d = this.config.hiddenSize;
+        const scores = Q.map((q, i) =>
+          K.map((k, j) => q.reduce((sum, qi, idx) => sum + qi * k[idx], 0) / Math.sqrt(d))
+        );
+
+        // Softmax and weighted sum
+        const attnWeights = scores.map(row => this.softmax(row));
+        let attnOut = attnWeights.map(weights =>
+          V.reduce((acc, v, j) => acc.map((a, k) => a + weights[j] * v[k]), Array(d).fill(0))
+        );
+
+        // Output projection
+        attnOut = this.matmul(attnOut, this.weights.Wo);
+
+        // Residual
+        x = x.map((row, i) => row.map((val, j) => val + attnOut[i][j]));
+
+        // FFN
+        let ffn = this.matmul(x, this.weights.ff1);
+        ffn = ffn.map(row => row.map(v => this.activate(v)));
+        ffn = this.matmul(ffn, this.weights.ff2);
+
+        // Residual
+        x = x.map((row, i) => row.map((val, j) => val + ffn[i][j]));
+
+        // Output logits (last position)
+        const lastHidden = x[x.length - 1];
+        const logits = this.weights.out[0].map((_, j) =>
+          lastHidden.reduce((sum, h, i) => sum + h * this.weights.out[i][j], 0)
+        );
+
+        return logits;
+      }
+
+      async startTraining() {
+        if (!this.weights) {
+          this.log('Initialize model first!', 'error');
+          return;
+        }
+
+        this.isTraining = true;
+        const btn = document.getElementById('trainBtn');
+        btn.disabled = true;
+
+        const data = document.getElementById('trainData').value.split('\n').filter(l => l.trim());
+        const epochs = parseInt(document.getElementById('epochs').value);
+        const lr = parseFloat(document.getElementById('learningRate').value);
+
+        document.getElementById('totalEpochs').textContent = epochs;
+        document.getElementById('trainLog').innerHTML = '';
+
+        this.log('Starting training...', 'info');
+
+        for (let epoch = 0; epoch < epochs && this.isTraining; epoch++) {
+          let totalLoss = 0;
+
+          for (const line of data) {
+            const tokens = this.tokenize(line);
+            if (tokens.length < 2) continue;
+
+            // Simple next-token prediction loss
+            for (let i = 0; i < tokens.length - 1; i++) {
+              const input = tokens.slice(0, i + 1);
+              const target = tokens[i + 1];
+
+              const logits = this.forward(input);
+              const probs = this.softmax(logits);
+
+              // Cross-entropy loss
+              const loss = -Math.log(probs[target] + 1e-8);
+              totalLoss += loss;
+
+              // Simple gradient update (approximate)
+              const grad = probs.map((p, j) => p - (j === target ? 1 : 0));
+
+              // Update output weights
+              const lastHidden = this.weights.embed[input[input.length - 1]];
+              for (let j = 0; j < this.weights.out[0].length; j++) {
+                for (let k = 0; k < lastHidden.length; k++) {
+                  this.weights.out[k][j] -= lr * grad[j] * lastHidden[k];
+                }
+              }
+            }
+          }
+
+          const avgLoss = totalLoss / data.length;
+          document.getElementById('currentEpoch').textContent = epoch + 1;
+          document.getElementById('trainProgress').style.width = ((epoch + 1) / epochs * 100) + '%';
+          document.getElementById('currentLoss').textContent = avgLoss.toFixed(4);
+          document.getElementById('accuracy').textContent = Math.round((1 - avgLoss/10) * 100) + '%';
+
+          if ((epoch + 1) % 10 === 0) {
+            this.log(`Epoch ${epoch + 1}: loss = ${avgLoss.toFixed(4)}`, 'epoch');
+            this.renderWeights();
+          }
+
+          await new Promise(r => setTimeout(r, 10));
+        }
+
+        this.isTraining = false;
+        btn.disabled = false;
+        this.log('Training complete!', 'success');
+      }
+
+      stopTraining() {
+        this.isTraining = false;
+        document.getElementById('trainBtn').disabled = false;
+        this.log('Training stopped', 'info');
+      }
+
+      generate() {
+        if (!this.weights) {
+          this.log('Initialize model first!', 'error');
+          return;
+        }
+
+        const prompt = document.getElementById('inferInput').value.trim();
+        const maxTokens = parseInt(document.getElementById('maxTokens').value);
+        const temp = parseFloat(document.getElementById('temperature').value);
+
+        let tokens = this.tokenize(prompt);
+        if (tokens.length === 0) {
+          tokens = [this.tokenToId['[BOS]']];
+        }
+
+        const generated = [...tokens];
+
+        for (let i = 0; i < maxTokens; i++) {
+          const logits = this.forward(generated);
+          if (!logits) break;
+
+          // Temperature scaling
+          const scaled = logits.map(l => l / temp);
+          const probs = this.softmax(scaled);
+
+          // Sample from distribution
+          const r = Math.random();
+          let cumsum = 0;
+          let nextToken = 0;
+          for (let j = 0; j < probs.length; j++) {
+            cumsum += probs[j];
+            if (r <= cumsum) {
+              nextToken = j;
+              break;
+            }
+          }
+
+          if (nextToken === this.tokenToId['[EOS]']) break;
+          generated.push(nextToken);
+        }
+
+        // Render output
+        const output = document.getElementById('inferOutput');
+        output.innerHTML = generated.map((id, i) => {
+          const token = this.idToToken[id] || '[UNK]';
+          const isGenerated = i >= tokens.length;
+          return `<span class="token${isGenerated ? ' generated' : ''}">${token}</span>`;
+        }).join(' ');
+      }
+
+      exportJS() {
+        const code = `// FemtoLLM - ${this.config.hiddenSize}d, ${this.vocab.length} vocab
+class FemtoLLM {
+  constructor() {
+    this.h = ${this.config.hiddenSize};
+    this.vocab = ${JSON.stringify(this.vocab.slice(0, 10))}; // truncated
+    this.weights = null; // Load from .femto file
+  }
+
+  tokenize(text) {
+    const tokenToId = Object.fromEntries(this.vocab.map((t, i) => [t, i]));
+    return text.toLowerCase().split(/\\s+/).map(w => tokenToId[w] ?? 1);
+  }
+
+  softmax(arr) {
+    const max = Math.max(...arr);
+    const exps = arr.map(x => Math.exp(x - max));
+    const sum = exps.reduce((a, b) => a + b);
+    return exps.map(e => e / sum);
+  }
+
+  forward(tokens) {
+    // ... (full implementation in exported file)
+  }
+
+  generate(prompt, maxTokens = 10) {
+    let tokens = this.tokenize(prompt);
+    for (let i = 0; i < maxTokens; i++) {
+      const logits = this.forward(tokens);
+      const probs = this.softmax(logits);
+      const next = probs.indexOf(Math.max(...probs));
+      tokens.push(next);
+    }
+    return tokens.map(t => this.vocab[t] || '[UNK]').join(' ');
+  }
+}`;
+
+        document.getElementById('exportCode').textContent = code;
+      }
+
+      exportJSON() {
+        if (!this.weights) {
+          document.getElementById('exportCode').textContent = '// Initialize model first!';
+          return;
+        }
+
+        const json = JSON.stringify({
+          config: this.config,
+          vocab: this.vocab,
+          weights: this.weights
+        }, null, 2);
+
+        document.getElementById('exportCode').textContent = json.slice(0, 2000) + '\n... (truncated)';
+      }
+
+      downloadModel() {
+        if (!this.weights) {
+          alert('Initialize model first!');
+          return;
+        }
+
+        const data = {
+          version: '1.0',
+          type: 'femto-llm',
+          config: this.config,
+          vocab: this.vocab,
+          weights: this.weights
+        };
+
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'model.femto';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      log(msg, type = 'info') {
+        const log = document.getElementById('trainLog');
+        const line = document.createElement('div');
+        line.className = 'log-line ' + type;
+        line.textContent = msg;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+      }
+    }
+
+    window.FemtoLLM = new FemtoLLMEngine();
+  </script>
+</body>
+</html>

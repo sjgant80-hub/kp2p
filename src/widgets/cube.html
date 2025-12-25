@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cube - 9-Node LLM Constellation</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(30, 10, 50, 0.5);
+      border-bottom: 2px solid #8b5cf6;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      background: linear-gradient(90deg, #8b5cf6, #06b6d4, #8b5cf6);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+    .subtitle { color: #888; font-size: 12px; margin-top: 5px; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 20px;
+    }
+
+    .cube-view {
+      background: rgba(20, 10, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .cube-canvas-wrap {
+      position: relative;
+      aspect-ratio: 1;
+      background: radial-gradient(ellipse at center, #1a1040 0%, #0a0520 100%);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #cubeCanvas {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    #cubeCanvas:active { cursor: grabbing; }
+
+    .rotation-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      justify-content: center;
+    }
+    .rot-btn {
+      background: linear-gradient(180deg, #4a3080, #2a1850);
+      border: 1px solid #6b4ba0;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .rot-btn:hover { background: linear-gradient(180deg, #5a40a0, #3a2870); }
+    .rot-btn.active { border-color: #8b5cf6; box-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
+
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .panel {
+      background: rgba(20, 10, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+    }
+    .panel-title {
+      font-size: 14px;
+      color: #8b5cf6;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #333;
+    }
+
+    .node-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .node-btn {
+      background: linear-gradient(180deg, #1a2040, #0a1020);
+      border: 2px solid #334;
+      border-radius: 8px;
+      padding: 10px 5px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .node-btn:hover { border-color: #06b6d4; }
+    .node-btn.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2); }
+    .node-btn.central { grid-column: 2; background: linear-gradient(180deg, #2a1050, #1a0830); }
+    .node-name { font-size: 11px; color: #8b5cf6; font-weight: bold; }
+    .node-status { font-size: 9px; color: #666; margin-top: 3px; }
+    .node-status.ready { color: #22c55e; }
+    .node-status.busy { color: #f59e0b; }
+
+    .mode-select {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .mode-btn {
+      background: linear-gradient(180deg, #1a2040, #0a1020);
+      border: 1px solid #334;
+      border-radius: 6px;
+      padding: 10px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .mode-btn:hover { border-color: #06b6d4; }
+    .mode-btn.active { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.2); }
+    .mode-name { font-size: 11px; color: #fff; }
+    .mode-desc { font-size: 8px; color: #666; margin-top: 3px; }
+
+    .query-section {
+      margin-top: 15px;
+    }
+    .query-input {
+      width: 100%;
+      background: #0a0a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 80px;
+    }
+    .query-input:focus { outline: none; border-color: #8b5cf6; }
+
+    .run-btn {
+      width: 100%;
+      margin-top: 10px;
+      background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .run-btn:hover { opacity: 0.9; }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .results-panel {
+      background: rgba(20, 10, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    .result-item {
+      background: rgba(10, 10, 30, 0.5);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .result-node { font-size: 12px; color: #8b5cf6; font-weight: bold; }
+    .result-time { font-size: 10px; color: #666; }
+    .result-text { font-size: 12px; color: #ccc; line-height: 1.5; }
+
+    .edge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .edge-tag {
+      background: rgba(6, 182, 212, 0.2);
+      border: 1px solid #06b6d4;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 9px;
+      color: #06b6d4;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #222;
+      font-size: 11px;
+    }
+    .stats-label { color: #888; }
+    .stats-value { color: #8b5cf6; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔮 CUBE - 9-Node LLM Constellation</h1>
+    <p class="subtitle">8 Vertices + 1 Central • Distributed Nano-Intelligence</p>
+  </header>
+
+  <div class="container">
+    <div class="main-grid">
+      <div class="cube-view">
+        <div class="cube-canvas-wrap">
+          <canvas id="cubeCanvas"></canvas>
+        </div>
+        <div class="rotation-controls">
+          <button class="rot-btn active" data-auto="true">Auto Rotate</button>
+          <button class="rot-btn" data-reset="true">Reset View</button>
+          <button class="rot-btn" data-view="top">Top</button>
+          <button class="rot-btn" data-view="front">Front</button>
+          <button class="rot-btn" data-view="iso">Isometric</button>
+        </div>
+
+        <div class="results-panel" id="resultsPanel" style="display:none">
+          <div class="panel-title">🔗 Constellation Response</div>
+          <div id="resultsContent"></div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <div class="panel">
+          <div class="panel-title">📍 Node Selection</div>
+          <div class="node-grid">
+            <div class="node-btn" data-node="NWU">
+              <div class="node-name">NWU</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn" data-node="NEU">
+              <div class="node-name">NEU</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn" data-node="SEU">
+              <div class="node-name">SEU</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn central" data-node="CENTRAL">
+              <div class="node-name">⬡ CENTRAL</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn" data-node="NWD">
+              <div class="node-name">NWD</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn" data-node="NED">
+              <div class="node-name">NED</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn" data-node="SWU">
+              <div class="node-name">SWU</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn" data-node="SED">
+              <div class="node-name">SED</div>
+              <div class="node-status">idle</div>
+            </div>
+            <div class="node-btn" data-node="SWD">
+              <div class="node-name">SWD</div>
+              <div class="node-status">idle</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🔀 Routing Mode</div>
+          <div class="mode-select">
+            <div class="mode-btn active" data-mode="single">
+              <div class="mode-name">Single</div>
+              <div class="mode-desc">Query one node</div>
+            </div>
+            <div class="mode-btn" data-mode="broadcast">
+              <div class="mode-name">Broadcast</div>
+              <div class="mode-desc">All nodes parallel</div>
+            </div>
+            <div class="mode-btn" data-mode="chain">
+              <div class="mode-name">Chain</div>
+              <div class="mode-desc">Sequential through edges</div>
+            </div>
+            <div class="mode-btn" data-mode="consensus">
+              <div class="mode-name">Consensus</div>
+              <div class="mode-desc">Central aggregates votes</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🔗 Edge Connections</div>
+          <div class="edge-list" id="edgeList"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">📊 Constellation Stats</div>
+          <div class="stats-row">
+            <span class="stats-label">Total Nodes</span>
+            <span class="stats-value">9</span>
+          </div>
+          <div class="stats-row">
+            <span class="stats-label">Active Edges</span>
+            <span class="stats-value" id="edgeCount">28</span>
+          </div>
+          <div class="stats-row">
+            <span class="stats-label">Queries Processed</span>
+            <span class="stats-value" id="queryCount">0</span>
+          </div>
+          <div class="stats-row">
+            <span class="stats-label">Avg Response</span>
+            <span class="stats-value" id="avgResponse">0ms</span>
+          </div>
+        </div>
+
+        <div class="query-section">
+          <textarea class="query-input" id="queryInput" placeholder="Enter query for the constellation..."></textarea>
+          <button class="run-btn" id="runBtn">🚀 Execute Query</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Vertex names following spec
+    const VERTICES = ['NEU', 'NED', 'NWU', 'NWD', 'SEU', 'SED', 'SWU', 'SWD'];
+
+    // 3D positions for cube vertices (normalized -1 to 1)
+    const VERTEX_POS = {
+      NEU: { x: 1, y: 1, z: 1 },    // North-East-Up
+      NED: { x: 1, y: 1, z: -1 },   // North-East-Down
+      NWU: { x: -1, y: 1, z: 1 },   // North-West-Up
+      NWD: { x: -1, y: 1, z: -1 },  // North-West-Down
+      SEU: { x: 1, y: -1, z: 1 },   // South-East-Up
+      SED: { x: 1, y: -1, z: -1 },  // South-East-Down
+      SWU: { x: -1, y: -1, z: 1 },  // South-West-Up
+      SWD: { x: -1, y: -1, z: -1 }, // South-West-Down
+      CENTRAL: { x: 0, y: 0, z: 0 }
+    };
+
+    // Cube edges (12 edges of cube + 8 edges to center)
+    const EDGES = [
+      // Top face (U)
+      ['NEU', 'NWU'], ['NWU', 'SWU'], ['SWU', 'SEU'], ['SEU', 'NEU'],
+      // Bottom face (D)
+      ['NED', 'NWD'], ['NWD', 'SWD'], ['SWD', 'SED'], ['SED', 'NED'],
+      // Vertical edges
+      ['NEU', 'NED'], ['NWU', 'NWD'], ['SWU', 'SWD'], ['SEU', 'SED'],
+      // Central connections
+      ['CENTRAL', 'NEU'], ['CENTRAL', 'NED'], ['CENTRAL', 'NWU'], ['CENTRAL', 'NWD'],
+      ['CENTRAL', 'SEU'], ['CENTRAL', 'SED'], ['CENTRAL', 'SWU'], ['CENTRAL', 'SWD']
+    ];
+
+    // FemtoLLM - nano model for each node
+    class FemtoLLM {
+      constructor(nodeId) {
+        this.nodeId = nodeId;
+        this.hiddenSize = 16;
+        this.vocab = this.buildVocab();
+        this.initWeights();
+      }
+
+      buildVocab() {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789 .,!?';
+        const v = { '<PAD>': 0, '<UNK>': 1 };
+        chars.split('').forEach((c, i) => v[c] = i + 2);
+        return v;
+      }
+
+      initWeights() {
+        const d = this.hiddenSize;
+        const v = Object.keys(this.vocab).length;
+        const xavier = (fi, fo) => {
+          const std = Math.sqrt(2 / (fi + fo));
+          return Array(fi).fill(null).map(() =>
+            Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * std)
+          );
+        };
+        this.W = {
+          embed: xavier(v, d),
+          attn: xavier(d, d),
+          ff1: xavier(d, d * 2),
+          ff2: xavier(d * 2, d),
+          out: xavier(d, v)
+        };
+        // Node-specific bias based on position
+        this.bias = VERTEX_POS[this.nodeId] || { x: 0, y: 0, z: 0 };
+      }
+
+      tokenize(text) {
+        return text.toLowerCase().split('').map(c => this.vocab[c] || 1);
+      }
+
+      softmax(arr) {
+        const max = Math.max(...arr);
+        const exp = arr.map(x => Math.exp(x - max));
+        const sum = exp.reduce((a, b) => a + b, 0);
+        return exp.map(x => x / sum);
+      }
+
+      relu(x) { return Math.max(0, x); }
+
+      matVec(M, v) {
+        return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0));
+      }
+
+      forward(tokens) {
+        const d = this.hiddenSize;
+        // Average embedding
+        let h = Array(d).fill(0);
+        tokens.slice(0, 32).forEach(t => {
+          const emb = this.W.embed[t] || this.W.embed[0];
+          emb.forEach((v, i) => h[i] += v / tokens.length);
+        });
+
+        // Add positional bias from node location
+        h[0] += this.bias.x * 0.1;
+        h[1] += this.bias.y * 0.1;
+        h[2] += this.bias.z * 0.1;
+
+        // Self-attention (simplified)
+        h = this.matVec(this.W.attn, h);
+
+        // FFN
+        let ff = this.matVec(this.W.ff1, h).map(this.relu);
+        h = this.matVec(this.W.ff2, ff);
+
+        // Output projection
+        const logits = this.matVec(this.W.out, h);
+        return this.softmax(logits);
+      }
+
+      async process(query) {
+        const start = performance.now();
+        const tokens = this.tokenize(query);
+        const probs = this.forward(tokens);
+
+        // Generate response based on probabilities
+        const vocabKeys = Object.keys(this.vocab);
+        let response = '';
+        const topK = 5;
+
+        for (let i = 0; i < 30; i++) {
+          // Sample from distribution
+          const sorted = probs.map((p, idx) => ({ p, idx }))
+            .sort((a, b) => b.p - a.p)
+            .slice(0, topK);
+          const r = Math.random();
+          let cum = 0;
+          let chosen = sorted[0].idx;
+          for (const s of sorted) {
+            cum += s.p / sorted.reduce((a, b) => a + b.p, 0);
+            if (r < cum) { chosen = s.idx; break; }
+          }
+          const char = vocabKeys[chosen];
+          if (char && char !== '<PAD>' && char !== '<UNK>') {
+            response += char;
+          }
+        }
+
+        const elapsed = performance.now() - start;
+        return {
+          node: this.nodeId,
+          response: response.trim() || `[${this.nodeId}] processed`,
+          time: elapsed
+        };
+      }
+    }
+
+    // Cube Engine
+    class CubeEngine {
+      constructor() {
+        this.nodes = {};
+        this.edges = new Map();
+        this.selectedNode = null;
+        this.routingMode = 'single';
+        this.queryCount = 0;
+        this.totalTime = 0;
+
+        this.initNodes();
+        this.initEdges();
+      }
+
+      initNodes() {
+        // Create FemtoLLM at each vertex + central
+        for (const v of VERTICES) {
+          this.nodes[v] = new FemtoLLM(v);
+        }
+        this.nodes['CENTRAL'] = new FemtoLLM('CENTRAL');
+      }
+
+      initEdges() {
+        for (const [a, b] of EDGES) {
+          const key = [a, b].sort().join('-');
+          this.edges.set(key, { from: a, to: b, weight: 1 });
+        }
+      }
+
+      getNeighbors(node) {
+        const neighbors = [];
+        for (const [a, b] of EDGES) {
+          if (a === node) neighbors.push(b);
+          if (b === node) neighbors.push(a);
+        }
+        return neighbors;
+      }
+
+      async querySingle(query, node) {
+        return await this.nodes[node].process(query);
+      }
+
+      async queryBroadcast(query) {
+        const allNodes = [...VERTICES, 'CENTRAL'];
+        const results = await Promise.all(
+          allNodes.map(n => this.nodes[n].process(query))
+        );
+        return results;
+      }
+
+      async queryChain(query, startNode) {
+        const visited = new Set();
+        const results = [];
+        let current = startNode;
+        let currentQuery = query;
+
+        while (current && !visited.has(current) && results.length < 5) {
+          visited.add(current);
+          const result = await this.nodes[current].process(currentQuery);
+          results.push(result);
+          currentQuery = result.response;
+
+          // Move to next unvisited neighbor
+          const neighbors = this.getNeighbors(current);
+          current = neighbors.find(n => !visited.has(n));
+        }
+
+        return results;
+      }
+
+      async queryConsensus(query) {
+        // All vertices vote, central aggregates
+        const votes = await Promise.all(
+          VERTICES.map(v => this.nodes[v].process(query))
+        );
+
+        // Central processes with aggregated context
+        const context = votes.map(v => v.response).join(' | ');
+        const centralResult = await this.nodes['CENTRAL'].process(
+          `Aggregate: ${context.slice(0, 100)}`
+        );
+
+        return {
+          votes,
+          consensus: centralResult
+        };
+      }
+
+      async executeQuery(query) {
+        this.queryCount++;
+        const start = performance.now();
+        let result;
+
+        switch (this.routingMode) {
+          case 'single':
+            result = [await this.querySingle(query, this.selectedNode || 'CENTRAL')];
+            break;
+          case 'broadcast':
+            result = await this.queryBroadcast(query);
+            break;
+          case 'chain':
+            result = await this.queryChain(query, this.selectedNode || 'NEU');
+            break;
+          case 'consensus':
+            const consensus = await this.queryConsensus(query);
+            result = [...consensus.votes, consensus.consensus];
+            break;
+        }
+
+        this.totalTime += performance.now() - start;
+        return result;
+      }
+    }
+
+    // 3D Renderer
+    class CubeRenderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.rotX = 0.4;
+        this.rotY = 0.3;
+        this.autoRotate = true;
+        this.activeNodes = new Set();
+        this.selectedNode = null;
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupInteraction();
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width * 2;
+        this.canvas.height = rect.height * 2;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+        this.scale = Math.min(this.canvas.width, this.canvas.height) * 0.25;
+      }
+
+      setupInteraction() {
+        let dragging = false;
+        let lastX, lastY;
+
+        this.canvas.addEventListener('mousedown', e => {
+          dragging = true;
+          lastX = e.clientX;
+          lastY = e.clientY;
+          this.autoRotate = false;
+        });
+
+        window.addEventListener('mousemove', e => {
+          if (!dragging) return;
+          const dx = e.clientX - lastX;
+          const dy = e.clientY - lastY;
+          this.rotY += dx * 0.005;
+          this.rotX += dy * 0.005;
+          lastX = e.clientX;
+          lastY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => dragging = false);
+      }
+
+      project(x, y, z) {
+        // Rotate around Y
+        const cosY = Math.cos(this.rotY);
+        const sinY = Math.sin(this.rotY);
+        let x1 = x * cosY - z * sinY;
+        let z1 = x * sinY + z * cosY;
+
+        // Rotate around X
+        const cosX = Math.cos(this.rotX);
+        const sinX = Math.sin(this.rotX);
+        let y1 = y * cosX - z1 * sinX;
+        let z2 = y * sinX + z1 * cosX;
+
+        // Project
+        const perspective = 3 / (3 + z2);
+        return {
+          x: this.centerX + x1 * this.scale * perspective,
+          y: this.centerY - y1 * this.scale * perspective,
+          z: z2,
+          scale: perspective
+        };
+      }
+
+      render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        if (this.autoRotate) {
+          this.rotY += 0.005;
+        }
+
+        // Project all vertices
+        const projected = {};
+        for (const [name, pos] of Object.entries(VERTEX_POS)) {
+          projected[name] = this.project(pos.x, pos.y, pos.z);
+        }
+
+        // Sort by depth for proper rendering
+        const sortedEdges = [...EDGES].sort((a, b) => {
+          const zA = (projected[a[0]].z + projected[a[1]].z) / 2;
+          const zB = (projected[b[0]].z + projected[b[1]].z) / 2;
+          return zA - zB;
+        });
+
+        // Draw edges
+        for (const [from, to] of sortedEdges) {
+          const p1 = projected[from];
+          const p2 = projected[to];
+          const isCentral = from === 'CENTRAL' || to === 'CENTRAL';
+
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.strokeStyle = isCentral ? 'rgba(139, 92, 246, 0.4)' : 'rgba(6, 182, 212, 0.6)';
+          ctx.lineWidth = isCentral ? 1 : 2;
+          ctx.stroke();
+        }
+
+        // Sort nodes by depth
+        const sortedNodes = Object.entries(projected).sort((a, b) => a[1].z - b[1].z);
+
+        // Draw nodes
+        for (const [name, p] of sortedNodes) {
+          const isCentral = name === 'CENTRAL';
+          const isActive = this.activeNodes.has(name);
+          const isSelected = this.selectedNode === name;
+          const radius = (isCentral ? 20 : 15) * p.scale;
+
+          // Glow
+          if (isActive || isSelected) {
+            const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 3);
+            grad.addColorStop(0, isActive ? 'rgba(34, 197, 94, 0.5)' : 'rgba(139, 92, 246, 0.5)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius * 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Node circle
+          const nodeGrad = ctx.createRadialGradient(p.x - radius * 0.3, p.y - radius * 0.3, 0, p.x, p.y, radius);
+          if (isCentral) {
+            nodeGrad.addColorStop(0, '#a855f7');
+            nodeGrad.addColorStop(1, '#6b21a8');
+          } else {
+            nodeGrad.addColorStop(0, '#22d3ee');
+            nodeGrad.addColorStop(1, '#0891b2');
+          }
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = nodeGrad;
+          ctx.fill();
+          ctx.strokeStyle = isSelected ? '#fff' : (isCentral ? '#8b5cf6' : '#06b6d4');
+          ctx.lineWidth = isSelected ? 3 : 2;
+          ctx.stroke();
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = `${Math.round(11 * p.scale)}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(name, p.x, p.y + radius + 15 * p.scale);
+        }
+
+        requestAnimationFrame(() => this.render());
+      }
+
+      setView(view) {
+        this.autoRotate = false;
+        switch (view) {
+          case 'top': this.rotX = Math.PI / 2; this.rotY = 0; break;
+          case 'front': this.rotX = 0; this.rotY = 0; break;
+          case 'iso': this.rotX = 0.4; this.rotY = 0.3; break;
+        }
+      }
+    }
+
+    // Initialize
+    const engine = new CubeEngine();
+    const canvas = document.getElementById('cubeCanvas');
+    const renderer = new CubeRenderer(canvas);
+    renderer.render();
+
+    // Update edge list display
+    const edgeList = document.getElementById('edgeList');
+    EDGES.forEach(([a, b]) => {
+      const tag = document.createElement('span');
+      tag.className = 'edge-tag';
+      tag.textContent = `${a}↔${b}`;
+      edgeList.appendChild(tag);
+    });
+    document.getElementById('edgeCount').textContent = EDGES.length;
+
+    // Node selection
+    document.querySelectorAll('.node-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.node-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        engine.selectedNode = btn.dataset.node;
+        renderer.selectedNode = btn.dataset.node;
+      });
+    });
+
+    // Mode selection
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        engine.routingMode = btn.dataset.mode;
+      });
+    });
+
+    // Rotation controls
+    document.querySelectorAll('.rot-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.auto) {
+          renderer.autoRotate = !renderer.autoRotate;
+          btn.classList.toggle('active', renderer.autoRotate);
+        } else if (btn.dataset.reset) {
+          renderer.rotX = 0.4;
+          renderer.rotY = 0.3;
+          renderer.autoRotate = true;
+          document.querySelector('[data-auto]').classList.add('active');
+        } else if (btn.dataset.view) {
+          renderer.setView(btn.dataset.view);
+        }
+      });
+    });
+
+    // Query execution
+    const runBtn = document.getElementById('runBtn');
+    const queryInput = document.getElementById('queryInput');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const resultsContent = document.getElementById('resultsContent');
+
+    runBtn.addEventListener('click', async () => {
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      runBtn.disabled = true;
+      runBtn.textContent = '⏳ Processing...';
+      resultsContent.innerHTML = '';
+      resultsPanel.style.display = 'block';
+
+      // Show active nodes
+      if (engine.routingMode === 'single') {
+        renderer.activeNodes = new Set([engine.selectedNode || 'CENTRAL']);
+      } else {
+        renderer.activeNodes = new Set([...VERTICES, 'CENTRAL']);
+      }
+
+      // Update node statuses
+      document.querySelectorAll('.node-btn').forEach(btn => {
+        const status = btn.querySelector('.node-status');
+        if (renderer.activeNodes.has(btn.dataset.node)) {
+          status.textContent = 'processing...';
+          status.className = 'node-status busy';
+        }
+      });
+
+      try {
+        const results = await engine.executeQuery(query);
+
+        results.forEach(r => {
+          const item = document.createElement('div');
+          item.className = 'result-item';
+          item.innerHTML = `
+            <div class="result-header">
+              <span class="result-node">${r.node}</span>
+              <span class="result-time">${r.time.toFixed(1)}ms</span>
+            </div>
+            <div class="result-text">${r.response}</div>
+          `;
+          resultsContent.appendChild(item);
+        });
+
+        // Update stats
+        document.getElementById('queryCount').textContent = engine.queryCount;
+        document.getElementById('avgResponse').textContent =
+          `${(engine.totalTime / engine.queryCount).toFixed(1)}ms`;
+
+      } catch (err) {
+        resultsContent.innerHTML = `<div class="result-item" style="color:#ef4444">${err.message}</div>`;
+      }
+
+      // Reset states
+      renderer.activeNodes.clear();
+      document.querySelectorAll('.node-btn').forEach(btn => {
+        const status = btn.querySelector('.node-status');
+        status.textContent = 'idle';
+        status.className = 'node-status';
+      });
+
+      runBtn.disabled = false;
+      runBtn.textContent = '🚀 Execute Query';
+    });
+
+    // Global API
+    window.Cube = {
+      engine,
+      renderer,
+      query: (q) => engine.executeQuery(q),
+      getNode: (id) => engine.nodes[id],
+      setMode: (m) => { engine.routingMode = m; }
+    };
+  </script>
+</body>
+</html>
