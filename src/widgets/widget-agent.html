@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<!--
+@file widget-agent.html
+@desc Widget Agent - Monitors widgets for errors and flags human review
+@api  window.WidgetAgent - Agent controller
+
+Features:
+- Auto-discovers widgets from WIDGET_PATHS
+- Loads and tests each widget in sandbox iframe
+- Catches JS errors, load failures, console errors
+- Health check dashboard with status indicators
+- Alert queue for human review
+- Configurable check intervals
+- Error history and patterns
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Widget Agent</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--a:#00d9ff;--g:#10b981;--r:#ef4444;--y:#eab308;--o:#f97316;--p:#a855f7}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:16px 24px;background:linear-gradient(135deg,#0d9488,#14b8a6);display:flex;align-items:center;gap:16px}
+    .logo{font-size:28px}
+    .header h1{font-size:18px;color:#fff;font-weight:600}
+    .header-stats{margin-left:auto;display:flex;gap:20px}
+    .stat{text-align:center;padding:8px 16px;background:rgba(0,0,0,.2);border-radius:8px}
+    .stat-value{font-size:20px;font-weight:700;color:#fff}
+    .stat-label{font-size:10px;text-transform:uppercase;opacity:.8}
+    .stat.healthy .stat-value{color:#10b981}
+    .stat.warning .stat-value{color:#eab308}
+    .stat.error .stat-value{color:#ef4444}
+
+    .controls{padding:12px 24px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:12px;align-items:center}
+    .controls button{padding:8px 16px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px}
+    .controls button:hover{background:rgba(255,255,255,.1)}
+    .controls button.primary{background:var(--a);color:#000;border:0}
+    .controls button.danger{background:var(--r);color:#fff;border:0}
+    .controls .spacer{flex:1}
+    .controls select{padding:8px 12px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:12px}
+    .agent-status{display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,0,0,.3);border-radius:20px;font-size:11px}
+    .agent-status .dot{width:8px;height:8px;border-radius:50%;background:var(--g);animation:pulse 2s infinite}
+    .agent-status.paused .dot{background:var(--y);animation:none}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+    .main{display:flex;height:calc(100vh - 130px)}
+
+    .widget-grid{flex:1;padding:20px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-content:start}
+
+    .widget-card{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden}
+    .widget-card.healthy{border-color:rgba(16,185,129,.3)}
+    .widget-card.warning{border-color:rgba(234,179,8,.3)}
+    .widget-card.error{border-color:rgba(239,68,68,.3)}
+    .widget-card.checking{border-color:rgba(0,217,255,.3)}
+
+    .widget-header{padding:12px 16px;background:var(--b3);display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.04)}
+    .widget-icon{font-size:20px}
+    .widget-name{font-weight:600;flex:1}
+    .widget-status{width:10px;height:10px;border-radius:50%}
+    .widget-status.healthy{background:var(--g)}
+    .widget-status.warning{background:var(--y)}
+    .widget-status.error{background:var(--r)}
+    .widget-status.checking{background:var(--a);animation:pulse 1s infinite}
+    .widget-status.pending{background:#64748b}
+
+    .widget-body{padding:14px 16px}
+    .widget-file{font-family:'SF Mono',monospace;font-size:11px;color:#64748b;margin-bottom:8px}
+    .widget-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    .metric{background:rgba(0,0,0,.2);padding:8px;border-radius:6px;text-align:center}
+    .metric-value{font-size:14px;font-weight:600}
+    .metric-label{font-size:9px;color:#64748b;text-transform:uppercase}
+    .widget-errors{margin-top:10px}
+    .error-item{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:8px 10px;font-size:11px;margin-bottom:6px;font-family:'SF Mono',monospace}
+    .error-item .type{color:var(--r);font-weight:600}
+    .error-item .msg{color:#f87171;margin-top:4px;word-break:break-word}
+    .error-item .time{color:#64748b;font-size:9px;margin-top:4px}
+
+    .widget-actions{padding:10px 16px;border-top:1px solid rgba(255,255,255,.04);display:flex;gap:8px}
+    .widget-actions button{flex:1;padding:6px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:4px;color:var(--f);cursor:pointer;font-size:10px}
+    .widget-actions button:hover{background:rgba(255,255,255,.1)}
+
+    /* Alerts Panel */
+    .alerts-panel{width:380px;background:var(--b2);border-left:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .alerts-header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
+    .alerts-header h2{font-size:14px;font-weight:600;flex:1}
+    .alerts-header .badge{background:var(--r);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px}
+    .alerts-list{flex:1;overflow-y:auto;padding:12px}
+    .alert-item{background:var(--b3);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:12px;margin-bottom:10px}
+    .alert-item.critical{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.05)}
+    .alert-item.warning{border-color:rgba(234,179,8,.4);background:rgba(234,179,8,.05)}
+    .alert-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .alert-top .icon{font-size:16px}
+    .alert-top .widget{font-weight:600;flex:1}
+    .alert-top .time{font-size:10px;color:#64748b}
+    .alert-message{font-size:12px;color:#94a3b8;margin-bottom:10px}
+    .alert-actions{display:flex;gap:8px}
+    .alert-actions button{padding:5px 10px;border-radius:4px;font-size:10px;cursor:pointer;border:0}
+    .alert-actions .dismiss{background:rgba(255,255,255,.1);color:var(--f)}
+    .alert-actions .review{background:var(--a);color:#000}
+    .alert-actions .ignore{background:transparent;color:#64748b;border:1px solid rgba(255,255,255,.1)}
+
+    .empty-alerts{text-align:center;padding:40px;color:#64748b}
+    .empty-alerts .icon{font-size:40px;margin-bottom:12px;opacity:.5}
+
+    /* Test iframe (hidden) */
+    .test-frame{position:absolute;left:-9999px;width:800px;height:600px;border:0}
+
+    /* Log panel */
+    .log-panel{position:fixed;bottom:0;left:0;right:380px;height:180px;background:#000;border-top:1px solid rgba(255,255,255,.1);display:none;flex-direction:column}
+    .log-panel.open{display:flex}
+    .log-header{padding:8px 16px;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;font-size:11px;color:#64748b}
+    .log-header button{background:none;border:0;color:#64748b;cursor:pointer;font-size:14px}
+    .log-body{flex:1;overflow-y:auto;padding:10px 16px;font-family:'SF Mono',monospace;font-size:11px}
+    .log-line{margin-bottom:2px}
+    .log-line.info{color:#64748b}
+    .log-line.success{color:var(--g)}
+    .log-line.warn{color:var(--y)}
+    .log-line.error{color:var(--r)}
+    .log-line .time{color:#475569;margin-right:8px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🔍</span>
+    <h1>Widget Agent</h1>
+    <div class="header-stats">
+      <div class="stat healthy">
+        <div class="stat-value" id="healthyCount">0</div>
+        <div class="stat-label">Healthy</div>
+      </div>
+      <div class="stat warning">
+        <div class="stat-value" id="warningCount">0</div>
+        <div class="stat-label">Warnings</div>
+      </div>
+      <div class="stat error">
+        <div class="stat-value" id="errorCount">0</div>
+        <div class="stat-label">Errors</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="agent-status" id="agentStatus">
+      <span class="dot"></span>
+      <span id="agentStatusText">Monitoring</span>
+    </div>
+    <button class="primary" id="runAllBtn">▶ Run All Checks</button>
+    <button id="pauseBtn">⏸ Pause</button>
+    <select id="intervalSelect">
+      <option value="30000">Every 30s</option>
+      <option value="60000" selected>Every 1m</option>
+      <option value="300000">Every 5m</option>
+      <option value="600000">Every 10m</option>
+      <option value="0">Manual Only</option>
+    </select>
+    <div class="spacer"></div>
+    <button id="logBtn">📋 Toggle Log</button>
+    <button class="danger" id="clearAlertsBtn">🗑 Clear Alerts</button>
+  </div>
+
+  <div class="main">
+    <div class="widget-grid" id="widgetGrid"></div>
+    <div class="alerts-panel">
+      <div class="alerts-header">
+        <h2>🚨 Alerts</h2>
+        <span class="badge" id="alertBadge">0</span>
+      </div>
+      <div class="alerts-list" id="alertsList">
+        <div class="empty-alerts">
+          <div class="icon">✅</div>
+          <div>No alerts</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="log-panel" id="logPanel">
+    <div class="log-header">
+      <span>Agent Log</span>
+      <div style="flex:1"></div>
+      <button id="clearLogBtn">Clear</button>
+      <button id="closeLogBtn">✕</button>
+    </div>
+    <div class="log-body" id="logBody"></div>
+  </div>
+
+  <iframe class="test-frame" id="testFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    // Widget definitions - auto-discover from index.js pattern
+    const WIDGET_PATHS = {
+      phone: './phone.html',
+      phoneV2: './phone-v2.html',
+      aiComm: './ai-comm.html',
+      aiCommV2: './ai-comm-v2.html',
+      aiCommV3: './ai-comm-v3.html',
+      p2pMesh: './p2p-mesh.html',
+      webtorrentTracker: './webtorrent-tracker.html',
+      osDesktop: './os-desktop.html',
+      terminal: './terminal.html',
+      aiChat: './ai-chat.html',
+      presence: './presence.html',
+      feedback: './feedback.html',
+      changelog: './changelog.html',
+      testimonials: './testimonials.html',
+      timer: './timer.html',
+      docs: './docs.html',
+      bookmarks: './bookmarks.html',
+      invoices: './invoices.html',
+      roadmap: './roadmap.html',
+      faq: './faq.html',
+      snippets: './snippets.html',
+      cli: './cli.html',
+      mcp: './mcp.html',
+      kontainer: './kontainer.html',
+      konomiKode: './konomi-kode.html',
+      iframe: './iframe.html',
+      kframe: './kframe.html',
+      claudeCode: './claude-code.html',
+    };
+
+    // Widget icons
+    const WIDGET_ICONS = {
+      phone: '📞', phoneV2: '📱', aiComm: '🤖', aiCommV2: '🤖', aiCommV3: '🤖',
+      p2pMesh: '🕸️', webtorrentTracker: '🌊', osDesktop: '🖥️', terminal: '💻',
+      aiChat: '💬', presence: '👥', feedback: '💡', changelog: '📢',
+      testimonials: '⭐', timer: '⏱️', docs: '📄', bookmarks: '🔖',
+      invoices: '🧾', roadmap: '🗺️', faq: '❓', snippets: '✂️',
+      cli: '⚡', mcp: '🔌', kontainer: '📦', konomiKode: '🤖',
+      iframe: '🖼️', kframe: '🔗', claudeCode: '🤖'
+    };
+
+    class WidgetAgent {
+      constructor() {
+        this.widgets = new Map();
+        this.alerts = [];
+        this.isPaused = false;
+        this.checkInterval = 60000;
+        this.intervalId = null;
+        this.checkQueue = [];
+        this.isChecking = false;
+        this.init();
+      }
+
+      init() {
+        // Initialize widget states
+        for (const [id, path] of Object.entries(WIDGET_PATHS)) {
+          this.widgets.set(id, {
+            id,
+            path,
+            icon: WIDGET_ICONS[id] || '📦',
+            status: 'pending',
+            lastCheck: null,
+            loadTime: null,
+            errors: [],
+            warnings: [],
+            checkCount: 0
+          });
+        }
+
+        this.loadState();
+        this.renderWidgets();
+        this.renderAlerts();
+        this.setupEventListeners();
+        this.startMonitoring();
+
+        // Run initial check
+        setTimeout(() => this.runAllChecks(), 1000);
+
+        this.log('Widget Agent initialized', 'info');
+        this.log(`Monitoring ${this.widgets.size} widgets`, 'info');
+      }
+
+      loadState() {
+        try {
+          const saved = localStorage.getItem('widget-agent-alerts');
+          if (saved) this.alerts = JSON.parse(saved);
+        } catch (e) {}
+      }
+
+      saveState() {
+        localStorage.setItem('widget-agent-alerts', JSON.stringify(this.alerts.slice(0, 100)));
+      }
+
+      setupEventListeners() {
+        $('runAllBtn').onclick = () => this.runAllChecks();
+        $('pauseBtn').onclick = () => this.togglePause();
+        $('clearAlertsBtn').onclick = () => this.clearAlerts();
+        $('logBtn').onclick = () => $('logPanel').classList.toggle('open');
+        $('closeLogBtn').onclick = () => $('logPanel').classList.remove('open');
+        $('clearLogBtn').onclick = () => { $('logBody').innerHTML = ''; };
+
+        $('intervalSelect').onchange = (e) => {
+          this.checkInterval = parseInt(e.target.value);
+          this.startMonitoring();
+          this.log(`Check interval: ${this.checkInterval ? (this.checkInterval/1000)+'s' : 'manual'}`, 'info');
+        };
+
+        // Listen for errors from test iframe
+        window.addEventListener('message', (e) => {
+          if (e.data?.type === 'widget-error') {
+            this.handleWidgetError(e.data.widgetId, e.data.error);
+          }
+        });
+      }
+
+      startMonitoring() {
+        if (this.intervalId) clearInterval(this.intervalId);
+        if (this.checkInterval > 0 && !this.isPaused) {
+          this.intervalId = setInterval(() => this.runAllChecks(), this.checkInterval);
+        }
+      }
+
+      togglePause() {
+        this.isPaused = !this.isPaused;
+        $('agentStatus').classList.toggle('paused', this.isPaused);
+        $('agentStatusText').textContent = this.isPaused ? 'Paused' : 'Monitoring';
+        $('pauseBtn').textContent = this.isPaused ? '▶ Resume' : '⏸ Pause';
+        this.startMonitoring();
+        this.log(this.isPaused ? 'Monitoring paused' : 'Monitoring resumed', 'info');
+      }
+
+      async runAllChecks() {
+        if (this.isChecking) return;
+        this.isChecking = true;
+        this.log('Starting full check cycle...', 'info');
+
+        const widgetIds = Array.from(this.widgets.keys());
+        for (const id of widgetIds) {
+          await this.checkWidget(id);
+          // Small delay between checks
+          await new Promise(r => setTimeout(r, 500));
+        }
+
+        this.isChecking = false;
+        this.updateStats();
+        this.log('Check cycle complete', 'success');
+      }
+
+      async checkWidget(id) {
+        const widget = this.widgets.get(id);
+        if (!widget) return;
+
+        widget.status = 'checking';
+        this.renderWidget(id);
+
+        const startTime = performance.now();
+        const errors = [];
+        const warnings = [];
+
+        try {
+          // Step 1: Fetch the widget file
+          const response = await fetch(new URL(widget.path, import.meta.url));
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const html = await response.text();
+          const loadTime = Math.round(performance.now() - startTime);
+          widget.loadTime = loadTime;
+
+          // Step 2: Parse and check for common issues
+          const issues = this.analyzeWidgetHTML(html, id);
+          errors.push(...issues.errors);
+          warnings.push(...issues.warnings);
+
+          // Step 3: Load in sandbox iframe and check for runtime errors
+          const runtimeErrors = await this.checkWidgetRuntime(id, html);
+          errors.push(...runtimeErrors);
+
+          // Determine status
+          if (errors.length > 0) {
+            widget.status = 'error';
+            this.log(`${id}: ${errors.length} error(s)`, 'error');
+          } else if (warnings.length > 0) {
+            widget.status = 'warning';
+            this.log(`${id}: ${warnings.length} warning(s)`, 'warn');
+          } else {
+            widget.status = 'healthy';
+            this.log(`${id}: OK (${loadTime}ms)`, 'success');
+          }
+
+          widget.errors = errors;
+          widget.warnings = warnings;
+          widget.lastCheck = Date.now();
+          widget.checkCount++;
+
+          // Create alerts for new errors
+          for (const err of errors) {
+            this.addAlert(id, 'critical', err);
+          }
+          for (const warn of warnings) {
+            this.addAlert(id, 'warning', warn);
+          }
+
+        } catch (e) {
+          widget.status = 'error';
+          widget.errors = [{ type: 'load', message: e.message }];
+          widget.lastCheck = Date.now();
+          this.log(`${id}: Load failed - ${e.message}`, 'error');
+          this.addAlert(id, 'critical', { type: 'load', message: e.message });
+        }
+
+        this.renderWidget(id);
+      }
+
+      analyzeWidgetHTML(html, id) {
+        const errors = [];
+        const warnings = [];
+
+        // Check for unescaped script tags in template literals
+        const scriptInStringMatch = html.match(/`[^`]*<\/script>[^`]*`/gi);
+        if (scriptInStringMatch) {
+          errors.push({
+            type: 'syntax',
+            message: 'Unescaped </script> in template literal - will break HTML parser'
+          });
+        }
+
+        // Check for missing DOCTYPE
+        if (!html.trim().toLowerCase().startsWith('<!doctype')) {
+          warnings.push({
+            type: 'standards',
+            message: 'Missing DOCTYPE declaration'
+          });
+        }
+
+        // Check for console.log statements (potential debug code)
+        const consoleLogs = (html.match(/console\.log\(/g) || []).length;
+        if (consoleLogs > 5) {
+          warnings.push({
+            type: 'debug',
+            message: `${consoleLogs} console.log statements found`
+          });
+        }
+
+        // Check for TODO/FIXME comments
+        const todos = (html.match(/\/\/\s*(TODO|FIXME|XXX|HACK)/gi) || []).length;
+        if (todos > 0) {
+          warnings.push({
+            type: 'incomplete',
+            message: `${todos} TODO/FIXME comments found`
+          });
+        }
+
+        // Check for empty event handlers
+        if (html.match(/on\w+\s*=\s*["']\s*["']/gi)) {
+          warnings.push({
+            type: 'code',
+            message: 'Empty event handler found'
+          });
+        }
+
+        // Check for mixed HTTP/HTTPS
+        if (html.match(/http:\/\/(?!localhost|127\.0\.0\.1)/gi)) {
+          warnings.push({
+            type: 'security',
+            message: 'Non-HTTPS URLs found'
+          });
+        }
+
+        // Check for potential XSS patterns
+        if (html.match(/innerHTML\s*=\s*[^;]*\+/g)) {
+          warnings.push({
+            type: 'security',
+            message: 'Potential XSS: innerHTML with concatenation'
+          });
+        }
+
+        // Check for hardcoded API keys pattern
+        if (html.match(/["'](sk-|api[_-]?key|secret)[^"']{10,}["']/gi)) {
+          errors.push({
+            type: 'security',
+            message: 'Possible hardcoded API key detected'
+          });
+        }
+
+        return { errors, warnings };
+      }
+
+      async checkWidgetRuntime(id, html) {
+        return new Promise((resolve) => {
+          const errors = [];
+          const timeout = setTimeout(() => resolve(errors), 5000);
+
+          // Inject error catching code
+          const errorCatcher = `
+            <script>
+              window.onerror = (msg, src, line, col, err) => {
+                parent.postMessage({
+                  type: 'widget-error',
+                  widgetId: '${id}',
+                  error: { type: 'runtime', message: msg, line, col }
+                }, '*');
+                return true;
+              };
+              window.addEventListener('unhandledrejection', (e) => {
+                parent.postMessage({
+                  type: 'widget-error',
+                  widgetId: '${id}',
+                  error: { type: 'promise', message: e.reason?.message || String(e.reason) }
+                }, '*');
+              });
+              // Signal load complete
+              setTimeout(() => {
+                parent.postMessage({ type: 'widget-loaded', widgetId: '${id}' }, '*');
+              }, 2000);
+            <\/script>
+          `;
+
+          const modifiedHtml = html.replace('</head>', errorCatcher + '</head>');
+          const blob = new Blob([modifiedHtml], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+
+          const handler = (e) => {
+            if (e.data?.widgetId !== id) return;
+            if (e.data?.type === 'widget-error') {
+              errors.push(e.data.error);
+            }
+            if (e.data?.type === 'widget-loaded') {
+              clearTimeout(timeout);
+              window.removeEventListener('message', handler);
+              URL.revokeObjectURL(url);
+              resolve(errors);
+            }
+          };
+
+          window.addEventListener('message', handler);
+          $('testFrame').src = url;
+        });
+      }
+
+      handleWidgetError(id, error) {
+        const widget = this.widgets.get(id);
+        if (widget) {
+          widget.errors.push(error);
+          widget.status = 'error';
+          this.renderWidget(id);
+          this.addAlert(id, 'critical', error);
+        }
+      }
+
+      addAlert(widgetId, severity, error) {
+        // Check for duplicate alerts
+        const isDupe = this.alerts.some(a =>
+          a.widgetId === widgetId &&
+          a.error.type === error.type &&
+          a.error.message === error.message &&
+          Date.now() - a.timestamp < 300000 // Within 5 minutes
+        );
+
+        if (!isDupe) {
+          this.alerts.unshift({
+            id: Date.now() + Math.random(),
+            widgetId,
+            severity,
+            error,
+            timestamp: Date.now(),
+            dismissed: false
+          });
+          this.saveState();
+          this.renderAlerts();
+        }
+      }
+
+      clearAlerts() {
+        this.alerts = [];
+        this.saveState();
+        this.renderAlerts();
+        this.log('Alerts cleared', 'info');
+      }
+
+      dismissAlert(alertId) {
+        this.alerts = this.alerts.filter(a => a.id !== alertId);
+        this.saveState();
+        this.renderAlerts();
+      }
+
+      renderWidgets() {
+        $('widgetGrid').innerHTML = '';
+        for (const [id] of this.widgets) {
+          this.renderWidget(id);
+        }
+      }
+
+      renderWidget(id) {
+        const widget = this.widgets.get(id);
+        if (!widget) return;
+
+        let card = document.querySelector(`.widget-card[data-id="${id}"]`);
+        if (!card) {
+          card = document.createElement('div');
+          card.className = 'widget-card';
+          card.dataset.id = id;
+          $('widgetGrid').appendChild(card);
+        }
+
+        card.className = `widget-card ${widget.status}`;
+
+        const errorsHtml = widget.errors.slice(0, 3).map(e => `
+          <div class="error-item">
+            <div class="type">${esc(e.type)}</div>
+            <div class="msg">${esc(e.message)}</div>
+          </div>
+        `).join('');
+
+        card.innerHTML = `
+          <div class="widget-header">
+            <span class="widget-icon">${widget.icon}</span>
+            <span class="widget-name">${esc(id)}</span>
+            <span class="widget-status ${widget.status}"></span>
+          </div>
+          <div class="widget-body">
+            <div class="widget-file">${esc(widget.path)}</div>
+            <div class="widget-metrics">
+              <div class="metric">
+                <div class="metric-value">${widget.loadTime !== null ? widget.loadTime + 'ms' : '-'}</div>
+                <div class="metric-label">Load Time</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value">${widget.checkCount}</div>
+                <div class="metric-label">Checks</div>
+              </div>
+            </div>
+            ${widget.errors.length > 0 ? `<div class="widget-errors">${errorsHtml}</div>` : ''}
+            ${widget.lastCheck ? `<div style="font-size:10px;color:#64748b;margin-top:8px">Last: ${this.formatTime(widget.lastCheck)}</div>` : ''}
+          </div>
+          <div class="widget-actions">
+            <button onclick="WidgetAgent.checkWidget('${id}')">🔄 Check</button>
+            <button onclick="WidgetAgent.openWidget('${id}')">🔗 Open</button>
+          </div>
+        `;
+      }
+
+      renderAlerts() {
+        const activeAlerts = this.alerts.filter(a => !a.dismissed);
+        $('alertBadge').textContent = activeAlerts.length;
+
+        if (activeAlerts.length === 0) {
+          $('alertsList').innerHTML = `
+            <div class="empty-alerts">
+              <div class="icon">✅</div>
+              <div>No alerts</div>
+            </div>
+          `;
+          return;
+        }
+
+        $('alertsList').innerHTML = activeAlerts.slice(0, 50).map(alert => {
+          const widget = this.widgets.get(alert.widgetId);
+          return `
+            <div class="alert-item ${alert.severity}">
+              <div class="alert-top">
+                <span class="icon">${widget?.icon || '📦'}</span>
+                <span class="widget">${esc(alert.widgetId)}</span>
+                <span class="time">${this.formatTime(alert.timestamp)}</span>
+              </div>
+              <div class="alert-message">
+                <strong>${esc(alert.error.type)}:</strong> ${esc(alert.error.message)}
+              </div>
+              <div class="alert-actions">
+                <button class="dismiss" onclick="WidgetAgent.dismissAlert(${alert.id})">Dismiss</button>
+                <button class="review" onclick="WidgetAgent.openWidget('${alert.widgetId}')">Review</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      updateStats() {
+        let healthy = 0, warning = 0, error = 0;
+        for (const [, widget] of this.widgets) {
+          if (widget.status === 'healthy') healthy++;
+          else if (widget.status === 'warning') warning++;
+          else if (widget.status === 'error') error++;
+        }
+        $('healthyCount').textContent = healthy;
+        $('warningCount').textContent = warning;
+        $('errorCount').textContent = error;
+      }
+
+      openWidget(id) {
+        const widget = this.widgets.get(id);
+        if (widget) {
+          window.open(new URL(widget.path, import.meta.url), '_blank');
+        }
+      }
+
+      formatTime(ts) {
+        const diff = Date.now() - ts;
+        if (diff < 60000) return 'just now';
+        if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+        if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+        return new Date(ts).toLocaleDateString();
+      }
+
+      log(msg, type = 'info') {
+        const time = new Date().toLocaleTimeString();
+        const line = document.createElement('div');
+        line.className = 'log-line ' + type;
+        line.innerHTML = `<span class="time">${time}</span>${esc(msg)}`;
+        $('logBody').appendChild(line);
+        $('logBody').scrollTop = $('logBody').scrollHeight;
+      }
+    }
+
+    window.WidgetAgent = new WidgetAgent();
+  </script>
+</body>
+</html>

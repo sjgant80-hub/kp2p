@@ -52,6 +52,7 @@ export const WIDGET_PATHS = {
   iframe: './iframe.html',
   kframe: './kframe.html',
   claudeCode: './claude-code.html',
+  widgetAgent: './widget-agent.html',
 }
 
 /**

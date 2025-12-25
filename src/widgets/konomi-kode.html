@@ -365,53 +365,78 @@ Features:
         });
       }
 
-      // Get stats
+      // Get stats (safely handles missing stores)
       async getStats() {
         const stats = { conversations: 0, patterns: 0, snapshots: 0, totalTokens: 0 };
+        if (!this.db) return stats;
 
-        const tx = this.db.transaction(['conversations', 'patterns', 'snapshots'], 'readonly');
+        const storeNames = ['conversations', 'patterns', 'snapshots'];
+        const available = storeNames.filter(s => this.db.objectStoreNames.contains(s));
+        if (available.length === 0) return stats;
 
-        for (const storeName of ['conversations', 'patterns', 'snapshots']) {
-          const store = tx.objectStore(storeName);
-          const count = await new Promise(r => { const req = store.count(); req.onsuccess = () => r(req.result); });
-          stats[storeName] = count;
+        try {
+          const tx = this.db.transaction(available, 'readonly');
+
+          for (const storeName of available) {
+            const store = tx.objectStore(storeName);
+            stats[storeName] = await new Promise(r => {
+              const req = store.count();
+              req.onsuccess = () => r(req.result);
+              req.onerror = () => r(0);
+            });
+          }
+
+          // Sum tokens from conversations
+          if (available.includes('conversations')) {
+            const convStore = tx.objectStore('conversations');
+            await new Promise(resolve => {
+              const req = convStore.openCursor();
+              req.onsuccess = () => {
+                const c = req.result;
+                if (c) {
+                  stats.totalTokens += c.value.tokens || 0;
+                  c.continue();
+                } else {
+                  resolve();
+                }
+              };
+              req.onerror = () => resolve();
+            });
+          }
+        } catch (e) {
+          console.warn('Stats error:', e);
         }
-
-        // Sum tokens from conversations
-        const convStore = tx.objectStore('conversations');
-        await new Promise(resolve => {
-          const req = convStore.openCursor();
-          req.onsuccess = () => {
-            const c = req.result;
-            if (c) {
-              stats.totalTokens += c.value.tokens || 0;
-              c.continue();
-            } else {
-              resolve();
-            }
-          };
-        });
 
         return stats;
       }
 
-      // Clear old data to manage space
+      // Clear old data to manage space (safely handles missing stores)
       async cleanup(maxAge = 7 * 24 * 60 * 60 * 1000) { // 7 days
-        const cutoff = Date.now() - maxAge;
-        const tx = this.db.transaction(['conversations', 'snapshots'], 'readwrite');
+        if (!this.db) return;
 
-        for (const storeName of ['conversations', 'snapshots']) {
-          const store = tx.objectStore(storeName);
-          const index = store.index('timestamp');
-          const range = IDBKeyRange.upperBound(cutoff);
-          const req = index.openCursor(range);
-          req.onsuccess = () => {
-            const c = req.result;
-            if (c) {
-              c.delete();
-              c.continue();
-            }
-          };
+        const storeNames = ['conversations', 'snapshots'];
+        const available = storeNames.filter(s => this.db.objectStoreNames.contains(s));
+        if (available.length === 0) return;
+
+        try {
+          const cutoff = Date.now() - maxAge;
+          const tx = this.db.transaction(available, 'readwrite');
+
+          for (const storeName of available) {
+            const store = tx.objectStore(storeName);
+            const index = store.index('timestamp');
+            const range = IDBKeyRange.upperBound(cutoff);
+            const req = index.openCursor(range);
+            req.onsuccess = () => {
+              const c = req.result;
+              if (c) {
+                c.delete();
+                c.continue();
+              }
+            };
+          }
+        } catch (e) {
+          console.warn('Cleanup error:', e);
         }
       }
     }
