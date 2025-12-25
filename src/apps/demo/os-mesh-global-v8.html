@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 @file os-mesh-global-v8.html
-@desc KonomiOS v8 - Ambient Chat Background + Built-in AI Agent
+@desc KonomiOS v8 - Ambient Chat + WebLLM AI + Taskbar Chat
 -->
 <html lang="en">
 <head>
@@ -40,11 +40,19 @@
     .Wc{display:flex;gap:6px}.Wc button{width:12px;height:12px;border-radius:50%;border:none;cursor:pointer;transition:.15s}.Wc button:hover{transform:scale(1.2)}.Wc .c{background:var(--r)}.Wc .n{background:var(--o)}.Wc .x{background:var(--g)}
     .Wt{flex:1;font-size:11px;font-weight:500;opacity:.85}.Wb{flex:1;overflow:hidden;display:flex;flex-direction:column}
 
-    /* Taskbar */
+    /* Taskbar with chat input */
     .TB{position:absolute;bottom:0;left:0;right:0;height:52px;background:rgba(0,0,0,.8);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;padding:0 12px;gap:6px;z-index:200}
-    .Ts{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--a),var(--a2));border-radius:10px;font-size:18px;cursor:pointer;margin-right:8px;transition:.2s}.Ts:hover{transform:scale(1.05)}
-    .Ta{display:flex;gap:4px;flex:1;overflow-x:auto}.Ta::-webkit-scrollbar{display:none}.Ta div{padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid transparent;border-radius:6px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:.2s}.Ta div:hover{background:rgba(255,255,255,.1)}.Ta div.a{background:rgba(0,217,255,.15);border-color:var(--a)}
-    .Ty{display:flex;align-items:center;gap:10px;padding:0 8px;font-size:10px}.Ty .d{width:8px;height:8px;border-radius:50%}.Ty .d.on{background:var(--g);box-shadow:0 0 8px var(--g)}.Ty .d.c{background:var(--o);animation:p 1s infinite}@keyframes p{50%{opacity:.4}}
+    .Ts{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--a),var(--a2));border-radius:10px;font-size:18px;cursor:pointer;margin-right:8px;transition:.2s;flex-shrink:0}.Ts:hover{transform:scale(1.05)}
+    .Ta{display:flex;gap:4px;overflow-x:auto;flex-shrink:0}.Ta::-webkit-scrollbar{display:none}.Ta div{padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid transparent;border-radius:6px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:.2s}.Ta div:hover{background:rgba(255,255,255,.1)}.Ta div.a{background:rgba(0,217,255,.15);border-color:var(--a)}
+
+    /* Taskbar chat input */
+    .tb-chat{display:flex;flex:1;max-width:400px;gap:6px;margin:0 12px}
+    .tb-chat input{flex:1;padding:8px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;color:var(--f);font-size:11px;outline:0}
+    .tb-chat input:focus{border-color:var(--a);background:rgba(255,255,255,.08)}
+    .tb-chat input::placeholder{color:#64748b}
+    .tb-chat button{padding:8px 14px;background:var(--a);border:0;border-radius:20px;color:#000;font-weight:600;font-size:10px;cursor:pointer;white-space:nowrap}
+
+    .Ty{display:flex;align-items:center;gap:10px;padding:0 8px;font-size:10px;flex-shrink:0}.Ty .d{width:8px;height:8px;border-radius:50%}.Ty .d.on{background:var(--g);box-shadow:0 0 8px var(--g)}.Ty .d.c{background:var(--o);animation:p 1s infinite}@keyframes p{50%{opacity:.4}}
 
     /* AI Agent Panel */
     .ai-panel{display:flex;flex-direction:column;height:100%}
@@ -68,8 +76,25 @@
     .ai-input button{padding:10px 18px;background:linear-gradient(135deg,var(--a2),#ec4899);border:0;border-radius:20px;color:#fff;font-weight:600;font-size:11px;cursor:pointer;transition:.2s}
     .ai-input button:hover{transform:scale(1.02)}
     .ai-input button:disabled{opacity:.5;cursor:not-allowed}
-    .ai-status{font-size:9px;color:#64748b;padding:4px 12px;text-align:center}
+    .ai-status{font-size:9px;padding:6px 12px;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px}
+    .ai-status .dot{width:6px;height:6px;border-radius:50%;background:#64748b}
+    .ai-status .dot.loading{background:var(--o);animation:p 1s infinite}
+    .ai-status .dot.ready{background:var(--g)}
+    .ai-status .dot.error{background:var(--r)}
     .ai-anchor{min-height:1px}
+
+    /* Chat panel */
+    .cht{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .chm{flex:1;overflow-y:auto;padding:10px;scroll-behavior:smooth;display:flex;flex-direction:column}
+    .chm .m{margin-bottom:8px;display:flex;flex-direction:column}.chm .m.s{align-items:flex-end}
+    .chm .mt{font-size:9px;color:#64748b;margin-bottom:2px}
+    .chm .mb{max-width:75%;padding:6px 10px;background:rgba(255,255,255,.08);border-radius:12px;font-size:11px}
+    .chm .m.s .mb{background:linear-gradient(135deg,var(--a),var(--a2))}
+    .chm .mb.sys{background:0;color:#64748b;font-style:italic;font-size:9px}
+    .chm .anchor{min-height:1px}
+    .chi{display:flex;padding:8px;gap:6px;background:rgba(0,0,0,.3);flex-shrink:0}
+    .chi input{flex:1;padding:8px 12px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:14px;color:var(--f);font-size:11px;outline:0}
+    .chi button{padding:8px 14px;background:var(--a);border:0;border-radius:14px;color:#000;font-weight:600;font-size:10px;cursor:pointer}
 
     /* Terminal */
     .trm{flex:1;background:rgba(0,0,0,.6);padding:10px;overflow-y:auto;font-family:'SF Mono',monospace;font-size:11px;line-height:1.5;scroll-behavior:smooth}
@@ -93,23 +118,109 @@
     <div class="chat-bg" id="chatBg"></div>
   </div>
   <div class="SM" id="SM"><h>🌍 KonomiOS<small>v8 Ambient AI</small></h><div id="SMa"></div></div>
-  <div class="TB"><div class="Ts" id="Ts">🌍</div><div class="Ta" id="Ta"></div><div class="Ty"><span class="d" id="cd"></span><span id="cs">Offline</span><span style="margin-left:4px">👥</span><span id="pc">0</span><span style="margin-left:6px" id="clk">00:00</span></div></div>
+  <div class="TB">
+    <div class="Ts" id="Ts">🌍</div>
+    <div class="Ta" id="Ta"></div>
+    <div class="tb-chat">
+      <input id="tbChat" placeholder="💬 Chat with mesh...">
+      <button id="tbSend">Send</button>
+    </div>
+    <div class="Ty">
+      <span class="d" id="cd"></span>
+      <span id="cs">Offline</span>
+      <span style="margin-left:4px">👥</span>
+      <span id="pc">0</span>
+      <span style="margin-left:6px" id="clk">00:00</span>
+    </div>
+  </div>
 
   <script type="module">
+    // =========================================================================
+    // WebLLM - Auto-load Smollm model
+    // =========================================================================
+    let webllm = null;
+    let llmEngine = null;
+    let llmReady = false;
+    let llmLoading = false;
+
+    const LLM_MODEL = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
+
+    async function initWebLLM() {
+      const status = $('aiStatus');
+      try {
+        llmLoading = true;
+        updateAIStatus('loading', 'Loading SmolLM2...');
+
+        // Dynamic import WebLLM
+        webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+        updateAIStatus('loading', 'Initializing engine...');
+
+        llmEngine = await webllm.CreateMLCEngine(LLM_MODEL, {
+          initProgressCallback: (progress) => {
+            const pct = Math.round(progress.progress * 100);
+            updateAIStatus('loading', `Loading: ${pct}%`);
+          }
+        });
+
+        llmReady = true;
+        llmLoading = false;
+        updateAIStatus('ready', 'SmolLM2 Ready');
+        tP('WebLLM loaded: ' + LLM_MODEL, 'i');
+
+      } catch (err) {
+        console.error('WebLLM init failed:', err);
+        llmLoading = false;
+        updateAIStatus('error', 'LLM failed - using fallback');
+        tP('WebLLM failed: ' + err.message, 'e');
+      }
+    }
+
+    function updateAIStatus(state, text) {
+      const status = $('aiStatus');
+      if (!status) return;
+      const dotClass = state === 'loading' ? 'loading' : state === 'ready' ? 'ready' : state === 'error' ? 'error' : '';
+      status.innerHTML = `<span class="dot ${dotClass}"></span><span>${text}</span>`;
+    }
+
+    async function generateWithLLM(prompt) {
+      if (!llmReady || !llmEngine) return null;
+
+      try {
+        const messages = [
+          { role: 'system', content: 'You are Kono, a helpful AI assistant in KonomiOS. Be concise, friendly, and helpful. Keep responses under 100 words.' },
+          ...aiHistory.slice(-6), // Last 6 messages for context
+          { role: 'user', content: prompt }
+        ];
+
+        const response = await llmEngine.chat.completions.create({
+          messages,
+          temperature: 0.7,
+          max_tokens: 150,
+        });
+
+        return response.choices[0]?.message?.content || null;
+      } catch (err) {
+        console.error('LLM generation failed:', err);
+        return null;
+      }
+    }
+
     // =========================================================================
     // APP CONFIG
     // =========================================================================
     const APPS = {
       A: { n: 'AI Agent', i: '🤖', w: 380, h: 480, x: 80, y: 30 },
-      T: { n: 'Terminal', i: '💻', w: 480, h: 320, x: 500, y: 50 },
+      C: { n: 'Chat', i: '💬', w: 340, h: 380, x: 500, y: 40 },
+      T: { n: 'Terminal', i: '💻', w: 480, h: 320, x: 520, y: 120 },
       F: { n: 'Files', i: '📁', w: 360, h: 280, x: 220, y: 70 },
-      P: { n: 'Peers', i: '👥', w: 280, h: 340, x: 600, y: 100 },
+      P: { n: 'Peers', i: '👥', w: 280, h: 340, x: 650, y: 100 },
       S: { n: 'Settings', i: '⚙️', w: 340, h: 320, x: 400, y: 80 },
       V: { n: 'Viewer', i: '🌐', w: 600, h: 450, x: 150, y: 50, hidden: true }
     };
 
     const CMDS = {
-      help: () => `Commands: help whoami peers room ls cat write clear neofetch ai`,
+      help: () => `Commands: help whoami peers room ls cat write clear neofetch ai chat`,
       whoami: () => `${ME.e} ${ME.id}`,
       peers: () => [ME.e + ' ' + ME.n + ' (you)', ...[...peers.values()].map(p => p.e + ' ' + p.n)].join('\n'),
       room: () => room || 'N/A',
@@ -118,6 +229,7 @@
       write: a => { if (!a[0]) return 'Usage: write <f> <c>'; const p = '/' + a[0].replace(/^\//,''), c = a.slice(1).join(' '); files.set(p, { c, o: ME.id }); updF(); bc({ t: 'f', p, c, o: ME.id }); return 'Created ' + p; },
       clear: () => { $('trm').innerHTML = ''; return ''; },
       ai: () => { O('A'); return 'Opening AI Agent...'; },
+      chat: () => { O('C'); return 'Opening Chat...'; },
       neofetch: () => `\n ██╗  ██╗ ██████╗ ███████╗\n ██║ ██╔╝██╔═══██╗██╔════╝\n █████╔╝ ██║   ██║███████╗  v8 Ambient AI\n ██╔═██╗ ██║   ██║╚════██║  ${ME.e} ${ME.n}\n ██║  ██╗╚██████╔╝███████║  Room: ${room||'N/A'}\n ╚═╝  ╚═╝ ╚═════╝ ╚══════╝  Peers: ${peers.size+1} Files: ${files.size}`
     };
 
@@ -126,11 +238,12 @@
       vwin: () => `<div class="W" id="WV" style="width:${APPS.V.w}px;height:${APPS.V.h}px;top:${APPS.V.y}px;left:${APPS.V.x}px"><div class="Wh" onmousedown="D(event,'V')"><div class="Wc"><button class="c" onclick="X('V')"></button><button class="n" onclick="N('V')"></button><button class="x" onclick="M('V')"></button></div><span class="Wt" id="VT">🌐 Viewer</span></div><div class="Wb"><div class="wvh"><input id="vu" readonly><button onclick="window.open($('vu').value,'_blank')">↗ Open</button></div><iframe class="ifr" id="vif"></iframe></div></div>`,
       icon: (k, app) => app.hidden ? '' : `<div class="di" onclick="O('${k}')"><i>${app.i}</i><span>${app.n}</span></div>`,
       smItem: (k, app) => app.hidden ? '' : `<div class="si" onclick="O('${k}');SM()"><i>${app.i}</i><span>${app.n}</span></div>`,
-      A: () => `<div class="ai-panel"><div class="ai-status" id="aiStatus">🧠 Local AI Ready</div><div class="ai-chat" id="aiChat"><div class="ai-anchor" id="aiAnchor"></div></div><div class="ai-input"><input id="aiIn" placeholder="Ask me anything..."><button id="aiSend">Send</button></div></div>`,
+      A: () => `<div class="ai-panel"><div class="ai-status" id="aiStatus"><span class="dot loading"></span><span>Initializing AI...</span></div><div class="ai-chat" id="aiChat"><div class="ai-anchor" id="aiAnchor"></div></div><div class="ai-input"><input id="aiIn" placeholder="Ask Kono anything..."><button id="aiSend">Send</button></div></div>`,
+      C: () => `<div class="cht"><div class="chm" id="chm"><div class="anchor" id="chatAnchor"></div></div><div class="chi"><input id="chi" placeholder="message..."><button id="chatSendBtn">Send</button></div></div>`,
       T: () => `<div class="trm" id="trm"></div><div class="tri"><span style="color:var(--g)">❯</span><input id="ci" placeholder="command..."></div>`,
       F: () => `<div class="fls"><div class="flt"><input id="nfn" placeholder="file.txt"><button onclick="nF()">+ New</button></div><div class="fll" id="fll"><div class="emp">No files</div></div></div>`,
       P: () => `<div class="prs" id="prs"></div>`,
-      S: () => `<div class="sts"><div class="sec"><div class="st">Network</div><div class="si"><span>Room</span><input id="ri" value="konomi-global"></div><div class="si"><span>Status</span><span class="v" id="cst">-</span></div><div class="si"><button onclick="RC()">Reconnect</button></div></div><div class="sec"><div class="st">Identity</div><div class="si"><span>ID</span><span class="v" id="mid">-</span></div><div class="si"><span>Avatar</span><span class="v" id="mav">-</span></div></div><div class="sec"><div class="st">Version</div><div class="si"><span>KonomiOS</span><span class="v">v8 Ambient</span></div></div></div>`
+      S: () => `<div class="sts"><div class="sec"><div class="st">Network</div><div class="si"><span>Room</span><input id="ri" value="konomi-global"></div><div class="si"><span>Status</span><span class="v" id="cst">-</span></div><div class="si"><button onclick="RC()">Reconnect</button></div></div><div class="sec"><div class="st">AI Model</div><div class="si"><span>Model</span><span class="v" id="llmModel">SmolLM2</span></div><div class="si"><span>Status</span><span class="v" id="llmStatus">Loading...</span></div></div><div class="sec"><div class="st">Identity</div><div class="si"><span>ID</span><span class="v" id="mid">-</span></div><div class="si"><span>Avatar</span><span class="v" id="mav">-</span></div></div><div class="sec"><div class="st">Version</div><div class="si"><span>KonomiOS</span><span class="v">v8</span></div></div></div>`
     };
 
     // =========================================================================
@@ -152,9 +265,6 @@
     // =========================================================================
     // AMBIENT CHAT BACKGROUND
     // =========================================================================
-    const chatBubbles = [];
-    let bubbleId = 0;
-
     function addBgBubble(text, emoji, isSelf = false, isAI = false) {
       const bg = $('chatBg');
       if (!bg) return;
@@ -163,85 +273,28 @@
       bubble.className = 'chat-bubble' + (isSelf ? ' self' : '') + (isAI ? ' ai' : '');
       bubble.innerHTML = `<span class="av">${esc(emoji)}</span>${esc(text.slice(0, 50))}${text.length > 50 ? '...' : ''}`;
 
-      // Random position
       bubble.style.left = (10 + Math.random() * 70) + '%';
       bubble.style.bottom = '-50px';
       bubble.style.animationDuration = (40 + Math.random() * 40) + 's';
       bubble.style.animationDelay = (Math.random() * 2) + 's';
 
       bg.appendChild(bubble);
-
-      // Cleanup old bubbles
       setTimeout(() => bubble.remove(), 80000);
     }
 
     // =========================================================================
-    // AI AGENT (Browser-based LLM simulation with real responses)
+    // AI AGENT with WebLLM
     // =========================================================================
-    const AI_PERSONA = {
-      name: 'Kono',
-      emoji: '🤖',
-      greeting: "Hey! I'm Kono, your AI assistant. I can help you with questions, coding, ideas, or just chat. What's on your mind?",
-      personality: 'helpful, friendly, knowledgeable'
-    };
+    const AI_PERSONA = { name: 'Kono', emoji: '🤖' };
 
-    const AI_RESPONSES = {
-      greet: [
-        "Hey there! How can I help you today?",
-        "Hi! What's on your mind?",
-        "Hello! Ready to assist with anything you need."
-      ],
-      code: [
-        "Here's a quick example:\n```\nconst hello = () => console.log('Hello!');\nhello();\n```\nWant me to explain or modify it?",
-        "I can help with that! What language or framework are you working with?",
-        "Sure! Let me break down the approach: first, we'd define the structure, then implement the logic. What specific part would you like help with?"
-      ],
-      general: [
-        "That's an interesting question! Let me think about it...",
-        "Great question! Here's my take on it:",
-        "I'd be happy to help with that. Here's what I know:"
-      ],
-      mesh: [
-        "The P2P mesh uses WebRTC for direct peer connections. Messages travel through the network without central servers!",
-        "KonomiOS runs entirely in your browser - no backend needed. All data syncs peer-to-peer.",
-        "This chat you see floating in the background? That's the global mesh - everyone connected sees the same ambient messages!"
-      ],
-      unknown: [
-        "Interesting! Tell me more about what you're looking for.",
-        "I'm not 100% sure, but I can try to help. Could you give me more context?",
-        "Let me think about that... What specific aspect are you curious about?"
-      ]
+    // Fallback responses if LLM not ready
+    const FALLBACK = {
+      greet: ["Hey! I'm loading my brain... Ask me again in a moment!", "Hi there! Still warming up the neurons..."],
+      default: ["Hmm, let me think... (I'm still loading, try again soon!)", "Interesting! Give me a sec to fully load..."]
     };
 
     let aiTyping = false;
     const aiHistory = [];
-
-    function getAIResponse(input) {
-      const lower = input.toLowerCase();
-
-      if (lower.match(/^(hi|hello|hey|sup|yo)/)) {
-        return AI_RESPONSES.greet[Math.random() * AI_RESPONSES.greet.length | 0];
-      }
-      if (lower.match(/code|function|script|program|javascript|python|html|css/)) {
-        return AI_RESPONSES.code[Math.random() * AI_RESPONSES.code.length | 0];
-      }
-      if (lower.match(/mesh|p2p|peer|webrtc|network|how.*(work|does)/)) {
-        return AI_RESPONSES.mesh[Math.random() * AI_RESPONSES.mesh.length | 0];
-      }
-      if (lower.match(/what|why|how|explain|tell me/)) {
-        return AI_RESPONSES.general[Math.random() * AI_RESPONSES.general.length | 0];
-      }
-
-      // Smart fallback - echo understanding
-      if (lower.length > 10) {
-        const topics = lower.match(/\b(about|with|for|on)\s+(\w+)/);
-        if (topics) {
-          return `I'd love to help you with "${topics[2]}"! Can you tell me more specifically what you're trying to achieve?`;
-        }
-      }
-
-      return AI_RESPONSES.unknown[Math.random() * AI_RESPONSES.unknown.length | 0];
-    }
 
     function addAIMsg(text, isUser = false) {
       const chat = $('aiChat');
@@ -257,8 +310,6 @@
 
       chat.insertBefore(msg, anchor);
       requestAnimationFrame(() => anchor.scrollIntoView({ behavior: 'smooth', block: 'end' }));
-
-      // Add to ambient background
       addBgBubble(text, isUser ? ME.e : AI_PERSONA.emoji, isUser, !isUser);
     }
 
@@ -293,18 +344,75 @@
 
       showTyping(true);
 
-      // Simulate thinking delay
-      await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+      let response;
+      if (llmReady) {
+        // Use real LLM
+        response = await generateWithLLM(text);
+      }
+
+      // Fallback if LLM failed or not ready
+      if (!response) {
+        await new Promise(r => setTimeout(r, 500 + Math.random() * 500));
+        if (llmLoading) {
+          response = FALLBACK.greet[Math.random() * FALLBACK.greet.length | 0];
+        } else {
+          response = FALLBACK.default[Math.random() * FALLBACK.default.length | 0];
+        }
+      }
 
       showTyping(false);
-
-      const response = getAIResponse(text);
       addAIMsg(response, false);
       aiHistory.push({ role: 'assistant', content: response });
 
       aiTyping = false;
       btn.disabled = false;
       input.focus();
+    }
+
+    // =========================================================================
+    // CHAT PANEL
+    // =========================================================================
+    function scrollChatToBottom() {
+      const anchor = $('chatAnchor');
+      if (anchor) {
+        requestAnimationFrame(() => anchor.scrollIntoView({ behavior: 'smooth', block: 'end' }));
+      }
+    }
+
+    function addChatMsg(id, n, e, t, sys) {
+      const chm = $('chm');
+      const anchor = $('chatAnchor');
+      if (!chm || !anchor) return;
+
+      const me = id === ME.id;
+      const d = document.createElement('div');
+      d.className = 'm' + (me ? ' s' : '');
+      d.innerHTML = sys
+        ? `<div class="mb sys">${esc(t)}</div>`
+        : `<div class="mt">${esc(e)} ${esc(n)}</div><div class="mb">${esc(t)}</div>`;
+
+      chm.insertBefore(d, anchor);
+      scrollChatToBottom();
+    }
+
+    function sendChatMsg() {
+      const chi = $('chi');
+      const t = chi?.value.trim();
+      if (!t) return;
+      chi.value = '';
+      bc({ t: 'c', m: t });
+      addChatMsg(ME.id, ME.n, ME.e, t);
+    }
+
+    // Taskbar chat send
+    function sendTbChat() {
+      const input = $('tbChat');
+      const t = input?.value.trim();
+      if (!t) return;
+      input.value = '';
+      bc({ t: 'c', m: t });
+      addChatMsg(ME.id, ME.n, ME.e, t);
+      tP(`${ME.e} You: ${t}`, 'p');
     }
 
     // =========================================================================
@@ -325,8 +433,12 @@
 
       // Event listeners
       $('ci')?.addEventListener('keydown', e => { if (e.key === 'Enter') runCmd(); });
+      $('chi')?.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMsg(); });
+      $('chatSendBtn')?.addEventListener('click', sendChatMsg);
       $('aiIn')?.addEventListener('keydown', e => { if (e.key === 'Enter') sendToAI(); });
       $('aiSend')?.addEventListener('click', sendToAI);
+      $('tbChat')?.addEventListener('keydown', e => { if (e.key === 'Enter') sendTbChat(); });
+      $('tbSend')?.addEventListener('click', sendTbChat);
       $('Ts').onclick = SM;
 
       $('mid').textContent = ME.id.slice(0, 12) + '…';
@@ -334,14 +446,21 @@
       updP(); updF();
 
       tP('KonomiOS v8 - Ambient AI Edition', 'i');
-      tP('Chat floats in background • Type "ai" for AI Agent', 'i');
+      tP('Loading WebLLM (SmolLM2)...', 'i');
 
-      // Show AI greeting
-      setTimeout(() => addAIMsg(AI_PERSONA.greeting, false), 1000);
+      // Open AI and Chat by default
+      O('A'); O('C');
 
-      O('A'); // Open AI panel by default
       setTimeout(() => join($('ri')?.value || 'konomi-global'), 500);
       setInterval(clk, 1000); clk();
+
+      // Auto-load WebLLM
+      setTimeout(() => initWebLLM(), 1000);
+
+      // Show AI intro after a bit
+      setTimeout(() => {
+        addAIMsg("Hey! I'm Kono, your AI assistant. I'm loading my brain right now - ask me anything once I'm ready!", false);
+      }, 1500);
     }
 
     function clk() { $('clk').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
@@ -442,6 +561,7 @@
           const joinMsg = '🌐 ' + id.slice(0,8) + ' joined';
           tP(joinMsg, 'i');
           addBgBubble(joinMsg, '🌐', false, false);
+          addChatMsg(null, null, null, joinMsg, true);
         }
         for (const [p, f] of files) dc.send(JSON.stringify({ t: 'f', p, c: f.c, o: f.o }));
         dc.send(JSON.stringify({ t: 'a', n: ME.n, e: ME.e }));
@@ -453,6 +573,7 @@
           const leftMsg = p.e + ' ' + p.n + ' left';
           tP(leftMsg, 'i');
           addBgBubble(leftMsg, p.e, false, false);
+          addChatMsg(null, null, null, leftMsg, true);
           peers.delete(id);
           updP();
         }
@@ -462,8 +583,8 @@
           const m = JSON.parse(e.data); if (m.sid === ME.id) return;
           if (m.t === 'c') {
             const p = peers.get(m.sid) || { n: m.sid?.slice(0,10), e: '🌐' };
-            // Add to ambient background
             addBgBubble(m.m, p.e, false, false);
+            addChatMsg(m.sid, p.n, p.e, m.m);
             tP(`${p.e} ${p.n}: ${m.m}`, 'o');
           }
           else if (m.t === 'f') { files.set(m.p, { c: m.c, o: m.o }); updF(); }
@@ -487,16 +608,8 @@
       m.sid = ME.id;
       const d = JSON.stringify(m);
       for (const dc of dcs.values()) if (dc.readyState === 'open') dc.send(d);
-      // Add own messages to ambient
       if (m.t === 'c') addBgBubble(m.m, ME.e, true, false);
     }
-
-    // Send chat message (called from quick input if we add one)
-    window.sendChat = msg => {
-      if (!msg) return;
-      bc({ t: 'c', m: msg });
-      tP(`${ME.e} ${ME.n}: ${msg}`, 'p');
-    };
 
     function setSt(s) {
       const d = $('cd'), cs = $('cs'), cst = $('cst');
@@ -513,6 +626,7 @@
         setSt(1);
         tP('Connected to global mesh!', 'i');
         addBgBubble('Connected to ' + r, '🌍', false, false);
+        addChatMsg(null, null, null, 'Connected to ' + r, true);
         ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, numwant: 10, uploaded: 0, downloaded: 0, left: 1, offers: offs }));
       };
       ws.onmessage = async e => { try { const m = JSON.parse(e.data); if (m.offer && m.peer_id !== ME.id) await hOff(m); if (m.answer && m.offer_id) await hAns(m); if (m.interval) setTimeout(async () => { if (ws?.readyState === 1) { const o = await mkOff(5); ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, numwant: 10, offers: o })); } }, m.interval * 1000); } catch {} };
