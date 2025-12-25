@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KUDT - Konomi UDT Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 30px 0; }
+        .logo { font-size: 48px; margin-bottom: 12px; }
+        h1 { font-size: 1.8rem; color: #00d4aa; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 13px; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab:hover { border-color: #00d4aa; color: #fff; }
+        .tab.active {
+            background: linear-gradient(135deg, #00d4aa, #00a885);
+            color: #000;
+            border-color: transparent;
+            font-weight: 600;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #00d4aa;
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-group .hint {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #00d4aa, #00a885);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); box-shadow: none; }
+
+        .token-type-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .token-type {
+            flex: 1;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .token-type:hover { border-color: #00d4aa; }
+        .token-type.selected {
+            border-color: #00d4aa;
+            background: rgba(0, 212, 170, 0.1);
+        }
+        .token-type h3 { color: #00d4aa; margin-bottom: 4px; }
+        .token-type p { font-size: 12px; color: #888; }
+
+        /* Token List */
+        .token-list { display: flex; flex-direction: column; gap: 12px; }
+        .token-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+        .token-item:hover { background: rgba(0, 0, 0, 0.3); }
+        .token-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .token-info { flex: 1; }
+        .token-name { font-weight: 600; margin-bottom: 4px; }
+        .token-meta { font-size: 12px; color: #888; }
+        .token-balance { text-align: right; }
+        .token-amount { font-size: 18px; font-weight: 600; }
+        .token-value { font-size: 12px; color: #888; }
+
+        /* Info Panel */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .info-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 16px;
+            border-radius: 8px;
+        }
+        .info-label { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        .info-value { font-size: 16px; font-weight: 600; word-break: break-all; }
+        .info-value.mono { font-family: 'Courier New', monospace; font-size: 12px; }
+
+        /* Code Preview */
+        .code-block {
+            background: #0a0a15;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .number { color: #f78c6c; }
+        .code-block .comment { color: #546e7a; }
+
+        /* Extension Tags */
+        .extension-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .ext-tag {
+            padding: 6px 12px;
+            background: rgba(0, 212, 170, 0.1);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            border-radius: 20px;
+            font-size: 11px;
+            color: #00d4aa;
+        }
+        .ext-tag.inactive {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #666;
+        }
+
+        /* Transfer Form */
+        .transfer-preview {
+            background: rgba(0, 212, 170, 0.05);
+            border: 1px solid rgba(0, 212, 170, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .transfer-arrow {
+            text-align: center;
+            font-size: 24px;
+            margin: 16px 0;
+            color: #00d4aa;
+        }
+
+        /* Status Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .badge-pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .badge-error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+        .hidden { display: none !important; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: #00d4aa;
+            color: #000;
+            border-radius: 8px;
+            font-weight: 600;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #444;
+            font-size: 12px;
+        }
+        .footer a { color: #00d4aa; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🪙</div>
+            <h1>KUDT</h1>
+            <p class="subtitle">Konomi User Defined Token Manager for Nervos CKB</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="tokens">My Tokens</div>
+            <div class="tab" data-tab="create">Create Token</div>
+            <div class="tab" data-tab="transfer">Transfer</div>
+            <div class="tab" data-tab="lookup">Token Lookup</div>
+            <div class="tab" data-tab="learn">Learn UDT</div>
+        </div>
+
+        <!-- My Tokens Tab -->
+        <div id="tab-tokens" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span>Your UDT Tokens</span>
+                    <button class="btn btn-secondary" onclick="refreshTokens()">Refresh</button>
+                </div>
+                <div class="token-list" id="tokenList">
+                    <div class="token-item">
+                        <div class="token-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">K</div>
+                        <div class="token-info">
+                            <div class="token-name">KonomiCoin</div>
+                            <div class="token-meta">xUDT | Type Hash: 0x8a5f...3b2c</div>
+                        </div>
+                        <div class="token-balance">
+                            <div class="token-amount">1,250,000</div>
+                            <div class="token-value">Owner Lock</div>
+                        </div>
+                    </div>
+                    <div class="token-item">
+                        <div class="token-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">S</div>
+                        <div class="token-info">
+                            <div class="token-name">StableK</div>
+                            <div class="token-meta">sUDT | Type Hash: 0x4c2e...9f1a</div>
+                        </div>
+                        <div class="token-balance">
+                            <div class="token-amount">50,000</div>
+                            <div class="token-value">Holder</div>
+                        </div>
+                    </div>
+                    <div class="token-item">
+                        <div class="token-icon" style="background: linear-gradient(135deg, #00d4aa, #00a885);">G</div>
+                        <div class="token-info">
+                            <div class="token-name">GovToken</div>
+                            <div class="token-meta">xUDT | Type Hash: 0x7d1f...8e4c</div>
+                        </div>
+                        <div class="token-balance">
+                            <div class="token-amount">100</div>
+                            <div class="token-value">Holder</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Token Tab -->
+        <div id="tab-create" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">Token Standard</div>
+                <div class="token-type-selector">
+                    <div class="token-type selected" data-type="sudt">
+                        <h3>sUDT</h3>
+                        <p>Simple UDT - Minimal standard</p>
+                    </div>
+                    <div class="token-type" data-type="xudt">
+                        <h3>xUDT</h3>
+                        <p>Extensible UDT - With extensions</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Token Configuration</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Token Name</label>
+                        <input type="text" id="tokenName" placeholder="e.g., KonomiCoin">
+                    </div>
+                    <div class="form-group">
+                        <label>Token Symbol</label>
+                        <input type="text" id="tokenSymbol" placeholder="e.g., KONO" maxlength="8">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Decimals</label>
+                        <input type="number" id="tokenDecimals" value="8" min="0" max="18">
+                        <div class="hint">Standard is 8 (like CKB)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Initial Supply</label>
+                        <input type="text" id="tokenSupply" placeholder="e.g., 1000000000">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Owner Lock Script Hash</label>
+                    <input type="text" id="ownerLock" placeholder="0x...">
+                    <div class="hint">This lock script controls minting, burning, and governance</div>
+                </div>
+                <div class="form-group">
+                    <label>Description (Optional)</label>
+                    <textarea id="tokenDesc" placeholder="Describe your token's purpose..."></textarea>
+                </div>
+
+                <div id="xudtExtensions" class="hidden">
+                    <div class="card-title" style="margin-top: 20px;">xUDT Extensions</div>
+                    <div class="extension-tags">
+                        <span class="ext-tag" data-ext="supply_cap">Supply Cap</span>
+                        <span class="ext-tag inactive" data-ext="pausable">Pausable</span>
+                        <span class="ext-tag inactive" data-ext="mintable">Mintable</span>
+                        <span class="ext-tag inactive" data-ext="burnable">Burnable</span>
+                        <span class="ext-tag inactive" data-ext="freezable">Freezable</span>
+                        <span class="ext-tag inactive" data-ext="regulatory">Regulatory Compliance</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 12px;">
+                    <button class="btn" onclick="previewToken()">Preview Cell Structure</button>
+                    <button class="btn btn-secondary" onclick="deployToken()">Deploy Token</button>
+                </div>
+            </div>
+
+            <div class="card hidden" id="cellPreview">
+                <div class="card-title">Cell Structure Preview</div>
+                <div class="code-block">
+<span class="comment">// UDT Cell Structure</span>
+{
+  <span class="keyword">"capacity"</span>: <span class="string">"0x..."</span>,
+  <span class="keyword">"lock"</span>: {
+    <span class="keyword">"code_hash"</span>: <span class="string">"0x..."</span>,
+    <span class="keyword">"hash_type"</span>: <span class="string">"type"</span>,
+    <span class="keyword">"args"</span>: <span class="string">"&lt;owner_lock_hash&gt;"</span>
+  },
+  <span class="keyword">"type"</span>: {
+    <span class="keyword">"code_hash"</span>: <span class="string">"0x..."</span> <span class="comment">// sUDT/xUDT type script</span>,
+    <span class="keyword">"hash_type"</span>: <span class="string">"type"</span>,
+    <span class="keyword">"args"</span>: <span class="string">"&lt;owner_lock_hash&gt;"</span>
+  },
+  <span class="keyword">"data"</span>: <span class="string">"0x..."</span> <span class="comment">// 16 bytes LE u128 amount</span>
+}
+                </div>
+                <div class="info-grid" style="margin-top: 16px;">
+                    <div class="info-item">
+                        <div class="info-label">Amount Encoding</div>
+                        <div class="info-value">Little Endian u128</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Data Size</div>
+                        <div class="info-value">16 bytes minimum</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Type Script Args</div>
+                        <div class="info-value mono" id="previewArgs">0x...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transfer Tab -->
+        <div id="tab-transfer" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">Transfer UDT Tokens</div>
+                <div class="form-group">
+                    <label>Select Token</label>
+                    <select id="transferToken">
+                        <option value="">Select a token...</option>
+                        <option value="kono">KonomiCoin (KONO) - Balance: 1,250,000</option>
+                        <option value="stablek">StableK (STK) - Balance: 50,000</option>
+                        <option value="gov">GovToken (GOV) - Balance: 100</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Recipient Address (CKB)</label>
+                    <input type="text" id="recipientAddr" placeholder="ckb1q...">
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="text" id="transferAmount" placeholder="0.00">
+                    <div class="hint">Available: <span id="availableBalance">--</span></div>
+                </div>
+
+                <div class="transfer-preview hidden" id="transferPreview">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">From</div>
+                            <div class="info-value mono">ckb1q...your_addr</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Token</div>
+                            <div class="info-value" id="previewToken">--</div>
+                        </div>
+                    </div>
+                    <div class="transfer-arrow">↓</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">To</div>
+                            <div class="info-value mono" id="previewTo">--</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Amount</div>
+                            <div class="info-value" id="previewAmount">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 12px;">
+                    <button class="btn" onclick="previewTransfer()">Preview Transaction</button>
+                    <button class="btn btn-secondary" id="signBtn" disabled onclick="signTransaction()">Sign & Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Token Lookup Tab -->
+        <div id="tab-lookup" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">Lookup Token by Type Hash</div>
+                <div class="form-group">
+                    <label>Type Script Hash or Token ID</label>
+                    <input type="text" id="lookupHash" placeholder="0x...">
+                </div>
+                <button class="btn" onclick="lookupToken()">Lookup</button>
+            </div>
+
+            <div class="card hidden" id="lookupResult">
+                <div class="card-title">
+                    <span>Token Information</span>
+                    <span class="badge badge-success">Active</span>
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Token Name</div>
+                        <div class="info-value" id="resultName">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Symbol</div>
+                        <div class="info-value" id="resultSymbol">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Type</div>
+                        <div class="info-value" id="resultType">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Decimals</div>
+                        <div class="info-value" id="resultDecimals">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Total Supply</div>
+                        <div class="info-value" id="resultSupply">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Holders</div>
+                        <div class="info-value" id="resultHolders">--</div>
+                    </div>
+                </div>
+                <div class="info-grid" style="margin-top: 16px;">
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <div class="info-label">Type Script Hash</div>
+                        <div class="info-value mono" id="resultHash">--</div>
+                    </div>
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <div class="info-label">Owner Lock Hash</div>
+                        <div class="info-value mono" id="resultOwner">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learn UDT Tab -->
+        <div id="tab-learn" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">Understanding UDT on CKB</div>
+                <p style="color: #aaa; line-height: 1.8; margin-bottom: 20px;">
+                    User Defined Tokens (UDT) on Nervos CKB are custom tokens similar to ERC-20 on Ethereum,
+                    but designed for CKB's unique Cell model. Unlike account-based chains, CKB uses UTXO-style Cells
+                    where token balances are stored in Cell data.
+                </p>
+
+                <h3 style="color: #00d4aa; margin: 20px 0 10px;">sUDT (Simple UDT)</h3>
+                <p style="color: #aaa; line-height: 1.8;">
+                    The minimal standard defined in <a href="https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0025-simple-udt/0025-simple-udt.md" target="_blank" style="color: #00d4aa;">RFC-0025</a>.
+                    Key features:
+                </p>
+                <ul style="color: #888; margin: 10px 0 20px 20px; line-height: 1.8;">
+                    <li>Token amount stored as 16-byte little-endian u128 in Cell data</li>
+                    <li>Type Script args contain the owner lock hash (unique token ID)</li>
+                    <li>Owner lock controls governance (mint, burn, etc.)</li>
+                    <li>Simple and gas-efficient</li>
+                </ul>
+
+                <h3 style="color: #00d4aa; margin: 20px 0 10px;">xUDT (Extensible UDT)</h3>
+                <p style="color: #aaa; line-height: 1.8;">
+                    Extended standard that adds flexibility through extensions:
+                </p>
+                <ul style="color: #888; margin: 10px 0 20px 20px; line-height: 1.8;">
+                    <li>Supply caps and minting limits</li>
+                    <li>Pausable transfers for emergency stops</li>
+                    <li>Regulatory compliance features</li>
+                    <li>Custom extension data in Cell</li>
+                </ul>
+
+                <div class="code-block">
+<span class="comment">// sUDT Cell Data Layout</span>
+| <span class="keyword">amount</span> (16 bytes, LE u128) |
+
+<span class="comment">// xUDT Cell Data Layout</span>
+| <span class="keyword">amount</span> (16 bytes) | <span class="keyword">xudt_data_len</span> (4 bytes) | <span class="keyword">xudt_data</span> (variable) |
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Resources</div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <a href="https://docs.nervos.org/docs/dapp/create-token" target="_blank" style="color: #00d4aa; text-decoration: none;">
+                        📖 Official CKB Token Creation Guide
+                    </a>
+                    <a href="https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0025-simple-udt/0025-simple-udt.md" target="_blank" style="color: #00d4aa; text-decoration: none;">
+                        📄 RFC-0025: Simple UDT Specification
+                    </a>
+                    <a href="https://talk.nervos.org/t/enhanced-udt-standard/8354" target="_blank" style="color: #00d4aa; text-decoration: none;">
+                        💬 Enhanced UDT Standard Discussion
+                    </a>
+                    <a href="https://github.com/rebase-network/ckb-udt-info" target="_blank" style="color: #00d4aa; text-decoration: none;">
+                        🔍 CKB UDT Token Registry
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Part of <a href="index.html">KISS MySaaS</a> - Konomi Instant Serverless Solutions
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+            });
+        });
+
+        // Token type selection
+        let selectedTokenType = 'sudt';
+        document.querySelectorAll('.token-type').forEach(type => {
+            type.addEventListener('click', () => {
+                document.querySelectorAll('.token-type').forEach(t => t.classList.remove('selected'));
+                type.classList.add('selected');
+                selectedTokenType = type.dataset.type;
+
+                // Show/hide xUDT extensions
+                document.getElementById('xudtExtensions').classList.toggle('hidden', selectedTokenType !== 'xudt');
+            });
+        });
+
+        // Extension toggle
+        document.querySelectorAll('.ext-tag').forEach(tag => {
+            tag.addEventListener('click', () => {
+                tag.classList.toggle('inactive');
+            });
+        });
+
+        // Preview token cell structure
+        function previewToken() {
+            const ownerLock = document.getElementById('ownerLock').value || '0x' + '0'.repeat(64);
+            document.getElementById('previewArgs').textContent = ownerLock.substring(0, 20) + '...';
+            document.getElementById('cellPreview').classList.remove('hidden');
+            showToast('Cell structure generated!');
+        }
+
+        // Deploy token (mock)
+        function deployToken() {
+            const name = document.getElementById('tokenName').value;
+            const symbol = document.getElementById('tokenSymbol').value;
+
+            if (!name || !symbol) {
+                showToast('Please fill in token name and symbol');
+                return;
+            }
+
+            showToast(`Deploying ${name} (${symbol}) as ${selectedTokenType.toUpperCase()}...`);
+
+            // Mock deployment
+            setTimeout(() => {
+                showToast(`${symbol} deployed successfully!`);
+            }, 2000);
+        }
+
+        // Refresh tokens
+        function refreshTokens() {
+            showToast('Refreshing token balances...');
+        }
+
+        // Preview transfer
+        function previewTransfer() {
+            const token = document.getElementById('transferToken').value;
+            const recipient = document.getElementById('recipientAddr').value;
+            const amount = document.getElementById('transferAmount').value;
+
+            if (!token || !recipient || !amount) {
+                showToast('Please fill in all transfer fields');
+                return;
+            }
+
+            document.getElementById('previewToken').textContent = token.toUpperCase();
+            document.getElementById('previewTo').textContent = recipient.substring(0, 20) + '...';
+            document.getElementById('previewAmount').textContent = amount;
+            document.getElementById('transferPreview').classList.remove('hidden');
+            document.getElementById('signBtn').disabled = false;
+
+            showToast('Transaction preview ready');
+        }
+
+        // Sign transaction (mock)
+        function signTransaction() {
+            showToast('Signing transaction with wallet...');
+            setTimeout(() => {
+                showToast('Transaction submitted! Waiting for confirmation...');
+            }, 1500);
+        }
+
+        // Token lookup
+        function lookupToken() {
+            const hash = document.getElementById('lookupHash').value;
+
+            if (!hash || hash.length < 10) {
+                showToast('Please enter a valid type hash');
+                return;
+            }
+
+            // Mock lookup result
+            document.getElementById('resultName').textContent = 'Sample Token';
+            document.getElementById('resultSymbol').textContent = 'SMPL';
+            document.getElementById('resultType').textContent = 'xUDT';
+            document.getElementById('resultDecimals').textContent = '8';
+            document.getElementById('resultSupply').textContent = '1,000,000,000';
+            document.getElementById('resultHolders').textContent = '1,234';
+            document.getElementById('resultHash').textContent = hash;
+            document.getElementById('resultOwner').textContent = '0x' + 'a'.repeat(64);
+
+            document.getElementById('lookupResult').classList.remove('hidden');
+            showToast('Token found!');
+        }
+
+        // Update available balance on token select
+        document.getElementById('transferToken').addEventListener('change', (e) => {
+            const balances = {
+                'kono': '1,250,000 KONO',
+                'stablek': '50,000 STK',
+                'gov': '100 GOV'
+            };
+            document.getElementById('availableBalance').textContent = balances[e.target.value] || '--';
+        });
+
+        // Toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Save/load state from localStorage
+        function saveState() {
+            const state = {
+                tokenType: selectedTokenType
+            };
+            localStorage.setItem('kudt_state', JSON.stringify(state));
+        }
+
+        function loadState() {
+            try {
+                const state = JSON.parse(localStorage.getItem('kudt_state') || '{}');
+                if (state.tokenType) {
+                    selectedTokenType = state.tokenType;
+                    document.querySelectorAll('.token-type').forEach(t => {
+                        t.classList.toggle('selected', t.dataset.type === selectedTokenType);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        loadState();
+    </script>
+</body>
+</html>
