@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USC Browser - United States Code</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+        header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            border: 2px solid #e94560;
+        }
+
+        h1 { font-size: 2rem; color: #fff; margin-bottom: 8px; }
+        h1 span { color: #e94560; }
+        .subtitle { color: #888; font-size: 1rem; }
+
+        .search-box {
+            background: #0f0f1a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+
+        .btn-primary:hover { background: #d63850; }
+
+        .btn-secondary {
+            background: #333;
+            color: #fff;
+        }
+
+        .btn-secondary:hover { background: #444; }
+
+        .quick-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .quick-link {
+            padding: 6px 12px;
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-link:hover {
+            border-color: #e94560;
+            color: #e94560;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content { grid-template-columns: 1fr; }
+        }
+
+        .sidebar {
+            background: #0f0f1a;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #333;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            font-size: 0.9rem;
+            color: #e94560;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .title-list { list-style: none; }
+
+        .title-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+
+        .title-item:hover { background: #1a1a2e; }
+        .title-item.active { background: #e94560; color: #fff; }
+
+        .title-num {
+            font-weight: bold;
+            color: #e94560;
+            margin-right: 8px;
+        }
+
+        .title-item.active .title-num { color: #fff; }
+
+        .content-panel {
+            background: #0f0f1a;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #333;
+        }
+
+        .breadcrumb {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 16px;
+        }
+
+        .breadcrumb a {
+            color: #e94560;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        .section-header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .section-cite {
+            font-size: 0.9rem;
+            color: #e94560;
+            font-family: monospace;
+        }
+
+        .section-content {
+            line-height: 1.8;
+            font-size: 1rem;
+        }
+
+        .section-content p { margin-bottom: 16px; }
+
+        .subsection {
+            margin-left: 24px;
+            margin-bottom: 12px;
+        }
+
+        .subsection-label {
+            color: #e94560;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .paragraph {
+            margin-left: 48px;
+            margin-bottom: 8px;
+        }
+
+        .clause {
+            margin-left: 72px;
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error {
+            background: #3d1a1a;
+            border: 1px solid #e94560;
+            border-radius: 8px;
+            padding: 16px;
+            color: #ff8a8a;
+        }
+
+        .tools {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+
+        .favorites {
+            margin-top: 20px;
+        }
+
+        .fav-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .fav-item:hover { background: #252540; }
+
+        .fav-remove {
+            margin-left: auto;
+            color: #888;
+            cursor: pointer;
+        }
+
+        .fav-remove:hover { color: #e94560; }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+            font-size: 0.85rem;
+            margin-top: 24px;
+        }
+
+        footer a { color: #e94560; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📜 <span>USC</span> Browser</h1>
+            <p class="subtitle">United States Code - Legal Reference</p>
+        </header>
+
+        <div class="search-box">
+            <div class="search-row">
+                <div class="input-group" style="flex: 0.5;">
+                    <label>Title</label>
+                    <input type="text" id="titleInput" placeholder="e.g. 26">
+                </div>
+                <div class="input-group" style="flex: 0.5;">
+                    <label>Section</label>
+                    <input type="text" id="sectionInput" placeholder="e.g. 501">
+                </div>
+                <div class="input-group" style="flex: 0.5;">
+                    <label>Subsection</label>
+                    <input type="text" id="subsectionInput" placeholder="e.g. (c)(3)">
+                </div>
+                <div class="input-group" style="flex: 1.5;">
+                    <label>Or enter full citation</label>
+                    <input type="text" id="citationInput" placeholder="e.g. 26 USC § 501(c)(3) or 18 U.S.C. 1030">
+                </div>
+                <button class="btn btn-primary" onclick="lookup()">🔍 Look Up</button>
+            </div>
+            <div class="quick-links">
+                <span style="color: #666; font-size: 0.8rem;">Popular:</span>
+                <span class="quick-link" onclick="quickLookup(26, 501, '(c)(3)')">26 USC § 501(c)(3) - Tax Exempt</span>
+                <span class="quick-link" onclick="quickLookup(18, 1030)">18 USC § 1030 - Computer Fraud</span>
+                <span class="quick-link" onclick="quickLookup(17, 107)">17 USC § 107 - Fair Use</span>
+                <span class="quick-link" onclick="quickLookup(15, 1)">15 USC § 1 - Sherman Act</span>
+                <span class="quick-link" onclick="quickLookup(42, 1983)">42 USC § 1983 - Civil Rights</span>
+                <span class="quick-link" onclick="quickLookup(5, 552)">5 USC § 552 - FOIA</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <h3>USC Titles</h3>
+                <ul class="title-list" id="titleList"></ul>
+
+                <div class="favorites" id="favoritesSection" style="display: none;">
+                    <h3 style="margin-top: 20px;">⭐ Favorites</h3>
+                    <div id="favoritesList"></div>
+                </div>
+            </div>
+
+            <div class="content-panel" id="contentPanel">
+                <div class="section-header">
+                    <h2 class="section-title">Welcome to USC Browser</h2>
+                    <p class="section-cite">Select a title or search for a specific section</p>
+                </div>
+                <div class="section-content">
+                    <p>The United States Code is the codification of federal statutory law. Use this tool to browse and reference specific provisions.</p>
+                    <p><strong>How to use:</strong></p>
+                    <ul style="margin-left: 24px; margin-bottom: 16px;">
+                        <li>Enter a Title number and Section number</li>
+                        <li>Or paste a full citation like "26 USC § 501(c)(3)"</li>
+                        <li>Click a quick link for common references</li>
+                        <li>Browse titles in the sidebar</li>
+                    </ul>
+                    <p><strong>Citation formats supported:</strong></p>
+                    <ul style="margin-left: 24px;">
+                        <li>26 USC § 501</li>
+                        <li>26 U.S.C. § 501</li>
+                        <li>26 USC 501</li>
+                        <li>Title 26 Section 501</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>📜 USC Browser • Data from <a href="https://uscode.house.gov/" target="_blank">uscode.house.gov</a> & <a href="https://www.law.cornell.edu/uscode" target="_blank">Cornell LII</a></p>
+            <p style="margin-top: 8px;">For reference only. Consult official sources for legal matters.</p>
+        </footer>
+    </div>
+
+    <script>
+        // USC Title names
+        const USC_TITLES = {
+            1: "General Provisions",
+            2: "The Congress",
+            3: "The President",
+            4: "Flag and Seal",
+            5: "Government Organization",
+            6: "Domestic Security",
+            7: "Agriculture",
+            8: "Aliens and Nationality",
+            9: "Arbitration",
+            10: "Armed Forces",
+            11: "Bankruptcy",
+            12: "Banks and Banking",
+            13: "Census",
+            14: "Coast Guard",
+            15: "Commerce and Trade",
+            16: "Conservation",
+            17: "Copyrights",
+            18: "Crimes and Criminal Procedure",
+            19: "Customs Duties",
+            20: "Education",
+            21: "Food and Drugs",
+            22: "Foreign Relations",
+            23: "Highways",
+            24: "Hospitals and Asylums",
+            25: "Indians",
+            26: "Internal Revenue Code",
+            27: "Intoxicating Liquors",
+            28: "Judiciary and Judicial Procedure",
+            29: "Labor",
+            30: "Mineral Lands and Mining",
+            31: "Money and Finance",
+            32: "National Guard",
+            33: "Navigation and Navigable Waters",
+            34: "Crime Control and Law Enforcement",
+            35: "Patents",
+            36: "Patriotic Societies",
+            37: "Pay and Allowances",
+            38: "Veterans' Benefits",
+            39: "Postal Service",
+            40: "Public Buildings",
+            41: "Public Contracts",
+            42: "Public Health and Welfare",
+            43: "Public Lands",
+            44: "Public Printing and Documents",
+            45: "Railroads",
+            46: "Shipping",
+            47: "Telecommunications",
+            48: "Territories and Insular Possessions",
+            49: "Transportation",
+            50: "War and National Defense",
+            51: "National and Commercial Space Programs",
+            52: "Voting and Elections",
+            54: "National Park Service"
+        };
+
+        // Common sections with content
+        const SECTION_DATA = {
+            "26-501": {
+                title: "Exemption from tax on corporations, certain trusts, etc.",
+                cite: "26 U.S.C. § 501",
+                content: `
+                    <p><span class="subsection-label">(a)</span> <strong>Exemption from taxation</strong></p>
+                    <p class="subsection">An organization described in subsection (c) or (d) or section 401(a) shall be exempt from taxation under this subtitle unless such exemption is denied under section 502 or 503.</p>
+
+                    <p><span class="subsection-label">(b)</span> <strong>Tax on unrelated business income and certain other activities</strong></p>
+                    <p class="subsection">An organization exempt from taxation under subsection (a) shall be subject to tax to the extent provided in parts II, III, and VI of this subchapter...</p>
+
+                    <p><span class="subsection-label">(c)</span> <strong>List of exempt organizations</strong></p>
+                    <p class="subsection">The following organizations are referred to in subsection (a):</p>
+
+                    <p class="paragraph"><span class="subsection-label">(1)</span> Any corporation organized under Act of Congress which is an instrumentality of the United States...</p>
+                    <p class="paragraph"><span class="subsection-label">(2)</span> Corporations organized for the exclusive purpose of holding title to property...</p>
+                    <p class="paragraph"><span class="subsection-label">(3)</span> Corporations, and any community chest, fund, or foundation, organized and operated exclusively for religious, charitable, scientific, testing for public safety, literary, or educational purposes, or to foster national or international amateur sports competition... no part of the net earnings of which inures to the benefit of any private shareholder or individual...</p>
+                    <p class="paragraph"><span class="subsection-label">(4)</span> Civic leagues or organizations not organized for profit but operated exclusively for the promotion of social welfare...</p>
+                    <p class="paragraph"><span class="subsection-label">(5)</span> Labor, agricultural, or horticultural organizations...</p>
+                    <p class="paragraph"><span class="subsection-label">(6)</span> Business leagues, chambers of commerce, real-estate boards, boards of trade, or professional football leagues...</p>
+                `
+            },
+            "18-1030": {
+                title: "Fraud and related activity in connection with computers",
+                cite: "18 U.S.C. § 1030",
+                content: `
+                    <p><span class="subsection-label">(a)</span> Whoever—</p>
+
+                    <p class="paragraph"><span class="subsection-label">(1)</span> having knowingly accessed a computer without authorization or exceeding authorized access, and by means of such conduct having obtained information that has been determined by the United States Government pursuant to an Executive order or statute to require protection against unauthorized disclosure for reasons of national defense or foreign relations...</p>
+
+                    <p class="paragraph"><span class="subsection-label">(2)</span> intentionally accesses a computer without authorization or exceeds authorized access, and thereby obtains—</p>
+                    <p class="clause"><span class="subsection-label">(A)</span> information contained in a financial record of a financial institution...</p>
+                    <p class="clause"><span class="subsection-label">(B)</span> information from any department or agency of the United States; or</p>
+                    <p class="clause"><span class="subsection-label">(C)</span> information from any protected computer;</p>
+
+                    <p class="paragraph"><span class="subsection-label">(3)</span> intentionally, without authorization to access any nonpublic computer of a department or agency of the United States, accesses such a computer...</p>
+
+                    <p class="paragraph"><span class="subsection-label">(4)</span> knowingly and with intent to defraud, accesses a protected computer without authorization, or exceeds authorized access, and by means of such conduct furthers the intended fraud and obtains anything of value...</p>
+
+                    <p class="paragraph"><span class="subsection-label">(5)</span> knowingly causes the transmission of a program, information, code, or command, and as a result of such conduct, intentionally causes damage without authorization, to a protected computer...</p>
+                `
+            },
+            "17-107": {
+                title: "Limitations on exclusive rights: Fair use",
+                cite: "17 U.S.C. § 107",
+                content: `
+                    <p>Notwithstanding the provisions of sections 106 and 106A, the fair use of a copyrighted work, including such use by reproduction in copies or phonorecords or by any other means specified by that section, for purposes such as criticism, comment, news reporting, teaching (including multiple copies for classroom use), scholarship, or research, is not an infringement of copyright. In determining whether the use made of a work in any particular case is a fair use the factors to be considered shall include—</p>
+
+                    <p class="paragraph"><span class="subsection-label">(1)</span> the purpose and character of the use, including whether such use is of a commercial nature or is for nonprofit educational purposes;</p>
+
+                    <p class="paragraph"><span class="subsection-label">(2)</span> the nature of the copyrighted work;</p>
+
+                    <p class="paragraph"><span class="subsection-label">(3)</span> the amount and substantiality of the portion used in relation to the copyrighted work as a whole; and</p>
+
+                    <p class="paragraph"><span class="subsection-label">(4)</span> the effect of the use upon the potential market for or value of the copyrighted work.</p>
+
+                    <p>The fact that a work is unpublished shall not itself bar a finding of fair use if such finding is made upon consideration of all the above factors.</p>
+                `
+            },
+            "15-1": {
+                title: "Trusts, etc., in restraint of trade illegal; penalty",
+                cite: "15 U.S.C. § 1 (Sherman Antitrust Act)",
+                content: `
+                    <p>Every contract, combination in the form of trust or otherwise, or conspiracy, in restraint of trade or commerce among the several States, or with foreign nations, is declared to be illegal.</p>
+
+                    <p>Every person who shall make any contract or engage in any combination or conspiracy hereby declared to be illegal shall be deemed guilty of a felony, and, on conviction thereof, shall be punished by fine not exceeding $100,000,000 if a corporation, or, if any other person, $1,000,000, or by imprisonment not exceeding 10 years, or by both said punishments, in the discretion of the court.</p>
+                `
+            },
+            "42-1983": {
+                title: "Civil action for deprivation of rights",
+                cite: "42 U.S.C. § 1983",
+                content: `
+                    <p>Every person who, under color of any statute, ordinance, regulation, custom, or usage, of any State or Territory or the District of Columbia, subjects, or causes to be subjected, any citizen of the United States or other person within the jurisdiction thereof to the deprivation of any rights, privileges, or immunities secured by the Constitution and laws, shall be liable to the party injured in an action at law, suit in equity, or other proper proceeding for redress, except that in any action brought against a judicial officer for an act or omission taken in such officer's judicial capacity, injunctive relief shall not be granted unless a declaratory decree was violated or declaratory relief was unavailable.</p>
+
+                    <p>For the purposes of this section, any Act of Congress applicable exclusively to the District of Columbia shall be considered to be a statute of the District of Columbia.</p>
+                `
+            },
+            "5-552": {
+                title: "Public information; agency rules, opinions, orders, records, and proceedings",
+                cite: "5 U.S.C. § 552 (Freedom of Information Act)",
+                content: `
+                    <p><span class="subsection-label">(a)</span> Each agency shall make available to the public information as follows:</p>
+
+                    <p class="paragraph"><span class="subsection-label">(1)</span> Each agency shall separately state and currently publish in the Federal Register for the guidance of the public—</p>
+                    <p class="clause"><span class="subsection-label">(A)</span> descriptions of its central and field organization...</p>
+                    <p class="clause"><span class="subsection-label">(B)</span> statements of the general course and method by which its functions are channeled and determined...</p>
+                    <p class="clause"><span class="subsection-label">(C)</span> rules of procedure, descriptions of forms available...</p>
+                    <p class="clause"><span class="subsection-label">(D)</span> substantive rules of general applicability...</p>
+
+                    <p class="paragraph"><span class="subsection-label">(2)</span> Each agency, in accordance with published rules, shall make available for public inspection in an electronic format—</p>
+                    <p class="clause"><span class="subsection-label">(A)</span> final opinions, including concurring and dissenting opinions, as well as orders, made in the adjudication of cases;</p>
+                    <p class="clause"><span class="subsection-label">(B)</span> those statements of policy and interpretations which have been adopted by the agency...</p>
+                `
+            }
+        };
+
+        let favorites = JSON.parse(localStorage.getItem('usc_favorites') || '[]');
+
+        // Initialize
+        function init() {
+            renderTitleList();
+            renderFavorites();
+
+            // Handle enter key
+            document.querySelectorAll('input').forEach(input => {
+                input.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') lookup();
+                });
+            });
+        }
+
+        function renderTitleList() {
+            const list = document.getElementById('titleList');
+            list.innerHTML = '';
+
+            Object.entries(USC_TITLES).forEach(([num, name]) => {
+                const li = document.createElement('li');
+                li.className = 'title-item';
+                li.innerHTML = `<span class="title-num">${num}</span>${name}`;
+                li.onclick = () => selectTitle(num);
+                list.appendChild(li);
+            });
+        }
+
+        function selectTitle(num) {
+            document.querySelectorAll('.title-item').forEach(el => el.classList.remove('active'));
+            event.target.closest('.title-item').classList.add('active');
+
+            document.getElementById('titleInput').value = num;
+            showTitleOverview(num);
+        }
+
+        function showTitleOverview(num) {
+            const panel = document.getElementById('contentPanel');
+            const titleName = USC_TITLES[num] || `Title ${num}`;
+
+            panel.innerHTML = `
+                <div class="section-header">
+                    <h2 class="section-title">Title ${num} - ${titleName}</h2>
+                    <p class="section-cite">${num} U.S.C.</p>
+                </div>
+                <div class="section-content">
+                    <p>Enter a section number above to look up specific provisions of Title ${num}.</p>
+                    <p style="margin-top: 16px;"><strong>To cite:</strong> ${num} U.S.C. § [section]</p>
+                    <p style="margin-top: 16px;">
+                        <a href="https://uscode.house.gov/browse/prelim@title${num}&edition=prelim" target="_blank" style="color: #e94560;">
+                            📖 Browse full Title ${num} at uscode.house.gov →
+                        </a>
+                    </p>
+                </div>
+            `;
+        }
+
+        function parseCitation(citation) {
+            citation = citation.trim();
+
+            // Patterns: "26 USC § 501(c)(3)", "26 U.S.C. § 501", "Title 26 Section 501", "26 USC 501"
+            const patterns = [
+                /(\d+)\s*U\.?S\.?C\.?\s*§?\s*(\d+[a-z]?)(?:\s*\(([^)]+)\))?/i,
+                /Title\s*(\d+)\s*Section\s*(\d+[a-z]?)/i,
+                /(\d+)\s+(\d+[a-z]?)(?:\s*\(([^)]+)\))?/
+            ];
+
+            for (const pattern of patterns) {
+                const match = citation.match(pattern);
+                if (match) {
+                    return {
+                        title: match[1],
+                        section: match[2],
+                        subsection: match[3] || ''
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        function quickLookup(title, section, subsection = '') {
+            document.getElementById('titleInput').value = title;
+            document.getElementById('sectionInput').value = section;
+            document.getElementById('subsectionInput').value = subsection;
+            lookup();
+        }
+
+        function lookup() {
+            const citation = document.getElementById('citationInput').value.trim();
+            let title = document.getElementById('titleInput').value.trim();
+            let section = document.getElementById('sectionInput').value.trim();
+            let subsection = document.getElementById('subsectionInput').value.trim();
+
+            // Parse citation if provided
+            if (citation) {
+                const parsed = parseCitation(citation);
+                if (parsed) {
+                    title = parsed.title;
+                    section = parsed.section;
+                    subsection = parsed.subsection;
+
+                    // Update fields
+                    document.getElementById('titleInput').value = title;
+                    document.getElementById('sectionInput').value = section;
+                    document.getElementById('subsectionInput').value = subsection;
+                }
+            }
+
+            if (!title || !section) {
+                showError('Please enter a Title and Section number.');
+                return;
+            }
+
+            showLoading();
+
+            // Check local data first
+            const key = `${title}-${section}`;
+            if (SECTION_DATA[key]) {
+                setTimeout(() => displaySection(title, section, subsection, SECTION_DATA[key]), 300);
+            } else {
+                // Fetch from Cornell LII or show generic
+                fetchSection(title, section, subsection);
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('contentPanel').innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Looking up section...</p>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('contentPanel').innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
+        }
+
+        async function fetchSection(title, section, subsection) {
+            // Try to fetch from Cornell LII
+            const liiUrl = `https://www.law.cornell.edu/uscode/text/${title}/${section}`;
+
+            // Since we can't directly fetch due to CORS, show link
+            displayGenericSection(title, section, subsection, liiUrl);
+        }
+
+        function displayGenericSection(title, section, subsection, externalUrl) {
+            const titleName = USC_TITLES[title] || `Title ${title}`;
+            const cite = `${title} U.S.C. § ${section}${subsection ? subsection : ''}`;
+
+            const panel = document.getElementById('contentPanel');
+            panel.innerHTML = `
+                <div class="breadcrumb">
+                    <a href="#" onclick="showTitleOverview(${title}); return false;">Title ${title}</a> › Section ${section}
+                </div>
+                <div class="section-header">
+                    <h2 class="section-title">${titleName} - Section ${section}</h2>
+                    <p class="section-cite">${cite}</p>
+                </div>
+                <div class="section-content">
+                    <p>This section is not cached locally. View the full text at official sources:</p>
+                    <p style="margin: 16px 0;">
+                        <a href="https://uscode.house.gov/view.xhtml?req=${title}+USC+${section}" target="_blank" class="btn btn-primary" style="text-decoration: none; display: inline-block;">
+                            📖 View at uscode.house.gov
+                        </a>
+                        <a href="${externalUrl}" target="_blank" class="btn btn-secondary" style="text-decoration: none; display: inline-block; margin-left: 8px;">
+                            📚 View at Cornell LII
+                        </a>
+                    </p>
+                    ${subsection ? `<p style="color: #888;">Subsection: ${subsection}</p>` : ''}
+                </div>
+                <div class="tools">
+                    <button class="btn btn-secondary" onclick="addFavorite('${title}', '${section}', '${subsection}')">⭐ Add to Favorites</button>
+                    <button class="btn btn-secondary" onclick="copyCitation('${cite}')">📋 Copy Citation</button>
+                </div>
+            `;
+        }
+
+        function displaySection(title, section, subsection, data) {
+            const cite = `${title} U.S.C. § ${section}${subsection ? subsection : ''}`;
+
+            const panel = document.getElementById('contentPanel');
+            panel.innerHTML = `
+                <div class="breadcrumb">
+                    <a href="#" onclick="showTitleOverview(${title}); return false;">Title ${title}</a> › Section ${section}
+                </div>
+                <div class="section-header">
+                    <h2 class="section-title">${data.title}</h2>
+                    <p class="section-cite">${data.cite}</p>
+                </div>
+                <div class="section-content">
+                    ${data.content}
+                </div>
+                <div class="tools">
+                    <button class="btn btn-secondary" onclick="addFavorite('${title}', '${section}', '${subsection || ''}')">⭐ Add to Favorites</button>
+                    <button class="btn btn-secondary" onclick="copyCitation('${cite}')">📋 Copy Citation</button>
+                    <a href="https://www.law.cornell.edu/uscode/text/${title}/${section}" target="_blank" class="btn btn-secondary" style="text-decoration: none;">🔗 Full Text</a>
+                </div>
+            `;
+        }
+
+        function addFavorite(title, section, subsection) {
+            const cite = `${title} USC § ${section}${subsection || ''}`;
+            if (!favorites.find(f => f.cite === cite)) {
+                favorites.push({ title, section, subsection, cite });
+                localStorage.setItem('usc_favorites', JSON.stringify(favorites));
+                renderFavorites();
+                alert('Added to favorites!');
+            }
+        }
+
+        function removeFavorite(cite) {
+            favorites = favorites.filter(f => f.cite !== cite);
+            localStorage.setItem('usc_favorites', JSON.stringify(favorites));
+            renderFavorites();
+        }
+
+        function renderFavorites() {
+            const section = document.getElementById('favoritesSection');
+            const list = document.getElementById('favoritesList');
+
+            if (favorites.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = favorites.map(f => `
+                <div class="fav-item" onclick="quickLookup('${f.title}', '${f.section}', '${f.subsection || ''}')">
+                    📜 ${f.cite}
+                    <span class="fav-remove" onclick="event.stopPropagation(); removeFavorite('${f.cite}')">✕</span>
+                </div>
+            `).join('');
+        }
+
+        function copyCitation(cite) {
+            navigator.clipboard.writeText(cite).then(() => {
+                alert('Citation copied: ' + cite);
+            });
+        }
+
+        // Init on load
+        init();
+    </script>
+</body>
+</html>
