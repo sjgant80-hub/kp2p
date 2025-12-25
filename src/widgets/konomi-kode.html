@@ -134,6 +134,9 @@ Features:
       <span class="indicator" id="modelIndicator"></span>
       <span id="modelName">Loading model...</span>
     </div>
+    <div class="model-status" id="contextStats" title="Persistent memory across sessions">
+      Memory: 0 convs | 0 patterns | ~0K tokens
+    </div>
     <div class="header-actions">
       <select id="modelSelect">
         <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (Fast)</option>
@@ -142,6 +145,7 @@ Features:
         <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B</option>
       </select>
       <button id="clearBtn">Clear Chat</button>
+      <button id="clearMemBtn" title="Clear persistent memory database">Clear Memory</button>
       <button id="resetBtn">Reset Files</button>
     </div>
   </div>
@@ -196,6 +200,307 @@ Features:
 
     const $ = id => document.getElementById(id);
     const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    // ==========================================================================
+    // CONTEXT DATABASE - Persistent memory with IndexedDB
+    // ==========================================================================
+    class ContextDB {
+      constructor() {
+        this.dbName = 'konomi-kode-context';
+        this.db = null;
+        this.tokenCount = 0;
+        this.maxTokens = 8192; // Approximate context budget
+      }
+
+      async init() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(this.dbName, 2);
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => { this.db = req.result; resolve(); };
+          req.onupgrade = (e) => {
+            const db = e.target.result;
+            // Conversations store - chunks of context
+            if (!db.objectStoreNames.contains('conversations')) {
+              const store = db.createObjectStore('conversations', { keyPath: 'id', autoIncrement: true });
+              store.createIndex('timestamp', 'timestamp');
+              store.createIndex('keywords', 'keywords', { multiEntry: true });
+            }
+            // Tool patterns - learn from successful tool uses
+            if (!db.objectStoreNames.contains('patterns')) {
+              const store = db.createObjectStore('patterns', { keyPath: 'id', autoIncrement: true });
+              store.createIndex('tool', 'tool');
+              store.createIndex('intent', 'intent');
+            }
+            // File snapshots - track file evolution
+            if (!db.objectStoreNames.contains('snapshots')) {
+              const store = db.createObjectStore('snapshots', { keyPath: 'id', autoIncrement: true });
+              store.createIndex('path', 'path');
+              store.createIndex('timestamp', 'timestamp');
+            }
+          };
+        });
+      }
+
+      // Extract keywords from text for retrieval
+      extractKeywords(text) {
+        const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 'and', 'but', 'if', 'or', 'because', 'until', 'while', 'although', 'though', 'after', 'before', 'when', 'i', 'me', 'my', 'myself', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being']);
+        const words = text.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+        return [...new Set(words.filter(w => !stopWords.has(w)))].slice(0, 20);
+      }
+
+      // Approximate token count (rough: ~4 chars per token)
+      countTokens(text) {
+        return Math.ceil(text.length / 4);
+      }
+
+      // Store a conversation chunk
+      async storeConversation(userMsg, assistantMsg, toolCalls = []) {
+        const tx = this.db.transaction('conversations', 'readwrite');
+        const store = tx.objectStore('conversations');
+        const combined = userMsg + ' ' + assistantMsg;
+        await store.add({
+          timestamp: Date.now(),
+          userMsg,
+          assistantMsg,
+          toolCalls,
+          keywords: this.extractKeywords(combined),
+          tokens: this.countTokens(combined)
+        });
+      }
+
+      // Store a tool usage pattern for learning
+      async storePattern(intent, tool, args, success) {
+        const tx = this.db.transaction('patterns', 'readwrite');
+        const store = tx.objectStore('patterns');
+        await store.add({
+          timestamp: Date.now(),
+          intent: this.extractKeywords(intent).slice(0, 5).join(' '),
+          tool,
+          args,
+          success
+        });
+      }
+
+      // Store file snapshot
+      async storeSnapshot(path, content) {
+        const tx = this.db.transaction('snapshots', 'readwrite');
+        const store = tx.objectStore('snapshots');
+        await store.add({
+          timestamp: Date.now(),
+          path,
+          content: content.slice(0, 2000), // Limit snapshot size
+          tokens: this.countTokens(content)
+        });
+      }
+
+      // Retrieve relevant context based on query
+      async retrieveContext(query, maxTokens = 2000) {
+        const keywords = this.extractKeywords(query);
+        const results = [];
+        let tokenBudget = maxTokens;
+
+        // Search conversations by keywords
+        const tx = this.db.transaction('conversations', 'readonly');
+        const store = tx.objectStore('conversations');
+        const index = store.index('keywords');
+
+        for (const keyword of keywords) {
+          const range = IDBKeyRange.only(keyword);
+          const cursor = await new Promise(resolve => {
+            const req = index.openCursor(range, 'prev');
+            const items = [];
+            req.onsuccess = () => {
+              const c = req.result;
+              if (c && items.length < 5) {
+                items.push(c.value);
+                c.continue();
+              } else {
+                resolve(items);
+              }
+            };
+          });
+          results.push(...cursor);
+        }
+
+        // Dedupe and sort by timestamp (most recent first)
+        const seen = new Set();
+        const unique = results.filter(r => {
+          if (seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        }).sort((a, b) => b.timestamp - a.timestamp);
+
+        // Build context within token budget
+        const contextParts = [];
+        for (const item of unique) {
+          if (tokenBudget <= 0) break;
+          if (item.tokens <= tokenBudget) {
+            contextParts.push(`[Previous: User asked "${item.userMsg.slice(0, 100)}..." → ${item.assistantMsg.slice(0, 200)}...]`);
+            tokenBudget -= item.tokens;
+          }
+        }
+
+        return contextParts.join('\n');
+      }
+
+      // Get learned patterns for a tool
+      async getPatterns(tool, limit = 5) {
+        const tx = this.db.transaction('patterns', 'readonly');
+        const store = tx.objectStore('patterns');
+        const index = store.index('tool');
+        const range = IDBKeyRange.only(tool);
+
+        return new Promise(resolve => {
+          const req = index.openCursor(range, 'prev');
+          const items = [];
+          req.onsuccess = () => {
+            const c = req.result;
+            if (c && items.length < limit) {
+              if (c.value.success) items.push(c.value);
+              c.continue();
+            } else {
+              resolve(items);
+            }
+          };
+        });
+      }
+
+      // Get stats
+      async getStats() {
+        const stats = { conversations: 0, patterns: 0, snapshots: 0, totalTokens: 0 };
+
+        const tx = this.db.transaction(['conversations', 'patterns', 'snapshots'], 'readonly');
+
+        for (const storeName of ['conversations', 'patterns', 'snapshots']) {
+          const store = tx.objectStore(storeName);
+          const count = await new Promise(r => { const req = store.count(); req.onsuccess = () => r(req.result); });
+          stats[storeName] = count;
+        }
+
+        // Sum tokens from conversations
+        const convStore = tx.objectStore('conversations');
+        await new Promise(resolve => {
+          const req = convStore.openCursor();
+          req.onsuccess = () => {
+            const c = req.result;
+            if (c) {
+              stats.totalTokens += c.value.tokens || 0;
+              c.continue();
+            } else {
+              resolve();
+            }
+          };
+        });
+
+        return stats;
+      }
+
+      // Clear old data to manage space
+      async cleanup(maxAge = 7 * 24 * 60 * 60 * 1000) { // 7 days
+        const cutoff = Date.now() - maxAge;
+        const tx = this.db.transaction(['conversations', 'snapshots'], 'readwrite');
+
+        for (const storeName of ['conversations', 'snapshots']) {
+          const store = tx.objectStore(storeName);
+          const index = store.index('timestamp');
+          const range = IDBKeyRange.upperBound(cutoff);
+          const req = index.openCursor(range);
+          req.onsuccess = () => {
+            const c = req.result;
+            if (c) {
+              c.delete();
+              c.continue();
+            }
+          };
+        }
+      }
+    }
+
+    // ==========================================================================
+    // SYSTEM PROMPT - Detailed tool instructions with examples
+    // ==========================================================================
+    const SYSTEM_PROMPT = `You are Konomi Kode, an AI coding assistant running entirely in the browser. You help users write, edit, debug, and understand code.
+
+## YOUR CAPABILITIES
+
+You have access to a virtual filesystem and can execute tools to help users. You MUST use tools to make changes - you cannot directly modify files, only through tools.
+
+## AVAILABLE TOOLS
+
+To use a tool, output it in this EXACT format:
+<tool>{"name": "tool_name", "args": {"param": "value"}}</tool>
+
+### 1. read_file
+Read the contents of a file.
+Parameters: path (string) - file path
+Example:
+<tool>{"name": "read_file", "args": {"path": "index.html"}}</tool>
+
+### 2. write_file
+Create or overwrite a file with content.
+Parameters: path (string), content (string)
+Example:
+<tool>{"name": "write_file", "args": {"path": "app.js", "content": "console.log('Hello');"}}</tool>
+
+### 3. list_files
+List all files in the workspace.
+Parameters: none
+Example:
+<tool>{"name": "list_files", "args": {}}</tool>
+
+### 4. delete_file
+Delete a file.
+Parameters: path (string)
+Example:
+<tool>{"name": "delete_file", "args": {"path": "old.js"}}</tool>
+
+### 5. search_files
+Search for text across all files.
+Parameters: query (string)
+Example:
+<tool>{"name": "search_files", "args": {"query": "TODO"}}</tool>
+
+### 6. run_command
+Run a shell command (simulated environment).
+Parameters: command (string)
+Example:
+<tool>{"name": "run_command", "args": {"command": "ls"}}</tool>
+
+## HOW TO RESPOND
+
+1. First, understand what the user wants
+2. If you need to see file contents, use read_file
+3. If you need to make changes, use write_file
+4. Always explain what you did after using a tool
+5. Be concise but helpful
+
+## EXAMPLES
+
+User: "Create a button that shows an alert"
+You should:
+1. Use read_file to see the current HTML
+2. Use write_file to add the button
+3. Explain what you added
+
+User: "What files do I have?"
+You should:
+1. Use list_files tool
+2. Describe the files
+
+User: "Fix the bug in my code"
+You should:
+1. Use read_file to examine the code
+2. Identify the bug
+3. Use write_file with the fixed code
+4. Explain the fix
+
+## IMPORTANT RULES
+
+- ALWAYS use the exact JSON format shown above
+- Put the ENTIRE file content in write_file, not just changes
+- After a tool, wait for the result before continuing
+- If a tool fails, explain why and try a different approach
+- Keep responses concise - don't over-explain`;
 
     // Virtual Filesystem
     class VFS {
@@ -292,15 +597,28 @@ Features:
     class KonomiKode {
       constructor() {
         this.fs = new VFS();
+        this.contextDB = new ContextDB();
         this.engine = null;
         this.messages = [];
         this.activeFile = null;
         this.openFiles = [];
         this.isProcessing = false;
+        this.currentUserMsg = '';
+        this.sessionToolCalls = [];
         this.init();
       }
 
       async init() {
+        // Initialize context database
+        try {
+          await this.contextDB.init();
+          this.log('Context database initialized', 'success');
+          await this.contextDB.cleanup(); // Clean old data
+          await this.updateStats();
+        } catch (e) {
+          this.log('Context DB error: ' + e.message, 'err');
+        }
+
         // Demo files
         if (this.fs.files.size === 0) {
           this.fs.write('index.html', `<!DOCTYPE html>
@@ -373,6 +691,19 @@ Features:
           }
         };
 
+        $('clearMemBtn').onclick = async () => {
+          if (confirm('Clear all persistent memory? This will reset learned patterns and conversation history.')) {
+            try {
+              indexedDB.deleteDatabase('konomi-kode-context');
+              this.log('Memory cleared', 'success');
+              await this.contextDB.init();
+              await this.updateStats();
+            } catch (e) {
+              this.log('Error clearing memory: ' + e.message, 'err');
+            }
+          }
+        };
+
         $('modelSelect').onchange = () => this.loadModel($('modelSelect').value);
       }
 
@@ -404,24 +735,24 @@ Features:
       }
 
       addSystemMessage() {
-        const toolList = Object.entries(TOOLS).map(([name, t]) =>
-          `- ${name}(${t.params.join(', ')}): ${t.description}`
-        ).join('\n');
-
         this.messages.push({
           role: 'system',
-          content: `You are Konomi Kode, an AI coding assistant running in the browser. You help users write, edit, and understand code.
-
-Available tools (use JSON format to call):
-${toolList}
-
-To use a tool, respond with:
-<tool>{"name": "tool_name", "args": {"param": "value"}}</tool>
-
-After using a tool, explain what you did. Be concise and helpful. When writing code, use write_file to save it.
-
-Current files: ${this.fs.list().join(', ') || 'none'}`
+          content: SYSTEM_PROMPT + `\n\n## CURRENT WORKSPACE\n\nFiles: ${this.fs.list().join(', ') || 'none'}`
         });
+      }
+
+      async updateStats() {
+        try {
+          const stats = await this.contextDB.getStats();
+          const statsEl = $('contextStats');
+          if (statsEl) {
+            statsEl.textContent = `Memory: ${stats.conversations} convs | ${stats.patterns} patterns | ~${Math.round(stats.totalTokens / 1000)}K tokens`;
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      countMessageTokens() {
+        return this.messages.reduce((sum, m) => sum + this.contextDB.countTokens(m.content || ''), 0);
       }
 
       renderFiles() {
@@ -505,10 +836,38 @@ Current files: ${this.fs.list().join(', ') || 'none'}`
         this.isProcessing = true;
         $('sendBtn').disabled = true;
         $('typingIndicator').classList.add('active');
+        this.currentUserMsg = input;
+        this.sessionToolCalls = [];
+
+        // Retrieve relevant context from memory
+        let retrievedContext = '';
+        try {
+          retrievedContext = await this.contextDB.retrieveContext(input, 1500);
+          if (retrievedContext) {
+            this.log('Retrieved context from memory', 'tool');
+          }
+        } catch (e) { /* ignore */ }
+
+        // Build enhanced user message with context
+        let enhancedInput = input;
+        if (retrievedContext) {
+          enhancedInput = `${input}\n\n[Relevant memory from previous sessions:\n${retrievedContext}]`;
+        }
+
+        // Update system message with current workspace state
+        if (this.messages.length > 0 && this.messages[0].role === 'system') {
+          this.messages[0].content = SYSTEM_PROMPT + `\n\n## CURRENT WORKSPACE\n\nFiles: ${this.fs.list().join(', ') || 'none'}`;
+        }
 
         // Add user message
-        this.messages.push({ role: 'user', content: input });
-        this.addChatMessage('user', input);
+        this.messages.push({ role: 'user', content: enhancedInput });
+        this.addChatMessage('user', input); // Show original input to user
+
+        // Log token usage
+        const tokenCount = this.countMessageTokens();
+        this.log(`Context: ~${tokenCount} tokens`, 'out');
+
+        let finalAssistantMsg = '';
 
         try {
           // Agent loop - may need multiple iterations for tool calls
@@ -526,6 +885,7 @@ Current files: ${this.fs.list().join(', ') || 'none'}`
 
             const assistantMsg = response.choices[0].message.content;
             this.messages.push({ role: 'assistant', content: assistantMsg });
+            finalAssistantMsg = assistantMsg;
 
             // Check for tool calls
             const toolMatch = assistantMsg.match(/<tool>([\s\S]*?)<\/tool>/);
@@ -539,6 +899,31 @@ Current files: ${this.fs.list().join(', ') || 'none'}`
                   this.log(`Tool: ${toolCall.name}`, 'tool');
                   const result = tool.fn(this.fs, toolCall.args || {});
                   this.log(result.slice(0, 100), 'out');
+
+                  // Track tool call for learning
+                  this.sessionToolCalls.push({
+                    name: toolCall.name,
+                    args: toolCall.args,
+                    result: result,
+                    success: !result.startsWith('Error')
+                  });
+
+                  // Store tool pattern for learning
+                  try {
+                    await this.contextDB.storePattern(
+                      this.currentUserMsg,
+                      toolCall.name,
+                      toolCall.args,
+                      !result.startsWith('Error')
+                    );
+                  } catch (e) { /* ignore */ }
+
+                  // Store file snapshot if writing
+                  if (toolCall.name === 'write_file' && toolCall.args.path) {
+                    try {
+                      await this.contextDB.storeSnapshot(toolCall.args.path, toolCall.args.content);
+                    } catch (e) { /* ignore */ }
+                  }
 
                   // Show message with tool call
                   const cleanMsg = assistantMsg.replace(/<tool>[\s\S]*?<\/tool>/, '').trim();
@@ -572,6 +957,17 @@ Current files: ${this.fs.list().join(', ') || 'none'}`
             this.addChatMessage('assistant', assistantMsg);
             break;
           }
+
+          // Store conversation in context database for future retrieval
+          try {
+            await this.contextDB.storeConversation(
+              this.currentUserMsg,
+              finalAssistantMsg.replace(/<tool>[\s\S]*?<\/tool>/g, '[tool call]').slice(0, 500),
+              this.sessionToolCalls
+            );
+            await this.updateStats();
+          } catch (e) { /* ignore */ }
+
         } catch (e) {
           this.log('Error: ' + e.message, 'err');
           this.addChatMessage('assistant', 'Sorry, I encountered an error: ' + e.message);
