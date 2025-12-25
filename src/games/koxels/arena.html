@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koxels - Battle Arena</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #1f2937; }
+        #game { position: fixed; inset: 0; }
+
+        .hud { position: fixed; z-index: 100; pointer-events: none; }
+
+        #title {
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            color: #ef4444;
+            text-shadow: 2px 2px 4px black;
+        }
+
+        #player1-hud {
+            top: 60px; left: 20px;
+            background: rgba(59, 130, 246, 0.3);
+            border: 2px solid #3b82f6;
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+        #player2-hud {
+            top: 60px; right: 20px;
+            background: rgba(239, 68, 68, 0.3);
+            border: 2px solid #ef4444;
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+        .player-hud h3 { font-size: 16px; color: white; margin-bottom: 10px; }
+        .health-bar {
+            width: 150px; height: 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .health-fill {
+            height: 100%;
+            transition: width 0.2s;
+        }
+        #p1-health-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        #p2-health-fill { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .player-hud .score { font-size: 24px; color: #fbbf24; }
+
+        #round {
+            top: 130px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: white;
+        }
+
+        #countdown {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            color: #fbbf24;
+            text-shadow: 0 0 30px #fbbf24;
+            display: none;
+        }
+
+        #winner {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px 80px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+        }
+        #winner h1 { font-size: 48px; margin-bottom: 20px; }
+        #winner.p1-win h1 { color: #3b82f6; }
+        #winner.p2-win h1 { color: #ef4444; }
+        #winner button {
+            background: #22c55e;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            pointer-events: auto;
+            margin: 10px;
+        }
+
+        #controls {
+            bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.5);
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+        }
+        #controls span { color: white; }
+
+        #menu-btn {
+            bottom: 20px; left: 20px;
+            pointer-events: auto;
+        }
+        #menu-btn a {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        #start-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        #start-screen h1 {
+            font-size: 48px;
+            background: linear-gradient(135deg, #3b82f6, #ef4444);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+        }
+        #start-screen p { color: #888; margin-bottom: 40px; font-size: 14px; }
+        #start-screen button {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            padding: 20px 60px;
+            border-radius: 15px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        #start-screen button:hover { transform: scale(1.05); }
+        #start-screen.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+
+    <div id="start-screen">
+        <h1>KOXELS ARENA</h1>
+        <p>Local 2-Player Battle!</p>
+        <button onclick="startGame()">START BATTLE</button>
+    </div>
+
+    <div class="hud" id="title">BATTLE ARENA</div>
+
+    <div class="hud player-hud" id="player1-hud">
+        <h3>PLAYER 1 (WASD)</h3>
+        <div class="health-bar"><div class="health-fill" id="p1-health-fill" style="width: 100%"></div></div>
+        <div class="score">Score: <span id="p1-score">0</span></div>
+    </div>
+
+    <div class="hud player-hud" id="player2-hud">
+        <h3>PLAYER 2 (Arrows)</h3>
+        <div class="health-bar"><div class="health-fill" id="p2-health-fill" style="width: 100%"></div></div>
+        <div class="score">Score: <span id="p2-score">0</span></div>
+    </div>
+
+    <div class="hud" id="round">Round <span id="roundNum">1</span> / 5</div>
+
+    <div class="hud" id="countdown">3</div>
+
+    <div class="hud" id="winner">
+        <h1 id="winnerText">PLAYER 1 WINS!</h1>
+        <p>Final Score: <span id="finalP1">0</span> - <span id="finalP2">0</span></p>
+        <button onclick="startGame()">Play Again</button>
+        <button onclick="location.href='index.html'">Menu</button>
+    </div>
+
+    <div class="hud" id="controls">
+        <span>P1:</span> WASD + SPACE to shoot | <span>P2:</span> Arrows + ENTER to shoot
+    </div>
+
+    <div class="hud" id="menu-btn">
+        <a href="index.html">Menu</a>
+    </div>
+
+    <script>
+        // Game state
+        const G = {
+            started: false,
+            paused: true,
+            round: 1,
+            maxRounds: 5,
+            players: [
+                { health: 100, score: 0, x: -5, z: 0, angle: 0, shootCooldown: 0, color: 0x3b82f6 },
+                { health: 100, score: 0, x: 5, z: 0, angle: Math.PI, shootCooldown: 0, color: 0xef4444 }
+            ],
+            bullets: [],
+            powerups: [],
+            keys: {},
+            arenaSize: 12
+        };
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1f2937);
+
+        const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
+        camera.position.set(0, 20, 15);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(10, 20, 10);
+        light.castShadow = true;
+        scene.add(light);
+
+        // Arena floor
+        const floorGeo = new THREE.PlaneGeometry(G.arenaSize * 2, G.arenaSize * 2);
+        const floorMat = new THREE.MeshLambertMaterial({ color: 0x374151 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Arena walls
+        const wallGeo = new THREE.BoxGeometry(1, 2, G.arenaSize * 2 + 2);
+        const wallMat = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
+
+        const walls = [];
+        [-G.arenaSize - 0.5, G.arenaSize + 0.5].forEach(x => {
+            const wall = new THREE.Mesh(wallGeo, wallMat);
+            wall.position.set(x, 1, 0);
+            scene.add(wall);
+            walls.push(wall);
+        });
+
+        const wallGeo2 = new THREE.BoxGeometry(G.arenaSize * 2 + 2, 2, 1);
+        [-G.arenaSize - 0.5, G.arenaSize + 0.5].forEach(z => {
+            const wall = new THREE.Mesh(wallGeo2, wallMat);
+            wall.position.set(0, 1, z);
+            scene.add(wall);
+            walls.push(wall);
+        });
+
+        // Obstacles
+        const obstacleGeo = new THREE.BoxGeometry(2, 2, 2);
+        const obstacleMat = new THREE.MeshLambertMaterial({ color: 0x4b5563 });
+        const obstacles = [];
+
+        [[-4, -4], [4, 4], [-4, 4], [4, -4], [0, 0]].forEach(([x, z]) => {
+            const obs = new THREE.Mesh(obstacleGeo, obstacleMat);
+            obs.position.set(x, 1, z);
+            obs.castShadow = true;
+            scene.add(obs);
+            obstacles.push(obs);
+        });
+
+        // Player meshes
+        const playerGeo = new THREE.CapsuleGeometry(0.4, 0.8, 4, 8);
+        const gunGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
+
+        function createPlayer(color) {
+            const group = new THREE.Group();
+
+            const body = new THREE.Mesh(playerGeo, new THREE.MeshLambertMaterial({ color }));
+            body.position.y = 0.8;
+            body.castShadow = true;
+            group.add(body);
+
+            const gun = new THREE.Mesh(gunGeo, new THREE.MeshLambertMaterial({ color: 0x1f2937 }));
+            gun.position.set(0, 0.8, 0.6);
+            group.add(gun);
+
+            return group;
+        }
+
+        const playerMeshes = [
+            createPlayer(G.players[0].color),
+            createPlayer(G.players[1].color)
+        ];
+        playerMeshes.forEach(m => scene.add(m));
+
+        // Bullet class
+        function createBullet(x, z, angle, owner) {
+            const geo = new THREE.SphereGeometry(0.15);
+            const mat = new THREE.MeshBasicMaterial({ color: owner === 0 ? 0x60a5fa : 0xf87171 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, 0.8, z);
+
+            scene.add(mesh);
+
+            G.bullets.push({
+                mesh,
+                vx: Math.sin(angle) * 20,
+                vz: Math.cos(angle) * 20,
+                owner,
+                lifetime: 3
+            });
+        }
+
+        // Powerup spawn
+        function spawnPowerup() {
+            if (G.powerups.length >= 2) return;
+
+            const types = ['health', 'speed', 'damage'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const colors = { health: 0x22c55e, speed: 0xfbbf24, damage: 0xef4444 };
+
+            const geo = new THREE.OctahedronGeometry(0.4);
+            const mat = new THREE.MeshBasicMaterial({ color: colors[type] });
+            const mesh = new THREE.Mesh(geo, mat);
+
+            let x, z, valid;
+            do {
+                x = (Math.random() - 0.5) * G.arenaSize * 1.5;
+                z = (Math.random() - 0.5) * G.arenaSize * 1.5;
+                valid = !obstacles.some(o =>
+                    Math.abs(o.position.x - x) < 2 && Math.abs(o.position.z - z) < 2
+                );
+            } while (!valid);
+
+            mesh.position.set(x, 1, z);
+            scene.add(mesh);
+
+            G.powerups.push({ mesh, type, x, z });
+        }
+
+        // Update UI
+        function updateUI() {
+            document.getElementById('p1-health-fill').style.width = G.players[0].health + '%';
+            document.getElementById('p2-health-fill').style.width = G.players[1].health + '%';
+            document.getElementById('p1-score').textContent = G.players[0].score;
+            document.getElementById('p2-score').textContent = G.players[1].score;
+            document.getElementById('roundNum').textContent = G.round;
+        }
+
+        // Start game
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('winner').style.display = 'none';
+
+            G.round = 1;
+            G.players[0].score = 0;
+            G.players[1].score = 0;
+
+            startRound();
+        }
+
+        function startRound() {
+            G.paused = true;
+            G.players[0].health = 100;
+            G.players[1].health = 100;
+            G.players[0].x = -5;
+            G.players[0].z = 0;
+            G.players[0].angle = 0;
+            G.players[1].x = 5;
+            G.players[1].z = 0;
+            G.players[1].angle = Math.PI;
+
+            // Clear bullets and powerups
+            G.bullets.forEach(b => scene.remove(b.mesh));
+            G.bullets = [];
+            G.powerups.forEach(p => scene.remove(p.mesh));
+            G.powerups = [];
+
+            updateUI();
+
+            // Countdown
+            const countdown = document.getElementById('countdown');
+            let count = 3;
+            countdown.style.display = 'block';
+            countdown.textContent = count;
+
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdown.textContent = count;
+                } else if (count === 0) {
+                    countdown.textContent = 'FIGHT!';
+                } else {
+                    countdown.style.display = 'none';
+                    G.paused = false;
+                    G.started = true;
+                    clearInterval(timer);
+                }
+            }, 800);
+        }
+
+        function endRound(winner) {
+            G.paused = true;
+            G.players[winner].score++;
+            updateUI();
+
+            if (G.players[0].score >= 3 || G.players[1].score >= 3 || G.round >= G.maxRounds) {
+                // Game over
+                const finalWinner = G.players[0].score > G.players[1].score ? 0 : 1;
+                document.getElementById('winnerText').textContent = `PLAYER ${finalWinner + 1} WINS!`;
+                document.getElementById('winner').className = finalWinner === 0 ? 'hud p1-win' : 'hud p2-win';
+                document.getElementById('finalP1').textContent = G.players[0].score;
+                document.getElementById('finalP2').textContent = G.players[1].score;
+                document.getElementById('winner').style.display = 'block';
+            } else {
+                G.round++;
+                setTimeout(startRound, 1500);
+            }
+        }
+
+        // Input
+        document.addEventListener('keydown', (e) => {
+            G.keys[e.code] = true;
+
+            // Shooting
+            if (!G.paused) {
+                if (e.code === 'Space' && G.players[0].shootCooldown <= 0) {
+                    const p = G.players[0];
+                    createBullet(
+                        p.x + Math.sin(p.angle) * 0.8,
+                        p.z + Math.cos(p.angle) * 0.8,
+                        p.angle, 0
+                    );
+                    p.shootCooldown = 0.3;
+                }
+                if (e.code === 'Enter' && G.players[1].shootCooldown <= 0) {
+                    const p = G.players[1];
+                    createBullet(
+                        p.x + Math.sin(p.angle) * 0.8,
+                        p.z + Math.cos(p.angle) * 0.8,
+                        p.angle, 1
+                    );
+                    p.shootCooldown = 0.3;
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            G.keys[e.code] = false;
+        });
+
+        // Game loop
+        const clock = new THREE.Clock();
+        let powerupTimer = 5;
+
+        function update() {
+            const delta = clock.getDelta();
+
+            if (!G.paused && G.started) {
+                // Player 1 movement (WASD)
+                const p1 = G.players[0];
+                const speed1 = 8;
+                if (G.keys['KeyW']) { p1.x += Math.sin(p1.angle) * speed1 * delta; p1.z += Math.cos(p1.angle) * speed1 * delta; }
+                if (G.keys['KeyS']) { p1.x -= Math.sin(p1.angle) * speed1 * delta; p1.z -= Math.cos(p1.angle) * speed1 * delta; }
+                if (G.keys['KeyA']) p1.angle += 3 * delta;
+                if (G.keys['KeyD']) p1.angle -= 3 * delta;
+                p1.shootCooldown -= delta;
+
+                // Player 2 movement (Arrows)
+                const p2 = G.players[1];
+                const speed2 = 8;
+                if (G.keys['ArrowUp']) { p2.x += Math.sin(p2.angle) * speed2 * delta; p2.z += Math.cos(p2.angle) * speed2 * delta; }
+                if (G.keys['ArrowDown']) { p2.x -= Math.sin(p2.angle) * speed2 * delta; p2.z -= Math.cos(p2.angle) * speed2 * delta; }
+                if (G.keys['ArrowLeft']) p2.angle += 3 * delta;
+                if (G.keys['ArrowRight']) p2.angle -= 3 * delta;
+                p2.shootCooldown -= delta;
+
+                // Collision with walls
+                G.players.forEach(p => {
+                    p.x = Math.max(-G.arenaSize + 0.5, Math.min(G.arenaSize - 0.5, p.x));
+                    p.z = Math.max(-G.arenaSize + 0.5, Math.min(G.arenaSize - 0.5, p.z));
+
+                    // Collision with obstacles
+                    obstacles.forEach(o => {
+                        const dx = p.x - o.position.x;
+                        const dz = p.z - o.position.z;
+                        if (Math.abs(dx) < 1.5 && Math.abs(dz) < 1.5) {
+                            if (Math.abs(dx) > Math.abs(dz)) {
+                                p.x = o.position.x + Math.sign(dx) * 1.5;
+                            } else {
+                                p.z = o.position.z + Math.sign(dz) * 1.5;
+                            }
+                        }
+                    });
+                });
+
+                // Update player meshes
+                playerMeshes[0].position.set(p1.x, 0, p1.z);
+                playerMeshes[0].rotation.y = p1.angle;
+                playerMeshes[1].position.set(p2.x, 0, p2.z);
+                playerMeshes[1].rotation.y = p2.angle;
+
+                // Update bullets
+                G.bullets = G.bullets.filter(bullet => {
+                    bullet.mesh.position.x += bullet.vx * delta;
+                    bullet.mesh.position.z += bullet.vz * delta;
+                    bullet.lifetime -= delta;
+
+                    // Wall collision
+                    if (Math.abs(bullet.mesh.position.x) > G.arenaSize ||
+                        Math.abs(bullet.mesh.position.z) > G.arenaSize) {
+                        scene.remove(bullet.mesh);
+                        return false;
+                    }
+
+                    // Obstacle collision
+                    for (const o of obstacles) {
+                        if (Math.abs(bullet.mesh.position.x - o.position.x) < 1.2 &&
+                            Math.abs(bullet.mesh.position.z - o.position.z) < 1.2) {
+                            scene.remove(bullet.mesh);
+                            return false;
+                        }
+                    }
+
+                    // Player collision
+                    const targetPlayer = bullet.owner === 0 ? 1 : 0;
+                    const target = G.players[targetPlayer];
+                    const dist = Math.sqrt(
+                        Math.pow(bullet.mesh.position.x - target.x, 2) +
+                        Math.pow(bullet.mesh.position.z - target.z, 2)
+                    );
+
+                    if (dist < 0.6) {
+                        target.health -= 20;
+                        scene.remove(bullet.mesh);
+
+                        if (target.health <= 0) {
+                            endRound(bullet.owner);
+                        }
+
+                        updateUI();
+                        return false;
+                    }
+
+                    if (bullet.lifetime <= 0) {
+                        scene.remove(bullet.mesh);
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                // Powerup spawn
+                powerupTimer -= delta;
+                if (powerupTimer <= 0) {
+                    spawnPowerup();
+                    powerupTimer = 8 + Math.random() * 4;
+                }
+
+                // Powerup collection
+                G.powerups = G.powerups.filter(powerup => {
+                    powerup.mesh.rotation.y += delta * 2;
+
+                    for (let i = 0; i < 2; i++) {
+                        const p = G.players[i];
+                        const dist = Math.sqrt(
+                            Math.pow(powerup.x - p.x, 2) +
+                            Math.pow(powerup.z - p.z, 2)
+                        );
+
+                        if (dist < 1) {
+                            if (powerup.type === 'health') {
+                                p.health = Math.min(100, p.health + 30);
+                            }
+                            // Could add more effects for speed/damage
+
+                            scene.remove(powerup.mesh);
+                            updateUI();
+                            return false;
+                        }
+                    }
+
+                    return true;
+                });
+            }
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(update);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        update();
+    </script>
+</body>
+</html>

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koxels - Creative World</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #87ceeb; }
+        #game { position: fixed; inset: 0; }
+
+        .hud { position: fixed; z-index: 100; pointer-events: none; }
+
+        #crosshair {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px; height: 20px;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+            box-shadow: 0 0 2px black;
+        }
+        #crosshair::before { width: 2px; height: 20px; left: 9px; }
+        #crosshair::after { width: 20px; height: 2px; top: 9px; }
+
+        #hotbar {
+            bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 4px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px;
+            border-radius: 8px;
+        }
+        .hotbar-slot {
+            width: 50px; height: 50px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.1s;
+        }
+        .hotbar-slot.active { border-color: white; background: rgba(255,255,255,0.2); transform: scale(1.1); }
+        .hotbar-slot:hover { background: rgba(255,255,255,0.1); }
+        .slot-num { position: absolute; top: 2px; left: 4px; font-size: 10px; color: white; }
+
+        #coords {
+            top: 20px; left: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: white;
+        }
+
+        #block-count {
+            top: 20px; right: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: white;
+        }
+
+        #help {
+            bottom: 100px; left: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #aaa;
+            line-height: 1.8;
+        }
+
+        #menu-btn {
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            pointer-events: auto;
+        }
+        #menu-btn a {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        #save-load {
+            top: 60px; right: 20px;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        #save-load button {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        #save-load button:hover { background: rgba(255,255,255,0.2); }
+
+        .lock-msg {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 30px 50px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            z-index: 200;
+        }
+        .lock-msg h2 { margin-bottom: 10px; }
+        .lock-msg p { color: #888; font-size: 14px; }
+        .lock-msg.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+
+    <div class="hud" id="crosshair"></div>
+
+    <div class="hud" id="coords">
+        X: <span id="px">0</span>
+        Y: <span id="py">0</span>
+        Z: <span id="pz">0</span>
+    </div>
+
+    <div class="hud" id="block-count">
+        Blocks: <span id="blocks">0</span>
+    </div>
+
+    <div class="hud" id="hotbar"></div>
+
+    <div class="hud" id="help">
+        WASD - Move | SPACE - Jump | SHIFT - Down<br>
+        LEFT CLICK - Break | RIGHT CLICK - Place<br>
+        1-9 - Select Block | SCROLL - Change Block<br>
+        F - Fly Mode | R - Reset Position
+    </div>
+
+    <div class="hud" id="menu-btn">
+        <a href="index.html">Menu</a>
+    </div>
+
+    <div class="hud" id="save-load">
+        <button onclick="saveWorld()">Save World</button>
+        <button onclick="loadWorld()">Load World</button>
+        <button onclick="clearWorld()">Clear All</button>
+    </div>
+
+    <div class="lock-msg" id="lockMsg">
+        <h2>Click to Play</h2>
+        <p>Click anywhere to lock mouse and start building</p>
+    </div>
+
+    <script>
+        // Block types
+        const BLOCKS = [
+            { name: 'Grass', color: 0x4ade80, emoji: '🟩' },
+            { name: 'Dirt', color: 0x92400e, emoji: '🟫' },
+            { name: 'Stone', color: 0x6b7280, emoji: '⬜' },
+            { name: 'Wood', color: 0xa16207, emoji: '🪵' },
+            { name: 'Leaves', color: 0x166534, emoji: '🌿' },
+            { name: 'Water', color: 0x0ea5e9, emoji: '💧', transparent: true },
+            { name: 'Sand', color: 0xfcd34d, emoji: '🟨' },
+            { name: 'Brick', color: 0xdc2626, emoji: '🧱' },
+            { name: 'Gold', color: 0xfbbf24, emoji: '🟡' }
+        ];
+
+        // Game state
+        const G = {
+            blocks: new Map(),
+            selectedBlock: 0,
+            flying: false,
+            velocity: { x: 0, y: 0, z: 0 },
+            onGround: false,
+            keys: {},
+            mouse: { locked: false }
+        };
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
+
+        const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+        camera.position.set(8, 20, 8);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        // Lighting
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(50, 100, 50);
+        sun.castShadow = true;
+        scene.add(sun);
+
+        // Block geometry (shared)
+        const blockGeo = new THREE.BoxGeometry(1, 1, 1);
+        const blockMaterials = BLOCKS.map(b =>
+            new THREE.MeshLambertMaterial({
+                color: b.color,
+                transparent: b.transparent || false,
+                opacity: b.transparent ? 0.7 : 1
+            })
+        );
+
+        // Wireframe for hover
+        const hoverGeo = new THREE.BoxGeometry(1.01, 1.01, 1.01);
+        const hoverMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+        const hoverMesh = new THREE.Mesh(hoverGeo, hoverMat);
+        hoverMesh.visible = false;
+        scene.add(hoverMesh);
+
+        // Ground plane (for raycasting)
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshLambertMaterial({ color: 0x4ade80 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Generate starting platform
+        for (let x = -5; x <= 5; x++) {
+            for (let z = -5; z <= 5; z++) {
+                placeBlock(x, 0, z, 0); // Grass
+                if (Math.random() < 0.1) {
+                    placeBlock(x, 1, z, 0); // Some grass hills
+                }
+            }
+        }
+
+        // Place a tree
+        for (let y = 1; y <= 5; y++) placeBlock(0, y, 0, 3); // Wood trunk
+        for (let x = -2; x <= 2; x++) {
+            for (let z = -2; z <= 2; z++) {
+                for (let y = 4; y <= 6; y++) {
+                    if (Math.abs(x) + Math.abs(z) < 4) placeBlock(x, y, z, 4); // Leaves
+                }
+            }
+        }
+
+        // Hotbar UI
+        function renderHotbar() {
+            const hotbar = document.getElementById('hotbar');
+            hotbar.innerHTML = BLOCKS.map((b, i) => `
+                <div class="hotbar-slot ${i === G.selectedBlock ? 'active' : ''}" onclick="selectBlock(${i})">
+                    <span class="slot-num">${i + 1}</span>
+                    ${b.emoji}
+                </div>
+            `).join('');
+        }
+
+        function selectBlock(i) {
+            G.selectedBlock = i;
+            renderHotbar();
+        }
+
+        renderHotbar();
+
+        // Block management
+        function blockKey(x, y, z) {
+            return `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`;
+        }
+
+        function placeBlock(x, y, z, type) {
+            const key = blockKey(x, y, z);
+            if (G.blocks.has(key)) return;
+
+            const mesh = new THREE.Mesh(blockGeo, blockMaterials[type]);
+            mesh.position.set(Math.floor(x) + 0.5, Math.floor(y) + 0.5, Math.floor(z) + 0.5);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData = { type, x: Math.floor(x), y: Math.floor(y), z: Math.floor(z) };
+            scene.add(mesh);
+            G.blocks.set(key, mesh);
+            updateBlockCount();
+        }
+
+        function removeBlock(x, y, z) {
+            const key = blockKey(x, y, z);
+            const mesh = G.blocks.get(key);
+            if (mesh) {
+                scene.remove(mesh);
+                G.blocks.delete(key);
+                updateBlockCount();
+            }
+        }
+
+        function updateBlockCount() {
+            document.getElementById('blocks').textContent = G.blocks.size;
+        }
+
+        // Raycasting
+        const raycaster = new THREE.Raycaster();
+        raycaster.far = 10;
+
+        function getTargetBlock() {
+            raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+
+            const objects = Array.from(G.blocks.values());
+            objects.push(ground);
+
+            const intersects = raycaster.intersectObjects(objects);
+            if (intersects.length > 0) {
+                return intersects[0];
+            }
+            return null;
+        }
+
+        // Input handling
+        document.addEventListener('click', () => {
+            if (!G.mouse.locked) {
+                document.body.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            G.mouse.locked = document.pointerLockElement === document.body;
+            document.getElementById('lockMsg').classList.toggle('hidden', G.mouse.locked);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!G.mouse.locked) return;
+            camera.rotation.y -= e.movementX * 0.002;
+            camera.rotation.x -= e.movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (!G.mouse.locked) return;
+
+            const hit = getTargetBlock();
+            if (!hit) return;
+
+            if (e.button === 0) {
+                // Left click - break
+                if (hit.object !== ground) {
+                    const { x, y, z } = hit.object.userData;
+                    removeBlock(x, y, z);
+                }
+            } else if (e.button === 2) {
+                // Right click - place
+                const normal = hit.face.normal;
+                let x, y, z;
+
+                if (hit.object === ground) {
+                    x = Math.floor(hit.point.x);
+                    y = 1;
+                    z = Math.floor(hit.point.z);
+                } else {
+                    x = hit.object.userData.x + normal.x;
+                    y = hit.object.userData.y + normal.y;
+                    z = hit.object.userData.z + normal.z;
+                }
+
+                placeBlock(x, y, z, G.selectedBlock);
+            }
+        });
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        document.addEventListener('wheel', (e) => {
+            G.selectedBlock = (G.selectedBlock + Math.sign(e.deltaY) + BLOCKS.length) % BLOCKS.length;
+            renderHotbar();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            G.keys[e.code] = true;
+
+            // Number keys for block selection
+            if (e.code >= 'Digit1' && e.code <= 'Digit9') {
+                const num = parseInt(e.code.replace('Digit', '')) - 1;
+                if (num < BLOCKS.length) selectBlock(num);
+            }
+
+            if (e.code === 'KeyF') G.flying = !G.flying;
+            if (e.code === 'KeyR') {
+                camera.position.set(8, 20, 8);
+                G.velocity = { x: 0, y: 0, z: 0 };
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            G.keys[e.code] = false;
+        });
+
+        // Save/Load
+        function saveWorld() {
+            const data = [];
+            G.blocks.forEach((mesh, key) => {
+                const [x, y, z] = key.split(',').map(Number);
+                data.push({ x, y, z, t: mesh.userData.type });
+            });
+            localStorage.setItem('koxels-world', JSON.stringify(data));
+            alert('World saved!');
+        }
+
+        function loadWorld() {
+            const data = localStorage.getItem('koxels-world');
+            if (!data) {
+                alert('No saved world found');
+                return;
+            }
+            clearWorld();
+            const blocks = JSON.parse(data);
+            blocks.forEach(b => placeBlock(b.x, b.y, b.z, b.t));
+            alert('World loaded!');
+        }
+
+        function clearWorld() {
+            G.blocks.forEach((mesh) => scene.remove(mesh));
+            G.blocks.clear();
+            updateBlockCount();
+        }
+
+        // Game loop
+        const clock = new THREE.Clock();
+
+        function update() {
+            const delta = clock.getDelta();
+            const speed = G.flying ? 20 : 10;
+
+            // Movement direction
+            const dir = new THREE.Vector3();
+            if (G.keys['KeyW']) dir.z -= 1;
+            if (G.keys['KeyS']) dir.z += 1;
+            if (G.keys['KeyA']) dir.x -= 1;
+            if (G.keys['KeyD']) dir.x += 1;
+
+            dir.normalize();
+            dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
+
+            camera.position.x += dir.x * speed * delta;
+            camera.position.z += dir.z * speed * delta;
+
+            if (G.flying) {
+                if (G.keys['Space']) camera.position.y += speed * delta;
+                if (G.keys['ShiftLeft']) camera.position.y -= speed * delta;
+            } else {
+                // Gravity
+                G.velocity.y -= 30 * delta;
+                camera.position.y += G.velocity.y * delta;
+
+                // Ground collision
+                if (camera.position.y < 3) {
+                    camera.position.y = 3;
+                    G.velocity.y = 0;
+                    G.onGround = true;
+                }
+
+                // Jump
+                if (G.keys['Space'] && G.onGround) {
+                    G.velocity.y = 10;
+                    G.onGround = false;
+                }
+            }
+
+            // Update coords
+            document.getElementById('px').textContent = Math.floor(camera.position.x);
+            document.getElementById('py').textContent = Math.floor(camera.position.y);
+            document.getElementById('pz').textContent = Math.floor(camera.position.z);
+
+            // Hover effect
+            const hit = getTargetBlock();
+            if (hit && hit.object !== ground) {
+                hoverMesh.position.copy(hit.object.position);
+                hoverMesh.visible = true;
+            } else {
+                hoverMesh.visible = false;
+            }
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(update);
+        }
+
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        update();
+        updateBlockCount();
+    </script>
+</body>
+</html>

@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koxels - Parkour Challenge</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #0ea5e9; }
+        #game { position: fixed; inset: 0; }
+
+        .hud { position: fixed; z-index: 100; pointer-events: none; }
+
+        #crosshair {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px; height: 4px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 4px black;
+        }
+
+        #timer {
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 32px;
+            color: white;
+            font-weight: bold;
+        }
+
+        #checkpoint {
+            top: 80px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: white;
+            text-shadow: 2px 2px 4px black;
+        }
+
+        #level-info {
+            top: 20px; left: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+        }
+        #level-info h2 { font-size: 18px; margin-bottom: 5px; }
+        #level-info p { font-size: 12px; color: #aaa; }
+
+        #best-time {
+            top: 20px; right: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: #fbbf24;
+            font-size: 14px;
+        }
+
+        #controls {
+            bottom: 20px; left: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        #menu-btn {
+            bottom: 20px; right: 20px;
+            pointer-events: auto;
+        }
+        #menu-btn a {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        #complete {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px 60px;
+            border-radius: 16px;
+            text-align: center;
+            color: white;
+            display: none;
+        }
+        #complete h1 { color: #22c55e; margin-bottom: 20px; }
+        #complete .time { font-size: 48px; color: #fbbf24; margin: 20px 0; }
+        #complete .new-best { color: #f59e0b; font-size: 14px; }
+        #complete button {
+            background: #3b82f6;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            pointer-events: auto;
+            margin: 5px;
+        }
+
+        #death {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #ef4444;
+            text-shadow: 0 0 20px #ef4444;
+            display: none;
+        }
+
+        .lock-msg {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 30px 50px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            z-index: 200;
+        }
+        .lock-msg.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+
+    <div class="hud" id="crosshair"></div>
+
+    <div class="hud" id="timer">00:00.00</div>
+    <div class="hud" id="checkpoint">Checkpoint 0 / 10</div>
+
+    <div class="hud" id="level-info">
+        <h2>Sky Parkour</h2>
+        <p>Reach all checkpoints!</p>
+    </div>
+
+    <div class="hud" id="best-time">Best: --:--</div>
+
+    <div class="hud" id="controls">
+        WASD - Move | SPACE - Jump | R - Restart
+    </div>
+
+    <div class="hud" id="menu-btn">
+        <a href="index.html">Menu</a>
+    </div>
+
+    <div class="hud" id="complete">
+        <h1>COURSE COMPLETE!</h1>
+        <div class="time" id="finalTime">00:00.00</div>
+        <div class="new-best" id="newBest" style="display: none;">NEW BEST TIME!</div>
+        <button onclick="restart()">Try Again</button>
+        <button onclick="nextLevel()">Next Level</button>
+    </div>
+
+    <div class="hud" id="death">FELL!</div>
+
+    <div class="lock-msg" id="lockMsg">
+        <h2>Koxels Parkour</h2>
+        <p>Click to start the timer!</p>
+    </div>
+
+    <script>
+        // Game state
+        const G = {
+            time: 0,
+            running: false,
+            checkpoints: [],
+            currentCheckpoint: 0,
+            totalCheckpoints: 10,
+            bestTime: parseFloat(localStorage.getItem('koxels-parkour-best')) || Infinity,
+            keys: {},
+            mouse: { locked: false },
+            velocity: { x: 0, y: 0, z: 0 },
+            onGround: false,
+            dead: false,
+            complete: false,
+            level: 1
+        };
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.Fog(0x87ceeb, 100, 300);
+
+        const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
+        camera.position.set(0, 3, 0);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(50, 100, 50);
+        sun.castShadow = true;
+        scene.add(sun);
+
+        // Materials
+        const blockMats = {
+            start: new THREE.MeshLambertMaterial({ color: 0x22c55e }),
+            normal: new THREE.MeshLambertMaterial({ color: 0x3b82f6 }),
+            ice: new THREE.MeshLambertMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.8 }),
+            bounce: new THREE.MeshLambertMaterial({ color: 0xa855f7 }),
+            checkpoint: new THREE.MeshLambertMaterial({ color: 0xfbbf24 }),
+            finish: new THREE.MeshLambertMaterial({ color: 0x22c55e })
+        };
+
+        const blockGeo = new THREE.BoxGeometry(2, 0.5, 2);
+        const platforms = [];
+        const checkpointMeshes = [];
+
+        // Generate parkour course
+        function generateCourse() {
+            // Clear existing
+            platforms.forEach(p => scene.remove(p));
+            checkpointMeshes.forEach(c => scene.remove(c));
+            platforms.length = 0;
+            checkpointMeshes.length = 0;
+            G.checkpoints = [];
+
+            let x = 0, y = 0, z = 0;
+
+            // Start platform
+            addPlatform(x, y, z, 'start', 4, 4);
+
+            // Generate random course
+            for (let i = 0; i < 30; i++) {
+                // Random direction
+                const dir = Math.random();
+                if (dir < 0.4) x += 4 + Math.random() * 3;
+                else if (dir < 0.8) z += 4 + Math.random() * 3;
+                else z -= 4 + Math.random() * 3;
+
+                // Random height change
+                y += (Math.random() - 0.3) * 3;
+                y = Math.max(0, y);
+
+                // Platform type
+                let type = 'normal';
+                if (Math.random() < 0.15) type = 'ice';
+                if (Math.random() < 0.1) type = 'bounce';
+
+                // Checkpoint every few platforms
+                if ((i + 1) % 3 === 0 && G.checkpoints.length < G.totalCheckpoints - 1) {
+                    type = 'checkpoint';
+                    G.checkpoints.push({ x, y: y + 1, z });
+                    addCheckpoint(x, y + 1.5, z, G.checkpoints.length);
+                }
+
+                addPlatform(x, y, z, type);
+            }
+
+            // Finish platform
+            x += 5;
+            addPlatform(x, y, z, 'finish', 4, 4);
+            G.checkpoints.push({ x, y: y + 1, z });
+            addCheckpoint(x, y + 2, z, G.totalCheckpoints);
+        }
+
+        function addPlatform(x, y, z, type, w = 2, d = 2) {
+            const geo = new THREE.BoxGeometry(w, 0.5, d);
+            const mesh = new THREE.Mesh(geo, blockMats[type] || blockMats.normal);
+            mesh.position.set(x, y, z);
+            mesh.receiveShadow = true;
+            mesh.userData = { type, x, y, z, w, d };
+            scene.add(mesh);
+            platforms.push(mesh);
+        }
+
+        function addCheckpoint(x, y, z, num) {
+            const geo = new THREE.TorusGeometry(1, 0.1, 8, 16);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.rotation.x = Math.PI / 2;
+            mesh.userData = { num };
+            scene.add(mesh);
+            checkpointMeshes.push(mesh);
+        }
+
+        generateCourse();
+
+        // Clouds
+        const cloudGeo = new THREE.SphereGeometry(5, 8, 8);
+        const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+        for (let i = 0; i < 20; i++) {
+            const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+            cloud.position.set(
+                Math.random() * 200 - 100,
+                30 + Math.random() * 50,
+                Math.random() * 200 - 100
+            );
+            cloud.scale.set(1 + Math.random(), 0.5, 1 + Math.random());
+            scene.add(cloud);
+        }
+
+        // Update UI
+        function updateUI() {
+            const mins = Math.floor(G.time / 60);
+            const secs = Math.floor(G.time % 60);
+            const ms = Math.floor((G.time % 1) * 100);
+            document.getElementById('timer').textContent =
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+
+            document.getElementById('checkpoint').textContent =
+                `Checkpoint ${G.currentCheckpoint} / ${G.totalCheckpoints}`;
+
+            if (G.bestTime < Infinity) {
+                const bMins = Math.floor(G.bestTime / 60);
+                const bSecs = Math.floor(G.bestTime % 60);
+                document.getElementById('best-time').textContent = `Best: ${bMins}:${bSecs.toString().padStart(2, '0')}`;
+            }
+        }
+
+        // Input
+        document.addEventListener('click', () => {
+            if (!G.mouse.locked && !G.complete) {
+                document.body.requestPointerLock();
+                G.running = true;
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            G.mouse.locked = document.pointerLockElement === document.body;
+            document.getElementById('lockMsg').classList.toggle('hidden', G.mouse.locked || G.complete);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!G.mouse.locked) return;
+            camera.rotation.y -= e.movementX * 0.002;
+            camera.rotation.x -= e.movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        });
+
+        document.addEventListener('keydown', (e) => {
+            G.keys[e.code] = true;
+            if (e.code === 'KeyR') restart();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            G.keys[e.code] = false;
+        });
+
+        // Collision detection
+        function checkPlatformCollision() {
+            const playerPos = camera.position;
+            const playerRadius = 0.3;
+            const playerFeet = playerPos.y - 1.5;
+
+            for (const platform of platforms) {
+                const { x, y, z, w, d, type } = platform.userData;
+                const halfW = w / 2;
+                const halfD = d / 2;
+
+                // Check if player is above platform
+                if (playerPos.x >= x - halfW - playerRadius &&
+                    playerPos.x <= x + halfW + playerRadius &&
+                    playerPos.z >= z - halfD - playerRadius &&
+                    playerPos.z <= z + halfD + playerRadius) {
+
+                    // Check vertical collision
+                    if (playerFeet <= y + 0.25 && playerFeet >= y - 0.5 && G.velocity.y <= 0) {
+                        camera.position.y = y + 0.25 + 1.5;
+                        G.velocity.y = 0;
+                        G.onGround = true;
+
+                        // Bounce platform
+                        if (type === 'bounce') {
+                            G.velocity.y = 15;
+                            G.onGround = false;
+                        }
+
+                        return type;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Check checkpoint
+        function checkCheckpoints() {
+            if (G.currentCheckpoint >= G.checkpoints.length) return;
+
+            const cp = G.checkpoints[G.currentCheckpoint];
+            const dist = Math.sqrt(
+                Math.pow(camera.position.x - cp.x, 2) +
+                Math.pow(camera.position.z - cp.z, 2)
+            );
+
+            if (dist < 2 && Math.abs(camera.position.y - cp.y) < 3) {
+                G.currentCheckpoint++;
+
+                // Update checkpoint ring color
+                if (checkpointMeshes[G.currentCheckpoint - 1]) {
+                    checkpointMeshes[G.currentCheckpoint - 1].material.color.setHex(0x22c55e);
+                }
+
+                // Complete!
+                if (G.currentCheckpoint >= G.totalCheckpoints) {
+                    complete();
+                }
+            }
+        }
+
+        function complete() {
+            G.complete = true;
+            G.running = false;
+
+            const mins = Math.floor(G.time / 60);
+            const secs = Math.floor(G.time % 60);
+            const ms = Math.floor((G.time % 1) * 100);
+            document.getElementById('finalTime').textContent =
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+
+            if (G.time < G.bestTime) {
+                G.bestTime = G.time;
+                localStorage.setItem('koxels-parkour-best', G.time.toString());
+                document.getElementById('newBest').style.display = 'block';
+            }
+
+            document.getElementById('complete').style.display = 'block';
+            document.exitPointerLock();
+        }
+
+        function die() {
+            G.dead = true;
+            document.getElementById('death').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('death').style.display = 'none';
+                respawn();
+            }, 1000);
+        }
+
+        function respawn() {
+            G.dead = false;
+            G.velocity = { x: 0, y: 0, z: 0 };
+
+            // Respawn at last checkpoint or start
+            if (G.currentCheckpoint > 0) {
+                const cp = G.checkpoints[G.currentCheckpoint - 1];
+                camera.position.set(cp.x, cp.y + 2, cp.z);
+            } else {
+                camera.position.set(0, 3, 0);
+            }
+        }
+
+        function restart() {
+            G.time = 0;
+            G.currentCheckpoint = 0;
+            G.complete = false;
+            G.dead = false;
+            G.running = false;
+            G.velocity = { x: 0, y: 0, z: 0 };
+            camera.position.set(0, 3, 0);
+            camera.rotation.set(0, 0, 0);
+
+            checkpointMeshes.forEach(c => c.material.color.setHex(0xfbbf24));
+
+            document.getElementById('complete').style.display = 'none';
+            document.getElementById('lockMsg').classList.remove('hidden');
+        }
+
+        function nextLevel() {
+            G.level++;
+            generateCourse();
+            restart();
+        }
+
+        // Game loop
+        const clock = new THREE.Clock();
+        let iceSlide = 0;
+
+        function update() {
+            const delta = clock.getDelta();
+
+            if (G.running && !G.dead && !G.complete) {
+                G.time += delta;
+            }
+
+            if (G.dead || G.complete) {
+                renderer.render(scene, camera);
+                requestAnimationFrame(update);
+                return;
+            }
+
+            // Movement
+            const speed = 10;
+            const dir = new THREE.Vector3();
+            if (G.keys['KeyW']) dir.z -= 1;
+            if (G.keys['KeyS']) dir.z += 1;
+            if (G.keys['KeyA']) dir.x -= 1;
+            if (G.keys['KeyD']) dir.x += 1;
+
+            dir.normalize();
+            dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
+
+            // Check platform type for ice
+            const platformType = checkPlatformCollision();
+
+            if (platformType === 'ice') {
+                // Slippery!
+                iceSlide = 0.98;
+                G.velocity.x += dir.x * speed * delta * 0.3;
+                G.velocity.z += dir.z * speed * delta * 0.3;
+            } else {
+                iceSlide = 0;
+                camera.position.x += dir.x * speed * delta;
+                camera.position.z += dir.z * speed * delta;
+            }
+
+            // Apply ice momentum
+            if (iceSlide > 0) {
+                camera.position.x += G.velocity.x * delta;
+                camera.position.z += G.velocity.z * delta;
+                G.velocity.x *= iceSlide;
+                G.velocity.z *= iceSlide;
+            }
+
+            // Gravity
+            G.velocity.y -= 35 * delta;
+            camera.position.y += G.velocity.y * delta;
+            G.onGround = false;
+
+            checkPlatformCollision();
+
+            // Jump
+            if (G.keys['Space'] && G.onGround) {
+                G.velocity.y = 12;
+                G.onGround = false;
+            }
+
+            // Fall death
+            if (camera.position.y < -20) {
+                die();
+            }
+
+            // Check checkpoints
+            checkCheckpoints();
+
+            // Animate checkpoint rings
+            checkpointMeshes.forEach((ring, i) => {
+                if (i >= G.currentCheckpoint) {
+                    ring.rotation.z += delta * 2;
+                }
+            });
+
+            updateUI();
+            renderer.render(scene, camera);
+            requestAnimationFrame(update);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        update();
+        updateUI();
+    </script>
+</body>
+</html>

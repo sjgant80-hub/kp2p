@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koxels - Survival Mode</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #1a1a2e; }
+        #game { position: fixed; inset: 0; }
+
+        .hud { position: fixed; z-index: 100; pointer-events: none; }
+
+        #crosshair {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px; height: 20px;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+            box-shadow: 0 0 2px black;
+        }
+        #crosshair::before { width: 2px; height: 20px; left: 9px; }
+        #crosshair::after { width: 20px; height: 2px; top: 9px; }
+
+        #health-bar {
+            top: 20px; left: 20px;
+            width: 200px;
+        }
+        .bar-container {
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 8px;
+        }
+        .bar-label {
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .bar-fill {
+            height: 16px;
+            border-radius: 6px;
+            transition: width 0.3s;
+        }
+        .health-fill { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .hunger-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .xp-fill { background: linear-gradient(90deg, #22c55e, #4ade80); }
+
+        #stats {
+            top: 120px; left: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: white;
+        }
+
+        #inventory {
+            bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 4px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px;
+            border-radius: 8px;
+        }
+        .inv-slot {
+            width: 50px; height: 50px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            position: relative;
+        }
+        .inv-slot.active { border-color: white; background: rgba(255,255,255,0.2); }
+        .inv-count {
+            position: absolute;
+            bottom: 2px; right: 4px;
+            font-size: 10px;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #wave-info {
+            top: 20px; right: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-align: right;
+            color: white;
+        }
+        #wave-info .wave { font-size: 24px; color: #ef4444; }
+        #wave-info .mobs { font-size: 12px; color: #888; }
+
+        #game-over {
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px 60px;
+            border-radius: 16px;
+            text-align: center;
+            color: white;
+            display: none;
+        }
+        #game-over h1 { color: #ef4444; margin-bottom: 20px; }
+        #game-over button {
+            background: #22c55e;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        #menu-btn {
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            pointer-events: auto;
+        }
+        #menu-btn a {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .damage-flash {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,0,0,0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 50;
+        }
+        .damage-flash.show { opacity: 1; }
+
+        .lock-msg {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 30px 50px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            z-index: 200;
+        }
+        .lock-msg.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+    <div class="damage-flash" id="damageFlash"></div>
+
+    <div class="hud" id="crosshair"></div>
+
+    <div class="hud" id="health-bar">
+        <div class="bar-label">HEALTH</div>
+        <div class="bar-container">
+            <div class="bar-fill health-fill" id="healthFill" style="width: 100%"></div>
+        </div>
+        <div class="bar-label">HUNGER</div>
+        <div class="bar-container">
+            <div class="bar-fill hunger-fill" id="hungerFill" style="width: 100%"></div>
+        </div>
+        <div class="bar-label">XP</div>
+        <div class="bar-container">
+            <div class="bar-fill xp-fill" id="xpFill" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <div class="hud" id="stats">
+        Score: <span id="score">0</span><br>
+        Kills: <span id="kills">0</span>
+    </div>
+
+    <div class="hud" id="wave-info">
+        <div class="wave">WAVE <span id="wave">1</span></div>
+        <div class="mobs">Mobs: <span id="mobCount">0</span></div>
+    </div>
+
+    <div class="hud" id="inventory"></div>
+
+    <div class="hud" id="menu-btn">
+        <a href="index.html">Menu</a>
+    </div>
+
+    <div class="hud" id="game-over">
+        <h1>GAME OVER</h1>
+        <p>Score: <span id="finalScore">0</span></p>
+        <p>Waves: <span id="finalWave">0</span></p>
+        <button onclick="restart()">Play Again</button>
+    </div>
+
+    <div class="lock-msg" id="lockMsg">
+        <h2>Koxels Survival</h2>
+        <p>Click to start. Survive the waves!</p>
+    </div>
+
+    <script>
+        // Game state
+        const G = {
+            health: 100,
+            hunger: 100,
+            xp: 0,
+            score: 0,
+            kills: 0,
+            wave: 1,
+            mobs: [],
+            bullets: [],
+            particles: [],
+            blocks: new Map(),
+            inventory: [
+                { type: 'sword', count: 1, emoji: '⚔️' },
+                { type: 'pickaxe', count: 1, emoji: '⛏️' },
+                { type: 'food', count: 5, emoji: '🍖' },
+                { type: 'block', count: 20, emoji: '🟩' },
+                { type: 'empty', count: 0, emoji: '' },
+                { type: 'empty', count: 0, emoji: '' },
+                { type: 'empty', count: 0, emoji: '' },
+                { type: 'empty', count: 0, emoji: '' },
+                { type: 'empty', count: 0, emoji: '' }
+            ],
+            selectedSlot: 0,
+            keys: {},
+            mouse: { locked: false },
+            velocity: { x: 0, y: 0, z: 0 },
+            gameOver: false,
+            waveTimer: 0,
+            mobsToSpawn: 0
+        };
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        scene.fog = new THREE.Fog(0x1a1a2e, 30, 100);
+
+        const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
+        camera.position.set(0, 5, 0);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+
+        // Lighting - night time
+        scene.add(new THREE.AmbientLight(0x334466, 0.4));
+        const moon = new THREE.DirectionalLight(0x6666ff, 0.3);
+        moon.position.set(-50, 100, -50);
+        scene.add(moon);
+
+        // Ground
+        const groundGeo = new THREE.PlaneGeometry(100, 100);
+        const groundMat = new THREE.MeshLambertMaterial({ color: 0x2d5016 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Generate terrain
+        const blockGeo = new THREE.BoxGeometry(1, 1, 1);
+        const grassMat = new THREE.MeshLambertMaterial({ color: 0x4ade80 });
+        const stoneMat = new THREE.MeshLambertMaterial({ color: 0x6b7280 });
+
+        for (let x = -20; x <= 20; x++) {
+            for (let z = -20; z <= 20; z++) {
+                const h = Math.floor(Math.sin(x * 0.3) * Math.cos(z * 0.3) * 2) + 1;
+                for (let y = 0; y <= h; y++) {
+                    const mesh = new THREE.Mesh(blockGeo, y === h ? grassMat : stoneMat);
+                    mesh.position.set(x, y, z);
+                    scene.add(mesh);
+                    G.blocks.set(`${x},${y},${z}`, mesh);
+                }
+            }
+        }
+
+        // Mob class
+        class Mob {
+            constructor(x, z) {
+                const geo = new THREE.BoxGeometry(0.8, 1.6, 0.8);
+                const mat = new THREE.MeshLambertMaterial({ color: 0x22c55e });
+                this.mesh = new THREE.Mesh(geo, mat);
+                this.mesh.position.set(x, 2, z);
+
+                // Eyes
+                const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+                leftEye.position.set(-0.2, 0.4, 0.45);
+                this.mesh.add(leftEye);
+                const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+                rightEye.position.set(0.2, 0.4, 0.45);
+                this.mesh.add(rightEye);
+
+                scene.add(this.mesh);
+
+                this.health = 20 + G.wave * 5;
+                this.speed = 2 + G.wave * 0.2;
+                this.damage = 5 + G.wave * 2;
+                this.attackCooldown = 0;
+            }
+
+            update(delta) {
+                // Move towards player
+                const dir = new THREE.Vector3();
+                dir.subVectors(camera.position, this.mesh.position);
+                dir.y = 0;
+                dir.normalize();
+
+                this.mesh.position.x += dir.x * this.speed * delta;
+                this.mesh.position.z += dir.z * this.speed * delta;
+
+                // Face player
+                this.mesh.lookAt(camera.position.x, this.mesh.position.y, camera.position.z);
+
+                // Attack if close
+                const dist = this.mesh.position.distanceTo(camera.position);
+                if (dist < 2 && this.attackCooldown <= 0) {
+                    this.attack();
+                    this.attackCooldown = 1;
+                }
+                this.attackCooldown -= delta;
+
+                // Ground height
+                this.mesh.position.y = 2;
+            }
+
+            attack() {
+                G.health -= this.damage;
+                document.getElementById('damageFlash').classList.add('show');
+                setTimeout(() => document.getElementById('damageFlash').classList.remove('show'), 100);
+            }
+
+            takeDamage(dmg) {
+                this.health -= dmg;
+                // Flash red
+                this.mesh.material.color.setHex(0xff0000);
+                setTimeout(() => this.mesh.material.color.setHex(0x22c55e), 100);
+            }
+
+            isDead() {
+                return this.health <= 0;
+            }
+
+            destroy() {
+                scene.remove(this.mesh);
+            }
+        }
+
+        // Spawn mobs
+        function spawnMob() {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 30 + Math.random() * 10;
+            const x = Math.cos(angle) * dist;
+            const z = Math.sin(angle) * dist;
+            G.mobs.push(new Mob(x, z));
+        }
+
+        function startWave() {
+            G.mobsToSpawn = 3 + G.wave * 2;
+            G.waveTimer = 0;
+        }
+
+        // Inventory UI
+        function renderInventory() {
+            const inv = document.getElementById('inventory');
+            inv.innerHTML = G.inventory.map((item, i) => `
+                <div class="inv-slot ${i === G.selectedSlot ? 'active' : ''}">
+                    ${item.emoji}
+                    ${item.count > 0 ? `<span class="inv-count">${item.count}</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        renderInventory();
+
+        // Update UI
+        function updateUI() {
+            document.getElementById('healthFill').style.width = Math.max(0, G.health) + '%';
+            document.getElementById('hungerFill').style.width = Math.max(0, G.hunger) + '%';
+            document.getElementById('xpFill').style.width = (G.xp % 100) + '%';
+            document.getElementById('score').textContent = G.score;
+            document.getElementById('kills').textContent = G.kills;
+            document.getElementById('wave').textContent = G.wave;
+            document.getElementById('mobCount').textContent = G.mobs.length;
+        }
+
+        // Input
+        document.addEventListener('click', () => {
+            if (!G.mouse.locked && !G.gameOver) {
+                document.body.requestPointerLock();
+            } else if (G.mouse.locked) {
+                attack();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            G.mouse.locked = document.pointerLockElement === document.body;
+            document.getElementById('lockMsg').classList.toggle('hidden', G.mouse.locked);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!G.mouse.locked) return;
+            camera.rotation.y -= e.movementX * 0.002;
+            camera.rotation.x -= e.movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        });
+
+        document.addEventListener('keydown', (e) => {
+            G.keys[e.code] = true;
+
+            // Number keys
+            if (e.code >= 'Digit1' && e.code <= 'Digit9') {
+                G.selectedSlot = parseInt(e.code.replace('Digit', '')) - 1;
+                renderInventory();
+            }
+
+            // Eat food
+            if (e.code === 'KeyE') {
+                const foodSlot = G.inventory.find(i => i.type === 'food' && i.count > 0);
+                if (foodSlot && G.hunger < 100) {
+                    foodSlot.count--;
+                    G.hunger = Math.min(100, G.hunger + 30);
+                    G.health = Math.min(100, G.health + 10);
+                    renderInventory();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            G.keys[e.code] = false;
+        });
+
+        // Attack
+        function attack() {
+            const item = G.inventory[G.selectedSlot];
+            if (item.type !== 'sword') return;
+
+            // Check for mob in front
+            const dir = new THREE.Vector3(0, 0, -1);
+            dir.applyQuaternion(camera.quaternion);
+
+            G.mobs.forEach(mob => {
+                const toMob = new THREE.Vector3();
+                toMob.subVectors(mob.mesh.position, camera.position);
+                const dist = toMob.length();
+                toMob.normalize();
+
+                if (dist < 4 && dir.dot(toMob) > 0.7) {
+                    mob.takeDamage(10 + Math.floor(G.xp / 100) * 2);
+                }
+            });
+        }
+
+        // Game over
+        function gameOver() {
+            G.gameOver = true;
+            document.getElementById('finalScore').textContent = G.score;
+            document.getElementById('finalWave').textContent = G.wave;
+            document.getElementById('game-over').style.display = 'block';
+            document.exitPointerLock();
+        }
+
+        function restart() {
+            location.reload();
+        }
+
+        // Game loop
+        const clock = new THREE.Clock();
+        startWave();
+
+        function update() {
+            if (G.gameOver) {
+                renderer.render(scene, camera);
+                requestAnimationFrame(update);
+                return;
+            }
+
+            const delta = clock.getDelta();
+
+            // Movement
+            const speed = 8;
+            const dir = new THREE.Vector3();
+            if (G.keys['KeyW']) dir.z -= 1;
+            if (G.keys['KeyS']) dir.z += 1;
+            if (G.keys['KeyA']) dir.x -= 1;
+            if (G.keys['KeyD']) dir.x += 1;
+
+            dir.normalize();
+            dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
+
+            camera.position.x += dir.x * speed * delta;
+            camera.position.z += dir.z * speed * delta;
+
+            // Gravity & jump
+            G.velocity.y -= 30 * delta;
+            camera.position.y += G.velocity.y * delta;
+
+            if (camera.position.y < 5) {
+                camera.position.y = 5;
+                G.velocity.y = 0;
+                if (G.keys['Space']) G.velocity.y = 10;
+            }
+
+            // Hunger drain
+            G.hunger -= delta * 0.5;
+            if (G.hunger <= 0) {
+                G.hunger = 0;
+                G.health -= delta * 5;
+            }
+
+            // Spawn mobs
+            G.waveTimer += delta;
+            if (G.mobsToSpawn > 0 && G.waveTimer > 1) {
+                spawnMob();
+                G.mobsToSpawn--;
+                G.waveTimer = 0;
+            }
+
+            // Update mobs
+            G.mobs.forEach(mob => mob.update(delta));
+
+            // Remove dead mobs
+            G.mobs = G.mobs.filter(mob => {
+                if (mob.isDead()) {
+                    mob.destroy();
+                    G.kills++;
+                    G.score += 100 * G.wave;
+                    G.xp += 20;
+
+                    // Drop food
+                    if (Math.random() < 0.3) {
+                        const foodSlot = G.inventory.find(i => i.type === 'food');
+                        if (foodSlot) foodSlot.count++;
+                        renderInventory();
+                    }
+
+                    return false;
+                }
+                return true;
+            });
+
+            // Next wave
+            if (G.mobs.length === 0 && G.mobsToSpawn === 0) {
+                G.wave++;
+                G.score += 500 * G.wave;
+                startWave();
+            }
+
+            // Check death
+            if (G.health <= 0) {
+                gameOver();
+            }
+
+            updateUI();
+            renderer.render(scene, camera);
+            requestAnimationFrame(update);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        update();
+    </script>
+</body>
+</html>

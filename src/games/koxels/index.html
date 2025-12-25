@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koxels - Konomi Voxel World</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 48px;
+            background: linear-gradient(135deg, #00d4aa, #667eea, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 50px;
+        }
+
+        .voxel-preview {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 40px;
+            perspective: 400px;
+        }
+        .cube {
+            width: 80px;
+            height: 80px;
+            margin: 60px auto;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: spin 10s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotateX(-20deg) rotateY(0deg); }
+            to { transform: rotateX(-20deg) rotateY(360deg); }
+        }
+        .cube-face {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border: 2px solid rgba(0,0,0,0.3);
+        }
+        .front { background: #4ade80; transform: translateZ(40px); }
+        .back { background: #22c55e; transform: rotateY(180deg) translateZ(40px); }
+        .right { background: #16a34a; transform: rotateY(90deg) translateZ(40px); }
+        .left { background: #15803d; transform: rotateY(-90deg) translateZ(40px); }
+        .top { background: #86efac; transform: rotateX(90deg) translateZ(40px); }
+        .bottom { background: #166534; transform: rotateX(-90deg) translateZ(40px); }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .menu-btn {
+            padding: 15px 40px;
+            font-family: inherit;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: block;
+        }
+        .menu-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .btn-world { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+        .btn-survival { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .btn-parkour { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-puzzle { background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; }
+        .btn-arena { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .blocks-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: -1;
+        }
+        .floating-block {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            opacity: 0.1;
+            animation: floatBlock 20s linear infinite;
+        }
+        @keyframes floatBlock {
+            0% { transform: translateY(100vh) rotate(0deg); }
+            100% { transform: translateY(-100px) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="blocks-bg" id="blocksBg"></div>
+
+    <div class="menu">
+        <h1 class="logo">KOXELS</h1>
+        <p class="subtitle">Konomi Voxel World</p>
+
+        <div class="voxel-preview">
+            <div class="cube">
+                <div class="cube-face front"></div>
+                <div class="cube-face back"></div>
+                <div class="cube-face right"></div>
+                <div class="cube-face left"></div>
+                <div class="cube-face top"></div>
+                <div class="cube-face bottom"></div>
+            </div>
+        </div>
+
+        <div class="menu-buttons">
+            <a href="world.html" class="menu-btn btn-world">CREATIVE WORLD</a>
+            <a href="survival.html" class="menu-btn btn-survival">SURVIVAL MODE</a>
+            <a href="parkour.html" class="menu-btn btn-parkour">PARKOUR CHALLENGE</a>
+            <a href="puzzle.html" class="menu-btn btn-puzzle">BLOCK PUZZLES</a>
+            <a href="arena.html" class="menu-btn btn-arena">BATTLE ARENA</a>
+        </div>
+    </div>
+
+    <div class="footer">
+        WASD to move | SPACE to jump | Click to place/break blocks<br>
+        Part of KISS MySaaS - Konomi Instant Serverless Solutions
+    </div>
+
+    <script>
+        // Create floating blocks background
+        const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#00d4aa'];
+        const bg = document.getElementById('blocksBg');
+
+        for (let i = 0; i < 20; i++) {
+            const block = document.createElement('div');
+            block.className = 'floating-block';
+            block.style.left = Math.random() * 100 + '%';
+            block.style.background = colors[Math.floor(Math.random() * colors.length)];
+            block.style.animationDelay = Math.random() * 20 + 's';
+            block.style.animationDuration = (15 + Math.random() * 10) + 's';
+            bg.appendChild(block);
+        }
+    </script>
+</body>
+</html>
