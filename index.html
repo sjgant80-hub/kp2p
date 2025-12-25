@@ -1,159 +1,323 @@
 <!DOCTYPE html>
 <!--
 @file index.html
-@desc Root landing - auto-redirects to demos
+@desc Konomi P2P - Landing page
 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Konomi P2P</title>
-  <meta http-equiv="refresh" content="2;url=./src/demo/index.html">
+  <title>Konomi P2P - Decentralized Everything</title>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #050510;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#050510;--bg2:#0a0a1a;--fg:#fff;--fg2:#888;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444}
+    body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh}
+    a{color:var(--a);text-decoration:none}a:hover{text-decoration:underline}
 
-    .logo {
-      font-size: 4rem;
-      margin-bottom: 20px;
-      animation: float 3s ease-in-out infinite;
-    }
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
+    .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;background:radial-gradient(ellipse at 50% 0%,rgba(0,217,255,.08),transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(124,58,237,.08),transparent 50%)}
+    .logo{font-size:4rem;margin-bottom:16px}
+    h1{font-size:3.5rem;margin-bottom:12px;background:linear-gradient(135deg,var(--a),var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .tagline{font-size:1.25rem;color:var(--fg2);max-width:600px;margin-bottom:40px}
+    .cta{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+    .btn{padding:14px 32px;border-radius:10px;font-size:1rem;font-weight:600;transition:.2s;display:inline-flex;align-items:center;gap:8px}
+    .btn:hover{transform:translateY(-2px);text-decoration:none}
+    .btn-primary{background:linear-gradient(135deg,var(--a),var(--a2));color:#000}
+    .btn-secondary{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#fff}
+    .btn-secondary:hover{border-color:var(--a)}
 
-    h1 {
-      font-size: 2.5rem;
-      margin-bottom: 8px;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+    .stats{display:flex;gap:48px;margin-top:60px}
+    .stat{text-align:center}
+    .stat-val{font-size:2.5rem;font-weight:700;color:var(--a)}
+    .stat-label{font-size:12px;color:var(--fg2);margin-top:4px}
 
-    .subtitle {
-      color: #888;
-      margin-bottom: 30px;
-      font-size: 14px;
-    }
+    .sections{max-width:1200px;margin:0 auto;padding:80px 20px}
+    .section{margin-bottom:80px}
+    .section h2{font-size:2rem;margin-bottom:12px;text-align:center}
+    .section .sub{color:var(--fg2);text-align:center;margin-bottom:40px}
 
-    .redirect-msg {
-      color: #666;
-      font-size: 13px;
-      margin-bottom: 20px;
-    }
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+    .card{background:var(--bg2);border:1px solid #1a1a2e;border-radius:16px;padding:24px;transition:.2s;display:block;color:#fff}
+    .card:hover{border-color:var(--a);transform:translateY(-4px);text-decoration:none;box-shadow:0 12px 40px rgba(0,217,255,.1)}
+    .card-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .card-icon{font-size:32px}
+    .card-title{font-size:1.1rem;font-weight:600}
+    .card-badge{margin-left:auto;font-size:9px;padding:4px 10px;border-radius:20px;font-weight:600}
+    .badge-new{background:var(--g);color:#000}
+    .badge-hot{background:var(--r);color:#fff}
+    .badge-core{background:var(--a);color:#000}
+    .card-desc{font-size:13px;color:var(--fg2);line-height:1.6}
+    .card-tags{margin-top:16px;display:flex;gap:6px;flex-wrap:wrap}
+    .tag{font-size:10px;padding:3px 10px;background:rgba(255,255,255,.05);border-radius:20px;color:#666}
 
-    .spinner {
-      width: 24px;
-      height: 24px;
-      border: 2px solid #333;
-      border-top-color: #4facfe;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px;margin-top:40px}
+    .feature{text-align:center;padding:24px}
+    .feature-icon{font-size:40px;margin-bottom:12px}
+    .feature h3{font-size:1rem;margin-bottom:8px}
+    .feature p{font-size:13px;color:var(--fg2)}
 
-    .links {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+    footer{border-top:1px solid #111;padding:40px 20px;text-align:center;color:#444;font-size:13px}
+    footer a{color:var(--a)}
 
-    .link {
-      padding: 12px 24px;
-      background: #0a0a1a;
-      border: 1px solid #333;
-      border-radius: 8px;
-      color: #fff;
-      text-decoration: none;
-      font-size: 14px;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .link:hover {
-      border-color: #4facfe;
-      transform: translateY(-2px);
-    }
-    .link.primary {
-      background: #4facfe;
-      color: #000;
-      border-color: #4facfe;
-    }
-
-    .skip {
-      margin-top: 30px;
-      font-size: 12px;
-      color: #666;
-    }
-    .skip a {
-      color: #4facfe;
-      text-decoration: none;
-    }
-    .skip a:hover {
-      text-decoration: underline;
+    @media(max-width:600px){
+      h1{font-size:2.5rem}
+      .stats{flex-direction:column;gap:24px}
+      .cta{flex-direction:column}
     }
   </style>
 </head>
 <body>
-  <div class="logo">🌐</div>
-  <h1>Konomi P2P</h1>
-  <p class="subtitle">Peer-to-peer for GitHub Pages</p>
-
-  <div class="spinner"></div>
-  <p class="redirect-msg">Redirecting to demos...</p>
-
-  <div class="links">
-    <a href="./src/demo/index.html" class="link primary">
-      🎮 View Demos
-    </a>
-    <a href="./src/demo/os-mesh-global-v3.html" class="link">
-      🌍 Global Mesh
-    </a>
-    <a href="./src/demo/llm-agent-demo-v4.html" class="link">
-      🤖 AI Agent
-    </a>
-    <a href="./src/demo/anon-genesis-v1.html" class="link">
-      🧬 ANON::GENESIS
-    </a>
+  <div class="hero">
+    <div class="logo">🌍</div>
+    <h1>Konomi P2P</h1>
+    <p class="tagline">Decentralized everything. No servers. No subscriptions. Works on GitHub Pages. Real-time collaboration powered by WebRTC.</p>
+    <div class="cta">
+      <a href="src/apps/demo/os-mesh-global-v6.html" class="btn btn-primary">🚀 Launch OS</a>
+      <a href="src/apps/demo/index.html" class="btn btn-secondary">📚 View Demos</a>
+      <a href="src/widgets/index.html" class="btn btn-secondary">🧩 Widgets</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val">20+</div><div class="stat-label">SaaS Killers</div></div>
+      <div class="stat"><div class="stat-val">$0</div><div class="stat-label">Forever</div></div>
+      <div class="stat"><div class="stat-val">0</div><div class="stat-label">Servers Needed</div></div>
+    </div>
   </div>
 
-  <p class="skip">
-    <a href="#" onclick="stopRedirect()">Cancel auto-redirect</a> |
-    <a href="./sandbox/index.html">Sandbox</a> |
-    <a href="./test/index.html">Tests</a>
-  </p>
+  <div class="sections">
+    <!-- KonomiOS -->
+    <section class="section">
+      <h2>🖥️ KonomiOS</h2>
+      <p class="sub">P2P desktop operating system in your browser</p>
+      <div class="grid">
+        <a href="src/apps/demo/os-mesh-global-v6.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🧩</span>
+            <span class="card-title">v6 Widget Hub</span>
+            <span class="card-badge badge-new">NEW</span>
+          </div>
+          <p class="card-desc">Desktop with widget gallery. Launch any app from the hub. Global P2P mesh.</p>
+          <div class="card-tags"><span class="tag">Widgets</span><span class="tag">Desktop</span><span class="tag">Global</span></div>
+        </a>
+        <a href="src/apps/demo/os-mesh-global-v5.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">⚡</span>
+            <span class="card-title">v5 Optimized</span>
+            <span class="card-badge badge-core">CORE</span>
+          </div>
+          <p class="card-desc">Token-optimized with templating system. 75% smaller codebase.</p>
+          <div class="card-tags"><span class="tag">Minified</span><span class="tag">Templates</span></div>
+        </a>
+        <a href="src/apps/demo/os-mesh-global-v4.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🖥️</span>
+            <span class="card-title">v4 Desktop</span>
+          </div>
+          <p class="card-desc">Full desktop UI with draggable windows, taskbar, and start menu.</p>
+          <div class="card-tags"><span class="tag">Windows</span><span class="tag">Taskbar</span></div>
+        </a>
+        <a href="src/apps/demo/os-mesh-global-v3.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🌍</span>
+            <span class="card-title">v3 CLI</span>
+          </div>
+          <p class="card-desc">WebTorrent tracker for true global P2P. Terminal interface.</p>
+          <div class="card-tags"><span class="tag">WebRTC</span><span class="tag">CLI</span></div>
+        </a>
+      </div>
+    </section>
 
-  <script>
-    let redirectTimeout = setTimeout(() => {
-      window.location.href = './src/demo/index.html';
-    }, 2000);
+    <!-- Telephony -->
+    <section class="section">
+      <h2>📱 Telephony</h2>
+      <p class="sub">Free phone calls. No Verizon. No Twilio.</p>
+      <div class="grid">
+        <a href="src/widgets/phone.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">📱</span>
+            <span class="card-title">KonoPhone</span>
+            <span class="card-badge badge-hot">FREE</span>
+          </div>
+          <p class="card-desc">P2P phone calls over WebRTC. Mesh cell network. No carrier needed.</p>
+          <div class="card-tags"><span class="tag">Voice</span><span class="tag">Video</span><span class="tag">Mesh</span></div>
+        </a>
+        <a href="src/widgets/phone-v2.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">📡</span>
+            <span class="card-title">FreeComm</span>
+            <span class="card-badge badge-new">NEW</span>
+          </div>
+          <p class="card-desc">Multi-transport: WiFi, Bluetooth, LoRa, SMS, audio modem. Works anywhere.</p>
+          <div class="card-tags"><span class="tag">DTN</span><span class="tag">LoRa</span><span class="tag">Offline</span></div>
+        </a>
+      </div>
+    </section>
 
-    function stopRedirect() {
-      clearTimeout(redirectTimeout);
-      document.querySelector('.redirect-msg').textContent = 'Auto-redirect cancelled';
-      document.querySelector('.spinner').style.display = 'none';
-    }
+    <!-- Apps -->
+    <section class="section">
+      <h2>🚀 Apps</h2>
+      <p class="sub">Full applications built on P2P</p>
+      <div class="grid">
+        <a href="src/apps/ignite/index.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🔥</span>
+            <span class="card-title">Ignite</span>
+          </div>
+          <p class="card-desc">Visual app builder. Drag-and-drop components.</p>
+          <div class="card-tags"><span class="tag">Builder</span><span class="tag">No-Code</span></div>
+        </a>
+        <a href="src/apps/konogate/index.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🚀</span>
+            <span class="card-title">KonoGate</span>
+          </div>
+          <p class="card-desc">P2P API gateway and serverless functions.</p>
+          <div class="card-tags"><span class="tag">API</span><span class="tag">Gateway</span></div>
+        </a>
+        <a href="src/apps/konovpn/index.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🔐</span>
+            <span class="card-title">KonoVPN</span>
+          </div>
+          <p class="card-desc">Decentralized VPN. Route through P2P mesh.</p>
+          <div class="card-tags"><span class="tag">Privacy</span><span class="tag">VPN</span></div>
+        </a>
+        <a href="src/apps/3DLand/index.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🎮</span>
+            <span class="card-title">3D Land</span>
+          </div>
+          <p class="card-desc">Multiplayer 3D world. WebGL + P2P sync.</p>
+          <div class="card-tags"><span class="tag">3D</span><span class="tag">Game</span></div>
+        </a>
+      </div>
+    </section>
 
-    // Check if demos exist
-    fetch('./src/demo/index.html', { method: 'HEAD' })
-      .then(res => {
-        if (!res.ok) stopRedirect();
-      })
-      .catch(() => stopRedirect());
-  </script>
+    <!-- Widgets -->
+    <section class="section">
+      <h2>🧩 Free SaaS Killers</h2>
+      <p class="sub">$25K+ saved per year. Drop-in replacements.</p>
+      <div class="grid">
+        <a href="src/widgets/chat.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">💬</span>
+            <span class="card-title">Chat</span>
+            <span class="card-badge badge-hot">-$499/mo</span>
+          </div>
+          <p class="card-desc">Real-time chat rooms. Kills Stream, SendBird, Pusher.</p>
+        </a>
+        <a href="src/widgets/whiteboard.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🎨</span>
+            <span class="card-title">Whiteboard</span>
+            <span class="card-badge badge-hot">-$8/seat</span>
+          </div>
+          <p class="card-desc">Infinite canvas. Kills Miro, FigJam.</p>
+        </a>
+        <a href="src/widgets/kanban.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">📋</span>
+            <span class="card-title">Kanban</span>
+            <span class="card-badge badge-hot">-$10/mo</span>
+          </div>
+          <p class="card-desc">Project boards. Kills Trello, Monday.</p>
+        </a>
+        <a href="src/widgets/index.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🎯</span>
+            <span class="card-title">All 20+ Widgets</span>
+            <span class="card-badge badge-new">VIEW ALL</span>
+          </div>
+          <p class="card-desc">Chat, forms, polls, CRM, wiki, files, auth, video, and more...</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- AI -->
+    <section class="section">
+      <h2>🤖 AI Agents</h2>
+      <p class="sub">Local AI. No API keys. Runs on your GPU.</p>
+      <div class="grid">
+        <a href="src/apps/demo/llm-agent-demo-v4.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🔌</span>
+            <span class="card-title">MCP Agent</span>
+            <span class="card-badge badge-new">NEW</span>
+          </div>
+          <p class="card-desc">Model Context Protocol server. Universal tool access.</p>
+          <div class="card-tags"><span class="tag">MCP</span><span class="tag">Tools</span></div>
+        </a>
+        <a href="src/apps/demo/local-llm-demo.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🧠</span>
+            <span class="card-title">Local LLM</span>
+            <span class="card-badge badge-core">CORE</span>
+          </div>
+          <p class="card-desc">Browser-native AI via WebGPU. Runs entirely local.</p>
+          <div class="card-tags"><span class="tag">WebGPU</span><span class="tag">Private</span></div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Enterprise -->
+    <section class="section">
+      <h2>🏭 Enterprise</h2>
+      <p class="sub">Industrial automation over P2P</p>
+      <div class="grid">
+        <a href="src/apps/demo/enterprise-demo.html" class="card">
+          <div class="card-head">
+            <span class="card-icon">🏭</span>
+            <span class="card-title">ISA-95 Mesh</span>
+          </div>
+          <p class="card-desc">Industrial hierarchy with PackML states over P2P. Sparkplug compatible.</p>
+          <div class="card-tags"><span class="tag">ISA-95</span><span class="tag">PackML</span><span class="tag">SCADA</span></div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section">
+      <h2>Why P2P?</h2>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">🚫</div>
+          <h3>No Servers</h3>
+          <p>Works on GitHub Pages. No backend needed.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">💰</div>
+          <h3>$0 Forever</h3>
+          <p>No subscriptions. No usage limits. Free.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🔒</div>
+          <h3>Private</h3>
+          <p>End-to-end encrypted. Your data stays yours.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🌍</div>
+          <h3>Global</h3>
+          <p>Connect with anyone, anywhere via WebRTC.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📴</div>
+          <h3>Offline-First</h3>
+          <p>Works without internet. Syncs when connected.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">⚡</div>
+          <h3>Real-Time</h3>
+          <p>Live collaboration. See changes instantly.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <p>
+      <a href="https://github.com/konomi/kp2p">GitHub</a> •
+      <a href="src/apps/demo/index.html">Demos</a> •
+      <a href="src/widgets/index.html">Widgets</a> •
+      MIT License
+    </p>
+  </footer>
 </body>
 </html>
