@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<!--
+Gits - Konomi Git Browser & Editor
+Connect to GitHub/GitLab repos, browse files, edit, commit
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Gits - Git Browser & Editor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0d1117; color: #c9d1d9; height: 100vh; display: flex; flex-direction: column; }
+
+    /* Header */
+    .header { background: #161b22; padding: 12px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #30363d; }
+    .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .logo span { color: #58a6ff; }
+    .repo-input { display: flex; align-items: center; gap: 8px; flex: 1; max-width: 600px; }
+    .repo-input input { flex: 1; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+    .repo-input input:focus { outline: none; border-color: #58a6ff; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .btn-primary { background: #238636; color: #fff; }
+    .btn-primary:hover { background: #2ea043; }
+    .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+    .btn-secondary:hover { background: #30363d; }
+    .btn-danger { background: #da3633; color: #fff; }
+    .btn-blue { background: #1f6feb; color: #fff; }
+    .btn-blue:hover { background: #388bfd; }
+
+    /* Main Layout */
+    .main { flex: 1; display: flex; overflow: hidden; }
+
+    /* Sidebar - File Tree */
+    .sidebar { width: 280px; background: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 12px 16px; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-header h3 { font-size: 14px; font-weight: 600; }
+    .branch-select { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+    .file-tree { flex: 1; overflow-y: auto; padding: 8px; }
+    .tree-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .tree-item:hover { background: #21262d; }
+    .tree-item.selected { background: #1f6feb33; color: #58a6ff; }
+    .tree-item.folder { color: #8b949e; }
+    .tree-item .icon { font-size: 14px; width: 18px; text-align: center; }
+    .tree-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tree-children { margin-left: 16px; }
+    .tree-item.modified .name { color: #d29922; }
+    .tree-item.added .name { color: #3fb950; }
+    .tree-item.deleted .name { color: #f85149; }
+
+    /* Content Area */
+    .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Tabs */
+    .tabs { display: flex; background: #161b22; border-bottom: 1px solid #30363d; overflow-x: auto; }
+    .tab { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: #8b949e; white-space: nowrap; }
+    .tab:hover { color: #c9d1d9; }
+    .tab.active { color: #c9d1d9; border-bottom-color: #f78166; background: #0d1117; }
+    .tab .close { font-size: 16px; opacity: 0.5; padding: 2px; }
+    .tab .close:hover { opacity: 1; background: #30363d; border-radius: 4px; }
+    .tab.modified::before { content: '●'; color: #d29922; margin-right: 4px; }
+
+    /* Editor */
+    .editor-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .editor-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #161b22; border-bottom: 1px solid #30363d; }
+    .editor-toolbar .path { font-size: 12px; color: #8b949e; flex: 1; }
+    .editor-toolbar .path span { color: #58a6ff; cursor: pointer; }
+    .editor-toolbar .path span:hover { text-decoration: underline; }
+    .editor { flex: 1; background: #0d1117; border: none; resize: none; font-family: 'SF Mono', 'Consolas', monospace; font-size: 13px; line-height: 1.5; color: #c9d1d9; padding: 16px; outline: none; overflow: auto; }
+    .editor-line-numbers { background: #161b22; color: #484f58; padding: 16px 12px; font-family: 'SF Mono', 'Consolas', monospace; font-size: 13px; line-height: 1.5; text-align: right; user-select: none; border-right: 1px solid #30363d; }
+
+    /* Preview */
+    .preview { flex: 1; overflow: auto; padding: 20px; background: #0d1117; }
+    .preview img { max-width: 100%; border-radius: 6px; }
+    .preview.markdown { font-size: 14px; line-height: 1.6; }
+    .preview.markdown h1, .preview.markdown h2, .preview.markdown h3 { margin-top: 24px; margin-bottom: 16px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+    .preview.markdown code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    .preview.markdown pre { background: #161b22; padding: 16px; border-radius: 6px; overflow-x: auto; }
+    .preview.markdown a { color: #58a6ff; }
+
+    /* Welcome/Empty State */
+    .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; }
+    .welcome .icon { font-size: 64px; margin-bottom: 24px; }
+    .welcome h2 { font-size: 24px; margin-bottom: 8px; color: #c9d1d9; }
+    .welcome p { color: #8b949e; margin-bottom: 24px; max-width: 400px; }
+    .welcome .examples { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+    .welcome .example { padding: 12px 16px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .welcome .example:hover { border-color: #58a6ff; }
+    .welcome .example code { color: #58a6ff; }
+
+    /* Commit Panel */
+    .commit-panel { background: #161b22; border-top: 1px solid #30363d; padding: 16px; display: none; }
+    .commit-panel.active { display: block; }
+    .commit-panel h4 { font-size: 14px; margin-bottom: 12px; }
+    .commit-panel textarea { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 60px; margin-bottom: 12px; }
+    .commit-panel textarea:focus { outline: none; border-color: #58a6ff; }
+    .commit-actions { display: flex; gap: 8px; }
+    .changed-files { margin-bottom: 12px; font-size: 12px; }
+    .changed-file { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .changed-file .status { width: 16px; height: 16px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; }
+    .changed-file .status.M { background: #d29922; color: #000; }
+    .changed-file .status.A { background: #3fb950; color: #000; }
+    .changed-file .status.D { background: #f85149; color: #fff; }
+
+    /* Status Bar */
+    .status-bar { background: #161b22; border-top: 1px solid #30363d; padding: 6px 16px; display: flex; align-items: center; gap: 16px; font-size: 12px; color: #8b949e; }
+    .status-item { display: flex; align-items: center; gap: 6px; }
+
+    /* Right Panel - Info/Actions */
+    .right-panel { width: 300px; background: #161b22; border-left: 1px solid #30363d; display: flex; flex-direction: column; }
+    .right-panel.hidden { display: none; }
+    .panel-section { padding: 16px; border-bottom: 1px solid #30363d; }
+    .panel-section h4 { font-size: 12px; color: #8b949e; margin-bottom: 12px; text-transform: uppercase; }
+    .repo-info { display: flex; flex-direction: column; gap: 8px; }
+    .repo-stat { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .repo-stat .icon { color: #8b949e; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow: hidden; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h3 { font-size: 16px; }
+    .modal-close { background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; }
+    .modal-body { padding: 20px; overflow-y: auto; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 6px; }
+    .form-group input { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+    .form-group input:focus { outline: none; border-color: #58a6ff; }
+    .modal-footer { padding: 16px 20px; border-top: 1px solid #30363d; display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* Loading */
+    .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #8b949e; }
+    .spinner { width: 24px; height: 24px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Diff View */
+    .diff-line { font-family: 'SF Mono', monospace; font-size: 12px; padding: 2px 16px; white-space: pre; }
+    .diff-line.added { background: #2ea04326; color: #3fb950; }
+    .diff-line.removed { background: #f8514926; color: #f85149; }
+    .diff-line.context { color: #8b949e; }
+    .diff-header { background: #161b22; padding: 8px 16px; font-size: 12px; color: #8b949e; border-bottom: 1px solid #30363d; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span>📂</span> Gits
+    </div>
+    <div class="repo-input">
+      <input type="text" id="repoUrl" placeholder="owner/repo or full URL (e.g., github.com/microsoft/vscode)" value="">
+      <button class="btn btn-primary" onclick="loadRepo()">Load</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="showNewFileModal()">+ New File</button>
+      <button class="btn btn-secondary" onclick="toggleCommitPanel()">💾 Commit</button>
+      <button class="btn btn-secondary" onclick="toggleRightPanel()">ℹ️</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- File Tree Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h3 id="repoName">No Repository</h3>
+        <select class="branch-select" id="branchSelect" onchange="switchBranch()">
+          <option value="main">main</option>
+        </select>
+      </div>
+      <div class="file-tree" id="fileTree">
+        <div style="padding:20px;text-align:center;color:#8b949e">
+          Enter a repository URL to browse files
+        </div>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content">
+      <div class="tabs" id="tabs"></div>
+
+      <div class="editor-container" id="editorContainer">
+        <div class="welcome" id="welcome">
+          <div class="icon">📂</div>
+          <h2>Gits - Git Browser & Editor</h2>
+          <p>Browse and edit files from any GitHub repository. Just enter a repo URL to get started.</p>
+          <div class="examples">
+            <div class="example" onclick="loadExample('facebook/react')">
+              <code>facebook/react</code> - A JavaScript library for building UIs
+            </div>
+            <div class="example" onclick="loadExample('microsoft/vscode')">
+              <code>microsoft/vscode</code> - Visual Studio Code
+            </div>
+            <div class="example" onclick="loadExample('torvalds/linux')">
+              <code>torvalds/linux</code> - Linux kernel source
+            </div>
+          </div>
+        </div>
+
+        <div id="editorWrapper" style="display:none;flex:1;display:flex;flex-direction:column">
+          <div class="editor-toolbar">
+            <span class="path" id="filePath"></span>
+            <button class="btn btn-secondary" onclick="togglePreview()" id="previewBtn" style="display:none">👁️ Preview</button>
+            <button class="btn btn-secondary" onclick="downloadFile()">⬇️ Download</button>
+            <button class="btn btn-primary" onclick="saveFile()">💾 Save</button>
+          </div>
+          <div style="flex:1;display:flex;overflow:hidden">
+            <div class="editor-line-numbers" id="lineNumbers"></div>
+            <textarea class="editor" id="editor" spellcheck="false" oninput="handleEditorInput()"></textarea>
+          </div>
+          <div class="preview" id="preview" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- Commit Panel -->
+      <div class="commit-panel" id="commitPanel">
+        <h4>Commit Changes</h4>
+        <div class="changed-files" id="changedFiles"></div>
+        <textarea id="commitMessage" placeholder="Commit message..."></textarea>
+        <div class="commit-actions">
+          <button class="btn btn-secondary" onclick="discardChanges()">Discard All</button>
+          <button class="btn btn-primary" onclick="commitChanges()">Commit</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel" id="rightPanel">
+      <div class="panel-section">
+        <h4>Repository</h4>
+        <div class="repo-info" id="repoInfo">
+          <div class="repo-stat"><span class="icon">⭐</span> <span id="repoStars">-</span> stars</div>
+          <div class="repo-stat"><span class="icon">🍴</span> <span id="repoForks">-</span> forks</div>
+          <div class="repo-stat"><span class="icon">👁️</span> <span id="repoWatchers">-</span> watchers</div>
+          <div class="repo-stat"><span class="icon">📄</span> <span id="repoLicense">-</span></div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h4>Actions</h4>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-secondary" style="width:100%" onclick="cloneRepo()">📥 Clone URL</button>
+          <button class="btn btn-secondary" style="width:100%" onclick="openOnGitHub()">🔗 Open on GitHub</button>
+          <button class="btn btn-secondary" style="width:100%" onclick="downloadZip()">⬇️ Download ZIP</button>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h4>Recent Commits</h4>
+        <div id="recentCommits" style="font-size:12px;color:#8b949e">
+          Load a repository to see commits
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item" id="connectionStatus">
+      <span style="color:#3fb950">●</span> Ready
+    </div>
+    <div class="status-item" id="branchStatus">
+      <span>🌿</span> <span id="currentBranch">main</span>
+    </div>
+    <div class="status-item" id="changesStatus" style="display:none">
+      <span style="color:#d29922">●</span> <span id="changesCount">0</span> unsaved changes
+    </div>
+    <div class="status-item" style="margin-left:auto" id="fileInfo"></div>
+  </div>
+
+  <!-- New File Modal -->
+  <div class="modal-overlay" id="newFileModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Create New File</h3>
+        <button class="modal-close" onclick="closeModal('newFileModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>File Path</label>
+          <input type="text" id="newFilePath" placeholder="path/to/file.js">
+        </div>
+        <div class="form-group">
+          <label>Initial Content (optional)</label>
+          <textarea id="newFileContent" style="width:100%;min-height:100px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:8px;border-radius:6px;font-family:monospace" placeholder="// Your code here"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('newFileModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="createNewFile()">Create File</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token Modal -->
+  <div class="modal-overlay" id="tokenModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>GitHub Token</h3>
+        <button class="modal-close" onclick="closeModal('tokenModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:16px;color:#8b949e;font-size:13px">
+          For private repos or to enable write access, enter a GitHub personal access token.
+          <a href="https://github.com/settings/tokens/new" target="_blank" style="color:#58a6ff">Create one here</a>
+        </p>
+        <div class="form-group">
+          <label>Personal Access Token</label>
+          <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('tokenModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveToken()">Save Token</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // GITS - Git Browser & Editor
+    // =========================================================================
+
+    const STORAGE_KEY = 'gits_data';
+    let currentRepo = null;
+    let currentOwner = null;
+    let currentBranch = 'main';
+    let fileTree = [];
+    let openFiles = [];
+    let activeFile = null;
+    let fileContents = {};
+    let modifiedFiles = {};
+    let githubToken = null;
+
+    // Initialize
+    function init() {
+      loadSettings();
+      setupKeyboardShortcuts();
+    }
+
+    function loadSettings() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        githubToken = data.token || null;
+        if (data.lastRepo) {
+          document.getElementById('repoUrl').value = data.lastRepo;
+        }
+      }
+    }
+
+    function saveSettings() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        token: githubToken,
+        lastRepo: currentOwner && currentRepo ? `${currentOwner}/${currentRepo}` : null
+      }));
+    }
+
+    // Parse repo URL
+    function parseRepoUrl(input) {
+      input = input.trim();
+
+      // Handle full URLs
+      if (input.includes('github.com')) {
+        const match = input.match(/github\.com\/([^\/]+)\/([^\/\?#]+)/);
+        if (match) return { owner: match[1], repo: match[2].replace('.git', '') };
+      }
+
+      // Handle owner/repo format
+      if (input.includes('/')) {
+        const [owner, repo] = input.split('/');
+        return { owner, repo: repo.replace('.git', '') };
+      }
+
+      return null;
+    }
+
+    // Load repository
+    async function loadRepo() {
+      const input = document.getElementById('repoUrl').value;
+      const parsed = parseRepoUrl(input);
+
+      if (!parsed) {
+        alert('Invalid repository format. Use owner/repo or full GitHub URL.');
+        return;
+      }
+
+      currentOwner = parsed.owner;
+      currentRepo = parsed.repo;
+
+      document.getElementById('fileTree').innerHTML = '<div class="loading"><div class="spinner"></div>Loading repository...</div>';
+      document.getElementById('repoName').textContent = currentRepo;
+      document.getElementById('welcome').style.display = 'none';
+
+      try {
+        // Fetch repo info
+        const repoInfo = await fetchGitHub(`repos/${currentOwner}/${currentRepo}`);
+        currentBranch = repoInfo.default_branch || 'main';
+        document.getElementById('currentBranch').textContent = currentBranch;
+
+        // Update repo info panel
+        document.getElementById('repoStars').textContent = repoInfo.stargazers_count?.toLocaleString() || '-';
+        document.getElementById('repoForks').textContent = repoInfo.forks_count?.toLocaleString() || '-';
+        document.getElementById('repoWatchers').textContent = repoInfo.watchers_count?.toLocaleString() || '-';
+        document.getElementById('repoLicense').textContent = repoInfo.license?.name || 'No license';
+
+        // Fetch branches
+        const branches = await fetchGitHub(`repos/${currentOwner}/${currentRepo}/branches`);
+        const branchSelect = document.getElementById('branchSelect');
+        branchSelect.innerHTML = branches.map(b =>
+          `<option value="${b.name}" ${b.name === currentBranch ? 'selected' : ''}>${b.name}</option>`
+        ).join('');
+
+        // Fetch file tree
+        await loadFileTree();
+
+        // Fetch recent commits
+        const commits = await fetchGitHub(`repos/${currentOwner}/${currentRepo}/commits?per_page=5`);
+        document.getElementById('recentCommits').innerHTML = commits.map(c => `
+          <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #21262d">
+            <div style="color:#c9d1d9;margin-bottom:2px">${c.commit.message.split('\n')[0].slice(0, 50)}${c.commit.message.length > 50 ? '...' : ''}</div>
+            <div style="font-size:11px">${c.commit.author.name} • ${timeAgo(c.commit.author.date)}</div>
+          </div>
+        `).join('');
+
+        saveSettings();
+
+      } catch (e) {
+        console.error(e);
+        document.getElementById('fileTree').innerHTML = `
+          <div style="padding:20px;text-align:center;color:#f85149">
+            <div style="font-size:24px;margin-bottom:8px">⚠️</div>
+            <div>Failed to load repository</div>
+            <div style="font-size:12px;margin-top:8px;color:#8b949e">${e.message}</div>
+            ${e.message.includes('404') ? '<button class="btn btn-secondary" style="margin-top:12px" onclick="showTokenModal()">Add Token for Private Repos</button>' : ''}
+          </div>
+        `;
+      }
+    }
+
+    async function loadFileTree() {
+      const tree = await fetchGitHub(`repos/${currentOwner}/${currentRepo}/git/trees/${currentBranch}?recursive=1`);
+      fileTree = tree.tree || [];
+
+      renderFileTree();
+    }
+
+    function renderFileTree() {
+      const container = document.getElementById('fileTree');
+
+      // Build tree structure
+      const root = {};
+      fileTree.forEach(item => {
+        const parts = item.path.split('/');
+        let current = root;
+        parts.forEach((part, i) => {
+          if (!current[part]) {
+            current[part] = {
+              _info: i === parts.length - 1 ? item : { type: 'tree', path: parts.slice(0, i + 1).join('/') },
+              _children: {}
+            };
+          }
+          current = current[part]._children;
+        });
+      });
+
+      container.innerHTML = renderTreeNode(root, '');
+    }
+
+    function renderTreeNode(node, path) {
+      const entries = Object.entries(node).filter(([k]) => !k.startsWith('_'));
+
+      // Sort: folders first, then files
+      entries.sort((a, b) => {
+        const aIsDir = a[1]._info.type === 'tree';
+        const bIsDir = b[1]._info.type === 'tree';
+        if (aIsDir && !bIsDir) return -1;
+        if (!aIsDir && bIsDir) return 1;
+        return a[0].localeCompare(b[0]);
+      });
+
+      return entries.map(([name, data]) => {
+        const info = data._info;
+        const isDir = info.type === 'tree';
+        const fullPath = info.path;
+        const isModified = modifiedFiles[fullPath];
+        const icon = isDir ? '📁' : getFileIcon(name);
+
+        if (isDir) {
+          const children = renderTreeNode(data._children, fullPath);
+          return `
+            <div class="tree-item folder" onclick="toggleFolder(this)">
+              <span class="icon">📁</span>
+              <span class="name">${name}</span>
+            </div>
+            <div class="tree-children">${children}</div>
+          `;
+        } else {
+          return `
+            <div class="tree-item ${isModified ? 'modified' : ''}" onclick="openFile('${fullPath}')">
+              <span class="icon">${icon}</span>
+              <span class="name">${name}</span>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    function getFileIcon(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      const icons = {
+        'js': '📜', 'ts': '📘', 'jsx': '⚛️', 'tsx': '⚛️',
+        'html': '🌐', 'css': '🎨', 'scss': '🎨', 'less': '🎨',
+        'json': '📋', 'md': '📝', 'txt': '📄',
+        'py': '🐍', 'rb': '💎', 'go': '🐹', 'rs': '🦀',
+        'java': '☕', 'c': '©️', 'cpp': '©️', 'h': '©️',
+        'png': '🖼️', 'jpg': '🖼️', 'gif': '🖼️', 'svg': '🖼️',
+        'yml': '⚙️', 'yaml': '⚙️', 'toml': '⚙️',
+        'sh': '🔧', 'bash': '🔧', 'zsh': '🔧',
+        'lock': '🔒', 'env': '🔐'
+      };
+      return icons[ext] || '📄';
+    }
+
+    function toggleFolder(el) {
+      const children = el.nextElementSibling;
+      if (children && children.classList.contains('tree-children')) {
+        children.style.display = children.style.display === 'none' ? 'block' : 'none';
+        el.querySelector('.icon').textContent = children.style.display === 'none' ? '📁' : '📂';
+      }
+    }
+
+    // File operations
+    async function openFile(path) {
+      // Check if already open
+      if (!openFiles.find(f => f.path === path)) {
+        openFiles.push({ path, name: path.split('/').pop() });
+      }
+
+      activeFile = path;
+      renderTabs();
+
+      document.getElementById('editorWrapper').style.display = 'flex';
+      document.getElementById('welcome').style.display = 'none';
+
+      // Load content if not cached
+      if (!fileContents[path]) {
+        document.getElementById('editor').value = 'Loading...';
+        try {
+          const response = await fetchGitHub(`repos/${currentOwner}/${currentRepo}/contents/${path}?ref=${currentBranch}`);
+          const content = atob(response.content);
+          fileContents[path] = content;
+        } catch (e) {
+          fileContents[path] = `// Error loading file: ${e.message}`;
+        }
+      }
+
+      const content = modifiedFiles[path] ?? fileContents[path];
+      document.getElementById('editor').value = content;
+      updateLineNumbers();
+      updateFilePath(path);
+
+      // Check if previewable
+      const ext = path.split('.').pop().toLowerCase();
+      document.getElementById('previewBtn').style.display =
+        ['md', 'html', 'png', 'jpg', 'gif', 'svg'].includes(ext) ? 'block' : 'none';
+
+      // Update file info
+      const lines = content.split('\n').length;
+      const size = new Blob([content]).size;
+      document.getElementById('fileInfo').textContent = `${lines} lines, ${formatSize(size)}`;
+
+      // Highlight in tree
+      document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+      document.querySelectorAll('.tree-item').forEach(el => {
+        if (el.textContent.trim() === path.split('/').pop()) {
+          el.classList.add('selected');
+        }
+      });
+    }
+
+    function renderTabs() {
+      const container = document.getElementById('tabs');
+      container.innerHTML = openFiles.map(f => `
+        <div class="tab ${f.path === activeFile ? 'active' : ''} ${modifiedFiles[f.path] ? 'modified' : ''}" onclick="openFile('${f.path}')">
+          <span>${f.name}</span>
+          <span class="close" onclick="event.stopPropagation(); closeTab('${f.path}')">&times;</span>
+        </div>
+      `).join('');
+    }
+
+    function closeTab(path) {
+      // Check for unsaved changes
+      if (modifiedFiles[path]) {
+        if (!confirm('Discard unsaved changes?')) return;
+        delete modifiedFiles[path];
+      }
+
+      openFiles = openFiles.filter(f => f.path !== path);
+
+      if (activeFile === path) {
+        if (openFiles.length > 0) {
+          openFile(openFiles[openFiles.length - 1].path);
+        } else {
+          activeFile = null;
+          document.getElementById('editorWrapper').style.display = 'none';
+          document.getElementById('welcome').style.display = 'flex';
+        }
+      }
+
+      renderTabs();
+      updateChangesStatus();
+    }
+
+    function handleEditorInput() {
+      if (!activeFile) return;
+
+      const content = document.getElementById('editor').value;
+      const original = fileContents[activeFile];
+
+      if (content !== original) {
+        modifiedFiles[activeFile] = content;
+      } else {
+        delete modifiedFiles[activeFile];
+      }
+
+      renderTabs();
+      renderFileTree();
+      updateChangesStatus();
+      updateLineNumbers();
+    }
+
+    function updateLineNumbers() {
+      const editor = document.getElementById('editor');
+      const lines = editor.value.split('\n').length;
+      document.getElementById('lineNumbers').innerHTML =
+        Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
+    }
+
+    function updateFilePath(path) {
+      const parts = path.split('/');
+      document.getElementById('filePath').innerHTML =
+        `<span onclick="loadFileTree()">${currentRepo}</span> / ` +
+        parts.map((p, i) =>
+          i === parts.length - 1 ? p : `<span onclick="navigateToFolder('${parts.slice(0, i + 1).join('/')}')">${p}</span>`
+        ).join(' / ');
+    }
+
+    function updateChangesStatus() {
+      const count = Object.keys(modifiedFiles).length;
+      const status = document.getElementById('changesStatus');
+      status.style.display = count > 0 ? 'flex' : 'none';
+      document.getElementById('changesCount').textContent = count;
+
+      // Update changed files in commit panel
+      document.getElementById('changedFiles').innerHTML = Object.keys(modifiedFiles).map(path => `
+        <div class="changed-file">
+          <span class="status M">M</span>
+          <span>${path}</span>
+        </div>
+      `).join('') || '<div style="color:#8b949e">No changes to commit</div>';
+    }
+
+    function saveFile() {
+      if (!activeFile || !modifiedFiles[activeFile]) {
+        alert('No changes to save');
+        return;
+      }
+
+      // For now, just show commit panel
+      showCommitPanel();
+    }
+
+    function downloadFile() {
+      if (!activeFile) return;
+
+      const content = modifiedFiles[activeFile] ?? fileContents[activeFile];
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = activeFile.split('/').pop();
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function togglePreview() {
+      const editor = document.querySelector('#editorWrapper > div:last-of-type');
+      const preview = document.getElementById('preview');
+
+      if (preview.style.display === 'none') {
+        preview.style.display = 'block';
+        editor.style.display = 'none';
+
+        const content = document.getElementById('editor').value;
+        const ext = activeFile.split('.').pop().toLowerCase();
+
+        if (ext === 'md') {
+          preview.className = 'preview markdown';
+          preview.innerHTML = renderMarkdown(content);
+        } else if (ext === 'html') {
+          preview.innerHTML = `<iframe srcdoc="${content.replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:none"></iframe>`;
+        } else if (['png', 'jpg', 'gif', 'svg'].includes(ext)) {
+          preview.innerHTML = `<img src="data:image/${ext};base64,${btoa(content)}">`;
+        }
+
+        document.getElementById('previewBtn').textContent = '✏️ Edit';
+      } else {
+        preview.style.display = 'none';
+        editor.style.display = 'flex';
+        document.getElementById('previewBtn').textContent = '👁️ Preview';
+      }
+    }
+
+    function renderMarkdown(md) {
+      // Simple markdown rendering
+      return md
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+        .replace(/\n/g, '<br>');
+    }
+
+    // Commit
+    function toggleCommitPanel() {
+      const panel = document.getElementById('commitPanel');
+      panel.classList.toggle('active');
+      updateChangesStatus();
+    }
+
+    function showCommitPanel() {
+      document.getElementById('commitPanel').classList.add('active');
+      updateChangesStatus();
+    }
+
+    async function commitChanges() {
+      const message = document.getElementById('commitMessage').value.trim();
+      if (!message) {
+        alert('Please enter a commit message');
+        return;
+      }
+
+      if (!githubToken) {
+        alert('You need a GitHub token to commit. Click the ℹ️ button to add one.');
+        showTokenModal();
+        return;
+      }
+
+      if (Object.keys(modifiedFiles).length === 0) {
+        alert('No changes to commit');
+        return;
+      }
+
+      try {
+        // For each modified file, create/update via API
+        for (const [path, content] of Object.entries(modifiedFiles)) {
+          const existing = await fetchGitHub(`repos/${currentOwner}/${currentRepo}/contents/${path}?ref=${currentBranch}`).catch(() => null);
+
+          await fetchGitHub(`repos/${currentOwner}/${currentRepo}/contents/${path}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              message: message,
+              content: btoa(content),
+              branch: currentBranch,
+              sha: existing?.sha
+            })
+          });
+
+          // Update cached content
+          fileContents[path] = content;
+        }
+
+        // Clear modifications
+        modifiedFiles = {};
+        document.getElementById('commitMessage').value = '';
+        toggleCommitPanel();
+        renderTabs();
+        renderFileTree();
+        updateChangesStatus();
+        alert('Changes committed successfully!');
+
+      } catch (e) {
+        alert('Commit failed: ' + e.message);
+      }
+    }
+
+    function discardChanges() {
+      if (!confirm('Discard all unsaved changes?')) return;
+
+      // Restore original content for active file
+      if (activeFile && modifiedFiles[activeFile]) {
+        document.getElementById('editor').value = fileContents[activeFile];
+      }
+
+      modifiedFiles = {};
+      renderTabs();
+      renderFileTree();
+      updateChangesStatus();
+    }
+
+    // New file
+    function showNewFileModal() {
+      if (!currentRepo) {
+        alert('Please load a repository first');
+        return;
+      }
+      document.getElementById('newFileModal').classList.add('active');
+    }
+
+    function createNewFile() {
+      const path = document.getElementById('newFilePath').value.trim();
+      const content = document.getElementById('newFileContent').value;
+
+      if (!path) {
+        alert('Please enter a file path');
+        return;
+      }
+
+      // Add to virtual tree
+      fileContents[path] = content;
+      modifiedFiles[path] = content;
+
+      closeModal('newFileModal');
+      document.getElementById('newFilePath').value = '';
+      document.getElementById('newFileContent').value = '';
+
+      // Open the file
+      openFile(path);
+      updateChangesStatus();
+    }
+
+    // Branch
+    async function switchBranch() {
+      const branch = document.getElementById('branchSelect').value;
+      currentBranch = branch;
+      document.getElementById('currentBranch').textContent = branch;
+
+      // Clear state
+      openFiles = [];
+      activeFile = null;
+      fileContents = {};
+      modifiedFiles = {};
+
+      document.getElementById('editorWrapper').style.display = 'none';
+      document.getElementById('welcome').style.display = 'flex';
+      document.getElementById('tabs').innerHTML = '';
+
+      await loadFileTree();
+    }
+
+    // GitHub API
+    async function fetchGitHub(endpoint, options = {}) {
+      const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        ...options.headers
+      };
+
+      if (githubToken) {
+        headers['Authorization'] = `token ${githubToken}`;
+      }
+
+      const response = await fetch(`https://api.github.com/${endpoint}`, {
+        ...options,
+        headers
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    // Token
+    function showTokenModal() {
+      document.getElementById('tokenModal').classList.add('active');
+      if (githubToken) {
+        document.getElementById('githubToken').value = githubToken;
+      }
+    }
+
+    function saveToken() {
+      githubToken = document.getElementById('githubToken').value.trim() || null;
+      saveSettings();
+      closeModal('tokenModal');
+      if (currentRepo) loadRepo();
+    }
+
+    // Modals
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // Right panel
+    function toggleRightPanel() {
+      document.getElementById('rightPanel').classList.toggle('hidden');
+    }
+
+    // Utilities
+    function loadExample(repo) {
+      document.getElementById('repoUrl').value = repo;
+      loadRepo();
+    }
+
+    function openOnGitHub() {
+      if (currentOwner && currentRepo) {
+        window.open(`https://github.com/${currentOwner}/${currentRepo}`, '_blank');
+      }
+    }
+
+    function cloneRepo() {
+      if (currentOwner && currentRepo) {
+        const url = `https://github.com/${currentOwner}/${currentRepo}.git`;
+        navigator.clipboard.writeText(`git clone ${url}`);
+        alert('Clone command copied to clipboard!');
+      }
+    }
+
+    function downloadZip() {
+      if (currentOwner && currentRepo) {
+        window.open(`https://github.com/${currentOwner}/${currentRepo}/archive/refs/heads/${currentBranch}.zip`, '_blank');
+      }
+    }
+
+    function timeAgo(date) {
+      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+      const intervals = [
+        { label: 'year', seconds: 31536000 },
+        { label: 'month', seconds: 2592000 },
+        { label: 'day', seconds: 86400 },
+        { label: 'hour', seconds: 3600 },
+        { label: 'minute', seconds: 60 }
+      ];
+
+      for (const interval of intervals) {
+        const count = Math.floor(seconds / interval.seconds);
+        if (count >= 1) {
+          return `${count} ${interval.label}${count > 1 ? 's' : ''} ago`;
+        }
+      }
+      return 'just now';
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // Keyboard shortcuts
+    function setupKeyboardShortcuts() {
+      document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + S to save
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          e.preventDefault();
+          saveFile();
+        }
+
+        // Ctrl/Cmd + W to close tab
+        if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+          e.preventDefault();
+          if (activeFile) closeTab(activeFile);
+        }
+
+        // Ctrl/Cmd + P to quick open (future)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+          e.preventDefault();
+          document.getElementById('repoUrl').focus();
+        }
+
+        // Escape to close modals
+        if (e.key === 'Escape') {
+          document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+        }
+      });
+    }
+
+    // Initialize
+    init();
+  </script>
+</body>
+</html>
