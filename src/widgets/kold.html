@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kold - AI Cold Outreach Generator</title>
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+        window.CreateMLCEngine = CreateMLCEngine;
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d0d1a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+            border-radius: 16px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #3b82f6, #9333ea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .subtitle { color: #888; font-size: 1.1rem; }
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(147, 51, 234, 0.2);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+        }
+        .ai-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        .ai-badge .dot.ready { background: #22c55e; }
+        .ai-badge .dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .grid { display: grid; grid-template-columns: 400px 1fr; gap: 20px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: rgba(30, 30, 50, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #9333ea;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #9333ea;
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .chip {
+            padding: 6px 12px;
+            background: rgba(147, 51, 234, 0.2);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chip:hover { background: rgba(147, 51, 234, 0.3); }
+        .chip.selected { background: #9333ea; border-color: #9333ea; }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #9333ea);
+            color: white;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(147, 51, 234, 0.3); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+
+        .output-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .output-tab {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .output-tab:hover { border-color: rgba(147, 51, 234, 0.5); }
+        .output-tab.active { background: #9333ea; border-color: #9333ea; }
+
+        .output-content {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 400px;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            position: relative;
+        }
+        .output-content.loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+        .output-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .templates { display: grid; gap: 10px; margin-top: 15px; }
+        .template {
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .template:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .template.active { border-color: #9333ea; background: rgba(147, 51, 234, 0.1); }
+        .template-name { font-weight: 600; margin-bottom: 4px; }
+        .template-desc { font-size: 0.8rem; color: #666; }
+
+        .history { max-height: 300px; overflow-y: auto; }
+        .history-item {
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .history-item:hover { background: rgba(0,0,0,0.3); }
+        .history-item-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .history-item-name { font-weight: 500; font-size: 0.9rem; }
+        .history-item-time { font-size: 0.75rem; color: #666; }
+        .history-item-preview { font-size: 0.8rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-box {
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box .value { font-size: 1.5rem; font-weight: bold; color: #9333ea; }
+        .stat-box .label { font-size: 0.75rem; color: #666; }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #9333ea);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .variation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .variation {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .variation:hover { border-color: rgba(147, 51, 234, 0.3); }
+        .variation.selected { border-color: #9333ea; }
+        .variation-label { font-size: 0.8rem; color: #9333ea; margin-bottom: 8px; font-weight: 600; }
+        .variation-preview { font-size: 0.85rem; line-height: 1.4; max-height: 100px; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Kold</h1>
+            <p class="subtitle">AI-Powered Cold Outreach Generator</p>
+            <div class="ai-badge">
+                <span class="dot" id="aiStatus"></span>
+                <span id="aiStatusText">AI Not Loaded</span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <div>
+                <!-- Prospect Info -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <h2>Target Prospect</h2>
+                    <div class="form-group">
+                        <label>Prospect Name</label>
+                        <input type="text" id="prospectName" placeholder="John Smith">
+                    </div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="prospectCompany" placeholder="Acme Corp">
+                    </div>
+                    <div class="form-group">
+                        <label>Role / Title</label>
+                        <input type="text" id="prospectRole" placeholder="VP of Engineering">
+                    </div>
+                    <div class="form-group">
+                        <label>Industry</label>
+                        <select id="prospectIndustry">
+                            <option value="tech">Technology / Software</option>
+                            <option value="saas">SaaS</option>
+                            <option value="ecommerce">E-commerce</option>
+                            <option value="fintech">Fintech</option>
+                            <option value="healthcare">Healthcare</option>
+                            <option value="agency">Agency / Consulting</option>
+                            <option value="startup">Startup</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Pain Points (select all that apply)</label>
+                        <div class="chips" id="painChips"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Additional Context</label>
+                        <textarea id="additionalContext" placeholder="Recent funding, company news, mutual connections, etc."></textarea>
+                    </div>
+                </div>
+
+                <!-- Your Product -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <h2>Your Offering</h2>
+                    <div class="form-group">
+                        <label>Product / Service</label>
+                        <input type="text" id="productName" placeholder="KISS MySaaS" value="KISS MySaaS">
+                    </div>
+                    <div class="form-group">
+                        <label>Value Proposition</label>
+                        <textarea id="valueProp" placeholder="What problem do you solve?">85+ serverless widgets that replace expensive SaaS subscriptions. Save $2,800+/month with browser-based tools that work offline.</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Key Benefits</label>
+                        <textarea id="keyBenefits" placeholder="List 3-5 benefits">No subscriptions - $0 forever
+All tools run in browser - no servers
+Works offline - no internet needed
+No vendor lock-in - own your data
+85+ tools in one solution</textarea>
+                    </div>
+                </div>
+
+                <!-- Output Type -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <h2>Output Type</h2>
+                    <div class="templates" id="templateList"></div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+                    <span>Generate Outreach</span>
+                </button>
+                <div class="progress-bar" id="progressBar" style="display: none;">
+                    <div class="fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div>
+                <!-- Output -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <h2>Generated Output</h2>
+                    <div class="output-tabs" id="outputTabs"></div>
+                    <div class="output-content" id="outputContent">
+                        <div class="output-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="copyOutput()">Copy</button>
+                            <button class="btn btn-secondary btn-sm" onclick="regenerate()">Regenerate</button>
+                        </div>
+                        <div id="outputText" style="color: #666;">Generate an outreach message to see output here...</div>
+                    </div>
+                </div>
+
+                <!-- Variations -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <h2>AI Variations</h2>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">Click to select a variation, or generate new ones</p>
+                    <div class="variation-grid" id="variations">
+                        <div class="variation">
+                            <div class="variation-label">Formal</div>
+                            <div class="variation-preview" style="color: #666;">Generate to see formal variation...</div>
+                        </div>
+                        <div class="variation">
+                            <div class="variation-label">Casual</div>
+                            <div class="variation-preview" style="color: #666;">Generate to see casual variation...</div>
+                        </div>
+                        <div class="variation">
+                            <div class="variation-label">Direct</div>
+                            <div class="variation-preview" style="color: #666;">Generate to see direct variation...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats & History -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="card">
+                        <h2>Session Stats</h2>
+                        <div class="stats">
+                            <div class="stat-box">
+                                <div class="value" id="statGenerated">0</div>
+                                <div class="label">Generated</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="value" id="statCopied">0</div>
+                                <div class="label">Copied</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="value" id="statSaved">0</div>
+                                <div class="label">Saved</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h2>Recent History</h2>
+                        <div class="history" id="history">
+                            <div style="color: #666; font-size: 0.85rem; text-align: center; padding: 20px;">No history yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let engine = null;
+        let isLoading = false;
+        let selectedPains = new Set();
+        let selectedTemplate = 'cold-email';
+        let currentOutput = '';
+        let variations = { formal: '', casual: '', direct: '' };
+        let history = JSON.parse(localStorage.getItem('kold-history') || '[]');
+        let stats = { generated: 0, copied: 0, saved: 0 };
+
+        // Pain points
+        const painPoints = [
+            'High costs', 'Tool sprawl', 'Slow onboarding', 'Data silos',
+            'Vendor lock-in', 'Security concerns', 'No offline access', 'Integration issues'
+        ];
+
+        // Templates
+        const templates = [
+            { id: 'cold-email', name: 'Cold Email', desc: 'Professional email introduction' },
+            { id: 'linkedin', name: 'LinkedIn Message', desc: 'Connection request or InMail' },
+            { id: 'follow-up', name: 'Follow-up', desc: 'After no response' },
+            { id: 'breakup', name: 'Breakup Email', desc: 'Final attempt before moving on' },
+            { id: 'referral', name: 'Referral Ask', desc: 'Ask for introduction' },
+            { id: 'value-add', name: 'Value-Add', desc: 'Share helpful content' }
+        ];
+
+        // Initialize
+        function init() {
+            renderPainChips();
+            renderTemplates();
+            renderHistory();
+            loadAI();
+        }
+
+        function renderPainChips() {
+            const container = document.getElementById('painChips');
+            container.innerHTML = painPoints.map(p => `
+                <div class="chip" onclick="togglePain(this, '${p}')">${p}</div>
+            `).join('');
+        }
+
+        function togglePain(el, pain) {
+            el.classList.toggle('selected');
+            if (selectedPains.has(pain)) {
+                selectedPains.delete(pain);
+            } else {
+                selectedPains.add(pain);
+            }
+        }
+
+        function renderTemplates() {
+            const container = document.getElementById('templateList');
+            container.innerHTML = templates.map(t => `
+                <div class="template ${t.id === selectedTemplate ? 'active' : ''}" onclick="selectTemplate('${t.id}')">
+                    <div class="template-name">${t.name}</div>
+                    <div class="template-desc">${t.desc}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectTemplate(id) {
+            selectedTemplate = id;
+            renderTemplates();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history');
+            if (history.length === 0) {
+                container.innerHTML = '<div style="color: #666; font-size: 0.85rem; text-align: center; padding: 20px;">No history yet</div>';
+                return;
+            }
+            container.innerHTML = history.slice(0, 10).map((h, i) => `
+                <div class="history-item" onclick="loadHistory(${i})">
+                    <div class="history-item-header">
+                        <span class="history-item-name">${h.prospect} @ ${h.company}</span>
+                        <span class="history-item-time">${new Date(h.time).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="history-item-preview">${h.preview}</div>
+                </div>
+            `).join('');
+        }
+
+        function loadHistory(index) {
+            const h = history[index];
+            document.getElementById('prospectName').value = h.prospect;
+            document.getElementById('prospectCompany').value = h.company;
+            document.getElementById('outputText').textContent = h.output;
+            currentOutput = h.output;
+        }
+
+        async function loadAI() {
+            const status = document.getElementById('aiStatus');
+            const statusText = document.getElementById('aiStatusText');
+
+            status.className = 'dot loading';
+            statusText.textContent = 'Loading AI...';
+
+            try {
+                const initProgressCallback = (progress) => {
+                    statusText.textContent = `Loading: ${Math.round(progress.progress * 100)}%`;
+                };
+
+                engine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+                    initProgressCallback
+                });
+
+                status.className = 'dot ready';
+                statusText.textContent = 'AI Ready (Qwen 2.5)';
+            } catch (e) {
+                console.error('Failed to load AI:', e);
+                status.className = 'dot';
+                statusText.textContent = 'AI Failed - Using Templates';
+            }
+        }
+
+        async function generate() {
+            const name = document.getElementById('prospectName').value || 'there';
+            const company = document.getElementById('prospectCompany').value || 'your company';
+            const role = document.getElementById('prospectRole').value || 'leader';
+            const industry = document.getElementById('prospectIndustry').value;
+            const context = document.getElementById('additionalContext').value;
+            const product = document.getElementById('productName').value;
+            const valueProp = document.getElementById('valueProp').value;
+            const benefits = document.getElementById('keyBenefits').value;
+            const pains = Array.from(selectedPains).join(', ') || 'common business challenges';
+
+            const templateName = templates.find(t => t.id === selectedTemplate)?.name || 'Cold Email';
+
+            const prompt = `Write a ${templateName} for sales outreach.
+
+Target:
+- Name: ${name}
+- Company: ${company}
+- Role: ${role}
+- Industry: ${industry}
+- Pain points: ${pains}
+${context ? `- Context: ${context}` : ''}
+
+Product: ${product}
+Value Prop: ${valueProp}
+Benefits:
+${benefits}
+
+Write a personalized, compelling ${templateName} that:
+1. Opens with something relevant to them
+2. Connects their pain points to our solution
+3. Includes a clear call-to-action
+4. Is concise and professional
+
+Output only the ${templateName.toLowerCase()} text, no explanations:`;
+
+            const btn = document.getElementById('generateBtn');
+            const progress = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>Generating...</span>';
+            progress.style.display = 'block';
+            progressFill.style.width = '0%';
+
+            try {
+                let output = '';
+
+                if (engine) {
+                    // Use WebLLM
+                    const response = await engine.chat.completions.create({
+                        messages: [{ role: "user", content: prompt }],
+                        max_tokens: 500,
+                        temperature: 0.7,
+                        stream: true
+                    });
+
+                    let i = 0;
+                    for await (const chunk of response) {
+                        const content = chunk.choices[0]?.delta?.content || '';
+                        output += content;
+                        document.getElementById('outputText').textContent = output;
+                        i++;
+                        progressFill.style.width = `${Math.min(i * 2, 90)}%`;
+                    }
+                } else {
+                    // Fallback template
+                    output = generateFallback(name, company, role, product, valueProp, pains);
+                    document.getElementById('outputText').textContent = output;
+                }
+
+                currentOutput = output;
+                progressFill.style.width = '100%';
+
+                // Update stats
+                stats.generated++;
+                document.getElementById('statGenerated').textContent = stats.generated;
+
+                // Add to history
+                history.unshift({
+                    prospect: name,
+                    company: company,
+                    template: selectedTemplate,
+                    output: output,
+                    preview: output.substring(0, 100),
+                    time: Date.now()
+                });
+                history = history.slice(0, 50);
+                localStorage.setItem('kold-history', JSON.stringify(history));
+                renderHistory();
+
+                // Generate variations
+                await generateVariations(prompt);
+
+            } catch (e) {
+                console.error('Generation failed:', e);
+                document.getElementById('outputText').textContent = 'Generation failed. ' + e.message;
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>Generate Outreach</span>';
+            setTimeout(() => { progress.style.display = 'none'; }, 500);
+        }
+
+        function generateFallback(name, company, role, product, valueProp, pains) {
+            const templates = {
+                'cold-email': `Subject: Quick question about ${company}'s dev tools
+
+Hi ${name},
+
+I noticed ${company} is growing fast in the ${document.getElementById('prospectIndustry').value} space. Congrats on the momentum!
+
+Quick question: how much is your team spending on developer tools and SaaS subscriptions each month?
+
+I ask because we've built ${product} - ${valueProp}
+
+Teams like yours typically struggle with ${pains}. We solve that with:
+${document.getElementById('keyBenefits').value.split('\n').map(b => '• ' + b).join('\n')}
+
+Worth a 15-minute call to see if there's a fit?
+
+Best,
+[Your name]`,
+                'linkedin': `Hi ${name},
+
+Saw you're ${role} at ${company} - impressive work in the ${document.getElementById('prospectIndustry').value} space!
+
+Quick question: how's your team handling ${pains.split(',')[0] || 'tool costs'}?
+
+We've helped similar companies save $2K+/month with ${product}. Happy to share how if useful.
+
+Cheers!`,
+                'follow-up': `Hi ${name},
+
+Following up on my previous note. Wanted to share a quick win from a company similar to ${company}:
+
+They were spending $3K/month on dev tools. Now they're at $0 with ${product}.
+
+Worth a quick chat? I can show you exactly how it works in 15 minutes.
+
+Best,
+[Your name]`,
+                'breakup': `Hi ${name},
+
+I've reached out a few times about helping ${company} reduce SaaS costs, but haven't heard back. Totally understand - you're busy!
+
+I'll assume the timing isn't right and won't reach out again. But if ${pains.split(',')[0] || 'tool costs'} ever becomes a priority, ${product} could save you $2K+/month.
+
+All the best with ${company}!
+
+[Your name]`
+            };
+            return templates[selectedTemplate] || templates['cold-email'];
+        }
+
+        async function generateVariations(basePrompt) {
+            const variationTypes = ['formal', 'casual', 'direct'];
+            const container = document.getElementById('variations');
+
+            for (const type of variationTypes) {
+                const prompt = basePrompt.replace('Write a', `Write a ${type}`);
+
+                if (engine) {
+                    try {
+                        const response = await engine.chat.completions.create({
+                            messages: [{ role: "user", content: prompt }],
+                            max_tokens: 300,
+                            temperature: 0.8
+                        });
+                        variations[type] = response.choices[0]?.message?.content || '';
+                    } catch (e) {
+                        variations[type] = `${type} variation unavailable`;
+                    }
+                } else {
+                    variations[type] = `${type.charAt(0).toUpperCase() + type.slice(1)} version: ${currentOutput.substring(0, 200)}...`;
+                }
+            }
+
+            container.innerHTML = variationTypes.map(type => `
+                <div class="variation" onclick="selectVariation('${type}')">
+                    <div class="variation-label">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+                    <div class="variation-preview">${variations[type].substring(0, 150)}...</div>
+                </div>
+            `).join('');
+        }
+
+        function selectVariation(type) {
+            currentOutput = variations[type];
+            document.getElementById('outputText').textContent = currentOutput;
+            document.querySelectorAll('.variation').forEach(v => v.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+        }
+
+        function copyOutput() {
+            navigator.clipboard.writeText(currentOutput);
+            stats.copied++;
+            document.getElementById('statCopied').textContent = stats.copied;
+
+            const btn = event.target;
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+        }
+
+        function regenerate() {
+            generate();
+        }
+
+        init();
+    </script>
+</body>
+</html>

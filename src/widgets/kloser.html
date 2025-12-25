@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kloser - AI Sales Closing Assistant</title>
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+        window.CreateMLCEngine = CreateMLCEngine;
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d0d1a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(245, 158, 11, 0.1));
+            border-radius: 16px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #ef4444, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .subtitle { color: #888; font-size: 1.1rem; }
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+        }
+        .ai-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; }
+        .ai-badge .dot.ready { background: #22c55e; }
+        .ai-badge .dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .main-grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: rgba(30, 30, 50, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ef4444;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #ef4444;
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #ef4444, #f59e0b);
+            color: white;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(239, 68, 68, 0.3); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+
+        /* Objection Chips */
+        .objection-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .objection-chip {
+            padding: 6px 12px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .objection-chip:hover { background: rgba(239, 68, 68, 0.3); }
+        .objection-chip.selected { background: #ef4444; border-color: #ef4444; }
+
+        /* Deal Stage */
+        .stage-pipeline { display: flex; gap: 5px; margin-bottom: 15px; }
+        .stage {
+            flex: 1;
+            padding: 10px 5px;
+            text-align: center;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .stage:hover { border-color: rgba(239, 68, 68, 0.3); }
+        .stage.active { background: #ef4444; border-color: #ef4444; }
+
+        /* Response Area */
+        .response-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .response-tab {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .response-tab:hover { border-color: rgba(239, 68, 68, 0.5); }
+        .response-tab.active { background: #ef4444; border-color: #ef4444; }
+
+        .response-content {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 200px;
+            line-height: 1.7;
+            font-size: 0.95rem;
+        }
+        .response-content.loading { color: #666; text-align: center; }
+
+        /* Playbook */
+        .playbook-item {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .playbook-item:hover { border-color: rgba(239, 68, 68, 0.3); }
+        .playbook-item.active { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .playbook-item h4 { font-size: 0.95rem; margin-bottom: 5px; color: #f59e0b; }
+        .playbook-item p { font-size: 0.8rem; color: #888; }
+
+        /* Conversation Simulator */
+        .chat-window {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        .chat-message {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .chat-message.prospect { flex-direction: row; }
+        .chat-message.rep { flex-direction: row-reverse; }
+        .chat-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .chat-message.prospect .chat-avatar { background: #3b82f6; }
+        .chat-message.rep .chat-avatar { background: #ef4444; }
+        .chat-bubble {
+            max-width: 70%;
+            padding: 12px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .chat-message.prospect .chat-bubble { background: rgba(59, 130, 246, 0.2); border-bottom-left-radius: 5px; }
+        .chat-message.rep .chat-bubble { background: rgba(239, 68, 68, 0.2); border-bottom-right-radius: 5px; }
+        .chat-input {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        .chat-input input:focus { outline: none; border-color: #ef4444; }
+        .chat-input button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: #ef4444;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        /* Quick Actions */
+        .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .quick-action {
+            padding: 6px 12px;
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quick-action:hover { background: rgba(245, 158, 11, 0.3); }
+
+        /* Stats */
+        .closing-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .stat-box {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box .value { font-size: 1.5rem; font-weight: bold; color: #ef4444; }
+        .stat-box .label { font-size: 0.75rem; color: #666; }
+
+        /* Techniques */
+        .technique {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 3px solid #f59e0b;
+        }
+        .technique h4 { font-size: 0.9rem; margin-bottom: 8px; color: #f59e0b; }
+        .technique p { font-size: 0.85rem; color: #888; line-height: 1.5; }
+        .technique code {
+            display: block;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #22c55e;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Kloser</h1>
+            <p class="subtitle">AI-Powered Sales Closing Assistant</p>
+            <div class="ai-badge">
+                <span class="dot" id="aiStatus"></span>
+                <span id="aiStatusText">AI Not Loaded</span>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <div>
+                <!-- Deal Context -->
+                <div class="card">
+                    <h2>Deal Context</h2>
+                    <div class="form-group">
+                        <label>Prospect Name</label>
+                        <input type="text" id="prospectName" placeholder="John Smith">
+                    </div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="company" placeholder="Acme Corp">
+                    </div>
+                    <div class="form-group">
+                        <label>Deal Value</label>
+                        <input type="text" id="dealValue" placeholder="$5,000/year">
+                    </div>
+                    <div class="form-group">
+                        <label>Deal Stage</label>
+                        <div class="stage-pipeline" id="stagePipeline"></div>
+                    </div>
+                </div>
+
+                <!-- Current Objection -->
+                <div class="card">
+                    <h2>Current Objection</h2>
+                    <div class="form-group">
+                        <label>Common Objections</label>
+                        <div class="objection-chips" id="objectionChips"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Or describe the objection</label>
+                        <textarea id="customObjection" placeholder="What is the prospect saying?"></textarea>
+                    </div>
+                    <button class="btn btn-primary" id="handleBtn" onclick="handleObjection()">
+                        Get AI Response
+                    </button>
+                </div>
+
+                <!-- Closing Playbook -->
+                <div class="card">
+                    <h2>Closing Playbook</h2>
+                    <div id="playbook"></div>
+                </div>
+            </div>
+
+            <div>
+                <!-- AI Response -->
+                <div class="card">
+                    <h2>AI Suggested Response</h2>
+                    <div class="response-tabs" id="responseTabs">
+                        <div class="response-tab active" onclick="selectTone('empathetic')">Empathetic</div>
+                        <div class="response-tab" onclick="selectTone('confident')">Confident</div>
+                        <div class="response-tab" onclick="selectTone('consultative')">Consultative</div>
+                        <div class="response-tab" onclick="selectTone('direct')">Direct</div>
+                    </div>
+                    <div class="response-content" id="responseContent">
+                        Select an objection and click "Get AI Response" to see suggestions...
+                    </div>
+                    <div class="quick-actions">
+                        <div class="quick-action" onclick="copyResponse()">Copy</div>
+                        <div class="quick-action" onclick="regenerate()">Regenerate</div>
+                        <div class="quick-action" onclick="makeItShorter()">Make Shorter</div>
+                        <div class="quick-action" onclick="addProof()">Add Social Proof</div>
+                    </div>
+                </div>
+
+                <!-- Role Play Simulator -->
+                <div class="card">
+                    <h2>Practice Mode</h2>
+                    <div class="chat-window">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-message prospect">
+                                <div class="chat-avatar">P</div>
+                                <div class="chat-bubble">
+                                    I'm interested, but I need to think about it...
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <input type="text" id="chatInput" placeholder="Type your response..." onkeypress="if(event.key==='Enter')sendChat()">
+                            <button onclick="sendChat()">Send</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Closing Techniques -->
+                <div class="card">
+                    <h2>Closing Techniques</h2>
+                    <div id="techniques"></div>
+                </div>
+
+                <!-- Session Stats -->
+                <div class="card">
+                    <h2>Session Stats</h2>
+                    <div class="closing-stats">
+                        <div class="stat-box">
+                            <div class="value" id="statResponses">0</div>
+                            <div class="label">Responses</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="statObjections">0</div>
+                            <div class="label">Objections</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="value" id="statPractice">0</div>
+                            <div class="label">Practice Chats</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let engine = null;
+        let selectedObjection = '';
+        let selectedTone = 'empathetic';
+        let selectedStage = 'proposal';
+        let currentResponse = '';
+        let stats = { responses: 0, objections: 0, practice: 0 };
+
+        const stages = ['Discovery', 'Demo', 'Proposal', 'Negotiation', 'Close'];
+
+        const objections = [
+            'Too expensive',
+            'Need to think about it',
+            'Talk to my team',
+            'Not the right time',
+            'Using a competitor',
+            'No budget',
+            'Need more features',
+            'Too complicated',
+            'Send me info',
+            'Call me next quarter'
+        ];
+
+        const playbook = [
+            { id: 'assumptive', name: 'Assumptive Close', desc: 'Assume the sale and discuss next steps' },
+            { id: 'summary', name: 'Summary Close', desc: 'Recap all benefits before asking' },
+            { id: 'urgency', name: 'Urgency Close', desc: 'Create genuine time pressure' },
+            { id: 'alternative', name: 'Alternative Close', desc: 'Give two positive options' },
+            { id: 'trial', name: 'Trial Close', desc: 'Test readiness with hypothetical' },
+            { id: 'takeaway', name: 'Take-Away Close', desc: 'Remove an option to increase desire' }
+        ];
+
+        const techniques = [
+            {
+                name: 'Feel-Felt-Found',
+                desc: 'Acknowledge, relate, resolve',
+                example: '"I understand how you feel. Others felt the same way. What they found was..."'
+            },
+            {
+                name: 'Isolate the Objection',
+                desc: 'Make sure this is the only concern',
+                example: '"If we could solve [objection], would you be ready to move forward?"'
+            },
+            {
+                name: 'The Boomerang',
+                desc: 'Turn objection into reason to buy',
+                example: '"That\'s exactly why you need this..."'
+            },
+            {
+                name: 'Future Pacing',
+                desc: 'Help them visualize success',
+                example: '"Imagine 6 months from now when your team has saved..."'
+            }
+        ];
+
+        async function init() {
+            renderStages();
+            renderObjections();
+            renderPlaybook();
+            renderTechniques();
+            await loadAI();
+        }
+
+        async function loadAI() {
+            const status = document.getElementById('aiStatus');
+            const statusText = document.getElementById('aiStatusText');
+
+            status.className = 'dot loading';
+            statusText.textContent = 'Loading AI...';
+
+            try {
+                engine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+                    initProgressCallback: (p) => {
+                        statusText.textContent = `Loading: ${Math.round(p.progress * 100)}%`;
+                    }
+                });
+                status.className = 'dot ready';
+                statusText.textContent = 'AI Ready';
+            } catch (e) {
+                status.className = 'dot';
+                statusText.textContent = 'AI Failed - Using Templates';
+            }
+        }
+
+        function renderStages() {
+            const container = document.getElementById('stagePipeline');
+            container.innerHTML = stages.map(s => `
+                <div class="stage ${s.toLowerCase() === selectedStage ? 'active' : ''}"
+                     onclick="selectStage('${s.toLowerCase()}')">${s}</div>
+            `).join('');
+        }
+
+        function selectStage(stage) {
+            selectedStage = stage;
+            renderStages();
+        }
+
+        function renderObjections() {
+            const container = document.getElementById('objectionChips');
+            container.innerHTML = objections.map(o => `
+                <div class="objection-chip ${o === selectedObjection ? 'selected' : ''}"
+                     onclick="selectObjection('${o}')">${o}</div>
+            `).join('');
+        }
+
+        function selectObjection(obj) {
+            selectedObjection = obj;
+            document.getElementById('customObjection').value = '';
+            renderObjections();
+        }
+
+        function renderPlaybook() {
+            const container = document.getElementById('playbook');
+            container.innerHTML = playbook.map(p => `
+                <div class="playbook-item" onclick="usePlaybook('${p.id}')">
+                    <h4>${p.name}</h4>
+                    <p>${p.desc}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderTechniques() {
+            const container = document.getElementById('techniques');
+            container.innerHTML = techniques.map(t => `
+                <div class="technique">
+                    <h4>${t.name}</h4>
+                    <p>${t.desc}</p>
+                    <code>${t.example}</code>
+                </div>
+            `).join('');
+        }
+
+        function selectTone(tone) {
+            selectedTone = tone;
+            document.querySelectorAll('.response-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            if (currentResponse) {
+                handleObjection();
+            }
+        }
+
+        async function handleObjection() {
+            const objection = selectedObjection || document.getElementById('customObjection').value;
+            if (!objection) {
+                alert('Please select or describe an objection');
+                return;
+            }
+
+            const name = document.getElementById('prospectName').value || 'the prospect';
+            const company = document.getElementById('company').value || 'their company';
+            const value = document.getElementById('dealValue').value || '$5,000/year';
+
+            const btn = document.getElementById('handleBtn');
+            const content = document.getElementById('responseContent');
+
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            content.innerHTML = '<div style="color: #666; text-align: center; padding: 40px;">Generating response...</div>';
+
+            const prompt = `You are a sales closing expert. Generate a ${selectedTone} response to handle this objection:
+
+Objection: "${objection}"
+Prospect: ${name} at ${company}
+Deal value: ${value}
+Stage: ${selectedStage}
+
+Write a natural, conversational response that:
+1. Acknowledges their concern
+2. Addresses the objection
+3. Moves toward the close
+
+Be ${selectedTone}. Keep it under 100 words. Output only the response:`;
+
+            try {
+                if (engine) {
+                    const response = await engine.chat.completions.create({
+                        messages: [{ role: "user", content: prompt }],
+                        max_tokens: 200,
+                        temperature: 0.7
+                    });
+                    currentResponse = response.choices[0]?.message?.content || '';
+                } else {
+                    currentResponse = generateFallback(objection, name, selectedTone);
+                }
+
+                content.innerHTML = currentResponse;
+                stats.responses++;
+                stats.objections++;
+                updateStats();
+
+            } catch (e) {
+                currentResponse = generateFallback(objection, name, selectedTone);
+                content.innerHTML = currentResponse;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Get AI Response';
+        }
+
+        function generateFallback(objection, name, tone) {
+            const responses = {
+                'Too expensive': {
+                    empathetic: `I completely understand, ${name}. Budget is always a consideration. What I've found is that teams like yours typically save 3x the investment within the first quarter. Would it help if I showed you the ROI calculator?`,
+                    confident: `${name}, I hear you. But consider this: you're currently spending $2,800/month on tools that KISS MySaaS replaces. That's a net savings of over $30K/year. The question isn't whether you can afford it—it's whether you can afford not to.`,
+                    consultative: `That's a valid concern, ${name}. Let's break down the numbers together. What are you currently spending on your dev tool stack? I want to make sure this makes financial sense for your team.`,
+                    direct: `I understand price is a concern. Here's the reality: your current tools cost more and do less. Should I send over a comparison showing the savings?`
+                },
+                'Need to think about it': {
+                    empathetic: `Of course, ${name}. This is an important decision. What specific aspects would you like to think through? I'd love to help address any lingering questions.`,
+                    confident: `I appreciate that, ${name}. Smart buyers think things through. What would happen if you had all your questions answered right now? Is there something specific holding you back?`,
+                    consultative: `Absolutely, ${name}. What parts are you still weighing? Sometimes talking through concerns helps clarify the decision.`,
+                    direct: `Understood. What's the main thing you need to think about? Let's address it now so you have all the info you need.`
+                },
+                'Using a competitor': {
+                    empathetic: `That makes sense, ${name}. You've already invested in a solution. What I'm curious about is—if your current tool was perfect, would you be taking this call?`,
+                    confident: `I get it—switching has a cost. But here's what our customers found: the 30 minutes it takes to switch saves them 10+ hours a month. What's keeping you with your current solution?`,
+                    consultative: `Interesting. What's working well with your current setup? And more importantly, what's not? Let's see if we can help with the gaps.`,
+                    direct: `Fair enough. But you're on this call for a reason. What's missing from your current solution?`
+                }
+            };
+
+            const defaultResponse = `I hear you, ${name}. Many of our best customers had similar concerns initially. What I've found is that once they see the full picture, the decision becomes clear. What would help you feel confident moving forward?`;
+
+            return responses[objection]?.[tone] || defaultResponse;
+        }
+
+        function usePlaybook(id) {
+            const play = playbook.find(p => p.id === id);
+            if (!play) return;
+
+            document.querySelectorAll('.playbook-item').forEach(p => p.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            const scripts = {
+                assumptive: "Great! So for next steps, I'll send over the agreement and we can schedule your onboarding call for next week. Does Tuesday or Wednesday work better for your team?",
+                summary: "Let me make sure I have this right: you need to consolidate 12+ tools, reduce your $3K/month spend, and get your team onboarded quickly. KISS MySaaS does all three, starting at $0. Should I send the details?",
+                urgency: "I should mention—we're running a pilot program this quarter that includes priority onboarding. If we can finalize this week, I can guarantee you'll be live within 48 hours.",
+                alternative: "Would you prefer to start with the full suite, or begin with just the core dev tools and expand later?",
+                trial: "If you could wave a magic wand and have this problem solved tomorrow, what would that look like for your team?",
+                takeaway: "You know, I want to make sure this is the right fit. Maybe you're right—if the timing isn't there, we shouldn't force it. What would need to change?"
+            };
+
+            document.getElementById('responseContent').innerHTML = scripts[id] || '';
+            currentResponse = scripts[id] || '';
+        }
+
+        function copyResponse() {
+            navigator.clipboard.writeText(currentResponse);
+            event.target.textContent = 'Copied!';
+            setTimeout(() => { event.target.textContent = 'Copy'; }, 1500);
+        }
+
+        function regenerate() {
+            handleObjection();
+        }
+
+        async function makeItShorter() {
+            if (!currentResponse || !engine) return;
+
+            const content = document.getElementById('responseContent');
+            content.innerHTML = '<div style="color: #666; text-align: center;">Shortening...</div>';
+
+            try {
+                const response = await engine.chat.completions.create({
+                    messages: [{ role: "user", content: `Make this shorter (under 50 words):\n\n${currentResponse}` }],
+                    max_tokens: 100,
+                    temperature: 0.5
+                });
+                currentResponse = response.choices[0]?.message?.content || currentResponse;
+                content.innerHTML = currentResponse;
+            } catch (e) {
+                content.innerHTML = currentResponse.split('.').slice(0, 2).join('.') + '.';
+            }
+        }
+
+        async function addProof() {
+            if (!currentResponse || !engine) return;
+
+            const content = document.getElementById('responseContent');
+            content.innerHTML = '<div style="color: #666; text-align: center;">Adding social proof...</div>';
+
+            try {
+                const response = await engine.chat.completions.create({
+                    messages: [{ role: "user", content: `Add a brief customer success story or social proof to this:\n\n${currentResponse}` }],
+                    max_tokens: 200,
+                    temperature: 0.7
+                });
+                currentResponse = response.choices[0]?.message?.content || currentResponse;
+                content.innerHTML = currentResponse;
+            } catch (e) {
+                currentResponse += " In fact, one of our customers—a Series A startup similar to yours—saved over $40K in their first year.";
+                content.innerHTML = currentResponse;
+            }
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const messages = document.getElementById('chatMessages');
+
+            // Add user message
+            messages.innerHTML += `
+                <div class="chat-message rep">
+                    <div class="chat-avatar">You</div>
+                    <div class="chat-bubble">${message}</div>
+                </div>
+            `;
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+
+            stats.practice++;
+            updateStats();
+
+            // Generate AI prospect response
+            if (engine) {
+                try {
+                    const response = await engine.chat.completions.create({
+                        messages: [{
+                            role: "user",
+                            content: `You are a skeptical buyer. The salesperson just said: "${message}". Respond with a realistic follow-up objection or question (1-2 sentences):`
+                        }],
+                        max_tokens: 100,
+                        temperature: 0.8
+                    });
+                    const reply = response.choices[0]?.message?.content || "Hmm, I'm still not sure...";
+
+                    messages.innerHTML += `
+                        <div class="chat-message prospect">
+                            <div class="chat-avatar">P</div>
+                            <div class="chat-bubble">${reply}</div>
+                        </div>
+                    `;
+                    messages.scrollTop = messages.scrollHeight;
+                } catch (e) {
+                    console.error(e);
+                }
+            } else {
+                const fallbacks = [
+                    "That sounds interesting, but I'm still concerned about the price.",
+                    "I hear you, but I'd really need to run this by my team first.",
+                    "What kind of support do you offer if we run into issues?",
+                    "Can you give me an example of a company like ours who's seen results?",
+                    "I'm just not sure we're ready to make a decision right now."
+                ];
+                const reply = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                messages.innerHTML += `
+                    <div class="chat-message prospect">
+                        <div class="chat-avatar">P</div>
+                        <div class="chat-bubble">${reply}</div>
+                    </div>
+                `;
+                messages.scrollTop = messages.scrollHeight;
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('statResponses').textContent = stats.responses;
+            document.getElementById('statObjections').textContent = stats.objections;
+            document.getElementById('statPractice').textContent = stats.practice;
+        }
+
+        init();
+    </script>
+</body>
+</html>

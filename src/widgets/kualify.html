@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kualify - AI Lead Qualification</title>
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+        window.CreateMLCEngine = CreateMLCEngine;
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d0d1a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1));
+            border-radius: 16px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #22c55e, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .subtitle { color: #888; font-size: 1.1rem; }
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+        }
+        .ai-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
+        .ai-badge .dot.ready { background: #22c55e; }
+        .ai-badge .dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 1000px) { .main-grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: rgba(30, 30, 50, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #22c55e;
+        }
+
+        .lead-input {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px dashed rgba(34, 197, 94, 0.3);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+        .lead-input:focus { outline: none; border-color: #22c55e; }
+        .lead-input::placeholder { color: #555; }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #22c55e, #3b82f6);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(34, 197, 94, 0.3); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+
+        .actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+
+        /* Score Display */
+        .score-display {
+            text-align: center;
+            padding: 30px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .score-ring {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+        .score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .score-ring .bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 12; }
+        .score-ring .progress { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 1s ease; }
+        .score-ring .score-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .score-ring .score-number { font-size: 3rem; font-weight: bold; }
+        .score-ring .score-label { font-size: 0.9rem; color: #888; }
+
+        .score-hot .progress { stroke: #ef4444; }
+        .score-hot .score-number { color: #ef4444; }
+        .score-warm .progress { stroke: #f59e0b; }
+        .score-warm .score-number { color: #f59e0b; }
+        .score-cool .progress { stroke: #3b82f6; }
+        .score-cool .score-number { color: #3b82f6; }
+        .score-cold .progress { stroke: #6b7280; }
+        .score-cold .score-number { color: #6b7280; }
+
+        .qualification-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .badge-hot { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+        .badge-warm { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        .badge-cool { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid #3b82f6; }
+        .badge-cold { background: rgba(107, 114, 128, 0.2); color: #6b7280; border: 1px solid #6b7280; }
+
+        /* BANT Scores */
+        .bant-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+        .bant-item {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            text-align: center;
+        }
+        .bant-item .letter { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
+        .bant-item .label { font-size: 0.75rem; color: #666; margin-bottom: 8px; }
+        .bant-item .score-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .bant-item .score-fill { height: 100%; transition: width 0.5s; }
+        .bant-b .letter { color: #22c55e; }
+        .bant-b .score-fill { background: #22c55e; }
+        .bant-a .letter { color: #3b82f6; }
+        .bant-a .score-fill { background: #3b82f6; }
+        .bant-n .letter { color: #f59e0b; }
+        .bant-n .score-fill { background: #f59e0b; }
+        .bant-t .letter { color: #ec4899; }
+        .bant-t .score-fill { background: #ec4899; }
+
+        /* Analysis Sections */
+        .analysis-section {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .analysis-section h3 {
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .analysis-section p { font-size: 0.9rem; line-height: 1.6; color: #ccc; }
+
+        .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .tag {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .tag.risk { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
+        .tag.opportunity { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.3); color: #22c55e; }
+
+        /* Recommendations */
+        .recommendation {
+            padding: 15px;
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 10px;
+        }
+        .recommendation.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: #f59e0b;
+        }
+        .recommendation h4 { font-size: 0.9rem; margin-bottom: 5px; }
+        .recommendation p { font-size: 0.85rem; color: #888; }
+
+        /* Lead List */
+        .lead-list { max-height: 400px; overflow-y: auto; }
+        .lead-item {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .lead-item:hover { border-color: rgba(34, 197, 94, 0.3); }
+        .lead-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .lead-item-name { font-weight: 600; }
+        .lead-item-score {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .lead-item-company { font-size: 0.85rem; color: #888; }
+        .lead-item-tags { display: flex; gap: 5px; margin-top: 8px; }
+        .lead-item-tag { font-size: 0.7rem; padding: 2px 8px; background: rgba(255,255,255,0.05); border-radius: 10px; }
+
+        /* Templates */
+        .template-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+        .template-chip {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .template-chip:hover { border-color: #22c55e; }
+        .template-chip.active { background: #22c55e; border-color: #22c55e; color: #000; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Kualify</h1>
+            <p class="subtitle">AI-Powered Lead Qualification & Scoring</p>
+            <div class="ai-badge">
+                <span class="dot" id="aiStatus"></span>
+                <span id="aiStatusText">AI Not Loaded</span>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <div>
+                <!-- Lead Input -->
+                <div class="card">
+                    <h2>Lead Information</h2>
+                    <div class="template-chips">
+                        <div class="template-chip active" onclick="loadTemplate('blank')">Blank</div>
+                        <div class="template-chip" onclick="loadTemplate('linkedin')">LinkedIn Profile</div>
+                        <div class="template-chip" onclick="loadTemplate('email')">Email Thread</div>
+                        <div class="template-chip" onclick="loadTemplate('crm')">CRM Notes</div>
+                        <div class="template-chip" onclick="loadTemplate('call')">Call Notes</div>
+                    </div>
+                    <textarea class="lead-input" id="leadInput" placeholder="Paste lead information here...
+
+Examples of what to include:
+- Name, title, company
+- LinkedIn profile summary
+- Email conversations
+- CRM notes
+- Call transcripts
+- Company information
+- Any context about their needs
+
+The AI will analyze all information and score the lead based on BANT criteria."></textarea>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="qualifyBtn" onclick="qualifyLead()">
+                            Qualify Lead
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearInput()">Clear</button>
+                        <button class="btn btn-secondary" onclick="loadSample()">Load Sample</button>
+                    </div>
+                </div>
+
+                <!-- Lead History -->
+                <div class="card">
+                    <h2>Recent Leads</h2>
+                    <div class="lead-list" id="leadList">
+                        <div style="color: #666; text-align: center; padding: 30px;">
+                            No leads qualified yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <!-- Score Display -->
+                <div class="card">
+                    <h2>Qualification Score</h2>
+                    <div class="score-display">
+                        <div class="score-ring" id="scoreRing">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="bg" cx="50" cy="50" r="42"></circle>
+                                <circle class="progress" cx="50" cy="50" r="42"
+                                    stroke-dasharray="264" stroke-dashoffset="264" id="scoreProgress"></circle>
+                            </svg>
+                            <div class="score-text">
+                                <div class="score-number" id="scoreNumber">--</div>
+                                <div class="score-label">Score</div>
+                            </div>
+                        </div>
+                        <div class="qualification-badge badge-cold" id="qualBadge">Not Qualified</div>
+                    </div>
+
+                    <!-- BANT -->
+                    <div class="bant-grid">
+                        <div class="bant-item bant-b">
+                            <div class="letter">B</div>
+                            <div class="label">BUDGET</div>
+                            <div class="score-bar"><div class="score-fill" id="bantB" style="width: 0%"></div></div>
+                        </div>
+                        <div class="bant-item bant-a">
+                            <div class="letter">A</div>
+                            <div class="label">AUTHORITY</div>
+                            <div class="score-bar"><div class="score-fill" id="bantA" style="width: 0%"></div></div>
+                        </div>
+                        <div class="bant-item bant-n">
+                            <div class="letter">N</div>
+                            <div class="label">NEED</div>
+                            <div class="score-bar"><div class="score-fill" id="bantN" style="width: 0%"></div></div>
+                        </div>
+                        <div class="bant-item bant-t">
+                            <div class="letter">T</div>
+                            <div class="label">TIMELINE</div>
+                            <div class="score-bar"><div class="score-fill" id="bantT" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis -->
+                <div class="card">
+                    <h2>AI Analysis</h2>
+                    <div id="analysisContent">
+                        <div style="color: #666; text-align: center; padding: 30px;">
+                            Enter lead information and click "Qualify Lead" to see AI analysis
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="card">
+                    <h2>Next Steps</h2>
+                    <div id="recommendations">
+                        <div style="color: #666; text-align: center; padding: 30px;">
+                            Recommendations will appear after qualification
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let engine = null;
+        let leads = JSON.parse(localStorage.getItem('kualify-leads') || '[]');
+
+        const sampleLead = `John Smith
+VP of Engineering at TechStart Inc.
+LinkedIn: 500+ connections, active in SaaS communities
+
+Company: TechStart Inc.
+- Series A startup, $5M funding
+- 25 employees, 8 engineers
+- Building B2B SaaS platform
+- Using AWS, React, Node.js
+
+Email thread summary:
+"We're spending about $3,000/month on various dev tools - Notion, Slack, Figma, GitHub, etc. The team is frustrated with having to switch between so many apps. We're looking to consolidate before our next funding round."
+
+Call notes from discovery call:
+- Decision maker: John + CTO (Sarah)
+- Budget: Has discretionary budget up to $500/month
+- Timeline: Want to make changes this quarter
+- Pain points: Tool sprawl, onboarding new devs takes too long
+- Current stack: 12+ different SaaS tools
+- Mentioned competitor: Looked at Notion but "too expensive for the whole team"`;
+
+        async function init() {
+            renderLeadList();
+            await loadAI();
+        }
+
+        async function loadAI() {
+            const status = document.getElementById('aiStatus');
+            const statusText = document.getElementById('aiStatusText');
+
+            status.className = 'dot loading';
+            statusText.textContent = 'Loading AI...';
+
+            try {
+                engine = await CreateMLCEngine("Qwen2.5-0.5B-Instruct-q4f16_1-MLC", {
+                    initProgressCallback: (p) => {
+                        statusText.textContent = `Loading: ${Math.round(p.progress * 100)}%`;
+                    }
+                });
+                status.className = 'dot ready';
+                statusText.textContent = 'AI Ready';
+            } catch (e) {
+                status.className = 'dot';
+                statusText.textContent = 'AI Failed - Using Heuristics';
+            }
+        }
+
+        function loadTemplate(type) {
+            document.querySelectorAll('.template-chip').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const templates = {
+                blank: '',
+                linkedin: `Name:
+Title:
+Company:
+Connections:
+Summary:
+Experience:
+Skills: `,
+                email: `From:
+To:
+Subject:
+
+Email content:
+`,
+                crm: `Lead Name:
+Company:
+Stage:
+Last Contact:
+Notes:
+Deal Value:
+Next Steps: `,
+                call: `Call Date:
+Attendees:
+Duration:
+Summary:
+Key Points:
+-
+Action Items:
+- `
+            };
+
+            document.getElementById('leadInput').value = templates[type] || '';
+        }
+
+        function loadSample() {
+            document.getElementById('leadInput').value = sampleLead;
+        }
+
+        function clearInput() {
+            document.getElementById('leadInput').value = '';
+            resetScores();
+        }
+
+        function resetScores() {
+            document.getElementById('scoreNumber').textContent = '--';
+            document.getElementById('scoreProgress').style.strokeDashoffset = 264;
+            document.getElementById('scoreRing').className = 'score-ring';
+            document.getElementById('qualBadge').className = 'qualification-badge badge-cold';
+            document.getElementById('qualBadge').textContent = 'Not Qualified';
+            ['bantB', 'bantA', 'bantN', 'bantT'].forEach(id => {
+                document.getElementById(id).style.width = '0%';
+            });
+        }
+
+        async function qualifyLead() {
+            const input = document.getElementById('leadInput').value.trim();
+            if (!input) {
+                alert('Please enter lead information');
+                return;
+            }
+
+            const btn = document.getElementById('qualifyBtn');
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+
+            try {
+                let analysis;
+
+                if (engine) {
+                    analysis = await analyzeWithAI(input);
+                } else {
+                    analysis = analyzeWithHeuristics(input);
+                }
+
+                displayResults(analysis);
+                saveLead(input, analysis);
+
+            } catch (e) {
+                console.error(e);
+                const analysis = analyzeWithHeuristics(input);
+                displayResults(analysis);
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Qualify Lead';
+        }
+
+        async function analyzeWithAI(input) {
+            const prompt = `Analyze this sales lead and provide a JSON response:
+
+${input}
+
+Respond with ONLY valid JSON in this exact format:
+{
+  "score": <0-100>,
+  "budget": <0-100>,
+  "authority": <0-100>,
+  "need": <0-100>,
+  "timeline": <0-100>,
+  "name": "<lead name>",
+  "company": "<company>",
+  "summary": "<2 sentence summary>",
+  "strengths": ["<strength1>", "<strength2>"],
+  "risks": ["<risk1>", "<risk2>"],
+  "nextSteps": ["<step1>", "<step2>", "<step3>"]
+}`;
+
+            const response = await engine.chat.completions.create({
+                messages: [{ role: "user", content: prompt }],
+                max_tokens: 500,
+                temperature: 0.3
+            });
+
+            const content = response.choices[0]?.message?.content || '';
+
+            try {
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                }
+            } catch (e) {
+                console.error('JSON parse error:', e);
+            }
+
+            return analyzeWithHeuristics(input);
+        }
+
+        function analyzeWithHeuristics(input) {
+            const text = input.toLowerCase();
+
+            // Budget signals
+            let budget = 30;
+            if (text.includes('budget') || text.includes('spending')) budget += 25;
+            if (text.includes('funding') || text.includes('series')) budget += 20;
+            if (/\$[\d,]+/.test(text)) budget += 15;
+            if (text.includes('no budget') || text.includes('free')) budget -= 30;
+
+            // Authority signals
+            let authority = 30;
+            if (text.includes('vp') || text.includes('director') || text.includes('head of')) authority += 30;
+            if (text.includes('cto') || text.includes('ceo') || text.includes('founder')) authority += 35;
+            if (text.includes('decision') || text.includes('approve')) authority += 15;
+            if (text.includes('manager')) authority += 10;
+
+            // Need signals
+            let need = 30;
+            if (text.includes('pain') || text.includes('frustrated') || text.includes('problem')) need += 25;
+            if (text.includes('looking') || text.includes('searching') || text.includes('need')) need += 20;
+            if (text.includes('tool') || text.includes('saas') || text.includes('software')) need += 15;
+            if (text.includes('consolidate') || text.includes('replace')) need += 15;
+
+            // Timeline signals
+            let timeline = 30;
+            if (text.includes('this quarter') || text.includes('this month')) timeline += 35;
+            if (text.includes('soon') || text.includes('asap') || text.includes('urgent')) timeline += 30;
+            if (text.includes('next year') || text.includes('eventually')) timeline -= 20;
+            if (text.includes('evaluating') || text.includes('comparing')) timeline += 15;
+
+            // Cap at 100
+            budget = Math.min(100, Math.max(0, budget));
+            authority = Math.min(100, Math.max(0, authority));
+            need = Math.min(100, Math.max(0, need));
+            timeline = Math.min(100, Math.max(0, timeline));
+
+            const score = Math.round((budget + authority + need + timeline) / 4);
+
+            // Extract name and company
+            const nameMatch = input.match(/^([A-Z][a-z]+ [A-Z][a-z]+)/m);
+            const companyMatch = input.match(/(?:at|@|Company:)\s*([A-Z][A-Za-z\s]+(?:Inc|Corp|LLC|Ltd)?)/i);
+
+            return {
+                score,
+                budget,
+                authority,
+                need,
+                timeline,
+                name: nameMatch ? nameMatch[1] : 'Unknown Lead',
+                company: companyMatch ? companyMatch[1].trim() : 'Unknown Company',
+                summary: `Lead shows ${score >= 70 ? 'strong' : score >= 50 ? 'moderate' : 'weak'} qualification signals. ${need >= 60 ? 'Clear need identified.' : 'Need further discovery.'}`,
+                strengths: [
+                    budget >= 60 ? 'Budget available' : null,
+                    authority >= 60 ? 'Decision maker identified' : null,
+                    need >= 60 ? 'Clear pain points' : null,
+                    timeline >= 60 ? 'Active buying timeline' : null
+                ].filter(Boolean).slice(0, 3),
+                risks: [
+                    budget < 50 ? 'Budget unclear' : null,
+                    authority < 50 ? 'May not be decision maker' : null,
+                    need < 50 ? 'Need not clearly established' : null,
+                    timeline < 50 ? 'Timeline unclear' : null
+                ].filter(Boolean).slice(0, 3),
+                nextSteps: [
+                    authority < 60 ? 'Identify decision makers' : 'Schedule demo with stakeholders',
+                    budget < 60 ? 'Discuss budget and ROI' : 'Send pricing proposal',
+                    'Follow up within 48 hours'
+                ]
+            };
+        }
+
+        function displayResults(analysis) {
+            const score = analysis.score;
+
+            // Update score ring
+            const circumference = 264;
+            const offset = circumference - (score / 100) * circumference;
+            document.getElementById('scoreProgress').style.strokeDashoffset = offset;
+            document.getElementById('scoreNumber').textContent = score;
+
+            // Update class based on score
+            let tier, badgeClass, badgeText;
+            if (score >= 80) {
+                tier = 'hot'; badgeClass = 'badge-hot'; badgeText = 'HOT LEAD';
+            } else if (score >= 60) {
+                tier = 'warm'; badgeClass = 'badge-warm'; badgeText = 'WARM LEAD';
+            } else if (score >= 40) {
+                tier = 'cool'; badgeClass = 'badge-cool'; badgeText = 'COOL LEAD';
+            } else {
+                tier = 'cold'; badgeClass = 'badge-cold'; badgeText = 'COLD LEAD';
+            }
+
+            document.getElementById('scoreRing').className = `score-ring score-${tier}`;
+            document.getElementById('qualBadge').className = `qualification-badge ${badgeClass}`;
+            document.getElementById('qualBadge').textContent = badgeText;
+
+            // Update BANT bars
+            document.getElementById('bantB').style.width = `${analysis.budget}%`;
+            document.getElementById('bantA').style.width = `${analysis.authority}%`;
+            document.getElementById('bantN').style.width = `${analysis.need}%`;
+            document.getElementById('bantT').style.width = `${analysis.timeline}%`;
+
+            // Update analysis
+            document.getElementById('analysisContent').innerHTML = `
+                <div class="analysis-section">
+                    <h3>Summary</h3>
+                    <p>${analysis.summary}</p>
+                </div>
+                <div class="analysis-section">
+                    <h3>Strengths</h3>
+                    <div class="tags">
+                        ${analysis.strengths.map(s => `<span class="tag opportunity">${s}</span>`).join('')}
+                    </div>
+                </div>
+                <div class="analysis-section">
+                    <h3>Risks</h3>
+                    <div class="tags">
+                        ${analysis.risks.map(r => `<span class="tag risk">${r}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Update recommendations
+            document.getElementById('recommendations').innerHTML = analysis.nextSteps.map((step, i) => `
+                <div class="recommendation ${i === 0 ? '' : 'warning'}">
+                    <h4>Step ${i + 1}</h4>
+                    <p>${step}</p>
+                </div>
+            `).join('');
+        }
+
+        function saveLead(input, analysis) {
+            const lead = {
+                id: Date.now(),
+                name: analysis.name,
+                company: analysis.company,
+                score: analysis.score,
+                budget: analysis.budget,
+                authority: analysis.authority,
+                need: analysis.need,
+                timeline: analysis.timeline,
+                input: input,
+                time: Date.now()
+            };
+
+            leads.unshift(lead);
+            leads = leads.slice(0, 50);
+            localStorage.setItem('kualify-leads', JSON.stringify(leads));
+            renderLeadList();
+        }
+
+        function renderLeadList() {
+            const container = document.getElementById('leadList');
+            if (leads.length === 0) {
+                container.innerHTML = '<div style="color: #666; text-align: center; padding: 30px;">No leads qualified yet</div>';
+                return;
+            }
+
+            container.innerHTML = leads.map(lead => {
+                let tierClass = lead.score >= 80 ? 'badge-hot' : lead.score >= 60 ? 'badge-warm' : lead.score >= 40 ? 'badge-cool' : 'badge-cold';
+                return `
+                    <div class="lead-item" onclick="loadLead(${lead.id})">
+                        <div class="lead-item-header">
+                            <span class="lead-item-name">${lead.name}</span>
+                            <span class="lead-item-score ${tierClass}">${lead.score}</span>
+                        </div>
+                        <div class="lead-item-company">${lead.company}</div>
+                        <div class="lead-item-tags">
+                            <span class="lead-item-tag">B:${lead.budget}</span>
+                            <span class="lead-item-tag">A:${lead.authority}</span>
+                            <span class="lead-item-tag">N:${lead.need}</span>
+                            <span class="lead-item-tag">T:${lead.timeline}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadLead(id) {
+            const lead = leads.find(l => l.id === id);
+            if (lead) {
+                document.getElementById('leadInput').value = lead.input;
+                displayResults({
+                    score: lead.score,
+                    budget: lead.budget,
+                    authority: lead.authority,
+                    need: lead.need,
+                    timeline: lead.timeline,
+                    name: lead.name,
+                    company: lead.company,
+                    summary: `Previously qualified lead with score ${lead.score}.`,
+                    strengths: [],
+                    risks: [],
+                    nextSteps: ['Review previous analysis', 'Update with new information', 'Take action']
+                });
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
