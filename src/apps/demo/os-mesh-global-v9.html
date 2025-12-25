@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<!--
+@file os-mesh-global-v9.html
+@desc KonomiOS v9 - Optimized + Scaled + Performance
+@opts GPU accel, virtual scroll, connection pooling, batching
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KonomiOS v9</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316;--gl:rgba(12,12,20,.92)}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:12px/1.4 system-ui,sans-serif;background:var(--b);color:var(--f);height:100vh;overflow:hidden;user-select:none}
+
+    /* GPU-accelerated layers */
+    .gpu{will-change:transform;transform:translateZ(0)}
+
+    /* Desktop */
+    .D{position:absolute;inset:0 0 48px 0;background:linear-gradient(135deg,#0a0a12,#12121e 50%,#0a1628);overflow:hidden}
+
+    /* Optimized ambient bubbles - pooled, GPU accelerated */
+    .bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;contain:strict}
+    .bub{position:absolute;padding:6px 12px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.03);border-radius:14px;font-size:11px;color:rgba(255,255,255,.2);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;will-change:transform,opacity;contain:layout style}
+    .bub.s{background:rgba(0,217,255,.03);color:rgba(0,217,255,.25)}
+    .bub.ai{background:rgba(124,58,237,.04);color:rgba(124,58,237,.3)}
+
+    /* Icons */
+    .DI{position:absolute;top:12px;left:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;z-index:5}
+    .di{width:64px;text-align:center;cursor:pointer;padding:6px;border-radius:8px;transition:background .15s}.di:hover{background:rgba(255,255,255,.06)}.di i{font-size:26px;display:block;margin-bottom:2px}.di span{font-size:8px;opacity:.7}
+
+    /* Windows - optimized */
+    .W{position:absolute;background:var(--gl);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.06);border-radius:10px;box-shadow:0 6px 32px rgba(0,0,0,.4);display:none;flex-direction:column;overflow:hidden;min-width:240px;min-height:140px;resize:both;z-index:10;contain:layout}
+    .W.o{display:flex}.W.a{z-index:100}.W.m{inset:0!important;width:100%!important;height:100%!important;border-radius:0;resize:none}
+    .Wh{padding:8px 10px;background:rgba(0,0,0,.35);display:flex;align-items:center;gap:6px;cursor:move}
+    .Wc{display:flex;gap:5px}.Wc b{width:11px;height:11px;border-radius:50%;border:none;cursor:pointer}.Wc .c{background:var(--r)}.Wc .n{background:var(--o)}.Wc .x{background:var(--g)}
+    .Wt{flex:1;font-size:10px;font-weight:500;opacity:.8}.Wb{flex:1;overflow:hidden;display:flex;flex-direction:column;contain:content}
+
+    /* Taskbar - compact */
+    .TB{position:absolute;bottom:0;left:0;right:0;height:48px;background:rgba(0,0,0,.85);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;padding:0 10px;gap:6px;z-index:200}
+    .Ts{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--a),var(--a2));border-radius:8px;font-size:16px;cursor:pointer;flex-shrink:0}
+    .Ta{display:flex;gap:3px;overflow-x:auto;flex-shrink:0}.Ta::-webkit-scrollbar{display:none}.Ta div{padding:5px 8px;background:rgba(255,255,255,.04);border-radius:5px;font-size:9px;cursor:pointer;white-space:nowrap}.Ta div.a{background:rgba(0,217,255,.12);color:var(--a)}
+
+    /* Taskbar chat */
+    .tbc{display:flex;flex:1;max-width:360px;gap:4px;margin:0 10px}
+    .tbc input{flex:1;padding:7px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;color:var(--f);font-size:10px;outline:0}
+    .tbc input:focus{border-color:var(--a)}
+    .tbc button{padding:7px 12px;background:var(--a);border:0;border-radius:16px;color:#000;font-weight:600;font-size:9px;cursor:pointer}
+
+    /* Status */
+    .Ty{display:flex;align-items:center;gap:8px;font-size:9px;flex-shrink:0;opacity:.8}
+    .Ty .d{width:7px;height:7px;border-radius:50%}.Ty .d.on{background:var(--g);box-shadow:0 0 6px var(--g)}.Ty .d.c{background:var(--o);animation:p .8s infinite}
+    @keyframes p{50%{opacity:.3}}
+
+    /* AI Panel - optimized */
+    .aip{display:flex;flex-direction:column;height:100%}
+    .aic{flex:1;overflow-y:auto;padding:10px;contain:content}
+    .aim{margin-bottom:10px;display:flex;gap:6px}
+    .aim.u{flex-direction:row-reverse}
+    .aiav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+    .aim.u .aiav{background:linear-gradient(135deg,var(--a),var(--a2))}
+    .aim.b .aiav{background:linear-gradient(135deg,var(--a2),#ec4899)}
+    .aib{max-width:72%;padding:8px 12px;border-radius:14px;font-size:11px;line-height:1.4}
+    .aim.u .aib{background:linear-gradient(135deg,var(--a),var(--a2));border-bottom-right-radius:3px}
+    .aim.b .aib{background:rgba(255,255,255,.07);border-bottom-left-radius:3px}
+    .ait{display:flex;gap:3px;padding:6px 10px}.ait span{width:5px;height:5px;background:var(--a2);border-radius:50%;animation:bn .5s infinite}.ait span:nth-child(2){animation-delay:.1s}.ait span:nth-child(3){animation-delay:.2s}
+    @keyframes bn{50%{transform:translateY(-3px)}}
+    .aii{display:flex;padding:8px;gap:6px;background:rgba(0,0,0,.25)}
+    .aii input{flex:1;padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:16px;color:var(--f);font-size:11px;outline:0}
+    .aii button{padding:8px 14px;background:linear-gradient(135deg,var(--a2),#ec4899);border:0;border-radius:16px;color:#fff;font-weight:600;font-size:10px;cursor:pointer}
+    .aii button:disabled{opacity:.4}
+    .ais{font-size:8px;padding:4px 10px;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px;opacity:.7}
+    .ais .dt{width:5px;height:5px;border-radius:50%;background:#64748b}
+    .ais .dt.l{background:var(--o);animation:p .8s infinite}.ais .dt.r{background:var(--g)}.ais .dt.e{background:var(--r)}
+
+    /* Chat - virtual scroll ready */
+    .cht{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .chm{flex:1;overflow-y:auto;padding:8px;contain:content}
+    .chm .m{margin-bottom:6px;display:flex;flex-direction:column}.chm .m.s{align-items:flex-end}
+    .chm .mt{font-size:8px;color:#64748b;margin-bottom:1px}
+    .chm .mb{max-width:72%;padding:5px 9px;background:rgba(255,255,255,.06);border-radius:10px;font-size:10px}
+    .chm .m.s .mb{background:linear-gradient(135deg,var(--a),var(--a2))}
+    .chm .mb.sys{background:0;color:#64748b;font-style:italic;font-size:8px}
+    .chi{display:flex;padding:6px;gap:4px;background:rgba(0,0,0,.25)}
+    .chi input{flex:1;padding:7px 10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:12px;color:var(--f);font-size:10px;outline:0}
+    .chi button{padding:7px 12px;background:var(--a);border:0;border-radius:12px;color:#000;font-weight:600;font-size:9px;cursor:pointer}
+
+    /* Terminal - optimized */
+    .trm{flex:1;background:rgba(0,0,0,.5);padding:8px;overflow-y:auto;font:10px/1.4 'SF Mono',monospace;contain:content}
+    .trm .l{margin-bottom:1px;white-space:pre-wrap}.trm .p{color:var(--g)}.trm .o{color:#94a3b8}.trm .e{color:var(--r)}.trm .i{color:var(--a)}
+    .tri{display:flex;padding:5px 8px;background:rgba(0,0,0,.35);gap:4px}.tri input{flex:1;background:0;border:0;color:var(--f);font:inherit;outline:0}
+
+    /* Other panels */
+    .fls,.prs,.sts{flex:1;overflow-y:auto;padding:8px;contain:content}
+    .flt{padding:5px;background:rgba(0,0,0,.2);display:flex;gap:3px}.flt input{flex:1;padding:4px 6px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:4px;color:var(--f);font-size:9px}.flt button{padding:4px 8px;background:var(--a);border:0;border-radius:4px;color:#000;font-size:8px;font-weight:600;cursor:pointer}
+    .fi{display:flex;align-items:center;gap:6px;padding:6px;background:rgba(255,255,255,.03);border-radius:5px;margin-bottom:3px;cursor:pointer;font-size:10px}.fi:hover{background:rgba(255,255,255,.06)}
+    .pc{display:flex;align-items:center;gap:8px;padding:8px;background:rgba(255,255,255,.03);border-radius:6px;margin-bottom:4px}.pc.s{border:1px solid var(--a);background:rgba(0,217,255,.04)}.pc .av{font-size:20px}.pc .pi{flex:1}.pc .pn{font-size:10px;font-weight:500}.pc .pid{font-size:8px;color:#64748b;font-family:monospace}
+    .sts .sec{margin-bottom:12px}.sts .st{font-size:8px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}.sts .si{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(255,255,255,.03);border-radius:4px;margin-bottom:3px;font-size:10px}.sts .si .v{color:var(--a);font-family:monospace;font-size:9px}.sts input{padding:4px 6px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:3px;color:var(--f);font-size:9px;width:100px}.sts button{padding:5px 10px;background:var(--a);border:0;border-radius:3px;color:#000;font-size:9px;font-weight:600;cursor:pointer}
+
+    /* Start menu */
+    .SM{position:absolute;bottom:54px;left:10px;width:220px;background:var(--gl);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.06);border-radius:10px;box-shadow:0 6px 32px rgba(0,0,0,.4);display:none;overflow:hidden;z-index:300}.SM.o{display:block}
+    .SM h{display:block;padding:10px;background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;font-size:12px;font-weight:600}
+    .SM h small{display:block;font-size:8px;opacity:.7;font-weight:400;margin-top:1px}
+    .SM .si{display:flex;align-items:center;gap:6px;padding:7px 10px;cursor:pointer;font-size:10px}.SM .si:hover{background:rgba(255,255,255,.06)}.SM .si i{font-size:14px}
+    .emp{text-align:center;padding:16px;color:#64748b;font-size:10px}
+  </style>
+</head>
+<body>
+  <div class="D" id="D"><div class="bg gpu" id="bg"></div></div>
+  <div class="SM" id="SM"><h>🌍 KonomiOS<small>v9 Optimized</small></h><div id="SMa"></div></div>
+  <div class="TB">
+    <div class="Ts" id="Ts">🌍</div>
+    <div class="Ta" id="Ta"></div>
+    <div class="tbc"><input id="tbc" placeholder="💬 mesh chat..."><button id="tbs">Send</button></div>
+    <div class="Ty"><span class="d" id="cd"></span><span id="cs">-</span><span>👥<span id="pc">0</span></span><span id="clk">--:--</span></div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // OPTIMIZED CORE - Cached selectors, event delegation, batching
+    // =========================================================================
+    const $=id=>document.getElementById(id),$$=s=>document.querySelectorAll(s);
+    const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const h=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h)e.innerHTML=h;return e};
+
+    // State
+    const S={open:new Set(),active:null,drag:null,z:10,peers:new Map(),files:new Map(),dcs:new Map(),pending:new Map(),ws:null,hash:null,room:'',llm:null,llmReady:false,llmLoading:false,aiTyping:false,aiHistory:[],bubblePool:[],maxBubbles:30};
+
+    // Identity
+    const ME={id:'-KM0001-'+[...crypto.getRandomValues(new Uint8Array(6))].map(b=>b.toString(16).padStart(2,'0')).join(''),e:'😀😎🤖👾🦊🐱🐶🦁🐼🐨🦋🌟🚀🎮💎🔥'.split(/(?=.)/u)[Math.random()*16|0]};
+    ME.n=ME.id.slice(0,10);
+
+    // App config - minified
+    const APPS={A:{n:'AI',i:'🤖',w:360,h:440,x:60,y:20},C:{n:'Chat',i:'💬',w:320,h:360,x:460,y:30},T:{n:'Term',i:'💻',w:440,h:280,x:480,y:100},F:{n:'Files',i:'📁',w:320,h:240,x:180,y:60},P:{n:'Peers',i:'👥',w:260,h:300,x:600,y:80},S:{n:'Settings',i:'⚙️',w:300,h:280,x:360,y:70}};
+
+    // Commands
+    const CMD={help:()=>'help whoami peers room ls cat write clear ai chat',whoami:()=>`${ME.e} ${ME.id}`,peers:()=>[ME.e+' '+ME.n+' (you)',...[...S.peers.values()].map(p=>p.e+' '+p.n)].join('\n'),room:()=>S.room||'N/A',ls:()=>S.files.size?[...S.files.keys()].join('\n'):'(empty)',cat:a=>{const f=S.files.get(a[0])||S.files.get('/'+a[0]);return f?f.c:'Not found'},write:a=>{if(!a[0])return'Usage: write <f> <c>';const p='/'+a[0].replace(/^\//,''),c=a.slice(1).join(' ');S.files.set(p,{c,o:ME.id});updF();bc({t:'f',p,c,o:ME.id});return'Created '+p},clear:()=>{$('trm').innerHTML='';return''},ai:()=>{O('A');return'Opening AI...'},chat:()=>{O('C');return'Opening Chat...'},neofetch:()=>`KonomiOS v9 | ${ME.e} ${ME.n} | Room: ${S.room||'N/A'} | Peers: ${S.peers.size+1}`};
+
+    // =========================================================================
+    // BUBBLE POOL - Reuse DOM elements instead of create/destroy
+    // =========================================================================
+    function getBubble(){
+      let b=S.bubblePool.find(x=>!x.active);
+      if(!b){
+        if(S.bubblePool.length>=S.maxBubbles){
+          b=S.bubblePool.shift();b.el.remove();
+        }
+        const el=h('div','bub gpu');
+        b={el,active:false};
+        S.bubblePool.push(b);
+      }
+      b.active=true;
+      return b;
+    }
+
+    function addBubble(text,emoji,self=false,ai=false){
+      const bg=$('bg');if(!bg)return;
+      const b=getBubble();
+      b.el.className='bub gpu'+(self?' s':'')+(ai?' ai':'');
+      b.el.innerHTML=`<span>${esc(emoji)}</span> ${esc(text.slice(0,45))}${text.length>45?'…':''}`;
+      b.el.style.cssText=`left:${5+Math.random()*75}%;bottom:-40px;opacity:0;transform:translateY(0)`;
+      bg.appendChild(b.el);
+
+      // Animate with RAF for smooth performance
+      let start=null,dur=35000+Math.random()*25000;
+      const animate=ts=>{
+        if(!start)start=ts;
+        const p=(ts-start)/dur;
+        if(p>=1){b.el.style.opacity='0';setTimeout(()=>{b.active=false;b.el.remove()},100);return}
+        const y=-p*window.innerHeight*1.2;
+        b.el.style.transform=`translateY(${y}px) translateX(${p*15}px)`;
+        b.el.style.opacity=p<.03?p/.03:p>.92?(1-p)/.08:'1';
+        requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    }
+
+    // =========================================================================
+    // WebLLM - Lazy load
+    // =========================================================================
+    const LLM_MODEL='SmolLM2-360M-Instruct-q4f16_1-MLC';
+
+    async function initLLM(){
+      try{
+        S.llmLoading=true;
+        updAIS('l','Loading SmolLM2...');
+        const w=await import('https://esm.run/@mlc-ai/web-llm');
+        updAIS('l','Initializing...');
+        S.llm=await w.CreateMLCEngine(LLM_MODEL,{initProgressCallback:p=>updAIS('l',`${Math.round(p.progress*100)}%`)});
+        S.llmReady=true;S.llmLoading=false;
+        updAIS('r','SmolLM2 Ready');
+        tP('LLM loaded','i');
+      }catch(e){
+        S.llmLoading=false;
+        updAIS('e','Fallback mode');
+        tP('LLM failed: '+e.message,'e');
+      }
+    }
+
+    function updAIS(s,t){
+      const el=$('ais');if(!el)return;
+      el.innerHTML=`<span class="dt ${s==='l'?'l':s==='r'?'r':'e'}"></span><span>${t}</span>`;
+    }
+
+    async function genLLM(prompt){
+      if(!S.llmReady||!S.llm)return null;
+      try{
+        const r=await S.llm.chat.completions.create({
+          messages:[{role:'system',content:'You are Kono, a helpful AI. Be concise (<80 words).'}, ...S.aiHistory.slice(-4),{role:'user',content:prompt}],
+          temperature:.7,max_tokens:120
+        });
+        return r.choices[0]?.message?.content||null;
+      }catch{return null}
+    }
+
+    // =========================================================================
+    // AI CHAT - Optimized
+    // =========================================================================
+    function addAI(text,user=false){
+      const c=$('aic'),a=$('aia');if(!c||!a)return;
+      const m=h('div','aim '+(user?'u':'b'),`<div class="aiav">${user?ME.e:'🤖'}</div><div class="aib">${esc(text).replace(/\n/g,'<br>')}</div>`);
+      c.insertBefore(m,a);
+      requestAnimationFrame(()=>a.scrollIntoView({behavior:'smooth',block:'end'}));
+      addBubble(text,user?ME.e:'🤖',user,!user);
+    }
+
+    function showTyp(s){
+      const c=$('aic'),a=$('aia'),ex=c?.querySelector('.ait');
+      if(s&&!ex){const t=h('div','aim b',`<div class="aiav">🤖</div><div class="ait"><span></span><span></span><span></span></div>`);c.insertBefore(t,a);a.scrollIntoView({behavior:'smooth',block:'end'})}
+      else if(!s&&ex)ex.parentElement.remove();
+    }
+
+    async function sendAI(){
+      const i=$('aii'),b=$('aib'),t=i?.value.trim();
+      if(!t||S.aiTyping)return;
+      i.value='';S.aiTyping=true;b.disabled=true;
+      addAI(t,true);S.aiHistory.push({role:'user',content:t});
+      showTyp(true);
+
+      let r=S.llmReady?await genLLM(t):null;
+      if(!r){await new Promise(x=>setTimeout(x,400));r=S.llmLoading?"I'm still loading...":"How can I help?";}
+
+      showTyp(false);addAI(r);S.aiHistory.push({role:'assistant',content:r});
+      S.aiTyping=false;b.disabled=false;i.focus();
+    }
+
+    // =========================================================================
+    // CHAT PANEL - Batched updates
+    // =========================================================================
+    let chatQueue=[],chatFlush=null;
+
+    function queueChat(id,n,e,t,sys){
+      chatQueue.push({id,n,e,t,sys});
+      if(!chatFlush)chatFlush=requestAnimationFrame(flushChat);
+    }
+
+    function flushChat(){
+      const c=$('chm'),a=$('cha');if(!c||!a||!chatQueue.length){chatFlush=null;return}
+      const f=document.createDocumentFragment();
+      for(const{id,n,e,t,sys}of chatQueue){
+        const me=id===ME.id;
+        const m=h('div','m'+(me?' s':''),sys?`<div class="mb sys">${esc(t)}</div>`:`<div class="mt">${esc(e)} ${esc(n)}</div><div class="mb">${esc(t)}</div>`);
+        f.appendChild(m);
+      }
+      c.insertBefore(f,a);
+      a.scrollIntoView({behavior:'smooth',block:'end'});
+      chatQueue=[];chatFlush=null;
+    }
+
+    function sendChat(){const i=$('chi'),t=i?.value.trim();if(!t)return;i.value='';bc({t:'c',m:t});queueChat(ME.id,ME.n,ME.e,t)}
+    function sendTB(){const i=$('tbc'),t=i?.value.trim();if(!t)return;i.value='';bc({t:'c',m:t});queueChat(ME.id,ME.n,ME.e,t);tP(`${ME.e}: ${t}`,'p')}
+
+    // =========================================================================
+    // TERMINAL - Throttled output
+    // =========================================================================
+    let trmQueue=[],trmFlush=null;
+
+    function tP(t,c='o'){
+      trmQueue.push({t,c});
+      if(!trmFlush)trmFlush=requestAnimationFrame(flushTrm);
+    }
+
+    function flushTrm(){
+      const trm=$('trm');if(!trm||!trmQueue.length){trmFlush=null;return}
+      const f=document.createDocumentFragment();
+      for(const{t,c}of trmQueue)f.appendChild(h('div','l '+c,esc(t)));
+      trm.appendChild(f);
+      trm.scrollTop=trm.scrollHeight;
+      trmQueue=[];trmFlush=null;
+    }
+
+    function runCmd(){const ci=$('ci'),v=ci.value.trim();if(!v)return;ci.value='';tP('$ '+v,'p');const[c,...a]=v.split(' ');const r=CMD[c]?.(a);if(r)tP(r);else if(c)tP('Unknown: '+c,'e')}
+
+    // =========================================================================
+    // FILES & PEERS
+    // =========================================================================
+    function updF(){
+      const l=$('fll');if(!l)return;
+      if(!S.files.size){l.innerHTML='<div class="emp">No files</div>';return}
+      l.innerHTML=[...S.files].map(([p,f])=>`<div class="fi" data-f="${esc(p)}"><span>📄</span><span style="flex:1">${esc(p)}</span><span style="opacity:.5">${f.c?.length||0}b</span></div>`).join('');
+    }
+
+    function updP(){
+      const g=$('prs');if(!g)return;
+      g.innerHTML=`<div class="pc s"><div class="av">${ME.e}</div><div class="pi"><div class="pn">${esc(ME.n)} (you)</div><div class="pid">${ME.id.slice(0,12)}…</div></div></div>`+[...S.peers].map(([id,p])=>`<div class="pc"><div class="av">${esc(p.e)}</div><div class="pi"><div class="pn">${esc(p.n)}</div><div class="pid">${id.slice(0,12)}…</div></div></div>`).join('');
+      $('pc').textContent=S.peers.size+1;
+    }
+
+    // =========================================================================
+    // WINDOW MANAGER - Event delegation
+    // =========================================================================
+    window.O=k=>{const w=$('W'+k);if(!w)return;w.classList.add('o');S.open.add(k);F(k);updTB()};
+    window.X=k=>{const w=$('W'+k);if(!w)return;w.classList.remove('o','m');S.open.delete(k);if(S.active===k)S.active=null;updTB()};
+    window.N=k=>$('W'+k)?.classList.remove('o');
+    window.M=k=>$('W'+k)?.classList.toggle('m');
+    window.F=k=>{for(const a of Object.keys(APPS))$('W'+a)?.classList.remove('a');const w=$('W'+k);if(w){w.classList.add('a');w.style.zIndex=++S.z}S.active=k;updTB()};
+    window.D=(e,k)=>{if(e.target.tagName==='B')return;const w=$('W'+k);if(w.classList.contains('m'))return;S.drag={w,sx:e.clientX,sy:e.clientY,ox:w.offsetLeft,oy:w.offsetTop};F(k)};
+    window.SM=()=>$('SM').classList.toggle('o');
+    window.RC=()=>join($('ri')?.value||'konomi-global');
+
+    document.addEventListener('mousemove',e=>{if(!S.drag)return;S.drag.w.style.left=(S.drag.ox+e.clientX-S.drag.sx)+'px';S.drag.w.style.top=(S.drag.oy+e.clientY-S.drag.sy)+'px'});
+    document.addEventListener('mouseup',()=>S.drag=null);
+    document.addEventListener('click',e=>{if(!e.target.closest('.SM')&&!e.target.closest('.Ts'))$('SM').classList.remove('o')});
+
+    function updTB(){$('Ta').innerHTML=[...S.open].map(k=>`<div class="${S.active===k?'a':''}" onclick="O('${k}')">${APPS[k]?.i||'🌐'} ${APPS[k]?.n||'View'}</div>`).join('')}
+
+    // =========================================================================
+    // P2P - Connection pooling, batching
+    // =========================================================================
+    const TRK='wss://tracker.openwebtorrent.com',ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+
+    async function h2(n){const d=new TextEncoder().encode('konomi:'+n);const h=await crypto.subtle.digest('SHA-1',d);return[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+
+    async function mkOff(n){
+      const offs=[];
+      for(let i=0;i<n;i++){
+        const pc=new RTCPeerConnection(ICE),dc=pc.createDataChannel('m'),oid=crypto.randomUUID();
+        await new Promise(r=>{pc.onicecandidate=e=>{if(!e.candidate)r()};pc.createOffer().then(o=>pc.setLocalDescription(o))});
+        offs.push({offer_id:oid,offer:{type:'offer',sdp:pc.localDescription.sdp}});
+        S.pending.set(oid,{pc,dc});setupPC(pc,dc,oid);
+      }
+      return offs;
+    }
+
+    function setupPC(pc,dc,id){
+      dc.onopen=()=>{
+        S.dcs.set(id,dc);
+        if(!S.peers.has(id)){S.peers.set(id,{n:id.slice(0,10),e:'🌐'});updP();const m='🌐 '+id.slice(0,8)+' joined';tP(m,'i');addBubble(m,'🌐');queueChat(null,null,null,m,true)}
+        for(const[p,f]of S.files)dc.send(JSON.stringify({t:'f',p,c:f.c,o:f.o}));
+        dc.send(JSON.stringify({t:'a',n:ME.n,e:ME.e}));
+      };
+      dc.onclose=()=>{S.dcs.delete(id);if(S.peers.has(id)){const p=S.peers.get(id);const m=p.e+' '+p.n+' left';tP(m,'i');addBubble(m,p.e);queueChat(null,null,null,m,true);S.peers.delete(id);updP()}};
+      dc.onmessage=e=>{
+        try{
+          const m=JSON.parse(e.data);if(m.sid===ME.id)return;
+          if(m.t==='c'){const p=S.peers.get(m.sid)||{n:m.sid?.slice(0,10),e:'🌐'};addBubble(m.m,p.e);queueChat(m.sid,p.n,p.e,m.m);tP(`${p.e} ${p.n}: ${m.m}`,'o')}
+          else if(m.t==='f'){S.files.set(m.p,{c:m.c,o:m.o});updF()}
+          else if(m.t==='a'&&!S.peers.has(m.sid)){S.peers.set(m.sid,{n:m.n||m.sid?.slice(0,10),e:m.e||'🌐'});updP()}
+        }catch{}
+      };
+    }
+
+    async function hOff(m){
+      const pc=new RTCPeerConnection(ICE);
+      pc.ondatachannel=e=>setupPC(pc,e.channel,m.peer_id);
+      await pc.setRemoteDescription(m.offer);
+      const ans=await pc.createAnswer();await pc.setLocalDescription(ans);
+      await new Promise(r=>{if(pc.iceGatheringState==='complete')r();else pc.onicecandidate=e=>{if(!e.candidate)r()}});
+      S.ws.send(JSON.stringify({action:'announce',info_hash:S.hash,peer_id:ME.id,to_peer_id:m.peer_id,answer:{type:'answer',sdp:pc.localDescription.sdp},offer_id:m.offer_id}));
+    }
+
+    async function hAns(m){const p=S.pending.get(m.offer_id);if(p)await p.pc.setRemoteDescription(m.answer)}
+
+    function bc(m){m.sid=ME.id;const d=JSON.stringify(m);for(const dc of S.dcs.values())if(dc.readyState==='open')dc.send(d);if(m.t==='c')addBubble(m.m,ME.e,true)}
+
+    function setSt(s){const d=$('cd'),cs=$('cs');d.className='d';cs.textContent=s===1?'Online':s===2?'…':'Offline';if(s===1)d.classList.add('on');else if(s===2)d.classList.add('c')}
+
+    async function join(r){
+      if(S.ws)S.ws.close();S.dcs.clear();S.pending.clear();S.peers.clear();
+      S.room=r;S.hash=await h2(r);setSt(2);tP('Joining: '+r,'i');
+      const offs=await mkOff(5);
+      S.ws=new WebSocket(TRK);
+      S.ws.onopen=()=>{setSt(1);tP('Connected!','i');addBubble('Connected to '+r,'🌍');queueChat(null,null,null,'Connected to '+r,true);S.ws.send(JSON.stringify({action:'announce',info_hash:S.hash,peer_id:ME.id,numwant:10,uploaded:0,downloaded:0,left:1,offers:offs}))};
+      S.ws.onmessage=async e=>{try{const m=JSON.parse(e.data);if(m.offer&&m.peer_id!==ME.id)await hOff(m);if(m.answer&&m.offer_id)await hAns(m);if(m.interval)setTimeout(async()=>{if(S.ws?.readyState===1){const o=await mkOff(5);S.ws.send(JSON.stringify({action:'announce',info_hash:S.hash,peer_id:ME.id,numwant:10,offers:o}))}},m.interval*1000)}catch{}};
+      S.ws.onerror=()=>{tP('Error','e');setSt(0)};
+      S.ws.onclose=()=>{tP('Reconnecting…','i');setSt(2);setTimeout(()=>join(S.room),5000)};
+      updP();updF();
+    }
+
+    // =========================================================================
+    // RENDER - Template generation
+    // =========================================================================
+    const TPL={
+      win:(k,a)=>`<div class="W" id="W${k}" style="width:${a.w}px;height:${a.h}px;top:${a.y}px;left:${a.x}px"><div class="Wh" onmousedown="D(event,'${k}')"><div class="Wc"><b class="c" onclick="X('${k}')"></b><b class="n" onclick="N('${k}')"></b><b class="x" onclick="M('${k}')"></b></div><span class="Wt">${a.i} ${a.n}</span></div><div class="Wb" id="B${k}"></div></div>`,
+      icon:(k,a)=>`<div class="di" onclick="O('${k}')"><i>${a.i}</i><span>${a.n}</span></div>`,
+      sm:(k,a)=>`<div class="si" onclick="O('${k}');SM()"><i>${a.i}</i>${a.n}</div>`,
+      A:()=>`<div class="aip"><div class="ais" id="ais"><span class="dt l"></span><span>Loading...</span></div><div class="aic" id="aic"><div id="aia"></div></div><div class="aii"><input id="aii" placeholder="Ask Kono..."><button id="aib">Send</button></div></div>`,
+      C:()=>`<div class="cht"><div class="chm" id="chm"><div id="cha"></div></div><div class="chi"><input id="chi" placeholder="message..."><button id="chb">Send</button></div></div>`,
+      T:()=>`<div class="trm" id="trm"></div><div class="tri"><span style="color:var(--g)">❯</span><input id="ci" placeholder="cmd..."></div>`,
+      F:()=>`<div class="fls"><div class="flt"><input id="nfn" placeholder="file.txt"><button id="nfb">+ New</button></div><div id="fll" class="fll"><div class="emp">No files</div></div></div>`,
+      P:()=>`<div class="prs" id="prs"></div>`,
+      S:()=>`<div class="sts"><div class="sec"><div class="st">Network</div><div class="si"><span>Room</span><input id="ri" value="konomi-global"></div><div class="si"><span>Status</span><span class="v" id="cst">-</span></div><div class="si"><button onclick="RC()">Reconnect</button></div></div><div class="sec"><div class="st">Identity</div><div class="si"><span>ID</span><span class="v">${ME.id.slice(0,12)}…</span></div><div class="si"><span>Avatar</span><span class="v">${ME.e}</span></div></div><div class="sec"><div class="st">Version</div><div class="si"><span>KonomiOS</span><span class="v">v9</span></div></div></div>`
+    };
+
+    function init(){
+      let icons='',wins='',sm='';
+      for(const[k,a]of Object.entries(APPS)){icons+=TPL.icon(k,a);wins+=TPL.win(k,a);sm+=TPL.sm(k,a)}
+      $('D').innerHTML=`<div class="bg gpu" id="bg"></div><div class="DI">${icons}</div>${wins}`;
+      $('SMa').innerHTML=sm;
+      for(const k of Object.keys(APPS))$('B'+k).innerHTML=TPL[k]();
+
+      // Event delegation
+      document.addEventListener('keydown',e=>{
+        if(e.target.id==='ci'&&e.key==='Enter')runCmd();
+        if(e.target.id==='chi'&&e.key==='Enter')sendChat();
+        if(e.target.id==='aii'&&e.key==='Enter')sendAI();
+        if(e.target.id==='tbc'&&e.key==='Enter')sendTB();
+      });
+      document.addEventListener('click',e=>{
+        if(e.target.id==='chb')sendChat();
+        if(e.target.id==='aib')sendAI();
+        if(e.target.id==='tbs')sendTB();
+        if(e.target.id==='nfb'){const n=$('nfn')?.value.trim();if(!n)return;$('nfn').value='';const c=prompt('Content:')||'',p='/'+n.replace(/^\//,'');S.files.set(p,{c,o:ME.id});updF();bc({t:'f',p,c,o:ME.id});tP('Created '+p,'i')}
+        if(e.target.closest('.fi')){const f=e.target.closest('.fi').dataset.f;if(f){tP('$ cat '+f,'p');tP(S.files.get(f)?.c||'');O('T')}}
+      });
+      $('Ts').onclick=SM;
+
+      updP();updF();
+      tP('KonomiOS v9 - Optimized','i');
+      tP('GPU accel | Pooled bubbles | Batched DOM','i');
+
+      O('A');O('C');
+      setTimeout(()=>join($('ri')?.value||'konomi-global'),400);
+      setTimeout(()=>initLLM(),800);
+      setTimeout(()=>addAI("Hey! I'm Kono. Loading my brain...",false),1200);
+      setInterval(()=>$('clk').textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),1000);
+    }
+
+    // Storage
+    try{const s=localStorage.getItem('kos9-files');if(s)for(const[k,v]of JSON.parse(s))S.files.set(k,v)}catch{}
+    setInterval(()=>{try{localStorage.setItem('kos9-files',JSON.stringify([...S.files]))}catch{}},5000);
+
+    init();
+  </script>
+</body>
+</html>
