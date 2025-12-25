@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPLC - Konomi PLC Editor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #1a1a2e;
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .app { display: flex; height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: rgba(0, 0, 0, 0.4);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-header h1 { font-size: 18px; color: #22c55e; }
+
+        .section { padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .section-title { font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 10px; }
+
+        .element-palette { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .element {
+            padding: 10px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 6px;
+            text-align: center;
+            cursor: grab;
+            transition: all 0.15s;
+        }
+        .element:hover { background: rgba(34, 197, 94, 0.2); }
+        .element-icon { font-size: 20px; margin-bottom: 4px; }
+        .element-name { font-size: 10px; color: #94a3b8; }
+
+        .io-list { display: flex; flex-direction: column; gap: 4px; }
+        .io-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .io-item:hover { background: rgba(255, 255, 255, 0.05); }
+        .io-status { width: 10px; height: 10px; border-radius: 50%; }
+        .io-status.on { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+        .io-status.off { background: #374151; }
+        .io-name { flex: 1; font-family: monospace; }
+        .io-addr { color: #64748b; font-size: 10px; }
+
+        /* Main Area */
+        .main { flex: 1; display: flex; flex-direction: column; }
+
+        .toolbar {
+            padding: 10px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .btn {
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover { background: rgba(255, 255, 255, 0.15); }
+        .btn-run { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+        .btn-stop { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .toolbar-sep { width: 1px; height: 24px; background: rgba(255, 255, 255, 0.1); margin: 0 8px; }
+        .mode-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .mode-edit { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .mode-run { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+
+        /* Ladder Editor */
+        .ladder-container {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            background: linear-gradient(to right, rgba(34, 197, 94, 0.03) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(34, 197, 94, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .ladder-rung {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .rung-number {
+            position: absolute;
+            left: -30px;
+            font-size: 10px;
+            color: #64748b;
+        }
+        .power-rail {
+            width: 4px;
+            height: 60px;
+            background: #22c55e;
+            border-radius: 2px;
+        }
+        .rail-left { margin-right: 10px; }
+        .rail-right { margin-left: 10px; }
+
+        .rung-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            min-height: 60px;
+        }
+        .wire {
+            height: 3px;
+            background: #22c55e;
+            flex: 1;
+            min-width: 20px;
+        }
+        .wire.powered { box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+
+        .ladder-element {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #22c55e;
+            border-radius: 4px;
+            cursor: pointer;
+            min-width: 80px;
+            transition: all 0.15s;
+        }
+        .ladder-element:hover { background: rgba(34, 197, 94, 0.1); }
+        .ladder-element.active { border-color: #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+        .ladder-element.powered { background: rgba(34, 197, 94, 0.2); box-shadow: 0 0 10px rgba(34, 197, 94, 0.3); }
+
+        .elem-symbol { font-size: 24px; font-family: monospace; font-weight: bold; }
+        .elem-label { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+        .elem-addr { font-size: 9px; color: #64748b; font-family: monospace; }
+
+        /* Contact symbols */
+        .contact-no .elem-symbol::before { content: "─┤ ├─"; }
+        .contact-nc .elem-symbol::before { content: "─┤/├─"; }
+        .coil .elem-symbol::before { content: "─( )─"; }
+        .coil-set .elem-symbol::before { content: "─(S)─"; }
+        .coil-reset .elem-symbol::before { content: "─(R)─"; }
+        .timer .elem-symbol::before { content: "─[T]─"; }
+        .counter .elem-symbol::before { content: "─[C]─"; }
+        .compare .elem-symbol::before { content: "─[>]─"; }
+
+        /* Branch */
+        .branch {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            border: 1px dashed rgba(34, 197, 94, 0.3);
+            border-radius: 4px;
+        }
+        .branch-line { display: flex; align-items: center; }
+
+        /* Properties Panel */
+        .properties {
+            width: 280px;
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .prop-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .prop-group { margin-bottom: 16px; }
+        .prop-label { font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+        .prop-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        .prop-input:focus { outline: none; border-color: #22c55e; }
+
+        .prop-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .prop-row > * { flex: 1; }
+
+        .watch-value {
+            padding: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .watch-current { font-size: 32px; font-weight: 700; color: #22c55e; }
+        .watch-label { font-size: 11px; color: #64748b; }
+
+        /* Status Bar */
+        .statusbar {
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .status-item { display: flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.online { background: #22c55e; }
+        .status-dot.offline { background: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span style="font-size: 24px;">⚡</span>
+                <h1>KPLC</h1>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Ladder Elements</div>
+                <div class="element-palette">
+                    <div class="element" draggable="true" data-type="contact-no">
+                        <div class="element-icon">┤ ├</div>
+                        <div class="element-name">Contact NO</div>
+                    </div>
+                    <div class="element" draggable="true" data-type="contact-nc">
+                        <div class="element-icon">┤/├</div>
+                        <div class="element-name">Contact NC</div>
+                    </div>
+                    <div class="element" draggable="true" data-type="coil">
+                        <div class="element-icon">( )</div>
+                        <div class="element-name">Coil</div>
+                    </div>
+                    <div class="element" draggable="true" data-type="coil-set">
+                        <div class="element-icon">(S)</div>
+                        <div class="element-name">Set Coil</div>
+                    </div>
+                    <div class="element" draggable="true" data-type="coil-reset">
+                        <div class="element-icon">(R)</div>
+                        <div class="element-name">Reset Coil</div>
+                    </div>
+                    <div class="element" draggable="true" data-type="timer">
+                        <div class="element-icon">[T]</div>
+                        <div class="element-name">Timer</div>
+                    </div>
+                    <div class="element" draggable="true" data-type="counter">
+                        <div class="element-icon">[C]</div>
+                        <div class="element-name">Counter</div>
+                    </div>
+                    <div class="element" draggable="true" data-type="compare">
+                        <div class="element-icon">[>]</div>
+                        <div class="element-name">Compare</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" style="flex: 1; overflow-y: auto;">
+                <div class="section-title">I/O Monitor</div>
+                <div class="io-list">
+                    <div class="io-item" onclick="toggleIO('X0')">
+                        <span class="io-status on" id="io-X0"></span>
+                        <span class="io-name">Start Button</span>
+                        <span class="io-addr">X0</span>
+                    </div>
+                    <div class="io-item" onclick="toggleIO('X1')">
+                        <span class="io-status off" id="io-X1"></span>
+                        <span class="io-name">Stop Button</span>
+                        <span class="io-addr">X1</span>
+                    </div>
+                    <div class="io-item" onclick="toggleIO('X2')">
+                        <span class="io-status off" id="io-X2"></span>
+                        <span class="io-name">Sensor 1</span>
+                        <span class="io-addr">X2</span>
+                    </div>
+                    <div class="io-item" onclick="toggleIO('X3')">
+                        <span class="io-status off" id="io-X3"></span>
+                        <span class="io-name">Sensor 2</span>
+                        <span class="io-addr">X3</span>
+                    </div>
+                    <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 8px 0;"></div>
+                    <div class="io-item">
+                        <span class="io-status on" id="io-Y0"></span>
+                        <span class="io-name">Motor 1</span>
+                        <span class="io-addr">Y0</span>
+                    </div>
+                    <div class="io-item">
+                        <span class="io-status off" id="io-Y1"></span>
+                        <span class="io-name">Motor 2</span>
+                        <span class="io-addr">Y1</span>
+                    </div>
+                    <div class="io-item">
+                        <span class="io-status off" id="io-Y2"></span>
+                        <span class="io-name">Valve 1</span>
+                        <span class="io-addr">Y2</span>
+                    </div>
+                    <div class="io-item">
+                        <span class="io-status on" id="io-Y3"></span>
+                        <span class="io-name">Lamp</span>
+                        <span class="io-addr">Y3</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="toolbar">
+                <button class="btn btn-run" id="runBtn" onclick="toggleRun()">▶ Run</button>
+                <button class="btn btn-stop" id="stopBtn" onclick="toggleRun()" style="display: none;">⏹ Stop</button>
+                <span class="mode-badge mode-edit" id="modeBadge">EDIT MODE</span>
+                <div class="toolbar-sep"></div>
+                <button class="btn" onclick="addRung()">+ Rung</button>
+                <button class="btn" onclick="addBranch()">⑂ Branch</button>
+                <div class="toolbar-sep"></div>
+                <button class="btn">📋 Copy</button>
+                <button class="btn">📥 Paste</button>
+                <button class="btn">🗑️ Delete</button>
+                <div style="flex: 1;"></div>
+                <button class="btn">💾 Save</button>
+                <button class="btn">📤 Export</button>
+            </div>
+
+            <div class="ladder-container">
+                <!-- Rung 1: Start/Stop Circuit -->
+                <div class="ladder-rung">
+                    <span class="rung-number">001</span>
+                    <div class="power-rail rail-left"></div>
+                    <div class="rung-content">
+                        <div class="wire powered"></div>
+                        <div class="ladder-element contact-no powered" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Start</div>
+                            <div class="elem-addr">X0</div>
+                        </div>
+                        <div class="wire powered"></div>
+                        <div class="ladder-element contact-nc powered" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Stop</div>
+                            <div class="elem-addr">X1</div>
+                        </div>
+                        <div class="wire powered"></div>
+                        <div class="ladder-element coil powered" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Motor1</div>
+                            <div class="elem-addr">Y0</div>
+                        </div>
+                        <div class="wire powered"></div>
+                    </div>
+                    <div class="power-rail rail-right"></div>
+                </div>
+
+                <!-- Rung 2: Sensor Logic -->
+                <div class="ladder-rung">
+                    <span class="rung-number">002</span>
+                    <div class="power-rail rail-left"></div>
+                    <div class="rung-content">
+                        <div class="wire"></div>
+                        <div class="ladder-element contact-no" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Sensor1</div>
+                            <div class="elem-addr">X2</div>
+                        </div>
+                        <div class="wire"></div>
+                        <div class="ladder-element contact-no" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Sensor2</div>
+                            <div class="elem-addr">X3</div>
+                        </div>
+                        <div class="wire"></div>
+                        <div class="ladder-element coil" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Motor2</div>
+                            <div class="elem-addr">Y1</div>
+                        </div>
+                        <div class="wire"></div>
+                    </div>
+                    <div class="power-rail rail-right"></div>
+                </div>
+
+                <!-- Rung 3: Timer -->
+                <div class="ladder-rung">
+                    <span class="rung-number">003</span>
+                    <div class="power-rail rail-left"></div>
+                    <div class="rung-content">
+                        <div class="wire powered"></div>
+                        <div class="ladder-element contact-no powered" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Motor1</div>
+                            <div class="elem-addr">Y0</div>
+                        </div>
+                        <div class="wire powered"></div>
+                        <div class="ladder-element timer active" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Delay</div>
+                            <div class="elem-addr">T0</div>
+                        </div>
+                        <div class="wire"></div>
+                    </div>
+                    <div class="power-rail rail-right"></div>
+                </div>
+
+                <!-- Rung 4: Timer Output -->
+                <div class="ladder-rung">
+                    <span class="rung-number">004</span>
+                    <div class="power-rail rail-left"></div>
+                    <div class="rung-content">
+                        <div class="wire powered"></div>
+                        <div class="ladder-element contact-no powered" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">T0.DN</div>
+                            <div class="elem-addr">T0</div>
+                        </div>
+                        <div class="wire powered"></div>
+                        <div class="ladder-element coil powered" onclick="selectElement(this)">
+                            <div class="elem-symbol"></div>
+                            <div class="elem-label">Lamp</div>
+                            <div class="elem-addr">Y3</div>
+                        </div>
+                        <div class="wire powered"></div>
+                    </div>
+                    <div class="power-rail rail-right"></div>
+                </div>
+            </div>
+
+            <div class="statusbar">
+                <div class="status-item">
+                    <span class="status-dot online"></span>
+                    <span>PLC Connected</span>
+                </div>
+                <div class="status-item">
+                    <span>Scan: 10ms</span>
+                    <span>•</span>
+                    <span>4 rungs</span>
+                    <span>•</span>
+                    <span>8 I/O</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="properties">
+            <div class="prop-title">
+                <span>⏱️</span>
+                <span>Timer Properties</span>
+            </div>
+
+            <div class="prop-group">
+                <div class="prop-label">Address</div>
+                <input type="text" class="prop-input" value="T0">
+            </div>
+
+            <div class="prop-group">
+                <div class="prop-label">Description</div>
+                <input type="text" class="prop-input" value="Start Delay Timer">
+            </div>
+
+            <div class="prop-row">
+                <div class="prop-group">
+                    <div class="prop-label">Type</div>
+                    <select class="prop-input">
+                        <option>TON (On-Delay)</option>
+                        <option>TOF (Off-Delay)</option>
+                        <option>RTO (Retentive)</option>
+                    </select>
+                </div>
+                <div class="prop-group">
+                    <div class="prop-label">Time Base</div>
+                    <select class="prop-input">
+                        <option>1ms</option>
+                        <option selected>10ms</option>
+                        <option>100ms</option>
+                        <option>1s</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="prop-group">
+                <div class="prop-label">Preset Value</div>
+                <input type="number" class="prop-input" value="500">
+            </div>
+
+            <div class="watch-value">
+                <div class="watch-current" id="timerValue">3.2s</div>
+                <div class="watch-label">Current Value</div>
+            </div>
+
+            <div style="margin-top: 16px;">
+                <div class="prop-label">Status Bits</div>
+                <div style="display: flex; gap: 12px; margin-top: 8px;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span class="io-status on"></span>
+                        <span style="font-size: 11px;">EN</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span class="io-status on"></span>
+                        <span style="font-size: 11px;">TT</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span class="io-status off"></span>
+                        <span style="font-size: 11px;">DN</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let ioState = { X0: true, X1: false, X2: false, X3: false, Y0: true, Y1: false, Y2: false, Y3: true };
+        let timerValue = 3.2;
+
+        function toggleRun() {
+            isRunning = !isRunning;
+            document.getElementById('runBtn').style.display = isRunning ? 'none' : 'flex';
+            document.getElementById('stopBtn').style.display = isRunning ? 'flex' : 'none';
+            document.getElementById('modeBadge').className = isRunning ? 'mode-badge mode-run' : 'mode-badge mode-edit';
+            document.getElementById('modeBadge').textContent = isRunning ? 'RUN MODE' : 'EDIT MODE';
+
+            if (isRunning) {
+                runScan();
+            }
+        }
+
+        function runScan() {
+            if (!isRunning) return;
+
+            // Simulate timer
+            timerValue += 0.1;
+            if (timerValue > 5) timerValue = 0;
+            document.getElementById('timerValue').textContent = timerValue.toFixed(1) + 's';
+
+            setTimeout(runScan, 100);
+        }
+
+        function toggleIO(addr) {
+            ioState[addr] = !ioState[addr];
+            const el = document.getElementById('io-' + addr);
+            el.className = 'io-status ' + (ioState[addr] ? 'on' : 'off');
+        }
+
+        function selectElement(el) {
+            document.querySelectorAll('.ladder-element').forEach(e => e.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function addRung() {
+            alert('Add new rung at end of program');
+        }
+
+        function addBranch() {
+            alert('Add parallel branch to selected element');
+        }
+
+        // Drag and drop
+        document.querySelectorAll('.element').forEach(el => {
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('type', el.dataset.type);
+            });
+        });
+    </script>
+</body>
+</html>

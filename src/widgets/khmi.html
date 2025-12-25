@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KHMI - Konomi HMI Display</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0a0a15;
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .app { height: 100vh; display: flex; flex-direction: column; }
+
+        /* Header */
+        .hmi-header {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #1e3a5f, #0f2744);
+            border-bottom: 2px solid #3b82f6;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .hmi-logo { display: flex; align-items: center; gap: 8px; }
+        .hmi-logo span { font-size: 20px; }
+        .hmi-logo h1 { font-size: 16px; color: #60a5fa; }
+        .hmi-nav { display: flex; gap: 4px; flex: 1; }
+        .nav-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 4px;
+            color: #93c5fd;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .nav-btn.active { background: rgba(59, 130, 246, 0.3); color: #fff; }
+        .nav-btn:hover { background: rgba(59, 130, 246, 0.2); }
+        .hmi-status { display: flex; align-items: center; gap: 16px; font-size: 12px; }
+        .status-item { display: flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.good { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+        .status-dot.warn { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
+        .status-dot.alarm { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Main HMI Display */
+        .hmi-main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 16px;
+            padding: 16px;
+            background: linear-gradient(180deg, #0a0f1a 0%, #0f1729 100%);
+        }
+
+        /* Process View */
+        .process-view {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .process-title {
+            font-size: 14px;
+            color: #60a5fa;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Equipment Symbols */
+        .equipment {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+        .equipment:hover { filter: brightness(1.2); }
+
+        .tank {
+            width: 80px;
+            height: 120px;
+            background: linear-gradient(180deg, #1e3a5f 0%, #0f2744 100%);
+            border: 3px solid #3b82f6;
+            border-radius: 8px 8px 20px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .tank-level {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, #22d3ee, #0891b2);
+            transition: height 0.5s;
+        }
+        .tank-label {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 8px;
+            text-align: center;
+        }
+        .tank-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #22d3ee;
+        }
+
+        .pump {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #1e3a5f, #0f2744);
+            border: 3px solid #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .pump.running { border-color: #22c55e; animation: spin 2s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .valve {
+            width: 40px;
+            height: 40px;
+            background: #1e3a5f;
+            border: 2px solid #3b82f6;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .valve.open { border-color: #22c55e; background: rgba(34, 197, 94, 0.2); }
+        .valve.closed { border-color: #ef4444; background: rgba(239, 68, 68, 0.2); }
+        .valve-icon { transform: rotate(-45deg); font-size: 16px; }
+
+        .pipe {
+            position: absolute;
+            background: #3b82f6;
+            border-radius: 3px;
+        }
+        .pipe.horizontal { height: 6px; }
+        .pipe.vertical { width: 6px; }
+        .pipe.flowing { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.5); }
+
+        .motor {
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(180deg, #374151, #1f2937);
+            border: 2px solid #6b7280;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .motor.running { border-color: #22c55e; color: #22c55e; }
+
+        /* Gauges */
+        .gauge {
+            width: 100px;
+            height: 100px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #3b82f6;
+            border-radius: 50%;
+            position: relative;
+        }
+        .gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .gauge-num { font-size: 20px; font-weight: 700; color: #22d3ee; }
+        .gauge-unit { font-size: 10px; color: #64748b; }
+        .gauge-label { font-size: 9px; color: #94a3b8; margin-top: 4px; }
+        .gauge-arc {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            bottom: 5px;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: #22d3ee;
+            border-right-color: #22d3ee;
+        }
+
+        /* Trend Mini */
+        .trend-mini {
+            height: 60px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .trend-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .panel-card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .panel-title {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .control-btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .control-btn.start { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+        .control-btn.stop { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+        .control-btn.auto { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
+        .control-btn:hover { transform: scale(1.02); }
+        .control-btn:active { transform: scale(0.98); }
+
+        .setpoint-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .setpoint-label { font-size: 12px; color: #94a3b8; flex: 1; }
+        .setpoint-input {
+            width: 80px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 4px;
+            color: #22d3ee;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .setpoint-unit { font-size: 11px; color: #64748b; width: 30px; }
+
+        /* Alarm List */
+        .alarm-list { display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; }
+        .alarm-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .alarm-item.warning { background: rgba(245, 158, 11, 0.1); border-color: #f59e0b; }
+        .alarm-time { color: #64748b; }
+        .alarm-msg { flex: 1; }
+        .alarm-ack { padding: 2px 8px; background: rgba(255,255,255,0.1); border: none; border-radius: 3px; color: #fff; font-size: 10px; cursor: pointer; }
+
+        /* Footer */
+        .hmi-footer {
+            padding: 6px 16px;
+            background: linear-gradient(135deg, #1e3a5f, #0f2744);
+            border-top: 1px solid rgba(59, 130, 246, 0.3);
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="hmi-header">
+            <div class="hmi-logo">
+                <span>🖥️</span>
+                <h1>KHMI</h1>
+            </div>
+            <div class="hmi-nav">
+                <button class="nav-btn active">Overview</button>
+                <button class="nav-btn">Tank Farm</button>
+                <button class="nav-btn">Pumps</button>
+                <button class="nav-btn">Trends</button>
+                <button class="nav-btn">Alarms</button>
+            </div>
+            <div class="hmi-status">
+                <div class="status-item">
+                    <span class="status-dot good"></span>
+                    <span>PLC Online</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot alarm"></span>
+                    <span>2 Alarms</span>
+                </div>
+                <div class="status-item" id="clock">10:42:15</div>
+            </div>
+        </div>
+
+        <div class="hmi-main">
+            <div class="process-view">
+                <div class="process-title">Process Overview - Line 01</div>
+
+                <!-- Pipes -->
+                <div class="pipe horizontal flowing" style="left: 130px; top: 180px; width: 100px;"></div>
+                <div class="pipe horizontal flowing" style="left: 280px; top: 180px; width: 80px;"></div>
+                <div class="pipe horizontal" style="left: 410px; top: 180px; width: 100px;"></div>
+                <div class="pipe horizontal" style="left: 560px; top: 180px; width: 80px;"></div>
+                <div class="pipe vertical flowing" style="left: 130px; top: 180px; height: 60px;"></div>
+
+                <!-- Tank 1 -->
+                <div class="equipment" style="left: 50px; top: 100px;">
+                    <div class="tank">
+                        <div class="tank-level" id="tank1Level" style="height: 75%;"></div>
+                    </div>
+                    <div class="tank-label">Feed Tank</div>
+                    <div class="tank-value"><span id="tank1Val">75</span>%</div>
+                </div>
+
+                <!-- Pump 1 -->
+                <div class="equipment" style="left: 205px; top: 155px;">
+                    <div class="pump running" id="pump1">⟳</div>
+                    <div class="tank-label">P-101</div>
+                </div>
+
+                <!-- Valve 1 -->
+                <div class="equipment" style="left: 340px; top: 160px;">
+                    <div class="valve open" id="valve1">
+                        <span class="valve-icon">◇</span>
+                    </div>
+                    <div class="tank-label" style="margin-top: 12px;">V-101</div>
+                </div>
+
+                <!-- Tank 2 -->
+                <div class="equipment" style="left: 480px; top: 100px;">
+                    <div class="tank">
+                        <div class="tank-level" id="tank2Level" style="height: 45%;"></div>
+                    </div>
+                    <div class="tank-label">Process Tank</div>
+                    <div class="tank-value"><span id="tank2Val">45</span>%</div>
+                </div>
+
+                <!-- Pump 2 -->
+                <div class="equipment" style="left: 620px; top: 155px;">
+                    <div class="pump" id="pump2">⟳</div>
+                    <div class="tank-label">P-102</div>
+                </div>
+
+                <!-- Gauges -->
+                <div class="equipment" style="left: 200px; top: 280px;">
+                    <div class="gauge">
+                        <div class="gauge-arc" style="transform: rotate(45deg);"></div>
+                        <div class="gauge-value">
+                            <div class="gauge-num" id="pressureVal">4.2</div>
+                            <div class="gauge-unit">bar</div>
+                        </div>
+                    </div>
+                    <div class="tank-label">Pressure</div>
+                </div>
+
+                <div class="equipment" style="left: 350px; top: 280px;">
+                    <div class="gauge">
+                        <div class="gauge-arc" style="transform: rotate(90deg);"></div>
+                        <div class="gauge-value">
+                            <div class="gauge-num" id="flowVal">125</div>
+                            <div class="gauge-unit">L/min</div>
+                        </div>
+                    </div>
+                    <div class="tank-label">Flow Rate</div>
+                </div>
+
+                <div class="equipment" style="left: 500px; top: 280px;">
+                    <div class="gauge">
+                        <div class="gauge-arc" style="transform: rotate(135deg);"></div>
+                        <div class="gauge-value">
+                            <div class="gauge-num" id="tempVal">72</div>
+                            <div class="gauge-unit">°C</div>
+                        </div>
+                    </div>
+                    <div class="tank-label">Temperature</div>
+                </div>
+
+                <!-- Motor -->
+                <div class="equipment" style="left: 620px; top: 300px;">
+                    <div class="motor running" id="motor1">M1</div>
+                    <div class="tank-label">Mixer</div>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-card">
+                    <div class="panel-title">System Control</div>
+                    <button class="control-btn start" onclick="startSystem()">▶ START SYSTEM</button>
+                    <button class="control-btn stop" onclick="stopSystem()">⏹ STOP SYSTEM</button>
+                    <button class="control-btn auto">🔄 AUTO MODE</button>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-title">Setpoints</div>
+                    <div class="setpoint-row">
+                        <span class="setpoint-label">Tank 1 Level</span>
+                        <input type="number" class="setpoint-input" value="80">
+                        <span class="setpoint-unit">%</span>
+                    </div>
+                    <div class="setpoint-row">
+                        <span class="setpoint-label">Flow Rate</span>
+                        <input type="number" class="setpoint-input" value="150">
+                        <span class="setpoint-unit">L/m</span>
+                    </div>
+                    <div class="setpoint-row">
+                        <span class="setpoint-label">Temperature</span>
+                        <input type="number" class="setpoint-input" value="75">
+                        <span class="setpoint-unit">°C</span>
+                    </div>
+                </div>
+
+                <div class="panel-card" style="flex: 1;">
+                    <div class="panel-title">Active Alarms</div>
+                    <div class="alarm-list">
+                        <div class="alarm-item">
+                            <span class="alarm-time">10:41:32</span>
+                            <span class="alarm-msg">Tank 2 Level Low</span>
+                            <button class="alarm-ack">ACK</button>
+                        </div>
+                        <div class="alarm-item warning">
+                            <span class="alarm-time">10:38:15</span>
+                            <span class="alarm-msg">Pressure Deviation</span>
+                            <button class="alarm-ack">ACK</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-title">Trend - Temperature</div>
+                    <div class="trend-mini">
+                        <svg class="trend-line" viewBox="0 0 100 40" preserveAspectRatio="none">
+                            <polyline fill="none" stroke="#22d3ee" stroke-width="1" points="0,20 10,18 20,22 30,19 40,25 50,20 60,15 70,18 80,22 90,20 100,18"/>
+                            <polyline fill="rgba(34,211,238,0.1)" stroke="none" points="0,40 0,20 10,18 20,22 30,19 40,25 50,20 60,15 70,18 80,22 90,20 100,18 100,40"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hmi-footer">
+            <span>KHMI v1.0 - Konomi HMI Runtime</span>
+            <span>Line 01 | Operator: Admin | Last Update: <span id="lastUpdate">10:42:15</span></span>
+        </div>
+    </div>
+
+    <script>
+        // Update clock
+        function updateClock() {
+            const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('clock').textContent = now;
+            document.getElementById('lastUpdate').textContent = now;
+        }
+        setInterval(updateClock, 1000);
+
+        // Simulate live data
+        function updateData() {
+            // Tank levels
+            const tank1 = 70 + Math.random() * 10;
+            const tank2 = 40 + Math.random() * 10;
+            document.getElementById('tank1Val').textContent = tank1.toFixed(0);
+            document.getElementById('tank2Val').textContent = tank2.toFixed(0);
+            document.getElementById('tank1Level').style.height = tank1 + '%';
+            document.getElementById('tank2Level').style.height = tank2 + '%';
+
+            // Gauges
+            document.getElementById('pressureVal').textContent = (4 + Math.random() * 0.5).toFixed(1);
+            document.getElementById('flowVal').textContent = (120 + Math.random() * 10).toFixed(0);
+            document.getElementById('tempVal').textContent = (70 + Math.random() * 5).toFixed(0);
+        }
+        setInterval(updateData, 2000);
+
+        function startSystem() {
+            document.getElementById('pump1').classList.add('running');
+            document.getElementById('pump2').classList.add('running');
+            document.getElementById('valve1').classList.add('open');
+            document.getElementById('valve1').classList.remove('closed');
+        }
+
+        function stopSystem() {
+            document.getElementById('pump1').classList.remove('running');
+            document.getElementById('pump2').classList.remove('running');
+            document.getElementById('valve1').classList.remove('open');
+            document.getElementById('valve1').classList.add('closed');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KSQL - Konomi SQL Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .app { display: flex; height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(0, 0, 0, 0.4);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-header h1 { font-size: 18px; color: #f59e0b; }
+        .sidebar-header .logo { font-size: 24px; }
+
+        .sidebar-section { padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .sidebar-title {
+            font-size: 10px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-list { display: flex; flex-direction: column; gap: 4px; }
+        .table-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.15s;
+        }
+        .table-item:hover { background: rgba(245, 158, 11, 0.1); }
+        .table-item.active { background: rgba(245, 158, 11, 0.15); }
+        .table-icon { font-size: 14px; }
+        .table-name { flex: 1; font-size: 13px; }
+        .table-count { font-size: 10px; color: #64748b; }
+
+        .column-list { margin-left: 24px; font-size: 12px; color: #64748b; }
+        .column-item { padding: 4px 0; display: flex; gap: 8px; }
+        .column-type { color: #f59e0b; font-family: monospace; font-size: 10px; }
+
+        /* Main Area */
+        .main { flex: 1; display: flex; flex-direction: column; }
+
+        .toolbar {
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border: none;
+            border-radius: 6px;
+            color: #000;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+        }
+        .tab {
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid transparent;
+            border-radius: 6px 6px 0 0;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab.active { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: #f59e0b; }
+        .tab-close { opacity: 0.5; }
+        .tab-close:hover { opacity: 1; }
+
+        /* Editor */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .editor {
+            flex: 1;
+            min-height: 200px;
+            background: #0a0f1a;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .editor textarea {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+        }
+
+        /* Results */
+        .results {
+            flex: 1;
+            min-height: 200px;
+            overflow: auto;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .results-header {
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #64748b;
+            position: sticky;
+            top: 0;
+        }
+        .results-stats { display: flex; gap: 16px; }
+        .results-stats span { display: flex; align-items: center; gap: 4px; }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .results-table th {
+            padding: 10px 16px;
+            text-align: left;
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 44px;
+        }
+        .results-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-family: monospace;
+        }
+        .results-table tr:hover td { background: rgba(245, 158, 11, 0.05); }
+        .null-value { color: #64748b; font-style: italic; }
+
+        .results-message {
+            padding: 40px;
+            text-align: center;
+            color: #64748b;
+        }
+        .results-error {
+            padding: 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            color: #fca5a5;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .results-success {
+            padding: 20px;
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+            color: #86efac;
+        }
+
+        /* Quick Queries */
+        .quick-queries { padding: 16px; }
+        .query-chip {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 4px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 20px;
+            font-size: 11px;
+            color: #fbbf24;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .query-chip:hover { background: rgba(245, 158, 11, 0.2); }
+
+        /* Status Bar */
+        .statusbar {
+            padding: 8px 20px;
+            background: rgba(0, 0, 0, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .status-item { display: flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <span class="logo">🗄️</span>
+                <h1>KSQL</h1>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <span>Database</span>
+                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 10px;" onclick="importDB()">Import</button>
+                </div>
+                <div style="font-size: 12px; color: #94a3b8;">
+                    <span style="color: #f59e0b;">SQLite</span> (in-browser)
+                </div>
+            </div>
+
+            <div class="sidebar-section" style="flex: 1; overflow-y: auto;">
+                <div class="sidebar-title">
+                    <span>Tables</span>
+                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 10px;" onclick="showCreateTable()">+ New</button>
+                </div>
+                <div class="table-list" id="tableList">
+                    <div class="table-item active" onclick="selectTable('users')">
+                        <span class="table-icon">📋</span>
+                        <span class="table-name">users</span>
+                        <span class="table-count">5 rows</span>
+                    </div>
+                    <div class="column-list" id="users-columns">
+                        <div class="column-item"><span>id</span><span class="column-type">INTEGER PK</span></div>
+                        <div class="column-item"><span>name</span><span class="column-type">TEXT</span></div>
+                        <div class="column-item"><span>email</span><span class="column-type">TEXT</span></div>
+                        <div class="column-item"><span>created_at</span><span class="column-type">TEXT</span></div>
+                    </div>
+                    <div class="table-item" onclick="selectTable('products')">
+                        <span class="table-icon">📋</span>
+                        <span class="table-name">products</span>
+                        <span class="table-count">10 rows</span>
+                    </div>
+                    <div class="table-item" onclick="selectTable('orders')">
+                        <span class="table-icon">📋</span>
+                        <span class="table-name">orders</span>
+                        <span class="table-count">25 rows</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quick-queries">
+                <div class="sidebar-title">Quick Queries</div>
+                <span class="query-chip" onclick="runQuick('SELECT * FROM users')">All Users</span>
+                <span class="query-chip" onclick="runQuick('SELECT * FROM products')">All Products</span>
+                <span class="query-chip" onclick="runQuick('SELECT COUNT(*) FROM orders')">Order Count</span>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="toolbar">
+                <button class="btn btn-success" onclick="executeQuery()">▶ Run (Ctrl+Enter)</button>
+                <button class="btn btn-secondary" onclick="formatSQL()">Format</button>
+                <button class="btn btn-secondary" onclick="clearEditor()">Clear</button>
+                <div class="tabs">
+                    <div class="tab active">
+                        <span>Query 1</span>
+                        <span class="tab-close">×</span>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="exportResults()">📥 Export</button>
+            </div>
+
+            <div class="editor-container">
+                <div class="editor">
+                    <textarea id="sqlEditor" placeholder="-- Write your SQL query here
+SELECT * FROM users WHERE id = 1;" spellcheck="false">SELECT * FROM users;</textarea>
+                </div>
+
+                <div class="results" id="results">
+                    <div class="results-header">
+                        <span>Results</span>
+                        <div class="results-stats">
+                            <span id="rowCount">5 rows</span>
+                            <span id="execTime">12ms</span>
+                        </div>
+                    </div>
+                    <table class="results-table" id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>id</th>
+                                <th>name</th>
+                                <th>email</th>
+                                <th>created_at</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                            <tr><td>1</td><td>Alice</td><td>alice@konomi.io</td><td>2024-01-15</td></tr>
+                            <tr><td>2</td><td>Bob</td><td>bob@konomi.io</td><td>2024-02-20</td></tr>
+                            <tr><td>3</td><td>Charlie</td><td>charlie@konomi.io</td><td>2024-03-10</td></tr>
+                            <tr><td>4</td><td>Diana</td><td>diana@konomi.io</td><td>2024-04-05</td></tr>
+                            <tr><td>5</td><td>Eve</td><td>eve@konomi.io</td><td>2024-05-01</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="statusbar">
+                <div class="status-item">
+                    <span class="status-dot"></span>
+                    <span>Connected to in-browser SQLite</span>
+                </div>
+                <div class="status-item">
+                    <span>3 tables</span>
+                    <span>•</span>
+                    <span>40 rows total</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let db = null;
+
+        // Initialize SQL.js
+        async function initDB() {
+            const SQL = await initSqlJs({
+                locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+            });
+            db = new SQL.Database();
+
+            // Create sample tables
+            db.run(`
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                INSERT INTO users (name, email, created_at) VALUES
+                    ('Alice', 'alice@konomi.io', '2024-01-15'),
+                    ('Bob', 'bob@konomi.io', '2024-02-20'),
+                    ('Charlie', 'charlie@konomi.io', '2024-03-10'),
+                    ('Diana', 'diana@konomi.io', '2024-04-05'),
+                    ('Eve', 'eve@konomi.io', '2024-05-01');
+
+                CREATE TABLE products (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    price REAL,
+                    stock INTEGER DEFAULT 0
+                );
+                INSERT INTO products (name, price, stock) VALUES
+                    ('Widget A', 29.99, 100),
+                    ('Widget B', 49.99, 50),
+                    ('Gadget X', 99.99, 25),
+                    ('Gadget Y', 149.99, 10),
+                    ('Tool Z', 19.99, 200),
+                    ('Part 1', 5.99, 500),
+                    ('Part 2', 7.99, 300),
+                    ('Part 3', 9.99, 150),
+                    ('Accessory A', 14.99, 75),
+                    ('Accessory B', 24.99, 40);
+
+                CREATE TABLE orders (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
+                    product_id INTEGER,
+                    quantity INTEGER,
+                    total REAL,
+                    order_date TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (product_id) REFERENCES products(id)
+                );
+            `);
+
+            // Generate sample orders
+            for (let i = 1; i <= 25; i++) {
+                const userId = Math.floor(Math.random() * 5) + 1;
+                const productId = Math.floor(Math.random() * 10) + 1;
+                const qty = Math.floor(Math.random() * 5) + 1;
+                const total = (Math.random() * 200 + 20).toFixed(2);
+                const date = `2024-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`;
+                db.run(`INSERT INTO orders (user_id, product_id, quantity, total, order_date) VALUES (?, ?, ?, ?, ?)`,
+                    [userId, productId, qty, total, date]);
+            }
+
+            console.log('Database initialized');
+            executeQuery();
+        }
+
+        function executeQuery() {
+            const sql = document.getElementById('sqlEditor').value.trim();
+            if (!sql) return;
+
+            const start = performance.now();
+
+            try {
+                const results = db.exec(sql);
+                const elapsed = (performance.now() - start).toFixed(1);
+
+                if (results.length === 0) {
+                    showSuccess(`Query executed successfully (${elapsed}ms)`);
+                    return;
+                }
+
+                const result = results[0];
+                renderResults(result.columns, result.values, elapsed);
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        function renderResults(columns, rows, elapsed) {
+            const thead = columns.map(c => `<th>${c}</th>`).join('');
+            const tbody = rows.map(row =>
+                `<tr>${row.map(v => `<td>${v === null ? '<span class="null-value">NULL</span>' : v}</td>`).join('')}</tr>`
+            ).join('');
+
+            document.getElementById('resultsTable').innerHTML = `<thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody>`;
+            document.getElementById('rowCount').textContent = `${rows.length} rows`;
+            document.getElementById('execTime').textContent = `${elapsed}ms`;
+            document.getElementById('results').querySelector('.results-header').style.display = 'flex';
+            document.getElementById('resultsTable').style.display = 'table';
+        }
+
+        function showError(message) {
+            document.getElementById('results').innerHTML = `
+                <div class="results-header" style="display: flex;">
+                    <span>Error</span>
+                </div>
+                <div class="results-error">${message}</div>
+            `;
+        }
+
+        function showSuccess(message) {
+            document.getElementById('results').innerHTML = `
+                <div class="results-header" style="display: flex;">
+                    <span>Result</span>
+                </div>
+                <div class="results-success">${message}</div>
+            `;
+        }
+
+        function runQuick(sql) {
+            document.getElementById('sqlEditor').value = sql;
+            executeQuery();
+        }
+
+        function selectTable(name) {
+            document.querySelectorAll('.table-item').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            runQuick(`SELECT * FROM ${name}`);
+        }
+
+        function clearEditor() {
+            document.getElementById('sqlEditor').value = '';
+        }
+
+        function formatSQL() {
+            // Simple SQL formatting
+            let sql = document.getElementById('sqlEditor').value;
+            const keywords = ['SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'ORDER BY', 'GROUP BY', 'HAVING', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'ON', 'INSERT INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE FROM', 'CREATE TABLE', 'ALTER TABLE', 'DROP TABLE'];
+            keywords.forEach(kw => {
+                sql = sql.replace(new RegExp('\\b' + kw + '\\b', 'gi'), '\n' + kw);
+            });
+            document.getElementById('sqlEditor').value = sql.trim();
+        }
+
+        function exportResults() {
+            const table = document.getElementById('resultsTable');
+            const rows = Array.from(table.querySelectorAll('tr'));
+            const csv = rows.map(row =>
+                Array.from(row.querySelectorAll('th, td')).map(cell => `"${cell.textContent}"`).join(',')
+            ).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'query_results.csv';
+            a.click();
+        }
+
+        function importDB() {
+            alert('Import .sqlite or .sql file (coming soon)');
+        }
+
+        function showCreateTable() {
+            const sql = `CREATE TABLE new_table (
+    id INTEGER PRIMARY KEY,
+    column1 TEXT,
+    column2 INTEGER
+);`;
+            document.getElementById('sqlEditor').value = sql;
+        }
+
+        // Keyboard shortcuts
+        document.getElementById('sqlEditor').addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                executeQuery();
+            }
+        });
+
+        // Initialize
+        initDB();
+    </script>
+</body>
+</html>
