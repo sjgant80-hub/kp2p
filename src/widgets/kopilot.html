@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kopilot - AI-Powered Git Editor</title>
+    <script type="module">
+        import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+        window.webllm = webllm;
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%);
+            min-height: 100vh;
+            color: #c9d1d9;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #238636, #2ea043);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #58a6ff, #79c0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 0.7rem;
+            color: #8b949e;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .repo-input {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .repo-input input {
+            width: 280px;
+            padding: 0.5rem 0.75rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+        }
+
+        .repo-input input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #238636;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2ea043;
+        }
+
+        .btn-secondary {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+        }
+
+        .btn-secondary:hover {
+            background: #30363d;
+        }
+
+        .btn-ai {
+            background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+            color: white;
+        }
+
+        .btn-ai:hover {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 250px 1fr 350px;
+            height: calc(100vh - 60px);
+        }
+
+        .sidebar {
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .branch-select {
+            padding: 0.25rem 0.5rem;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.75rem;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.15s;
+        }
+
+        .tree-item:hover {
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .tree-item.active {
+            background: rgba(88, 166, 255, 0.2);
+        }
+
+        .tree-item.folder {
+            color: #8b949e;
+        }
+
+        .tree-folder-contents {
+            padding-left: 1rem;
+            display: none;
+        }
+
+        .tree-folder-contents.expanded {
+            display: block;
+        }
+
+        .file-icon {
+            font-size: 1rem;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .editor-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid #30363d;
+            overflow-x: auto;
+        }
+
+        .editor-tab {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-right: 1px solid #30363d;
+            font-size: 0.875rem;
+            cursor: pointer;
+            background: transparent;
+            color: #8b949e;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .editor-tab:hover {
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .editor-tab.active {
+            background: #0d1117;
+            color: #c9d1d9;
+            border-bottom: 2px solid #58a6ff;
+        }
+
+        .tab-close {
+            font-size: 0.75rem;
+            padding: 0.125rem 0.25rem;
+            border-radius: 2px;
+        }
+
+        .tab-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .editor-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-editor {
+            width: 100%;
+            height: 100%;
+            background: #0d1117;
+            border: none;
+            padding: 1rem;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            color: #c9d1d9;
+            resize: none;
+            line-height: 1.6;
+            tab-size: 2;
+        }
+
+        .code-editor:focus {
+            outline: none;
+        }
+
+        .ai-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ai-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ai-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        .ai-badge {
+            font-size: 0.625rem;
+            padding: 0.125rem 0.375rem;
+            background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+            border-radius: 999px;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .model-status {
+            font-size: 0.75rem;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f85149;
+        }
+
+        .status-dot.loading {
+            background: #d29922;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.ready {
+            background: #238636;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .ai-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .ai-message {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .ai-message.user {
+            background: #21262d;
+            margin-left: 1rem;
+        }
+
+        .ai-message.assistant {
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            margin-right: 1rem;
+        }
+
+        .ai-message.system {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid rgba(88, 166, 255, 0.2);
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        .ai-message pre {
+            background: #0d1117;
+            padding: 0.5rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 0.5rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+        }
+
+        .ai-input-container {
+            padding: 1rem;
+            border-top: 1px solid #30363d;
+        }
+
+        .ai-input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .ai-input {
+            flex: 1;
+            padding: 0.75rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+            resize: none;
+            min-height: 80px;
+        }
+
+        .ai-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+
+        .ai-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .quick-action {
+            padding: 0.375rem 0.75rem;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #8b949e;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .quick-action:hover {
+            background: #30363d;
+            color: #c9d1d9;
+        }
+
+        .model-selector {
+            margin-bottom: 0.75rem;
+        }
+
+        .model-select {
+            width: 100%;
+            padding: 0.5rem;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 0.75rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #21262d;
+            border-radius: 2px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #8b949e;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .commit-panel {
+            padding: 1rem;
+            border-top: 1px solid #30363d;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .commit-input {
+            width: 100%;
+            padding: 0.5rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .commit-input:focus {
+            outline: none;
+            border-color: #238636;
+        }
+
+        .changes-list {
+            max-height: 100px;
+            overflow-y: auto;
+            margin-bottom: 0.5rem;
+        }
+
+        .change-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            font-size: 0.75rem;
+        }
+
+        .change-icon {
+            width: 16px;
+            text-align: center;
+        }
+
+        .change-icon.added {
+            color: #238636;
+        }
+
+        .change-icon.modified {
+            color: #d29922;
+        }
+
+        .change-icon.deleted {
+            color: #f85149;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 200px 1fr 300px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar, .ai-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">K</div>
+            <div>
+                <div class="logo-text">Kopilot</div>
+                <div class="subtitle">AI-Powered Git Editor</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="repo-input">
+                <input type="text" id="repo-url" placeholder="owner/repo or GitHub URL" />
+                <input type="password" id="github-token" placeholder="Token (optional)" style="width: 150px;" />
+                <button class="btn btn-primary" onclick="connectRepo()">Connect</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Files</span>
+                <select class="branch-select" id="branch-select" onchange="switchBranch()">
+                    <option value="main">main</option>
+                </select>
+            </div>
+            <div class="file-tree" id="file-tree">
+                <div class="empty-state">
+                    <div class="empty-icon">...</div>
+                    <p>Connect a repository to browse files</p>
+                </div>
+            </div>
+            <div class="commit-panel" id="commit-panel" style="display: none;">
+                <div class="changes-list" id="changes-list"></div>
+                <input type="text" class="commit-input" id="commit-message" placeholder="Commit message..." />
+                <button class="btn btn-primary" onclick="commitChanges()" style="width: 100%;">Commit Changes</button>
+            </div>
+        </aside>
+
+        <main class="editor-container">
+            <div class="editor-tabs" id="editor-tabs">
+                <div class="editor-tab active">
+                    <span>Welcome</span>
+                </div>
+            </div>
+            <div class="editor-content">
+                <textarea class="code-editor" id="code-editor" placeholder="Select a file to edit..."></textarea>
+            </div>
+        </main>
+
+        <aside class="ai-panel">
+            <div class="ai-header">
+                <div class="ai-title">
+                    Kopilot AI
+                    <span class="ai-badge">WebLLM</span>
+                </div>
+                <div class="model-status">
+                    <div class="status-dot" id="model-status-dot"></div>
+                    <span id="model-status-text">Not loaded</span>
+                </div>
+            </div>
+
+            <div class="ai-messages" id="ai-messages">
+                <div class="ai-message system">
+                    Select a model below and click "Load Model" to enable AI assistance. The model runs entirely in your browser using WebGPU.
+                </div>
+            </div>
+
+            <div class="ai-input-container">
+                <div class="model-selector">
+                    <select class="model-select" id="model-select">
+                        <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">Phi-3.5 Mini (3.8B) - Fast</option>
+                        <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama 3.2 (3B) - Balanced</option>
+                        <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen 2.5 (1.5B) - Fastest</option>
+                        <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama (1.1B) - Lightweight</option>
+                    </select>
+                    <button class="btn btn-ai" onclick="loadModel()" style="width: 100%; margin-top: 0.5rem;" id="load-model-btn">Load Model</button>
+                    <div class="progress-bar" id="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                </div>
+
+                <textarea class="ai-input" id="ai-input" placeholder="Ask Kopilot about your code..." disabled></textarea>
+
+                <div class="ai-actions">
+                    <button class="quick-action" onclick="quickAction('explain')" disabled id="qa-explain">Explain</button>
+                    <button class="quick-action" onclick="quickAction('review')" disabled id="qa-review">Review</button>
+                    <button class="quick-action" onclick="quickAction('refactor')" disabled id="qa-refactor">Refactor</button>
+                    <button class="quick-action" onclick="quickAction('fix')" disabled id="qa-fix">Fix Bugs</button>
+                </div>
+
+                <button class="btn btn-ai" onclick="sendMessage()" style="width: 100%; margin-top: 0.5rem;" disabled id="send-btn">Send</button>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // State
+        let repoOwner = '';
+        let repoName = '';
+        let githubToken = '';
+        let currentBranch = 'main';
+        let openFiles = new Map(); // path -> { content, modified }
+        let currentFile = null;
+        let engine = null;
+        let modelLoaded = false;
+        let conversationHistory = [];
+
+        // GitHub API
+        async function fetchGitHub(endpoint, options = {}) {
+            const headers = {
+                'Accept': 'application/vnd.github.v3+json',
+                ...options.headers
+            };
+            if (githubToken) {
+                headers['Authorization'] = `token ${githubToken}`;
+            }
+
+            const response = await fetch(`https://api.github.com/${endpoint}`, {
+                ...options,
+                headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`GitHub API error: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        // Connect to repository
+        async function connectRepo() {
+            const input = document.getElementById('repo-url').value.trim();
+            githubToken = document.getElementById('github-token').value.trim();
+
+            // Parse input
+            let match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+            if (!match) {
+                match = input.match(/^([^\/]+)\/([^\/]+)$/);
+            }
+
+            if (!match) {
+                alert('Please enter a valid repository (owner/repo or GitHub URL)');
+                return;
+            }
+
+            repoOwner = match[1];
+            repoName = match[2].replace(/\.git$/, '');
+
+            try {
+                // Fetch branches
+                const branches = await fetchGitHub(`repos/${repoOwner}/${repoName}/branches`);
+                const branchSelect = document.getElementById('branch-select');
+                branchSelect.innerHTML = branches.map(b =>
+                    `<option value="${b.name}" ${b.name === 'main' || b.name === 'master' ? 'selected' : ''}>${b.name}</option>`
+                ).join('');
+                currentBranch = branchSelect.value;
+
+                // Fetch file tree
+                await loadFileTree();
+
+                document.getElementById('commit-panel').style.display = 'block';
+                addAIMessage('system', `Connected to ${repoOwner}/${repoName}. Select files to edit, and I can help you understand and modify the code.`);
+            } catch (error) {
+                alert(`Error connecting to repository: ${error.message}`);
+            }
+        }
+
+        // Load file tree
+        async function loadFileTree() {
+            try {
+                const tree = await fetchGitHub(`repos/${repoOwner}/${repoName}/git/trees/${currentBranch}?recursive=1`);
+                renderFileTree(tree.tree);
+            } catch (error) {
+                console.error('Error loading file tree:', error);
+            }
+        }
+
+        // Render file tree
+        function renderFileTree(items) {
+            const container = document.getElementById('file-tree');
+
+            // Build tree structure
+            const root = {};
+            items.forEach(item => {
+                const parts = item.path.split('/');
+                let current = root;
+                parts.forEach((part, i) => {
+                    if (!current[part]) {
+                        current[part] = i === parts.length - 1 && item.type === 'blob'
+                            ? { __file: true, path: item.path, sha: item.sha }
+                            : {};
+                    }
+                    current = current[part];
+                });
+            });
+
+            // Render
+            container.innerHTML = renderTreeNode(root, '');
+        }
+
+        function renderTreeNode(node, prefix) {
+            let html = '';
+            const entries = Object.entries(node).sort((a, b) => {
+                const aIsFile = a[1].__file;
+                const bIsFile = b[1].__file;
+                if (aIsFile !== bIsFile) return aIsFile ? 1 : -1;
+                return a[0].localeCompare(b[0]);
+            });
+
+            entries.forEach(([name, value]) => {
+                if (value.__file) {
+                    const icon = getFileIcon(name);
+                    html += `<div class="tree-item" onclick="openFile('${value.path}')">
+                        <span class="file-icon">${icon}</span>
+                        <span>${name}</span>
+                    </div>`;
+                } else {
+                    const id = prefix + name;
+                    html += `<div class="tree-item folder" onclick="toggleFolder('${id}')">
+                        <span class="file-icon" id="icon-${id}">...</span>
+                        <span>${name}</span>
+                    </div>
+                    <div class="tree-folder-contents" id="folder-${id}">
+                        ${renderTreeNode(value, id + '-')}
+                    </div>`;
+                }
+            });
+
+            return html;
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'js': '...',
+                'ts': '...',
+                'jsx': '...',
+                'tsx': '...',
+                'py': '...',
+                'html': '...',
+                'css': '...',
+                'json': '...',
+                'md': '...',
+                'yml': '...',
+                'yaml': '...',
+                'sh': '...',
+                'sql': '...',
+                'go': '...',
+                'rs': '...',
+                'java': '...',
+                'c': '...',
+                'cpp': '...',
+                'h': '...'
+            };
+            return icons[ext] || '...';
+        }
+
+        function toggleFolder(id) {
+            const folder = document.getElementById('folder-' + id);
+            const icon = document.getElementById('icon-' + id);
+            folder.classList.toggle('expanded');
+            icon.textContent = folder.classList.contains('expanded') ? '...' : '...';
+        }
+
+        // Open file
+        async function openFile(path) {
+            try {
+                if (!openFiles.has(path)) {
+                    const file = await fetchGitHub(`repos/${repoOwner}/${repoName}/contents/${path}?ref=${currentBranch}`);
+                    const content = atob(file.content);
+                    openFiles.set(path, { content, original: content, sha: file.sha, modified: false });
+                }
+
+                currentFile = path;
+                updateTabs();
+                document.getElementById('code-editor').value = openFiles.get(path).content;
+            } catch (error) {
+                console.error('Error opening file:', error);
+            }
+        }
+
+        // Update tabs
+        function updateTabs() {
+            const tabsContainer = document.getElementById('editor-tabs');
+            let html = '';
+
+            openFiles.forEach((data, path) => {
+                const name = path.split('/').pop();
+                const isActive = path === currentFile;
+                const isModified = data.modified;
+                html += `<div class="editor-tab ${isActive ? 'active' : ''}" onclick="switchTab('${path}')">
+                    <span>${isModified ? '* ' : ''}${name}</span>
+                    <span class="tab-close" onclick="closeTab('${path}', event)">&times;</span>
+                </div>`;
+            });
+
+            tabsContainer.innerHTML = html || '<div class="editor-tab active"><span>Welcome</span></div>';
+        }
+
+        function switchTab(path) {
+            // Save current content
+            if (currentFile && openFiles.has(currentFile)) {
+                const content = document.getElementById('code-editor').value;
+                const fileData = openFiles.get(currentFile);
+                fileData.content = content;
+                fileData.modified = content !== fileData.original;
+            }
+
+            currentFile = path;
+            document.getElementById('code-editor').value = openFiles.get(path).content;
+            updateTabs();
+            updateChanges();
+        }
+
+        function closeTab(path, event) {
+            event.stopPropagation();
+            openFiles.delete(path);
+
+            if (currentFile === path) {
+                const paths = Array.from(openFiles.keys());
+                currentFile = paths.length > 0 ? paths[0] : null;
+                document.getElementById('code-editor').value = currentFile ? openFiles.get(currentFile).content : '';
+            }
+
+            updateTabs();
+        }
+
+        // Track changes
+        document.getElementById('code-editor').addEventListener('input', () => {
+            if (currentFile && openFiles.has(currentFile)) {
+                const content = document.getElementById('code-editor').value;
+                const fileData = openFiles.get(currentFile);
+                fileData.content = content;
+                fileData.modified = content !== fileData.original;
+                updateTabs();
+                updateChanges();
+            }
+        });
+
+        function updateChanges() {
+            const changesList = document.getElementById('changes-list');
+            let html = '';
+
+            openFiles.forEach((data, path) => {
+                if (data.modified) {
+                    html += `<div class="change-item">
+                        <span class="change-icon modified">M</span>
+                        <span>${path}</span>
+                    </div>`;
+                }
+            });
+
+            changesList.innerHTML = html || '<div style="font-size: 0.75rem; color: #8b949e;">No changes</div>';
+        }
+
+        // Switch branch
+        async function switchBranch() {
+            currentBranch = document.getElementById('branch-select').value;
+            openFiles.clear();
+            currentFile = null;
+            document.getElementById('code-editor').value = '';
+            updateTabs();
+            await loadFileTree();
+        }
+
+        // Commit changes
+        async function commitChanges() {
+            const message = document.getElementById('commit-message').value.trim();
+            if (!message) {
+                alert('Please enter a commit message');
+                return;
+            }
+
+            const modifiedFiles = Array.from(openFiles.entries()).filter(([_, data]) => data.modified);
+            if (modifiedFiles.length === 0) {
+                alert('No changes to commit');
+                return;
+            }
+
+            if (!githubToken) {
+                alert('GitHub token required for commits');
+                return;
+            }
+
+            try {
+                for (const [path, data] of modifiedFiles) {
+                    await fetchGitHub(`repos/${repoOwner}/${repoName}/contents/${path}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            message: message,
+                            content: btoa(data.content),
+                            sha: data.sha,
+                            branch: currentBranch
+                        })
+                    });
+
+                    data.original = data.content;
+                    data.modified = false;
+                }
+
+                document.getElementById('commit-message').value = '';
+                updateTabs();
+                updateChanges();
+                addAIMessage('system', `Committed ${modifiedFiles.length} file(s) successfully.`);
+            } catch (error) {
+                alert(`Error committing: ${error.message}`);
+            }
+        }
+
+        // WebLLM Integration
+        async function loadModel() {
+            const modelId = document.getElementById('model-select').value;
+            const statusDot = document.getElementById('model-status-dot');
+            const statusText = document.getElementById('model-status-text');
+            const progressBar = document.getElementById('progress-bar');
+            const progressFill = document.getElementById('progress-fill');
+            const loadBtn = document.getElementById('load-model-btn');
+
+            statusDot.className = 'status-dot loading';
+            statusText.textContent = 'Loading...';
+            progressBar.classList.add('active');
+            loadBtn.disabled = true;
+            loadBtn.textContent = 'Loading...';
+
+            try {
+                engine = await webllm.CreateMLCEngine(modelId, {
+                    initProgressCallback: (progress) => {
+                        const percent = Math.round(progress.progress * 100);
+                        progressFill.style.width = percent + '%';
+                        statusText.textContent = progress.text || `Loading ${percent}%`;
+                    }
+                });
+
+                modelLoaded = true;
+                statusDot.className = 'status-dot ready';
+                statusText.textContent = 'Ready';
+                progressBar.classList.remove('active');
+                loadBtn.textContent = 'Model Loaded';
+
+                // Enable inputs
+                document.getElementById('ai-input').disabled = false;
+                document.getElementById('send-btn').disabled = false;
+                document.querySelectorAll('.quick-action').forEach(btn => btn.disabled = false);
+
+                addAIMessage('system', `Model loaded successfully! I'm ready to help you with your code.`);
+            } catch (error) {
+                statusDot.className = 'status-dot';
+                statusText.textContent = 'Error';
+                progressBar.classList.remove('active');
+                loadBtn.disabled = false;
+                loadBtn.textContent = 'Retry Load';
+                addAIMessage('system', `Error loading model: ${error.message}. Make sure WebGPU is supported in your browser.`);
+            }
+        }
+
+        function addAIMessage(role, content) {
+            const container = document.getElementById('ai-messages');
+            const div = document.createElement('div');
+            div.className = `ai-message ${role}`;
+
+            // Format code blocks
+            content = content.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            div.innerHTML = content;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMessage() {
+            if (!modelLoaded || !engine) return;
+
+            const input = document.getElementById('ai-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            addAIMessage('user', message);
+
+            // Build context
+            let context = '';
+            if (currentFile) {
+                const content = document.getElementById('code-editor').value;
+                context = `Current file: ${currentFile}\n\`\`\`\n${content.substring(0, 2000)}\n\`\`\`\n\n`;
+            }
+
+            const systemPrompt = `You are Kopilot, an AI coding assistant. Help users understand, write, and improve code. Be concise and provide practical solutions.`;
+
+            conversationHistory.push({ role: 'user', content: message });
+
+            try {
+                const sendBtn = document.getElementById('send-btn');
+                sendBtn.disabled = true;
+                sendBtn.textContent = 'Thinking...';
+
+                const response = await engine.chat.completions.create({
+                    messages: [
+                        { role: 'system', content: systemPrompt + '\n\n' + context },
+                        ...conversationHistory.slice(-6)
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1024
+                });
+
+                const reply = response.choices[0].message.content;
+                conversationHistory.push({ role: 'assistant', content: reply });
+                addAIMessage('assistant', reply);
+
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            } catch (error) {
+                addAIMessage('system', `Error: ${error.message}`);
+                document.getElementById('send-btn').disabled = false;
+                document.getElementById('send-btn').textContent = 'Send';
+            }
+        }
+
+        function quickAction(action) {
+            const code = currentFile ? document.getElementById('code-editor').value : '';
+            const prompts = {
+                explain: `Explain what this code does:\n\`\`\`\n${code.substring(0, 1500)}\n\`\`\``,
+                review: `Review this code for potential issues, bugs, or improvements:\n\`\`\`\n${code.substring(0, 1500)}\n\`\`\``,
+                refactor: `Suggest how to refactor this code to be cleaner and more maintainable:\n\`\`\`\n${code.substring(0, 1500)}\n\`\`\``,
+                fix: `Identify and fix any bugs in this code:\n\`\`\`\n${code.substring(0, 1500)}\n\`\`\``
+            };
+
+            document.getElementById('ai-input').value = prompts[action];
+            sendMessage();
+        }
+
+        // Handle Enter key
+        document.getElementById('ai-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

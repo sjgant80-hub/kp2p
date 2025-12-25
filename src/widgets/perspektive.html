@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perspektive - Widget to Ignition Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e4e4e7;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100vh - 80px);
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 6px;
+            color: #a1a1aa;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: #e94560;
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow: auto;
+            padding: 1rem;
+        }
+
+        .code-editor {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.875rem;
+            color: #e4e4e7;
+            resize: none;
+            line-height: 1.5;
+        }
+
+        .code-editor:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e4e4e7;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .output-tabs {
+            display: none;
+        }
+
+        .output-tabs.active {
+            display: block;
+            height: 100%;
+        }
+
+        .component-library {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 0.75rem;
+            padding: 0.5rem;
+        }
+
+        .component-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .component-card:hover {
+            background: rgba(233, 69, 96, 0.2);
+            border-color: #e94560;
+            transform: translateY(-2px);
+        }
+
+        .component-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .component-name {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .tag-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tag-path {
+            font-family: monospace;
+            color: #4ade80;
+        }
+
+        .tag-type {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(233, 69, 96, 0.2);
+            border-radius: 4px;
+            color: #e94560;
+        }
+
+        .mapping-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .mapping-table th,
+        .mapping-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mapping-table th {
+            background: rgba(0, 0, 0, 0.2);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .mapping-table td {
+            font-size: 0.875rem;
+        }
+
+        .html-element {
+            color: #f472b6;
+            font-family: monospace;
+        }
+
+        .perspective-component {
+            color: #4ade80;
+            font-family: monospace;
+        }
+
+        .preview-frame {
+            width: 100%;
+            height: 100%;
+            background: #1e1e2e;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #71717a;
+        }
+
+        .status-bar {
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75rem;
+            color: #a1a1aa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        .template-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .template-btn {
+            flex: 1;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #a1a1aa;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .template-btn:hover {
+            background: rgba(233, 69, 96, 0.2);
+            border-color: #e94560;
+        }
+
+        .settings-panel {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+        }
+
+        .settings-label {
+            font-size: 0.875rem;
+        }
+
+        .settings-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 0.5rem;
+            color: #e4e4e7;
+            font-size: 0.875rem;
+            width: 200px;
+        }
+
+        .settings-input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .toggle {
+            width: 48px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle.active {
+            background: #e94560;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.2s;
+        }
+
+        .toggle.active::after {
+            left: 26px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">P</div>
+            <div>
+                <div class="logo-text">Perspektive</div>
+                <div class="subtitle">Widget to Ignition Perspective Converter</div>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="loadExample()">Load Example</button>
+            <button class="btn btn-primary" onclick="convertWidget()">Convert</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">Input Widget</div>
+                <div class="panel-tabs">
+                    <button class="tab-btn active" onclick="setInputTab('code')">HTML</button>
+                    <button class="tab-btn" onclick="setInputTab('settings')">Settings</button>
+                    <button class="tab-btn" onclick="setInputTab('mappings')">Mappings</button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div id="input-code" class="output-tabs active">
+                    <textarea class="code-editor" id="html-input" placeholder="Paste your HTML widget code here..."></textarea>
+                </div>
+                <div id="input-settings" class="output-tabs">
+                    <div class="settings-panel">
+                        <div class="settings-row">
+                            <span class="settings-label">Tag Provider</span>
+                            <input type="text" class="settings-input" id="tag-provider" value="default" />
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Tag Folder Path</span>
+                            <input type="text" class="settings-input" id="tag-folder" value="Widgets/Converted" />
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">View Name</span>
+                            <input type="text" class="settings-input" id="view-name" value="ConvertedWidget" />
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Generate Memory Tags</span>
+                            <div class="toggle active" id="gen-memory-tags" onclick="toggleSetting(this)"></div>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Include Styles as Custom Props</span>
+                            <div class="toggle active" id="include-styles" onclick="toggleSetting(this)"></div>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Generate Event Scripts</span>
+                            <div class="toggle" id="gen-scripts" onclick="toggleSetting(this)"></div>
+                        </div>
+                    </div>
+                    <h4 style="margin-bottom: 0.5rem;">Quick Templates</h4>
+                    <div class="template-selector">
+                        <div class="template-btn" onclick="applyTemplate('hmi')">HMI Screen</div>
+                        <div class="template-btn" onclick="applyTemplate('popup')">Popup</div>
+                        <div class="template-btn" onclick="applyTemplate('embedded')">Embedded</div>
+                    </div>
+                </div>
+                <div id="input-mappings" class="output-tabs">
+                    <table class="mapping-table">
+                        <thead>
+                            <tr>
+                                <th>HTML Element</th>
+                                <th>Perspective Component</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="html-element">&lt;div&gt;</td>
+                                <td class="perspective-component">ia.container.flex</td>
+                                <td>Flex container</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;button&gt;</td>
+                                <td class="perspective-component">ia.input.button</td>
+                                <td>Standard button</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;input&gt;</td>
+                                <td class="perspective-component">ia.input.text-field</td>
+                                <td>Text input</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;select&gt;</td>
+                                <td class="perspective-component">ia.input.dropdown</td>
+                                <td>Dropdown selector</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;img&gt;</td>
+                                <td class="perspective-component">ia.display.image</td>
+                                <td>Image display</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;span&gt;, &lt;p&gt;</td>
+                                <td class="perspective-component">ia.display.label</td>
+                                <td>Text label</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;table&gt;</td>
+                                <td class="perspective-component">ia.display.table</td>
+                                <td>Data table</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;canvas&gt;</td>
+                                <td class="perspective-component">ia.chart.xy</td>
+                                <td>XY Chart</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;progress&gt;</td>
+                                <td class="perspective-component">ia.display.progress-bar</td>
+                                <td>Progress indicator</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;input type="range"&gt;</td>
+                                <td class="perspective-component">ia.input.slider</td>
+                                <td>Slider control</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;input type="checkbox"&gt;</td>
+                                <td class="perspective-component">ia.input.toggle-switch</td>
+                                <td>Toggle switch</td>
+                            </tr>
+                            <tr>
+                                <td class="html-element">&lt;textarea&gt;</td>
+                                <td class="perspective-component">ia.input.text-area</td>
+                                <td>Multi-line text</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>Ready</span>
+                </div>
+                <span id="element-count">0 elements detected</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">Output</div>
+                <div class="panel-tabs">
+                    <button class="tab-btn active" onclick="setOutputTab('view')">View JSON</button>
+                    <button class="tab-btn" onclick="setOutputTab('tags')">Tags</button>
+                    <button class="tab-btn" onclick="setOutputTab('preview')">Preview</button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div id="output-view" class="output-tabs active">
+                    <textarea class="code-editor" id="view-output" readonly placeholder="Perspective view JSON will appear here..."></textarea>
+                </div>
+                <div id="output-tags" class="output-tabs">
+                    <div class="tag-list" id="tag-list">
+                        <div style="text-align: center; color: #71717a; padding: 2rem;">
+                            Convert a widget to see generated tags
+                        </div>
+                    </div>
+                </div>
+                <div id="output-preview" class="output-tabs">
+                    <div class="preview-frame" id="preview-frame">
+                        Preview will appear after conversion
+                    </div>
+                </div>
+            </div>
+            <div class="status-bar">
+                <div class="actions">
+                    <button class="btn btn-secondary" onclick="copyOutput()">Copy JSON</button>
+                    <button class="btn btn-secondary" onclick="downloadView()">Download View</button>
+                    <button class="btn btn-secondary" onclick="downloadTags()">Download Tags</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentInputTab = 'code';
+        let currentOutputTab = 'view';
+        let generatedView = null;
+        let generatedTags = [];
+
+        // Element to Perspective component mapping
+        const elementMapping = {
+            'div': { type: 'ia.container.flex', props: { direction: 'column' } },
+            'section': { type: 'ia.container.flex', props: { direction: 'column' } },
+            'header': { type: 'ia.container.flex', props: { direction: 'row' } },
+            'footer': { type: 'ia.container.flex', props: { direction: 'row' } },
+            'main': { type: 'ia.container.flex', props: { direction: 'column' } },
+            'article': { type: 'ia.container.flex', props: { direction: 'column' } },
+            'button': { type: 'ia.input.button', props: { text: 'Button' } },
+            'input': { type: 'ia.input.text-field', props: { placeholder: '' } },
+            'select': { type: 'ia.input.dropdown', props: { options: [] } },
+            'textarea': { type: 'ia.input.text-area', props: { rows: 4 } },
+            'img': { type: 'ia.display.image', props: { source: { path: '' } } },
+            'span': { type: 'ia.display.label', props: { text: '' } },
+            'p': { type: 'ia.display.label', props: { text: '' } },
+            'h1': { type: 'ia.display.label', props: { text: '', style: { fontSize: '2rem', fontWeight: 'bold' } } },
+            'h2': { type: 'ia.display.label', props: { text: '', style: { fontSize: '1.5rem', fontWeight: 'bold' } } },
+            'h3': { type: 'ia.display.label', props: { text: '', style: { fontSize: '1.25rem', fontWeight: 'bold' } } },
+            'label': { type: 'ia.display.label', props: { text: '' } },
+            'table': { type: 'ia.display.table', props: { data: [] } },
+            'canvas': { type: 'ia.chart.xy', props: {} },
+            'progress': { type: 'ia.display.linear-progress', props: { value: 0 } },
+            'ul': { type: 'ia.container.flex', props: { direction: 'column' } },
+            'ol': { type: 'ia.container.flex', props: { direction: 'column' } },
+            'li': { type: 'ia.display.label', props: { text: '' } },
+            'a': { type: 'ia.display.link', props: { url: '', text: '' } },
+            'form': { type: 'ia.container.flex', props: { direction: 'column' } },
+            'nav': { type: 'ia.container.flex', props: { direction: 'row' } },
+            'aside': { type: 'ia.container.flex', props: { direction: 'column' } }
+        };
+
+        // Input type specific mappings
+        const inputTypeMapping = {
+            'text': { type: 'ia.input.text-field', props: {} },
+            'password': { type: 'ia.input.text-field', props: { mode: 'password' } },
+            'number': { type: 'ia.input.numeric-entry', props: {} },
+            'range': { type: 'ia.input.slider', props: { min: 0, max: 100 } },
+            'checkbox': { type: 'ia.input.toggle-switch', props: {} },
+            'radio': { type: 'ia.input.radio-group', props: {} },
+            'date': { type: 'ia.input.datetime', props: { mode: 'date' } },
+            'time': { type: 'ia.input.datetime', props: { mode: 'time' } },
+            'datetime-local': { type: 'ia.input.datetime', props: {} },
+            'color': { type: 'ia.input.color-picker', props: {} },
+            'file': { type: 'ia.input.file-upload', props: {} },
+            'submit': { type: 'ia.input.button', props: { text: 'Submit' } },
+            'button': { type: 'ia.input.button', props: { text: 'Button' } }
+        };
+
+        function setInputTab(tab) {
+            currentInputTab = tab;
+            document.querySelectorAll('.panel:first-child .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.panel:first-child .output-tabs').forEach(t => t.classList.remove('active'));
+            document.getElementById('input-' + tab).classList.add('active');
+        }
+
+        function setOutputTab(tab) {
+            currentOutputTab = tab;
+            document.querySelectorAll('.panel:last-child .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.panel:last-child .output-tabs').forEach(t => t.classList.remove('active'));
+            document.getElementById('output-' + tab).classList.add('active');
+        }
+
+        function toggleSetting(el) {
+            el.classList.toggle('active');
+        }
+
+        function applyTemplate(template) {
+            const templates = {
+                hmi: { provider: 'default', folder: 'HMI/Screens', name: 'Screen_001' },
+                popup: { provider: 'default', folder: 'HMI/Popups', name: 'Popup_001' },
+                embedded: { provider: 'default', folder: 'Components/Embedded', name: 'Component_001' }
+            };
+            const t = templates[template];
+            document.getElementById('tag-provider').value = t.provider;
+            document.getElementById('tag-folder').value = t.folder;
+            document.getElementById('view-name').value = t.name;
+        }
+
+        function generateUniqueId() {
+            return 'comp_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function parseStyleString(styleStr) {
+            if (!styleStr) return {};
+            const style = {};
+            styleStr.split(';').forEach(rule => {
+                const [prop, value] = rule.split(':').map(s => s.trim());
+                if (prop && value) {
+                    // Convert CSS property to camelCase
+                    const camelProp = prop.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+                    style[camelProp] = value;
+                }
+            });
+            return style;
+        }
+
+        function convertElement(element, depth = 0) {
+            const tagName = element.tagName.toLowerCase();
+
+            // Skip script and style tags
+            if (['script', 'style', 'meta', 'link', 'head', 'html'].includes(tagName)) {
+                return null;
+            }
+
+            let mapping = elementMapping[tagName];
+
+            // Handle input types specifically
+            if (tagName === 'input') {
+                const inputType = element.getAttribute('type') || 'text';
+                mapping = inputTypeMapping[inputType] || inputTypeMapping['text'];
+            }
+
+            if (!mapping) {
+                mapping = { type: 'ia.container.flex', props: {} };
+            }
+
+            const component = {
+                type: mapping.type,
+                version: 0,
+                props: { ...mapping.props }
+            };
+
+            // Extract text content
+            const textContent = Array.from(element.childNodes)
+                .filter(n => n.nodeType === Node.TEXT_NODE)
+                .map(n => n.textContent.trim())
+                .join(' ')
+                .trim();
+
+            if (textContent && component.props.hasOwnProperty('text')) {
+                component.props.text = textContent;
+            }
+
+            // Extract attributes
+            const id = element.getAttribute('id');
+            const className = element.getAttribute('class');
+            const style = element.getAttribute('style');
+            const placeholder = element.getAttribute('placeholder');
+            const src = element.getAttribute('src');
+            const href = element.getAttribute('href');
+            const value = element.getAttribute('value');
+
+            if (id) {
+                component.meta = { name: id };
+            }
+
+            if (style && document.getElementById('include-styles').classList.contains('active')) {
+                component.props.style = { ...component.props.style, ...parseStyleString(style) };
+            }
+
+            if (placeholder) {
+                component.props.placeholder = placeholder;
+            }
+
+            if (src && component.props.source) {
+                component.props.source.path = src;
+            }
+
+            if (href && component.type === 'ia.display.link') {
+                component.props.url = href;
+                component.props.text = textContent || href;
+            }
+
+            if (value !== null) {
+                component.props.value = value;
+            }
+
+            // Process children
+            const children = Array.from(element.children);
+            if (children.length > 0) {
+                component.children = children
+                    .map(child => convertElement(child, depth + 1))
+                    .filter(c => c !== null);
+            }
+
+            // Generate tag binding if element has an id
+            if (id && document.getElementById('gen-memory-tags').classList.contains('active')) {
+                const tagPath = `[${document.getElementById('tag-provider').value}]${document.getElementById('tag-folder').value}/${id}`;
+
+                // Add to generated tags
+                let tagType = 'String';
+                if (component.type.includes('numeric') || component.type.includes('slider')) {
+                    tagType = 'Float8';
+                } else if (component.type.includes('toggle') || component.type.includes('checkbox')) {
+                    tagType = 'Boolean';
+                }
+
+                generatedTags.push({
+                    path: tagPath,
+                    type: tagType,
+                    name: id,
+                    value: value || ''
+                });
+
+                // Add binding to component
+                if (!component.props.value) {
+                    component.props.value = `{${tagPath}}`;
+                }
+            }
+
+            return component;
+        }
+
+        function convertWidget() {
+            const html = document.getElementById('html-input').value;
+            if (!html.trim()) {
+                alert('Please paste HTML widget code first');
+                return;
+            }
+
+            generatedTags = [];
+
+            // Parse HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Find the body or main content
+            let rootElement = doc.body;
+            if (rootElement.children.length === 1) {
+                rootElement = rootElement.children[0];
+            }
+
+            // Count elements
+            const allElements = doc.body.querySelectorAll('*');
+            document.getElementById('element-count').textContent = `${allElements.length} elements detected`;
+
+            // Convert to Perspective view
+            const rootComponent = convertElement(rootElement);
+
+            // Create full view structure
+            const viewName = document.getElementById('view-name').value;
+            generatedView = {
+                custom: {},
+                params: {},
+                props: {
+                    defaultSize: {
+                        width: 800,
+                        height: 600
+                    }
+                },
+                root: rootComponent || {
+                    type: 'ia.container.flex',
+                    version: 0,
+                    props: {},
+                    children: []
+                }
+            };
+
+            // Output view JSON
+            document.getElementById('view-output').value = JSON.stringify(generatedView, null, 2);
+
+            // Output tags
+            renderTags();
+
+            // Show preview
+            renderPreview();
+        }
+
+        function renderTags() {
+            const tagList = document.getElementById('tag-list');
+
+            if (generatedTags.length === 0) {
+                tagList.innerHTML = `
+                    <div style="text-align: center; color: #71717a; padding: 2rem;">
+                        No tags generated. Add IDs to elements to generate tag bindings.
+                    </div>
+                `;
+                return;
+            }
+
+            tagList.innerHTML = generatedTags.map(tag => `
+                <div class="tag-item">
+                    <span class="tag-path">${tag.path}</span>
+                    <span class="tag-type">${tag.type}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderPreview() {
+            const preview = document.getElementById('preview-frame');
+
+            if (!generatedView || !generatedView.root) {
+                preview.innerHTML = 'No view to preview';
+                return;
+            }
+
+            // Simple preview renderer
+            preview.innerHTML = `
+                <div style="padding: 1rem; width: 100%; height: 100%; overflow: auto;">
+                    ${renderComponent(generatedView.root)}
+                </div>
+            `;
+        }
+
+        function renderComponent(comp) {
+            if (!comp) return '';
+
+            const style = comp.props?.style ?
+                Object.entries(comp.props.style).map(([k, v]) => `${k}: ${v}`).join('; ') : '';
+
+            let content = '';
+
+            switch (comp.type) {
+                case 'ia.display.label':
+                    content = `<div style="color: #e4e4e7; ${style}">${comp.props?.text || ''}</div>`;
+                    break;
+                case 'ia.input.button':
+                    content = `<button style="padding: 8px 16px; background: #e94560; border: none; border-radius: 4px; color: white; cursor: pointer; ${style}">${comp.props?.text || 'Button'}</button>`;
+                    break;
+                case 'ia.input.text-field':
+                    content = `<input type="text" placeholder="${comp.props?.placeholder || ''}" style="padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #e4e4e7; ${style}" />`;
+                    break;
+                case 'ia.input.toggle-switch':
+                    content = `<div style="width: 48px; height: 24px; background: rgba(255,255,255,0.2); border-radius: 12px; position: relative; ${style}"><div style="width: 20px; height: 20px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px;"></div></div>`;
+                    break;
+                case 'ia.display.image':
+                    content = `<div style="width: 100px; height: 100px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; border-radius: 4px; ${style}">IMG</div>`;
+                    break;
+                case 'ia.container.flex':
+                default:
+                    const direction = comp.props?.direction === 'row' ? 'row' : 'column';
+                    const childContent = comp.children ? comp.children.map(c => renderComponent(c)).join('') : '';
+                    content = `<div style="display: flex; flex-direction: ${direction}; gap: 8px; ${style}">${childContent}</div>`;
+            }
+
+            return content;
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('view-output').value;
+            navigator.clipboard.writeText(output);
+        }
+
+        function downloadView() {
+            if (!generatedView) {
+                alert('Convert a widget first');
+                return;
+            }
+
+            const viewName = document.getElementById('view-name').value;
+            const blob = new Blob([JSON.stringify(generatedView, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${viewName}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadTags() {
+            if (generatedTags.length === 0) {
+                alert('No tags to download');
+                return;
+            }
+
+            // Create Ignition tag export format
+            const tagExport = {
+                tags: generatedTags.map(tag => ({
+                    name: tag.name,
+                    tagType: 'AtomicTag',
+                    valueSource: 'memory',
+                    dataType: tag.type,
+                    value: tag.value
+                })),
+                version: 1
+            };
+
+            const blob = new Blob([JSON.stringify(tagExport, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'tags.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadExample() {
+            document.getElementById('html-input').value = `<div class="dashboard">
+    <header class="header">
+        <h1>Equipment Status</h1>
+        <span id="timestamp">2024-01-15 14:30:00</span>
+    </header>
+
+    <div class="status-panel">
+        <div class="status-card">
+            <h3>Motor 1</h3>
+            <span id="motor1_status">Running</span>
+            <input type="range" id="motor1_speed" min="0" max="100" value="75" />
+            <label>Speed: <span id="motor1_speed_display">75</span> RPM</label>
+        </div>
+
+        <div class="status-card">
+            <h3>Motor 2</h3>
+            <span id="motor2_status">Stopped</span>
+            <input type="range" id="motor2_speed" min="0" max="100" value="0" />
+            <label>Speed: <span id="motor2_speed_display">0</span> RPM</label>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="start_all">Start All</button>
+        <button id="stop_all">Stop All</button>
+        <button id="emergency_stop" style="background: red; color: white;">E-STOP</button>
+    </div>
+
+    <div class="data-entry">
+        <label>Setpoint:</label>
+        <input type="number" id="setpoint" placeholder="Enter setpoint" />
+        <input type="checkbox" id="auto_mode" /> Auto Mode
+    </div>
+</div>`;
+            convertWidget();
+        }
+
+        // Auto-detect changes
+        document.getElementById('html-input').addEventListener('input', () => {
+            const html = document.getElementById('html-input').value;
+            if (html.trim()) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const allElements = doc.body.querySelectorAll('*');
+                document.getElementById('element-count').textContent = `${allElements.length} elements detected`;
+            } else {
+                document.getElementById('element-count').textContent = '0 elements detected';
+            }
+        });
+    </script>
+</body>
+</html>
