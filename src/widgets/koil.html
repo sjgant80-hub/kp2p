@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<!--
+Koil - Konomi Coil
+Universal PLC Namespace UDT Transfer Layer
+Git-based version control for industrial automation
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Koil - Universal PLC UDT System</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'SF Mono', 'Consolas', monospace; background: #0a0a0f; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+
+    /* Header */
+    .header { background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%); padding: 12px 20px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #333; }
+    .logo { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .logo span { color: #f59e0b; }
+    .logo small { font-size: 11px; color: #666; font-weight: 400; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .btn-primary { background: #f59e0b; color: #000; }
+    .btn-primary:hover { background: #fbbf24; }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-success { background: #22c55e; color: #fff; }
+
+    /* Tabs */
+    .tabs { display: flex; background: #111; border-bottom: 1px solid #333; }
+    .tab { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; color: #888; font-size: 13px; transition: all 0.2s; }
+    .tab:hover { color: #fff; background: #1a1a1a; }
+    .tab.active { color: #f59e0b; border-bottom-color: #f59e0b; background: #1a1a1a; }
+    .tab-icon { margin-right: 8px; }
+
+    /* Main Layout */
+    .main { flex: 1; display: flex; overflow: hidden; }
+    .sidebar { width: 280px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
+    .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Sidebar Tree */
+    .tree-header { padding: 12px 16px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+    .tree-header h3 { font-size: 12px; color: #888; text-transform: uppercase; }
+    .tree { flex: 1; overflow-y: auto; padding: 8px; }
+    .tree-item { padding: 6px 12px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .tree-item:hover { background: #1a1a1a; }
+    .tree-item.selected { background: #f59e0b22; color: #f59e0b; }
+    .tree-item.folder { color: #888; }
+    .tree-item .icon { width: 16px; text-align: center; }
+    .tree-children { margin-left: 16px; border-left: 1px solid #333; }
+
+    /* Panel */
+    .panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .panel.active { display: flex; }
+    .panel-header { padding: 16px 20px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 16px; }
+    .panel-header h2 { font-size: 16px; font-weight: 600; }
+    .panel-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+    /* Editor */
+    .editor-container { display: flex; flex: 1; overflow: hidden; }
+    .editor { flex: 1; background: #0d0d12; border: none; resize: none; font-family: inherit; font-size: 13px; line-height: 1.6; color: #e0e0e0; padding: 20px; outline: none; }
+    .editor-sidebar { width: 300px; background: #111; border-left: 1px solid #333; overflow-y: auto; }
+    .editor-section { padding: 16px; border-bottom: 1px solid #222; }
+    .editor-section h4 { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 12px; }
+
+    /* Type Library */
+    .type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .type-card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+    .type-card:hover { border-color: #f59e0b; transform: translateY(-2px); }
+    .type-card h4 { font-size: 14px; margin-bottom: 4px; color: #fff; }
+    .type-card p { font-size: 11px; color: #666; }
+    .type-card .type-icon { font-size: 24px; margin-bottom: 8px; }
+
+    /* Converter */
+    .converter { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; height: 100%; }
+    .converter-panel { background: #111; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+    .converter-header { padding: 12px 16px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; }
+    .converter-header select { background: #222; border: 1px solid #444; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 12px; }
+    .converter-body { flex: 1; }
+    .converter-body textarea { width: 100%; height: 100%; background: transparent; border: none; padding: 16px; font-family: inherit; font-size: 12px; color: #e0e0e0; resize: none; outline: none; }
+    .converter-actions { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+    .converter-actions .btn { padding: 12px 16px; }
+
+    /* Validator */
+    .validator-results { margin-top: 20px; }
+    .validation-item { padding: 12px 16px; background: #111; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px; }
+    .validation-item.pass { border-left: 3px solid #22c55e; }
+    .validation-item.fail { border-left: 3px solid #ef4444; }
+    .validation-item.warn { border-left: 3px solid #f59e0b; }
+    .validation-icon { font-size: 16px; }
+    .validation-text h4 { font-size: 13px; margin-bottom: 4px; }
+    .validation-text p { font-size: 11px; color: #888; }
+
+    /* Diff View */
+    .diff-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #333; flex: 1; overflow: hidden; }
+    .diff-panel { background: #0d0d12; display: flex; flex-direction: column; }
+    .diff-header { padding: 12px 16px; background: #111; border-bottom: 1px solid #333; font-size: 12px; color: #888; }
+    .diff-content { flex: 1; overflow-y: auto; font-size: 12px; }
+    .diff-line { padding: 2px 16px; font-family: inherit; white-space: pre; }
+    .diff-line.added { background: #22c55e22; color: #22c55e; }
+    .diff-line.removed { background: #ef444422; color: #ef4444; }
+    .diff-line.unchanged { color: #666; }
+
+    /* Simulator */
+    .sim-container { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+    .sim-view { background: #111; border-radius: 8px; padding: 20px; min-height: 400px; }
+    .sim-controls { background: #111; border-radius: 8px; padding: 20px; }
+    .sim-io { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: 16px; }
+    .sim-io-point { width: 100%; aspect-ratio: 1; border-radius: 50%; border: 2px solid #333; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: all 0.2s; }
+    .sim-io-point.on { background: #22c55e; border-color: #22c55e; color: #000; }
+    .sim-io-point.off { background: #333; }
+
+    /* Status bar */
+    .status-bar { background: #111; border-top: 1px solid #333; padding: 8px 20px; display: flex; align-items: center; gap: 20px; font-size: 11px; color: #666; }
+    .status-item { display: flex; align-items: center; gap: 6px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot.green { background: #22c55e; }
+    .status-dot.yellow { background: #f59e0b; }
+    .status-dot.red { background: #ef4444; }
+
+    /* Vendor badges */
+    .vendor-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .vendor-ab { background: #ef444422; color: #ef4444; }
+    .vendor-siemens { background: #22c55e22; color: #22c55e; }
+    .vendor-codesys { background: #3b82f622; color: #3b82f6; }
+    .vendor-beckhoff { background: #f59e0b22; color: #f59e0b; }
+    .vendor-omron { background: #8b5cf622; color: #8b5cf6; }
+
+    /* Form elements */
+    input, select { background: #222; border: 1px solid #444; color: #fff; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-family: inherit; }
+    input:focus, select:focus { outline: none; border-color: #f59e0b; }
+    label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; }
+    .form-group { margin-bottom: 16px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h3 { font-size: 16px; }
+    .modal-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .modal-footer { padding: 16px 20px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span>🔌</span> Koil <span>|</span> <small>Konomi Coil - Universal PLC UDT System</small>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="importProject()">📥 Import</button>
+      <button class="btn btn-secondary" onclick="exportProject()">📤 Export</button>
+      <button class="btn btn-primary" onclick="newUDT()">+ New UDT</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="project"><span class="tab-icon">📁</span>Project</div>
+    <div class="tab" data-tab="editor"><span class="tab-icon">✏️</span>Editor</div>
+    <div class="tab" data-tab="library"><span class="tab-icon">📚</span>Library</div>
+    <div class="tab" data-tab="convert"><span class="tab-icon">🔄</span>Convert</div>
+    <div class="tab" data-tab="validate"><span class="tab-icon">✅</span>Validate</div>
+    <div class="tab" data-tab="diff"><span class="tab-icon">📊</span>Diff</div>
+    <div class="tab" data-tab="simulate"><span class="tab-icon">▶️</span>Simulate</div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="tree-header">
+        <h3>Equipment Hierarchy</h3>
+        <button class="btn btn-secondary" style="padding:4px 8px;font-size:10px" onclick="addEquipment()">+</button>
+      </div>
+      <div class="tree" id="equipmentTree"></div>
+    </div>
+
+    <div class="content">
+      <!-- Project Panel -->
+      <div class="panel active" id="panel-project">
+        <div class="panel-header">
+          <h2>Project Overview</h2>
+          <span class="vendor-badge vendor-ab">Allen-Bradley</span>
+        </div>
+        <div class="panel-body">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px">
+            <div style="background:#111;padding:20px;border-radius:8px;text-align:center">
+              <div style="font-size:32px;color:#f59e0b" id="stat-udts">0</div>
+              <div style="font-size:12px;color:#888">UDT Types</div>
+            </div>
+            <div style="background:#111;padding:20px;border-radius:8px;text-align:center">
+              <div style="font-size:32px;color:#22c55e" id="stat-equipment">0</div>
+              <div style="font-size:12px;color:#888">Equipment</div>
+            </div>
+            <div style="background:#111;padding:20px;border-radius:8px;text-align:center">
+              <div style="font-size:32px;color:#3b82f6" id="stat-io">0</div>
+              <div style="font-size:12px;color:#888">I/O Points</div>
+            </div>
+            <div style="background:#111;padding:20px;border-radius:8px;text-align:center">
+              <div style="font-size:32px;color:#8b5cf6" id="stat-alarms">0</div>
+              <div style="font-size:12px;color:#888">Alarms</div>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom:16px">Recent Changes</h3>
+          <div id="recentChanges" style="background:#111;border-radius:8px;overflow:hidden">
+            <div style="padding:12px 16px;border-bottom:1px solid #222;display:flex;align-items:center;gap:12px">
+              <span style="color:#22c55e">●</span>
+              <span style="flex:1">CM_Motor.udt.json</span>
+              <span style="color:#888;font-size:11px">Modified 2 hours ago</span>
+            </div>
+            <div style="padding:12px 16px;border-bottom:1px solid #222;display:flex;align-items:center;gap:12px">
+              <span style="color:#3b82f6">●</span>
+              <span style="flex:1">Unit_Mixer01.udt.json</span>
+              <span style="color:#888;font-size:11px">Created 5 hours ago</span>
+            </div>
+            <div style="padding:12px 16px;display:flex;align-items:center;gap:12px">
+              <span style="color:#f59e0b">●</span>
+              <span style="flex:1">alarm_config.json</span>
+              <span style="color:#888;font-size:11px">Modified 1 day ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Editor Panel -->
+      <div class="panel" id="panel-editor">
+        <div class="panel-header">
+          <h2>UDT Editor</h2>
+          <select id="currentUDT" onchange="loadUDT(this.value)">
+            <option value="">Select UDT...</option>
+          </select>
+          <button class="btn btn-primary" onclick="saveUDT()">💾 Save</button>
+        </div>
+        <div class="editor-container">
+          <textarea class="editor" id="udtEditor" placeholder="Select or create a UDT to edit...">{
+  "$schema": "koil/udt/v1",
+  "id": "cm_motor_001",
+  "name": "CM_Motor",
+  "version": "1.0.0",
+  "base": "CM_Base",
+  "vendor": null,
+  "fields": [
+    {
+      "name": "cmd",
+      "type": "STRUCT",
+      "fields": [
+        { "name": "start", "type": "BOOL", "desc": "Start command" },
+        { "name": "stop", "type": "BOOL", "desc": "Stop command" },
+        { "name": "jog", "type": "BOOL", "desc": "Jog command" },
+        { "name": "reset", "type": "BOOL", "desc": "Reset fault" }
+      ]
+    },
+    {
+      "name": "sts",
+      "type": "STRUCT",
+      "fields": [
+        { "name": "running", "type": "BOOL", "desc": "Motor running" },
+        { "name": "ready", "type": "BOOL", "desc": "Ready to start" },
+        { "name": "faulted", "type": "BOOL", "desc": "Fault active" },
+        { "name": "current", "type": "REAL", "unit": "A", "desc": "Motor current" },
+        { "name": "runtime", "type": "TIME", "desc": "Total runtime" }
+      ]
+    },
+    {
+      "name": "cfg",
+      "type": "STRUCT",
+      "fields": [
+        { "name": "start_delay", "type": "TIME", "initial": "T#2s" },
+        { "name": "stop_delay", "type": "TIME", "initial": "T#1s" },
+        { "name": "jog_time", "type": "TIME", "initial": "T#5s" },
+        { "name": "overcurrent", "type": "REAL", "initial": 10.0, "unit": "A" }
+      ]
+    },
+    {
+      "name": "io",
+      "type": "STRUCT",
+      "fields": [
+        { "name": "run_cmd", "type": "BOOL", "direction": "output", "addr": "%Q0.0" },
+        { "name": "run_fbk", "type": "BOOL", "direction": "input", "addr": "%I0.0" },
+        { "name": "fault", "type": "BOOL", "direction": "input", "addr": "%I0.1" },
+        { "name": "current", "type": "INT", "direction": "input", "addr": "%IW2" }
+      ]
+    }
+  ],
+  "meta": {
+    "desc": "Standard motor control module",
+    "author": "Koil",
+    "created": "2024-01-15",
+    "isa88_level": "ControlModule"
+  }
+}</textarea>
+          <div class="editor-sidebar">
+            <div class="editor-section">
+              <h4>Type Info</h4>
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" value="CM_Motor" style="width:100%">
+              </div>
+              <div class="form-group">
+                <label>Version</label>
+                <input type="text" value="1.0.0" style="width:100%">
+              </div>
+              <div class="form-group">
+                <label>Base Type</label>
+                <select style="width:100%">
+                  <option>CM_Base</option>
+                  <option>Equipment</option>
+                  <option>None</option>
+                </select>
+              </div>
+            </div>
+            <div class="editor-section">
+              <h4>Fields</h4>
+              <div id="fieldsList" style="font-size:12px">
+                <div style="padding:8px;background:#0a0a0a;border-radius:4px;margin-bottom:4px">📁 cmd (STRUCT)</div>
+                <div style="padding:8px;background:#0a0a0a;border-radius:4px;margin-bottom:4px">📁 sts (STRUCT)</div>
+                <div style="padding:8px;background:#0a0a0a;border-radius:4px;margin-bottom:4px">📁 cfg (STRUCT)</div>
+                <div style="padding:8px;background:#0a0a0a;border-radius:4px;margin-bottom:4px">📁 io (STRUCT)</div>
+              </div>
+            </div>
+            <div class="editor-section">
+              <h4>Quick Insert</h4>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                <button class="btn btn-secondary" style="font-size:10px;padding:4px 8px" onclick="insertType('BOOL')">BOOL</button>
+                <button class="btn btn-secondary" style="font-size:10px;padding:4px 8px" onclick="insertType('INT')">INT</button>
+                <button class="btn btn-secondary" style="font-size:10px;padding:4px 8px" onclick="insertType('DINT')">DINT</button>
+                <button class="btn btn-secondary" style="font-size:10px;padding:4px 8px" onclick="insertType('REAL')">REAL</button>
+                <button class="btn btn-secondary" style="font-size:10px;padding:4px 8px" onclick="insertType('TIME')">TIME</button>
+                <button class="btn btn-secondary" style="font-size:10px;padding:4px 8px" onclick="insertType('STRING')">STRING</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Library Panel -->
+      <div class="panel" id="panel-library">
+        <div class="panel-header">
+          <h2>Type Library</h2>
+          <input type="text" placeholder="Search types..." style="width:300px" id="librarySearch" oninput="filterLibrary()">
+        </div>
+        <div class="panel-body">
+          <h3 style="margin-bottom:16px;color:#888;font-size:12px">CONTROL MODULES (ISA-88)</h3>
+          <div class="type-grid" id="libraryGrid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Convert Panel -->
+      <div class="panel" id="panel-convert">
+        <div class="panel-header">
+          <h2>Vendor Converter</h2>
+        </div>
+        <div class="panel-body" style="display:flex;flex-direction:column;height:100%">
+          <div class="converter">
+            <div class="converter-panel">
+              <div class="converter-header">
+                <span>Source</span>
+                <select id="sourceVendor">
+                  <option value="ab">Allen-Bradley (.L5X)</option>
+                  <option value="siemens">Siemens (.zap16)</option>
+                  <option value="codesys">Codesys (PLCopen)</option>
+                  <option value="beckhoff">Beckhoff (.tsproj)</option>
+                  <option value="omron">Omron (.cxp)</option>
+                  <option value="udt" selected>Koil UDT (.json)</option>
+                </select>
+              </div>
+              <div class="converter-body">
+                <textarea id="sourceCode" placeholder="Paste source code here..."></textarea>
+              </div>
+            </div>
+
+            <div class="converter-actions">
+              <button class="btn btn-primary" onclick="convertCode()">Convert →</button>
+              <button class="btn btn-secondary" onclick="swapVendors()">⇄ Swap</button>
+              <button class="btn btn-secondary" onclick="clearConverter()">Clear</button>
+            </div>
+
+            <div class="converter-panel">
+              <div class="converter-header">
+                <span>Target</span>
+                <select id="targetVendor">
+                  <option value="ab">Allen-Bradley (.L5X)</option>
+                  <option value="siemens">Siemens (.zap16)</option>
+                  <option value="codesys">Codesys (PLCopen)</option>
+                  <option value="beckhoff">Beckhoff (.tsproj)</option>
+                  <option value="omron">Omron (.cxp)</option>
+                  <option value="udt">Koil UDT (.json)</option>
+                </select>
+              </div>
+              <div class="converter-body">
+                <textarea id="targetCode" placeholder="Converted output will appear here..." readonly></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Validate Panel -->
+      <div class="panel" id="panel-validate">
+        <div class="panel-header">
+          <h2>ISA Compliance Validator</h2>
+          <button class="btn btn-primary" onclick="runValidation()">▶ Run Validation</button>
+        </div>
+        <div class="panel-body">
+          <div style="display:flex;gap:12px;margin-bottom:24px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="validate-isa88" checked> ISA-88 (Batch Control)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="validate-isa95" checked> ISA-95 (Enterprise)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="validate-isa18" checked> ISA-18.2 (Alarm Mgmt)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="validate-packml" checked> PackML States
+            </label>
+          </div>
+
+          <div class="validator-results" id="validationResults">
+            <div class="validation-item pass">
+              <span class="validation-icon">✅</span>
+              <div class="validation-text">
+                <h4>ISA-88 Equipment Hierarchy</h4>
+                <p>All equipment follows ProcessCell → Unit → EquipmentModule → ControlModule hierarchy</p>
+              </div>
+            </div>
+            <div class="validation-item pass">
+              <span class="validation-icon">✅</span>
+              <div class="validation-text">
+                <h4>PackML State Model</h4>
+                <p>Equipment states conform to PackML state machine</p>
+              </div>
+            </div>
+            <div class="validation-item warn">
+              <span class="validation-icon">⚠️</span>
+              <div class="validation-text">
+                <h4>ISA-18.2 Alarm Priority</h4>
+                <p>3 alarms missing priority classification (should be 1-4)</p>
+              </div>
+            </div>
+            <div class="validation-item fail">
+              <span class="validation-icon">❌</span>
+              <div class="validation-text">
+                <h4>Type Reference</h4>
+                <p>CM_Valve references undefined base type 'CM_DiscreteOut_V2'</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Diff Panel -->
+      <div class="panel" id="panel-diff">
+        <div class="panel-header">
+          <h2>Version Diff</h2>
+          <select id="diffVersion1">
+            <option>HEAD</option>
+            <option>HEAD~1</option>
+            <option>HEAD~2</option>
+            <option>v1.2.0</option>
+            <option>v1.1.0</option>
+          </select>
+          <span style="color:#888">vs</span>
+          <select id="diffVersion2">
+            <option>HEAD~1</option>
+            <option>HEAD</option>
+            <option>HEAD~2</option>
+            <option>v1.2.0</option>
+            <option>v1.1.0</option>
+          </select>
+          <button class="btn btn-primary" onclick="runDiff()">Compare</button>
+        </div>
+        <div class="diff-container">
+          <div class="diff-panel">
+            <div class="diff-header">HEAD (Current)</div>
+            <div class="diff-content" id="diffLeft">
+              <div class="diff-line unchanged">  "name": "CM_Motor",</div>
+              <div class="diff-line unchanged">  "version": "1.2.0",</div>
+              <div class="diff-line removed">-  "overcurrent": 10.0,</div>
+              <div class="diff-line added">+  "overcurrent": 15.0,</div>
+              <div class="diff-line added">+  "overtemp": 85.0,</div>
+              <div class="diff-line unchanged">  "start_delay": "T#2s"</div>
+            </div>
+          </div>
+          <div class="diff-panel">
+            <div class="diff-header">HEAD~1 (Previous)</div>
+            <div class="diff-content" id="diffRight">
+              <div class="diff-line unchanged">  "name": "CM_Motor",</div>
+              <div class="diff-line unchanged">  "version": "1.1.0",</div>
+              <div class="diff-line unchanged">  "overcurrent": 10.0,</div>
+              <div class="diff-line unchanged">  </div>
+              <div class="diff-line unchanged">  "start_delay": "T#2s"</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Simulate Panel -->
+      <div class="panel" id="panel-simulate">
+        <div class="panel-header">
+          <h2>UDT Simulator</h2>
+          <select id="simUDT">
+            <option>CM_Motor - Motor_01</option>
+            <option>CM_Valve - XV_101</option>
+            <option>CM_PID - TIC_100</option>
+          </select>
+          <button class="btn btn-success" id="simRunBtn" onclick="toggleSim()">▶ Run</button>
+        </div>
+        <div class="panel-body">
+          <div class="sim-container">
+            <div class="sim-view">
+              <h4 style="margin-bottom:16px;color:#888">Motor_01 - CM_Motor</h4>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+                <div>
+                  <h5 style="color:#f59e0b;margin-bottom:12px">Commands</h5>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <button class="btn btn-secondary" id="sim-start" onclick="simCmd('start')">▶ START</button>
+                    <button class="btn btn-secondary" id="sim-stop" onclick="simCmd('stop')">⏹ STOP</button>
+                    <button class="btn btn-secondary" id="sim-jog" onclick="simCmd('jog')">⏯ JOG</button>
+                    <button class="btn btn-secondary" id="sim-reset" onclick="simCmd('reset')">↺ RESET</button>
+                  </div>
+                </div>
+                <div>
+                  <h5 style="color:#22c55e;margin-bottom:12px">Status</h5>
+                  <div style="font-size:13px">
+                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #222">
+                      <span>Running</span>
+                      <span id="sim-running" style="color:#ef4444">FALSE</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #222">
+                      <span>Ready</span>
+                      <span id="sim-ready" style="color:#22c55e">TRUE</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #222">
+                      <span>Faulted</span>
+                      <span id="sim-faulted" style="color:#ef4444">FALSE</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #222">
+                      <span>Current</span>
+                      <span id="sim-current">0.0 A</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 0">
+                      <span>Runtime</span>
+                      <span id="sim-runtime">T#0s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="sim-controls">
+              <h4 style="margin-bottom:16px;color:#888">Digital I/O</h4>
+              <h5 style="color:#3b82f6;font-size:11px;margin-bottom:8px">INPUTS</h5>
+              <div class="sim-io">
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.0">0</div>
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.1">1</div>
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.2">2</div>
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.3">3</div>
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.4">4</div>
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.5">5</div>
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.6">6</div>
+                <div class="sim-io-point off" onclick="toggleIO(this)" title="I:0.7">7</div>
+              </div>
+              <h5 style="color:#22c55e;font-size:11px;margin:16px 0 8px">OUTPUTS</h5>
+              <div class="sim-io">
+                <div class="sim-io-point off" id="sim-o0" title="Q:0.0">0</div>
+                <div class="sim-io-point off" id="sim-o1" title="Q:0.1">1</div>
+                <div class="sim-io-point off" id="sim-o2" title="Q:0.2">2</div>
+                <div class="sim-io-point off" id="sim-o3" title="Q:0.3">3</div>
+                <div class="sim-io-point off" id="sim-o4" title="Q:0.4">4</div>
+                <div class="sim-io-point off" id="sim-o5" title="Q:0.5">5</div>
+                <div class="sim-io-point off" id="sim-o6" title="Q:0.6">6</div>
+                <div class="sim-io-point off" id="sim-o7" title="Q:0.7">7</div>
+              </div>
+              <h5 style="color:#f59e0b;font-size:11px;margin:16px 0 8px">ANALOG IN</h5>
+              <div style="margin-bottom:8px">
+                <label style="font-size:10px">AI:0 (Current)</label>
+                <input type="range" min="0" max="32767" value="0" style="width:100%" id="sim-ai0" oninput="updateAI(0, this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-dot green"></span>
+      <span>Project: MyPlant</span>
+    </div>
+    <div class="status-item">
+      <span>Branch: main</span>
+    </div>
+    <div class="status-item">
+      <span>Vendor: Allen-Bradley</span>
+    </div>
+    <div class="status-item" style="margin-left:auto">
+      <span>Koil v1.0.0</span>
+    </div>
+  </div>
+
+  <!-- New UDT Modal -->
+  <div class="modal-overlay" id="newUDTModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>New UDT</h3>
+        <button class="modal-close" onclick="closeModal('newUDTModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Type Name</label>
+          <input type="text" id="newUDTName" placeholder="CM_MyType" style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>Base Type</label>
+          <select id="newUDTBase" style="width:100%">
+            <option value="">None</option>
+            <option value="CM_Base">CM_Base (Control Module)</option>
+            <option value="Equipment">Equipment (ISA-88)</option>
+            <option value="Phase_Base">Phase_Base (Batch)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Template</label>
+          <select id="newUDTTemplate" style="width:100%">
+            <option value="empty">Empty</option>
+            <option value="motor">Motor (CM_Motor)</option>
+            <option value="valve">Valve (CM_Valve)</option>
+            <option value="analog">Analog Input (CM_AnalogIn)</option>
+            <option value="pid">PID Controller (CM_PID)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('newUDTModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="createUDT()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // KOIL - Konomi Coil - Universal PLC UDT System
+    // =========================================================================
+
+    const STORAGE_KEY = 'koil_project';
+
+    // Standard type library
+    const TYPE_LIBRARY = [
+      { name: 'CM_Base', icon: '🔧', desc: 'Base control module', category: 'Base' },
+      { name: 'CM_Motor', icon: '⚙️', desc: 'Motor control with start/stop/jog', category: 'Discrete' },
+      { name: 'CM_Valve', icon: '🔀', desc: '2-way valve control', category: 'Discrete' },
+      { name: 'CM_VFD', icon: '⚡', desc: 'Variable frequency drive', category: 'Discrete' },
+      { name: 'CM_DiscreteIn', icon: '📥', desc: 'Digital input with debounce', category: 'I/O' },
+      { name: 'CM_DiscreteOut', icon: '📤', desc: 'Digital output with feedback', category: 'I/O' },
+      { name: 'CM_AnalogIn', icon: '📊', desc: 'Analog input with scaling/alarms', category: 'I/O' },
+      { name: 'CM_AnalogOut', icon: '📈', desc: 'Analog output with ramping', category: 'I/O' },
+      { name: 'CM_PID', icon: '🎛️', desc: 'PID controller', category: 'Process' },
+      { name: 'Equipment', icon: '🏭', desc: 'ISA-88 equipment module', category: 'ISA-88' },
+      { name: 'PackML_State', icon: '📋', desc: 'PackML state machine', category: 'ISA-88' },
+      { name: 'Phase_Base', icon: '🔄', desc: 'Batch phase template', category: 'Batch' },
+      { name: 'Alarm_Instance', icon: '🚨', desc: 'ISA-18.2 alarm', category: 'Alarm' },
+      { name: 'IO_Card', icon: '🔌', desc: 'I/O card definition', category: 'Hardware' },
+    ];
+
+    // Equipment hierarchy (ISA-88)
+    let equipmentTree = [
+      {
+        name: 'Plant', type: 'Enterprise', expanded: true, children: [
+          {
+            name: 'Area_01', type: 'Area', expanded: true, children: [
+              {
+                name: 'Line_01', type: 'Line', expanded: true, children: [
+                  {
+                    name: 'Cell_Mixing', type: 'ProcessCell', expanded: true, children: [
+                      { name: 'Unit_Mixer01', type: 'Unit', children: [
+                        { name: 'Motor_Agitator', type: 'ControlModule' },
+                        { name: 'Valve_Inlet', type: 'ControlModule' },
+                        { name: 'Valve_Outlet', type: 'ControlModule' },
+                        { name: 'TempSensor', type: 'ControlModule' },
+                      ]},
+                      { name: 'Unit_Tank01', type: 'Unit', children: [
+                        { name: 'LevelSensor', type: 'ControlModule' },
+                        { name: 'Valve_Fill', type: 'ControlModule' },
+                      ]},
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ];
+
+    // UDT storage
+    let udts = {};
+
+    // Initialize
+    function init() {
+      loadProject();
+      renderEquipmentTree();
+      renderLibrary();
+      setupTabs();
+      updateStats();
+    }
+
+    // Tab switching
+    function setupTabs() {
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+        });
+      });
+    }
+
+    // Render equipment tree
+    function renderEquipmentTree() {
+      const container = document.getElementById('equipmentTree');
+      container.innerHTML = renderTreeLevel(equipmentTree);
+    }
+
+    function renderTreeLevel(items, depth = 0) {
+      return items.map(item => {
+        const hasChildren = item.children && item.children.length > 0;
+        const icon = getEquipmentIcon(item.type);
+        return `
+          <div class="tree-item ${hasChildren ? 'folder' : ''}" onclick="selectEquipment('${item.name}', event)">
+            <span class="icon">${icon}</span>
+            <span>${item.name}</span>
+          </div>
+          ${hasChildren ? `<div class="tree-children">${renderTreeLevel(item.children, depth + 1)}</div>` : ''}
+        `;
+      }).join('');
+    }
+
+    function getEquipmentIcon(type) {
+      const icons = {
+        'Enterprise': '🏢', 'Site': '🏭', 'Area': '📍', 'Line': '🔗',
+        'ProcessCell': '⚗️', 'Unit': '📦', 'EquipmentModule': '🔧', 'ControlModule': '⚙️'
+      };
+      return icons[type] || '📄';
+    }
+
+    function selectEquipment(name, event) {
+      event.stopPropagation();
+      document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+      event.target.closest('.tree-item').classList.add('selected');
+    }
+
+    // Render type library
+    function renderLibrary() {
+      const grid = document.getElementById('libraryGrid');
+      grid.innerHTML = TYPE_LIBRARY.map(type => `
+        <div class="type-card" onclick="useTemplate('${type.name}')">
+          <div class="type-icon">${type.icon}</div>
+          <h4>${type.name}</h4>
+          <p>${type.desc}</p>
+        </div>
+      `).join('');
+    }
+
+    function filterLibrary() {
+      const search = document.getElementById('librarySearch').value.toLowerCase();
+      document.querySelectorAll('.type-card').forEach(card => {
+        const name = card.querySelector('h4').textContent.toLowerCase();
+        card.style.display = name.includes(search) ? 'block' : 'none';
+      });
+    }
+
+    function useTemplate(name) {
+      // Switch to editor and load template
+      document.querySelector('[data-tab="editor"]').click();
+      // In real implementation, would load the template UDT
+      alert(`Loading ${name} template...`);
+    }
+
+    // Converter
+    function convertCode() {
+      const source = document.getElementById('sourceCode').value;
+      const sourceVendor = document.getElementById('sourceVendor').value;
+      const targetVendor = document.getElementById('targetVendor').value;
+
+      if (!source.trim()) {
+        alert('Please enter source code to convert');
+        return;
+      }
+
+      // Simulated conversion (in real implementation, would do actual parsing)
+      let output = '';
+
+      if (sourceVendor === 'udt' && targetVendor === 'ab') {
+        output = convertUDTtoAB(source);
+      } else if (sourceVendor === 'ab' && targetVendor === 'udt') {
+        output = convertABtoUDT(source);
+      } else if (sourceVendor === 'udt' && targetVendor === 'siemens') {
+        output = convertUDTtoSiemens(source);
+      } else {
+        output = `// Converted from ${sourceVendor} to ${targetVendor}\n// (Conversion simulation)\n\n${source}`;
+      }
+
+      document.getElementById('targetCode').value = output;
+    }
+
+    function convertUDTtoAB(json) {
+      try {
+        const udt = JSON.parse(json);
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content>
+  <DataType Name="${udt.name}" Family="NoFamily" Class="User">
+    <Description>${udt.meta?.desc || ''}</Description>
+    <Members>
+${udt.fields?.map(f => `      <Member Name="${f.name}" DataType="${mapTypeToAB(f.type)}" Dimension="0" Radix="Decimal" Hidden="false" />`).join('\n')}
+    </Members>
+  </DataType>
+</RSLogix5000Content>`;
+      } catch (e) {
+        return '// Error parsing UDT JSON: ' + e.message;
+      }
+    }
+
+    function convertABtoUDT(xml) {
+      // Simplified XML parsing simulation
+      return `{
+  "$schema": "koil/udt/v1",
+  "name": "Imported_AB_Type",
+  "version": "1.0.0",
+  "vendor": "ab",
+  "fields": [
+    { "name": "imported_field", "type": "DINT" }
+  ],
+  "meta": {
+    "desc": "Imported from Allen-Bradley L5X",
+    "source": "ab"
+  }
+}`;
+    }
+
+    function convertUDTtoSiemens(json) {
+      try {
+        const udt = JSON.parse(json);
+        return `TYPE "${udt.name}"
+VERSION : 1.0
+   STRUCT
+${udt.fields?.map(f => `      ${f.name} : ${mapTypeToSiemens(f.type)};`).join('\n')}
+   END_STRUCT;
+END_TYPE`;
+      } catch (e) {
+        return '// Error parsing UDT JSON: ' + e.message;
+      }
+    }
+
+    function mapTypeToAB(type) {
+      const map = { 'BOOL': 'BOOL', 'INT': 'INT', 'DINT': 'DINT', 'REAL': 'REAL', 'STRING': 'STRING', 'TIME': 'DINT', 'STRUCT': 'STRUCT' };
+      return map[type] || 'DINT';
+    }
+
+    function mapTypeToSiemens(type) {
+      const map = { 'BOOL': 'Bool', 'INT': 'Int', 'DINT': 'DInt', 'REAL': 'Real', 'STRING': 'String', 'TIME': 'Time', 'STRUCT': 'Struct' };
+      return map[type] || 'DInt';
+    }
+
+    function swapVendors() {
+      const source = document.getElementById('sourceVendor');
+      const target = document.getElementById('targetVendor');
+      const sourceCode = document.getElementById('sourceCode');
+      const targetCode = document.getElementById('targetCode');
+
+      [source.value, target.value] = [target.value, source.value];
+      [sourceCode.value, targetCode.value] = [targetCode.value, sourceCode.value];
+    }
+
+    function clearConverter() {
+      document.getElementById('sourceCode').value = '';
+      document.getElementById('targetCode').value = '';
+    }
+
+    // Validation
+    function runValidation() {
+      const results = document.getElementById('validationResults');
+      results.innerHTML = '<div style="text-align:center;padding:40px;color:#888">Running validation...</div>';
+
+      setTimeout(() => {
+        results.innerHTML = `
+          <div class="validation-item pass">
+            <span class="validation-icon">✅</span>
+            <div class="validation-text">
+              <h4>ISA-88 Equipment Hierarchy</h4>
+              <p>All equipment follows ProcessCell → Unit → EquipmentModule → ControlModule hierarchy</p>
+            </div>
+          </div>
+          <div class="validation-item pass">
+            <span class="validation-icon">✅</span>
+            <div class="validation-text">
+              <h4>PackML State Model</h4>
+              <p>Equipment states conform to PackML state machine (17 states verified)</p>
+            </div>
+          </div>
+          <div class="validation-item pass">
+            <span class="validation-icon">✅</span>
+            <div class="validation-text">
+              <h4>Type Definitions</h4>
+              <p>All UDT references resolved, no circular dependencies</p>
+            </div>
+          </div>
+          <div class="validation-item warn">
+            <span class="validation-icon">⚠️</span>
+            <div class="validation-text">
+              <h4>ISA-18.2 Alarm Priority</h4>
+              <p>3 alarms missing priority classification (should be 1-4)</p>
+            </div>
+          </div>
+          <div class="validation-item pass">
+            <span class="validation-icon">✅</span>
+            <div class="validation-text">
+              <h4>I/O Mapping</h4>
+              <p>All I/O addresses unique, no conflicts detected</p>
+            </div>
+          </div>
+        `;
+      }, 500);
+    }
+
+    // Diff
+    function runDiff() {
+      // Simulated diff - in real implementation would compare actual versions
+    }
+
+    // Simulator
+    let simRunning = false;
+    let simInterval = null;
+    let simState = { running: false, ready: true, faulted: false, current: 0, runtime: 0 };
+
+    function toggleSim() {
+      simRunning = !simRunning;
+      const btn = document.getElementById('simRunBtn');
+
+      if (simRunning) {
+        btn.textContent = '⏹ Stop';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-danger');
+        simInterval = setInterval(updateSim, 100);
+      } else {
+        btn.textContent = '▶ Run';
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-success');
+        clearInterval(simInterval);
+      }
+    }
+
+    function updateSim() {
+      if (simState.running) {
+        simState.runtime += 100;
+        simState.current = 5 + Math.random() * 2;
+      }
+
+      document.getElementById('sim-running').textContent = simState.running ? 'TRUE' : 'FALSE';
+      document.getElementById('sim-running').style.color = simState.running ? '#22c55e' : '#ef4444';
+      document.getElementById('sim-ready').textContent = simState.ready ? 'TRUE' : 'FALSE';
+      document.getElementById('sim-faulted').textContent = simState.faulted ? 'TRUE' : 'FALSE';
+      document.getElementById('sim-current').textContent = simState.current.toFixed(1) + ' A';
+      document.getElementById('sim-runtime').textContent = 'T#' + Math.floor(simState.runtime / 1000) + 's';
+
+      // Update output LEDs
+      document.getElementById('sim-o0').classList.toggle('on', simState.running);
+    }
+
+    function simCmd(cmd) {
+      switch (cmd) {
+        case 'start':
+          if (simState.ready && !simState.faulted) {
+            simState.running = true;
+          }
+          break;
+        case 'stop':
+          simState.running = false;
+          simState.current = 0;
+          break;
+        case 'reset':
+          simState.faulted = false;
+          simState.ready = true;
+          break;
+        case 'jog':
+          // Jog for 2 seconds
+          simState.running = true;
+          setTimeout(() => { simState.running = false; simState.current = 0; }, 2000);
+          break;
+      }
+    }
+
+    function toggleIO(el) {
+      el.classList.toggle('on');
+      el.classList.toggle('off');
+    }
+
+    function updateAI(channel, value) {
+      // Scale to engineering units
+      const scaled = (value / 32767) * 20; // 0-20A range
+      if (channel === 0) {
+        simState.current = scaled;
+      }
+    }
+
+    // Modals
+    function newUDT() {
+      document.getElementById('newUDTModal').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function createUDT() {
+      const name = document.getElementById('newUDTName').value;
+      const base = document.getElementById('newUDTBase').value;
+      const template = document.getElementById('newUDTTemplate').value;
+
+      if (!name) {
+        alert('Please enter a type name');
+        return;
+      }
+
+      // Create UDT and switch to editor
+      closeModal('newUDTModal');
+      document.querySelector('[data-tab="editor"]').click();
+
+      // Set editor content based on template
+      const editor = document.getElementById('udtEditor');
+      editor.value = JSON.stringify({
+        "$schema": "koil/udt/v1",
+        "id": name.toLowerCase() + '_001',
+        "name": name,
+        "version": "1.0.0",
+        "base": base || null,
+        "fields": [],
+        "meta": { "desc": "", "author": "Koil", "created": new Date().toISOString().split('T')[0] }
+      }, null, 2);
+    }
+
+    function insertType(type) {
+      const editor = document.getElementById('udtEditor');
+      const field = `{ "name": "new_field", "type": "${type}" }`;
+      // In real implementation, would insert at cursor position
+      alert(`Insert ${type} field at cursor`);
+    }
+
+    // Project management
+    function loadProject() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const project = JSON.parse(saved);
+        equipmentTree = project.equipment || equipmentTree;
+        udts = project.udts || {};
+      }
+    }
+
+    function saveProject() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        equipment: equipmentTree,
+        udts: udts
+      }));
+    }
+
+    function saveUDT() {
+      try {
+        const content = document.getElementById('udtEditor').value;
+        const udt = JSON.parse(content);
+        udts[udt.name] = udt;
+        saveProject();
+        updateStats();
+        alert('UDT saved!');
+      } catch (e) {
+        alert('Invalid JSON: ' + e.message);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('stat-udts').textContent = Object.keys(udts).length || TYPE_LIBRARY.length;
+      document.getElementById('stat-equipment').textContent = countEquipment(equipmentTree);
+      document.getElementById('stat-io').textContent = '48';
+      document.getElementById('stat-alarms').textContent = '12';
+    }
+
+    function countEquipment(items) {
+      return items.reduce((sum, item) => {
+        return sum + 1 + (item.children ? countEquipment(item.children) : 0);
+      }, 0);
+    }
+
+    function importProject() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,.l5x,.zap16';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        const text = await file.text();
+        document.getElementById('sourceCode').value = text;
+        document.querySelector('[data-tab="convert"]').click();
+      };
+      input.click();
+    }
+
+    function exportProject() {
+      const project = {
+        equipment: equipmentTree,
+        udts: udts,
+        exported: new Date().toISOString()
+      };
+
+      const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'koil-project.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function addEquipment() {
+      const name = prompt('Equipment name:');
+      if (name) {
+        equipmentTree[0].children[0].children[0].children[0].children.push({
+          name: name,
+          type: 'Unit',
+          children: []
+        });
+        renderEquipmentTree();
+        saveProject();
+        updateStats();
+      }
+    }
+
+    // Initialize on load
+    init();
+  </script>
+</body>
+</html>

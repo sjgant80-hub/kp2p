@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<!--
+Komfy - Konomi ComfyUI Interface
+Connect to ComfyUI backends and run Stable Diffusion workflows
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Komfy - ComfyUI Interface</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    .header { background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%); padding: 12px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #333; }
+    .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .logo span { color: #a855f7; }
+    .connection { display: flex; align-items: center; gap: 8px; margin-left: 24px; }
+    .connection input { background: #222; border: 1px solid #444; color: #fff; padding: 8px 12px; border-radius: 6px; width: 300px; font-size: 13px; }
+    .connection input:focus { outline: none; border-color: #a855f7; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .btn-primary { background: #a855f7; color: #fff; }
+    .btn-primary:hover { background: #9333ea; }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn-success { background: #22c55e; color: #fff; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .status-indicator { width: 10px; height: 10px; border-radius: 50%; }
+    .status-indicator.connected { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    .status-indicator.disconnected { background: #ef4444; }
+    .status-indicator.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Main Layout */
+    .main { flex: 1; display: flex; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { width: 300px; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; }
+    .sidebar-section { border-bottom: 1px solid #222; }
+    .sidebar-header { padding: 12px 16px; background: #0a0a0a; font-size: 12px; color: #888; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-content { padding: 12px; max-height: 300px; overflow-y: auto; }
+
+    /* Node palette */
+    .node-category { margin-bottom: 12px; }
+    .node-category h4 { font-size: 11px; color: #666; margin-bottom: 8px; padding-left: 4px; }
+    .node-item { padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; margin-bottom: 4px; cursor: grab; font-size: 12px; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+    .node-item:hover { border-color: #a855f7; background: #222; }
+    .node-item .icon { font-size: 14px; }
+    .node-item.sampler { border-left: 3px solid #22c55e; }
+    .node-item.loader { border-left: 3px solid #3b82f6; }
+    .node-item.conditioning { border-left: 3px solid #f59e0b; }
+    .node-item.latent { border-left: 3px solid #ec4899; }
+    .node-item.image { border-left: 3px solid #8b5cf6; }
+
+    /* Canvas */
+    .canvas-container { flex: 1; position: relative; overflow: hidden; background: #0d0d15; background-image: radial-gradient(#222 1px, transparent 1px); background-size: 20px 20px; }
+    .canvas { width: 100%; height: 100%; position: relative; }
+
+    /* Nodes */
+    .node { position: absolute; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; min-width: 200px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    .node.selected { border-color: #a855f7; box-shadow: 0 0 20px rgba(168,85,247,0.3); }
+    .node-header { padding: 10px 14px; background: #222; border-radius: 7px 7px 0 0; cursor: move; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
+    .node-header .color-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .node-body { padding: 12px; }
+    .node-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+    .node-row:last-child { margin-bottom: 0; }
+    .node-input, .node-output { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #444; cursor: crosshair; }
+    .node-input { background: #1a1a2e; }
+    .node-output { background: #1a1a2e; margin-left: auto; }
+    .node-input.connected, .node-output.connected { background: #a855f7; border-color: #a855f7; }
+    .node-label { flex: 1; color: #888; }
+    .node-value { flex: 1; }
+    .node-value input, .node-value select, .node-value textarea { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-family: inherit; }
+    .node-value input:focus, .node-value select:focus, .node-value textarea:focus { outline: none; border-color: #a855f7; }
+    .node-preview { margin-top: 8px; border-radius: 4px; overflow: hidden; background: #000; }
+    .node-preview img { width: 100%; display: block; }
+
+    /* Connections SVG */
+    .connections-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+    .connection-line { stroke: #a855f7; stroke-width: 2; fill: none; }
+
+    /* Right panel */
+    .right-panel { width: 320px; background: #111; border-left: 1px solid #333; display: flex; flex-direction: column; }
+    .panel-tabs { display: flex; border-bottom: 1px solid #333; }
+    .panel-tab { flex: 1; padding: 12px; text-align: center; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: #888; }
+    .panel-tab:hover { color: #fff; }
+    .panel-tab.active { color: #a855f7; border-bottom-color: #a855f7; }
+    .panel-content { flex: 1; overflow-y: auto; padding: 16px; }
+    .panel-content.hidden { display: none; }
+
+    /* Queue */
+    .queue-item { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+    .queue-item.running { border-color: #22c55e; }
+    .queue-item.pending { border-color: #f59e0b; }
+    .queue-item .queue-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .queue-item .queue-id { font-size: 11px; color: #888; }
+    .queue-item .queue-status { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+    .queue-item .queue-status.running { background: #22c55e22; color: #22c55e; }
+    .queue-item .queue-status.pending { background: #f59e0b22; color: #f59e0b; }
+    .queue-progress { height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+    .queue-progress-bar { height: 100%; background: #a855f7; transition: width 0.3s; }
+
+    /* Gallery */
+    .gallery-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .gallery-item { aspect-ratio: 1; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+    .gallery-item:hover { border-color: #a855f7; }
+    .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Settings form */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 11px; color: #888; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #a855f7; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+
+    /* Workflow bar */
+    .workflow-bar { background: #0a0a0a; border-top: 1px solid #333; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+    .workflow-name { font-size: 14px; color: #fff; }
+    .workflow-actions { margin-left: auto; display: flex; gap: 8px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: #1a1a2e; border: 1px solid #333; border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow: hidden; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
+    .modal-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; }
+    .modal-body { padding: 20px; overflow-y: auto; max-height: calc(90vh - 120px); }
+    .modal-body img { max-width: 100%; border-radius: 8px; }
+
+    /* Tooltips */
+    [data-tooltip] { position: relative; }
+    [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #000; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 40px; color: #666; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { margin-bottom: 8px; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span>🎨</span> Komfy <span>|</span> <small style="color:#888;font-size:12px">ComfyUI Interface</small>
+    </div>
+    <div class="connection">
+      <span class="status-indicator disconnected" id="statusIndicator"></span>
+      <input type="text" id="serverUrl" placeholder="http://127.0.0.1:8188" value="http://127.0.0.1:8188">
+      <button class="btn btn-primary" id="connectBtn" onclick="toggleConnection()">Connect</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="loadWorkflow()">📂 Load</button>
+      <button class="btn btn-secondary" onclick="saveWorkflow()">💾 Save</button>
+      <button class="btn btn-success" onclick="queuePrompt()">▶ Queue</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Left Sidebar - Node Palette -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-header">
+          <span>Nodes</span>
+          <input type="text" placeholder="Search..." style="width:100px;padding:4px 8px;font-size:11px;background:#222;border:1px solid #333;border-radius:4px;color:#fff" id="nodeSearch" oninput="filterNodes()">
+        </div>
+        <div class="sidebar-content" id="nodePalette">
+          <div class="node-category">
+            <h4>Loaders</h4>
+            <div class="node-item loader" draggable="true" data-type="CheckpointLoaderSimple">
+              <span class="icon">📦</span> Checkpoint Loader
+            </div>
+            <div class="node-item loader" draggable="true" data-type="VAELoader">
+              <span class="icon">🔲</span> VAE Loader
+            </div>
+            <div class="node-item loader" draggable="true" data-type="LoraLoader">
+              <span class="icon">🎯</span> LoRA Loader
+            </div>
+          </div>
+          <div class="node-category">
+            <h4>Conditioning</h4>
+            <div class="node-item conditioning" draggable="true" data-type="CLIPTextEncode">
+              <span class="icon">📝</span> CLIP Text Encode
+            </div>
+            <div class="node-item conditioning" draggable="true" data-type="ConditioningCombine">
+              <span class="icon">🔗</span> Conditioning Combine
+            </div>
+          </div>
+          <div class="node-category">
+            <h4>Latent</h4>
+            <div class="node-item latent" draggable="true" data-type="EmptyLatentImage">
+              <span class="icon">⬜</span> Empty Latent Image
+            </div>
+            <div class="node-item latent" draggable="true" data-type="LatentUpscale">
+              <span class="icon">📐</span> Latent Upscale
+            </div>
+          </div>
+          <div class="node-category">
+            <h4>Sampling</h4>
+            <div class="node-item sampler" draggable="true" data-type="KSampler">
+              <span class="icon">🎲</span> KSampler
+            </div>
+            <div class="node-item sampler" draggable="true" data-type="KSamplerAdvanced">
+              <span class="icon">⚙️</span> KSampler Advanced
+            </div>
+          </div>
+          <div class="node-category">
+            <h4>Image</h4>
+            <div class="node-item image" draggable="true" data-type="VAEDecode">
+              <span class="icon">🖼️</span> VAE Decode
+            </div>
+            <div class="node-item image" draggable="true" data-type="SaveImage">
+              <span class="icon">💾</span> Save Image
+            </div>
+            <div class="node-item image" draggable="true" data-type="PreviewImage">
+              <span class="icon">👁️</span> Preview Image
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section" style="flex:1">
+        <div class="sidebar-header">
+          <span>Workflows</span>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:10px" onclick="newWorkflow()">+ New</button>
+        </div>
+        <div class="sidebar-content" id="workflowList">
+          <div class="node-item" onclick="loadDefaultWorkflow('txt2img')">
+            <span class="icon">🖼️</span> txt2img Basic
+          </div>
+          <div class="node-item" onclick="loadDefaultWorkflow('img2img')">
+            <span class="icon">🔄</span> img2img
+          </div>
+          <div class="node-item" onclick="loadDefaultWorkflow('upscale')">
+            <span class="icon">📐</span> Upscale 2x
+          </div>
+          <div class="node-item" onclick="loadDefaultWorkflow('inpaint')">
+            <span class="icon">🎨</span> Inpaint
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-container" id="canvasContainer">
+      <svg class="connections-svg" id="connectionsSvg"></svg>
+      <div class="canvas" id="canvas">
+        <!-- Nodes will be added here -->
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <div class="panel-tabs">
+        <div class="panel-tab active" data-panel="queue">Queue</div>
+        <div class="panel-tab" data-panel="gallery">Gallery</div>
+        <div class="panel-tab" data-panel="settings">Settings</div>
+      </div>
+
+      <!-- Queue Panel -->
+      <div class="panel-content" id="panel-queue">
+        <div id="queueList">
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <h3>Queue Empty</h3>
+            <p>Click Queue to generate images</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gallery Panel -->
+      <div class="panel-content hidden" id="panel-gallery">
+        <div class="gallery-grid" id="galleryGrid">
+          <!-- Images will be added here -->
+        </div>
+        <div class="empty-state" id="galleryEmpty">
+          <div class="icon">🖼️</div>
+          <h3>No Images Yet</h3>
+          <p>Generated images will appear here</p>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div class="panel-content hidden" id="panel-settings">
+        <div class="form-group">
+          <label>Server URL</label>
+          <input type="text" id="settingsUrl" value="http://127.0.0.1:8188">
+        </div>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" id="clientId" readonly>
+        </div>
+        <div class="form-group">
+          <label>Default Checkpoint</label>
+          <select id="defaultCheckpoint">
+            <option value="">Auto-detect</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Default Width</label>
+            <input type="number" id="defaultWidth" value="512">
+          </div>
+          <div class="form-group">
+            <label>Default Height</label>
+            <input type="number" id="defaultHeight" value="512">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Default Steps</label>
+          <input type="number" id="defaultSteps" value="20">
+        </div>
+        <div class="form-group">
+          <label>Default CFG</label>
+          <input type="number" id="defaultCfg" value="7" step="0.5">
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="saveSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="workflow-bar">
+    <span class="workflow-name" id="workflowName">Untitled Workflow</span>
+    <span style="color:#666;font-size:12px" id="nodeCount">0 nodes</span>
+    <div class="workflow-actions">
+      <button class="btn btn-secondary" onclick="clearCanvas()">Clear</button>
+      <button class="btn btn-secondary" onclick="autoArrange()">Auto Arrange</button>
+    </div>
+  </div>
+
+  <!-- Image Preview Modal -->
+  <div class="modal-overlay" id="imageModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span id="imageModalTitle">Generated Image</span>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="modalImage" src="">
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="downloadImage()">💾 Download</button>
+          <button class="btn btn-secondary" onclick="copyImageUrl()">📋 Copy URL</button>
+          <button class="btn btn-secondary" onclick="sendToImg2Img()">🔄 Send to img2img</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // KOMFY - Konomi ComfyUI Interface
+    // =========================================================================
+
+    const STORAGE_KEY = 'komfy_data';
+    let ws = null;
+    let connected = false;
+    let clientId = crypto.randomUUID();
+    let nodes = [];
+    let connections = [];
+    let selectedNode = null;
+    let dragNode = null;
+    let dragOffset = { x: 0, y: 0 };
+    let gallery = [];
+    let queue = [];
+
+    // Node definitions
+    const NODE_DEFS = {
+      CheckpointLoaderSimple: {
+        title: 'Load Checkpoint',
+        color: '#3b82f6',
+        inputs: [],
+        outputs: [
+          { name: 'MODEL', type: 'MODEL' },
+          { name: 'CLIP', type: 'CLIP' },
+          { name: 'VAE', type: 'VAE' }
+        ],
+        widgets: [
+          { name: 'ckpt_name', type: 'combo', options: ['v1-5-pruned.safetensors', 'sd_xl_base_1.0.safetensors'] }
+        ]
+      },
+      CLIPTextEncode: {
+        title: 'CLIP Text Encode',
+        color: '#f59e0b',
+        inputs: [
+          { name: 'clip', type: 'CLIP' }
+        ],
+        outputs: [
+          { name: 'CONDITIONING', type: 'CONDITIONING' }
+        ],
+        widgets: [
+          { name: 'text', type: 'text', default: 'beautiful landscape, highly detailed' }
+        ]
+      },
+      EmptyLatentImage: {
+        title: 'Empty Latent Image',
+        color: '#ec4899',
+        inputs: [],
+        outputs: [
+          { name: 'LATENT', type: 'LATENT' }
+        ],
+        widgets: [
+          { name: 'width', type: 'number', default: 512 },
+          { name: 'height', type: 'number', default: 512 },
+          { name: 'batch_size', type: 'number', default: 1 }
+        ]
+      },
+      KSampler: {
+        title: 'KSampler',
+        color: '#22c55e',
+        inputs: [
+          { name: 'model', type: 'MODEL' },
+          { name: 'positive', type: 'CONDITIONING' },
+          { name: 'negative', type: 'CONDITIONING' },
+          { name: 'latent_image', type: 'LATENT' }
+        ],
+        outputs: [
+          { name: 'LATENT', type: 'LATENT' }
+        ],
+        widgets: [
+          { name: 'seed', type: 'number', default: -1 },
+          { name: 'steps', type: 'number', default: 20 },
+          { name: 'cfg', type: 'number', default: 7 },
+          { name: 'sampler_name', type: 'combo', options: ['euler', 'euler_ancestral', 'dpmpp_2m', 'dpmpp_sde'] },
+          { name: 'scheduler', type: 'combo', options: ['normal', 'karras', 'exponential'] },
+          { name: 'denoise', type: 'number', default: 1.0 }
+        ]
+      },
+      VAEDecode: {
+        title: 'VAE Decode',
+        color: '#8b5cf6',
+        inputs: [
+          { name: 'samples', type: 'LATENT' },
+          { name: 'vae', type: 'VAE' }
+        ],
+        outputs: [
+          { name: 'IMAGE', type: 'IMAGE' }
+        ],
+        widgets: []
+      },
+      SaveImage: {
+        title: 'Save Image',
+        color: '#8b5cf6',
+        inputs: [
+          { name: 'images', type: 'IMAGE' }
+        ],
+        outputs: [],
+        widgets: [
+          { name: 'filename_prefix', type: 'string', default: 'ComfyUI' }
+        ],
+        hasPreview: true
+      },
+      PreviewImage: {
+        title: 'Preview Image',
+        color: '#8b5cf6',
+        inputs: [
+          { name: 'images', type: 'IMAGE' }
+        ],
+        outputs: [],
+        widgets: [],
+        hasPreview: true
+      }
+    };
+
+    // Initialize
+    function init() {
+      document.getElementById('clientId').value = clientId;
+      setupPanelTabs();
+      setupDragDrop();
+      loadData();
+      loadDefaultWorkflow('txt2img');
+    }
+
+    // Panel tabs
+    function setupPanelTabs() {
+      document.querySelectorAll('.panel-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.panel-content').forEach(p => p.classList.add('hidden'));
+          tab.classList.add('active');
+          document.getElementById('panel-' + tab.dataset.panel).classList.remove('hidden');
+        });
+      });
+    }
+
+    // Connection
+    async function toggleConnection() {
+      if (connected) {
+        disconnect();
+      } else {
+        await connect();
+      }
+    }
+
+    async function connect() {
+      const url = document.getElementById('serverUrl').value;
+      const indicator = document.getElementById('statusIndicator');
+      const btn = document.getElementById('connectBtn');
+
+      indicator.className = 'status-indicator connecting';
+      btn.textContent = 'Connecting...';
+
+      try {
+        // Test HTTP connection first
+        const response = await fetch(`${url}/system_stats`);
+        if (!response.ok) throw new Error('Server not responding');
+
+        // Connect WebSocket
+        const wsUrl = url.replace('http', 'ws') + '/ws?clientId=' + clientId;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          connected = true;
+          indicator.className = 'status-indicator connected';
+          btn.textContent = 'Disconnect';
+          btn.classList.remove('btn-primary');
+          btn.classList.add('btn-danger');
+          loadModels();
+        };
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          handleMessage(data);
+        };
+
+        ws.onclose = () => {
+          disconnect();
+        };
+
+        ws.onerror = () => {
+          disconnect();
+        };
+
+      } catch (e) {
+        indicator.className = 'status-indicator disconnected';
+        btn.textContent = 'Connect';
+        alert('Failed to connect: ' + e.message + '\n\nMake sure ComfyUI is running at ' + url);
+      }
+    }
+
+    function disconnect() {
+      if (ws) ws.close();
+      ws = null;
+      connected = false;
+      document.getElementById('statusIndicator').className = 'status-indicator disconnected';
+      const btn = document.getElementById('connectBtn');
+      btn.textContent = 'Connect';
+      btn.classList.remove('btn-danger');
+      btn.classList.add('btn-primary');
+    }
+
+    function handleMessage(data) {
+      if (data.type === 'progress') {
+        updateQueueProgress(data.data);
+      } else if (data.type === 'executed') {
+        handleExecuted(data.data);
+      } else if (data.type === 'executing') {
+        if (data.data.node === null) {
+          // Execution complete
+          removeFromQueue(data.data.prompt_id);
+        }
+      }
+    }
+
+    async function loadModels() {
+      if (!connected) return;
+      const url = document.getElementById('serverUrl').value;
+
+      try {
+        const response = await fetch(`${url}/object_info/CheckpointLoaderSimple`);
+        const data = await response.json();
+        const checkpoints = data.CheckpointLoaderSimple.input.required.ckpt_name[0];
+
+        // Update node definition
+        NODE_DEFS.CheckpointLoaderSimple.widgets[0].options = checkpoints;
+
+        // Update settings dropdown
+        const select = document.getElementById('defaultCheckpoint');
+        select.innerHTML = '<option value="">Auto-detect</option>' +
+          checkpoints.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      } catch (e) {
+        console.error('Failed to load models:', e);
+      }
+    }
+
+    // Drag and drop nodes
+    function setupDragDrop() {
+      const canvas = document.getElementById('canvas');
+      const container = document.getElementById('canvasContainer');
+
+      // Drag from palette
+      document.querySelectorAll('.node-item[draggable]').forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('nodeType', item.dataset.type);
+        });
+      });
+
+      container.addEventListener('dragover', (e) => e.preventDefault());
+      container.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('nodeType');
+        if (type && NODE_DEFS[type]) {
+          const rect = container.getBoundingClientRect();
+          createNode(type, e.clientX - rect.left - 100, e.clientY - rect.top - 20);
+        }
+      });
+
+      // Node dragging
+      canvas.addEventListener('mousedown', (e) => {
+        const node = e.target.closest('.node');
+        if (node && e.target.closest('.node-header')) {
+          dragNode = node;
+          const rect = node.getBoundingClientRect();
+          dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+          node.style.zIndex = 1000;
+        }
+
+        // Select node
+        if (node) {
+          document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+          node.classList.add('selected');
+          selectedNode = nodes.find(n => n.id === node.dataset.id);
+        }
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (dragNode) {
+          const container = document.getElementById('canvasContainer');
+          const rect = container.getBoundingClientRect();
+          const x = e.clientX - rect.left - dragOffset.x;
+          const y = e.clientY - rect.top - dragOffset.y;
+          dragNode.style.left = Math.max(0, x) + 'px';
+          dragNode.style.top = Math.max(0, y) + 'px';
+
+          // Update node data
+          const node = nodes.find(n => n.id === dragNode.dataset.id);
+          if (node) {
+            node.pos = [x, y];
+          }
+          renderConnections();
+        }
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (dragNode) {
+          dragNode.style.zIndex = '';
+          dragNode = null;
+        }
+      });
+    }
+
+    function createNode(type, x, y) {
+      const def = NODE_DEFS[type];
+      if (!def) return;
+
+      const id = 'node_' + Date.now();
+      const node = {
+        id,
+        type,
+        pos: [x, y],
+        size: [200, 100],
+        widgets_values: def.widgets.map(w => w.default || '')
+      };
+
+      nodes.push(node);
+      renderNode(node);
+      updateNodeCount();
+    }
+
+    function renderNode(node) {
+      const def = NODE_DEFS[node.type];
+      if (!def) return;
+
+      const canvas = document.getElementById('canvas');
+
+      const el = document.createElement('div');
+      el.className = 'node';
+      el.dataset.id = node.id;
+      el.style.left = node.pos[0] + 'px';
+      el.style.top = node.pos[1] + 'px';
+
+      let inputsHtml = def.inputs.map((inp, i) => `
+        <div class="node-row">
+          <div class="node-input" data-node="${node.id}" data-slot="${i}" data-type="${inp.type}"></div>
+          <span class="node-label">${inp.name}</span>
+        </div>
+      `).join('');
+
+      let widgetsHtml = def.widgets.map((w, i) => {
+        const value = node.widgets_values[i] ?? w.default ?? '';
+        if (w.type === 'combo') {
+          return `
+            <div class="node-row">
+              <span class="node-label">${w.name}</span>
+              <div class="node-value">
+                <select data-widget="${i}">
+                  ${w.options.map(o => `<option ${o === value ? 'selected' : ''}>${o}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          `;
+        } else if (w.type === 'text') {
+          return `
+            <div class="node-row" style="flex-direction:column;align-items:stretch">
+              <div class="node-value">
+                <textarea data-widget="${i}" rows="3" style="resize:vertical">${value}</textarea>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="node-row">
+              <span class="node-label">${w.name}</span>
+              <div class="node-value">
+                <input type="${w.type === 'number' ? 'number' : 'text'}" data-widget="${i}" value="${value}">
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+
+      let outputsHtml = def.outputs.map((out, i) => `
+        <div class="node-row">
+          <span class="node-label" style="text-align:right">${out.name}</span>
+          <div class="node-output" data-node="${node.id}" data-slot="${i}" data-type="${out.type}"></div>
+        </div>
+      `).join('');
+
+      el.innerHTML = `
+        <div class="node-header">
+          <div class="color-dot" style="background:${def.color}"></div>
+          ${def.title}
+        </div>
+        <div class="node-body">
+          ${inputsHtml}
+          ${widgetsHtml}
+          ${outputsHtml}
+          ${def.hasPreview ? '<div class="node-preview" id="preview_' + node.id + '"></div>' : ''}
+        </div>
+      `;
+
+      // Widget change handlers
+      el.querySelectorAll('[data-widget]').forEach(input => {
+        input.addEventListener('change', () => {
+          const idx = parseInt(input.dataset.widget);
+          node.widgets_values[idx] = input.value;
+        });
+      });
+
+      canvas.appendChild(el);
+    }
+
+    function renderConnections() {
+      const svg = document.getElementById('connectionsSvg');
+      svg.innerHTML = connections.map(conn => {
+        const fromNode = document.querySelector(`[data-node="${conn.from}"][data-slot="${conn.fromSlot}"].node-output`);
+        const toNode = document.querySelector(`[data-node="${conn.to}"][data-slot="${conn.toSlot}"].node-input`);
+
+        if (!fromNode || !toNode) return '';
+
+        const fromRect = fromNode.getBoundingClientRect();
+        const toRect = toNode.getBoundingClientRect();
+        const container = document.getElementById('canvasContainer').getBoundingClientRect();
+
+        const x1 = fromRect.left + fromRect.width / 2 - container.left;
+        const y1 = fromRect.top + fromRect.height / 2 - container.top;
+        const x2 = toRect.left + toRect.width / 2 - container.left;
+        const y2 = toRect.top + toRect.height / 2 - container.top;
+
+        const midX = (x1 + x2) / 2;
+
+        return `<path class="connection-line" d="M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}"/>`;
+      }).join('');
+    }
+
+    // Load default workflows
+    function loadDefaultWorkflow(name) {
+      clearCanvas();
+
+      if (name === 'txt2img') {
+        // Create basic txt2img workflow
+        createNode('CheckpointLoaderSimple', 50, 100);
+        createNode('CLIPTextEncode', 300, 50);
+        createNode('CLIPTextEncode', 300, 200);
+        createNode('EmptyLatentImage', 300, 350);
+        createNode('KSampler', 550, 150);
+        createNode('VAEDecode', 800, 150);
+        createNode('SaveImage', 1000, 150);
+
+        // Set negative prompt
+        setTimeout(() => {
+          const negNode = nodes[2];
+          if (negNode) {
+            negNode.widgets_values[0] = 'ugly, blurry, low quality';
+            const textarea = document.querySelector(`[data-id="${negNode.id}"] textarea`);
+            if (textarea) textarea.value = negNode.widgets_values[0];
+          }
+        }, 100);
+
+        document.getElementById('workflowName').textContent = 'txt2img Basic';
+      }
+
+      updateNodeCount();
+    }
+
+    function clearCanvas() {
+      nodes = [];
+      connections = [];
+      document.getElementById('canvas').innerHTML = '';
+      document.getElementById('connectionsSvg').innerHTML = '';
+      updateNodeCount();
+    }
+
+    function updateNodeCount() {
+      document.getElementById('nodeCount').textContent = nodes.length + ' nodes';
+    }
+
+    // Queue prompt
+    async function queuePrompt() {
+      if (!connected) {
+        alert('Please connect to ComfyUI first');
+        return;
+      }
+
+      const workflow = buildWorkflow();
+      const url = document.getElementById('serverUrl').value;
+
+      try {
+        const response = await fetch(`${url}/prompt`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: workflow,
+            client_id: clientId
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.prompt_id) {
+          addToQueue(data.prompt_id);
+        } else if (data.error) {
+          alert('Error: ' + JSON.stringify(data.error));
+        }
+
+      } catch (e) {
+        alert('Failed to queue prompt: ' + e.message);
+      }
+    }
+
+    function buildWorkflow() {
+      const workflow = {};
+
+      nodes.forEach((node, index) => {
+        const def = NODE_DEFS[node.type];
+        if (!def) return;
+
+        const nodeData = {
+          class_type: node.type,
+          inputs: {}
+        };
+
+        // Add widget values
+        def.widgets.forEach((w, i) => {
+          nodeData.inputs[w.name] = node.widgets_values[i] ?? w.default;
+        });
+
+        // Add connections (simplified - would need proper connection tracking)
+        def.inputs.forEach((inp, i) => {
+          const conn = connections.find(c => c.to === node.id && c.toSlot === i);
+          if (conn) {
+            const fromIdx = nodes.findIndex(n => n.id === conn.from);
+            nodeData.inputs[inp.name] = [String(fromIdx), conn.fromSlot];
+          }
+        });
+
+        workflow[String(index)] = nodeData;
+      });
+
+      return workflow;
+    }
+
+    function addToQueue(promptId) {
+      queue.push({ id: promptId, status: 'pending', progress: 0 });
+      renderQueue();
+    }
+
+    function removeFromQueue(promptId) {
+      queue = queue.filter(q => q.id !== promptId);
+      renderQueue();
+    }
+
+    function updateQueueProgress(data) {
+      const item = queue.find(q => q.id === data.prompt_id);
+      if (item) {
+        item.status = 'running';
+        item.progress = (data.value / data.max) * 100;
+        renderQueue();
+      }
+    }
+
+    function handleExecuted(data) {
+      if (data.output && data.output.images) {
+        data.output.images.forEach(img => {
+          addToGallery(img);
+          updateNodePreview(data.node, img);
+        });
+      }
+    }
+
+    function renderQueue() {
+      const container = document.getElementById('queueList');
+
+      if (queue.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <h3>Queue Empty</h3>
+            <p>Click Queue to generate images</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = queue.map(item => `
+        <div class="queue-item ${item.status}">
+          <div class="queue-header">
+            <span class="queue-id">${item.id.slice(0, 8)}...</span>
+            <span class="queue-status ${item.status}">${item.status}</span>
+          </div>
+          <div class="queue-progress">
+            <div class="queue-progress-bar" style="width:${item.progress}%"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Gallery
+    function addToGallery(image) {
+      const url = document.getElementById('serverUrl').value;
+      const imgUrl = `${url}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder || ''}`;
+
+      gallery.unshift({ ...image, url: imgUrl });
+      renderGallery();
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('galleryGrid');
+      const empty = document.getElementById('galleryEmpty');
+
+      if (gallery.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      grid.innerHTML = gallery.map((img, i) => `
+        <div class="gallery-item" onclick="showImage(${i})">
+          <img src="${img.url}" alt="Generated image">
+        </div>
+      `).join('');
+    }
+
+    function updateNodePreview(nodeId, image) {
+      const preview = document.getElementById('preview_' + nodeId);
+      if (preview) {
+        const url = document.getElementById('serverUrl').value;
+        const imgUrl = `${url}/view?filename=${image.filename}&type=${image.type}&subfolder=${image.subfolder || ''}`;
+        preview.innerHTML = `<img src="${imgUrl}">`;
+      }
+    }
+
+    function showImage(index) {
+      const img = gallery[index];
+      document.getElementById('modalImage').src = img.url;
+      document.getElementById('imageModalTitle').textContent = img.filename;
+      document.getElementById('imageModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('imageModal').classList.remove('active');
+    }
+
+    function downloadImage() {
+      const img = document.getElementById('modalImage');
+      const a = document.createElement('a');
+      a.href = img.src;
+      a.download = document.getElementById('imageModalTitle').textContent;
+      a.click();
+    }
+
+    // Workflow management
+    function saveWorkflow() {
+      const workflow = {
+        nodes: nodes,
+        connections: connections,
+        name: document.getElementById('workflowName').textContent
+      };
+
+      const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'workflow.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function loadWorkflow() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        const text = await file.text();
+        const workflow = JSON.parse(text);
+
+        clearCanvas();
+        nodes = workflow.nodes || [];
+        connections = workflow.connections || [];
+
+        nodes.forEach(node => renderNode(node));
+        renderConnections();
+
+        if (workflow.name) {
+          document.getElementById('workflowName').textContent = workflow.name;
+        }
+        updateNodeCount();
+      };
+      input.click();
+    }
+
+    function newWorkflow() {
+      const name = prompt('Workflow name:', 'New Workflow');
+      if (name) {
+        clearCanvas();
+        document.getElementById('workflowName').textContent = name;
+      }
+    }
+
+    function autoArrange() {
+      // Simple auto-arrange: stack nodes vertically
+      nodes.forEach((node, i) => {
+        node.pos = [50 + (i % 4) * 250, 50 + Math.floor(i / 4) * 200];
+        const el = document.querySelector(`[data-id="${node.id}"]`);
+        if (el) {
+          el.style.left = node.pos[0] + 'px';
+          el.style.top = node.pos[1] + 'px';
+        }
+      });
+      renderConnections();
+    }
+
+    // Node search
+    function filterNodes() {
+      const search = document.getElementById('nodeSearch').value.toLowerCase();
+      document.querySelectorAll('#nodePalette .node-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(search) ? 'flex' : 'none';
+      });
+    }
+
+    // Settings
+    function saveSettings() {
+      const settings = {
+        url: document.getElementById('settingsUrl').value,
+        defaultCheckpoint: document.getElementById('defaultCheckpoint').value,
+        defaultWidth: document.getElementById('defaultWidth').value,
+        defaultHeight: document.getElementById('defaultHeight').value,
+        defaultSteps: document.getElementById('defaultSteps').value,
+        defaultCfg: document.getElementById('defaultCfg').value
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      document.getElementById('serverUrl').value = settings.url;
+      alert('Settings saved!');
+    }
+
+    function loadData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const settings = JSON.parse(saved);
+        document.getElementById('serverUrl').value = settings.url || 'http://127.0.0.1:8188';
+        document.getElementById('settingsUrl').value = settings.url || 'http://127.0.0.1:8188';
+        document.getElementById('defaultWidth').value = settings.defaultWidth || 512;
+        document.getElementById('defaultHeight').value = settings.defaultHeight || 512;
+        document.getElementById('defaultSteps').value = settings.defaultSteps || 20;
+        document.getElementById('defaultCfg').value = settings.defaultCfg || 7;
+      }
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete' && selectedNode) {
+        nodes = nodes.filter(n => n.id !== selectedNode.id);
+        connections = connections.filter(c => c.from !== selectedNode.id && c.to !== selectedNode.id);
+        document.querySelector(`[data-id="${selectedNode.id}"]`)?.remove();
+        selectedNode = null;
+        renderConnections();
+        updateNodeCount();
+      }
+
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+
+      if (e.ctrlKey && e.key === 'Enter') {
+        queuePrompt();
+      }
+    });
+
+    // Initialize
+    init();
+  </script>
+</body>
+</html>
