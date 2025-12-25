@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LLM Hierarchy Explorer - Femto to Unity</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a15 0%, #1a1a2e 50%, #0a0a15 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+
+    header {
+      text-align: center;
+      padding: 25px;
+      background: linear-gradient(180deg, rgba(139, 92, 246, 0.15) 0%, transparent 100%);
+      border-bottom: 2px solid;
+      border-image: linear-gradient(90deg, transparent, #8b5cf6, #06b6d4, #22c55e, #ec4899, #eab308, #14b8a6, #8b5cf6, transparent) 1;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 32px;
+      background: linear-gradient(90deg, #8b5cf6, #06b6d4, #22c55e, #ec4899, #eab308, #14b8a6, #8b5cf6);
+      background-size: 400% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: rainbow 6s linear infinite;
+    }
+    @keyframes rainbow { to { background-position: 400% center; } }
+    .subtitle { color: #888; font-size: 13px; margin-top: 8px; }
+
+    .query-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(20, 20, 40, 0.6);
+      border-radius: 12px;
+      border: 1px solid #333;
+    }
+    .query-input {
+      flex: 1;
+      background: rgba(10, 10, 20, 0.8);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 14px;
+    }
+    .query-input:focus { outline: none; border-color: #8b5cf6; }
+    .query-btn {
+      background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .query-btn:hover { opacity: 0.9; }
+    .query-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .mode-toggle {
+      display: flex;
+      gap: 4px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 4px;
+    }
+    .mode-btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #888;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .mode-btn.active { background: rgba(139, 92, 246, 0.3); color: #fff; }
+
+    .hierarchy-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .level-card {
+      background: rgba(20, 20, 40, 0.6);
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .level-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--level-color);
+    }
+    .level-card.active { border-color: var(--level-color); box-shadow: 0 0 20px var(--level-glow); }
+    .level-card.processing { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+    .level-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .level-icon { font-size: 24px; }
+    .level-name { font-size: 16px; font-weight: bold; color: var(--level-color); }
+    .level-dim { font-size: 10px; color: #666; margin-left: auto; }
+
+    .level-specs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .spec {
+      background: rgba(0,0,0,0.3);
+      border-radius: 4px;
+      padding: 6px;
+      text-align: center;
+    }
+    .spec-val { font-size: 14px; font-weight: bold; color: var(--level-color); }
+    .spec-lbl { font-size: 8px; color: #555; }
+
+    .level-visual {
+      height: 80px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .level-visual canvas { width: 100%; height: 100%; }
+
+    .level-output {
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 10px;
+      min-height: 60px;
+      max-height: 80px;
+      overflow-y: auto;
+      color: #aaa;
+      line-height: 1.4;
+    }
+    .level-output.has-result { color: #ccc; }
+
+    .level-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 9px;
+      color: #555;
+    }
+    .stat-highlight { color: var(--level-color); }
+
+    .comparison-panel {
+      background: rgba(20, 20, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .comparison-title {
+      font-size: 16px;
+      color: #8b5cf6;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .comparison-chart {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+      height: 150px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .chart-bar-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    .chart-bar {
+      width: 30px;
+      border-radius: 4px 4px 0 0;
+      transition: height 0.5s ease;
+    }
+    .chart-label { font-size: 10px; color: #666; }
+    .chart-value { font-size: 9px; color: #888; }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .metric-card {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .metric-title { font-size: 10px; color: #666; margin-bottom: 6px; }
+    .metric-value { font-size: 18px; font-weight: bold; color: #8b5cf6; }
+    .metric-sub { font-size: 9px; color: #444; margin-top: 4px; }
+
+    .cascade-view {
+      display: none;
+      padding: 20px;
+      background: rgba(20, 20, 40, 0.6);
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .cascade-view.active { display: block; }
+    .cascade-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .cascade-node {
+      padding: 15px 20px;
+      border-radius: 10px;
+      text-align: center;
+      border: 2px solid;
+      transition: all 0.3s;
+    }
+    .cascade-node.active {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px currentColor;
+    }
+    .cascade-arrow {
+      font-size: 24px;
+      color: #444;
+    }
+    .cascade-count {
+      font-size: 10px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 1200px) {
+      .hierarchy-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 800px) {
+      .hierarchy-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LLM Hierarchy Explorer</h1>
+    <p class="subtitle">Compare capabilities across 7 levels: Femto → Pico → Nano → Micro → Centi → Deci → Unity</p>
+  </header>
+
+  <div class="container">
+    <div class="query-bar">
+      <input type="text" class="query-input" id="queryInput" placeholder="Enter a query to test across all hierarchy levels..." value="Explain the concept of recursion">
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="parallel">Parallel</button>
+        <button class="mode-btn" data-mode="cascade">Cascade</button>
+      </div>
+      <button class="query-btn" id="runBtn">Run All Levels</button>
+    </div>
+
+    <div class="cascade-view" id="cascadeView">
+      <div class="cascade-flow" id="cascadeFlow"></div>
+    </div>
+
+    <div class="hierarchy-grid" id="hierarchyGrid"></div>
+
+    <div class="comparison-panel">
+      <div class="comparison-title">
+        <span>📊</span> Performance Comparison
+      </div>
+      <div class="comparison-chart" id="comparisonChart"></div>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-title">Total FemtoLLMs</div>
+          <div class="metric-value" id="totalFemtos">0</div>
+          <div class="metric-sub">Across all levels</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Total Dimensions</div>
+          <div class="metric-value" id="totalDims">0</div>
+          <div class="metric-sub">Combined hidden size</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Fastest Response</div>
+          <div class="metric-value" id="fastestLevel">-</div>
+          <div class="metric-sub" id="fastestTime">0ms</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Queries Run</div>
+          <div class="metric-value" id="totalQueries">0</div>
+          <div class="metric-sub">This session</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Level definitions
+    const LEVELS = [
+      { id: 'femto', name: 'Femto', icon: '🔸', dim: 16, layers: 1, femtos: 1, color: '#8b5cf6', params: '10K' },
+      { id: 'pico', name: 'Pico', icon: '⚡', dim: 64, layers: 2, femtos: 9, color: '#06b6d4', params: '100K' },
+      { id: 'nano', name: 'Nano', icon: '🧬', dim: 256, layers: 4, femtos: 81, color: '#22c55e', params: '3M' },
+      { id: 'micro', name: 'Micro', icon: '🔬', dim: 1024, layers: 8, femtos: 729, color: '#ec4899', params: '50M' },
+      { id: 'centi', name: 'Centi', icon: '💫', dim: 4096, layers: 16, femtos: 6561, color: '#eab308', params: '500M' },
+      { id: 'deci', name: 'Deci', icon: '🌀', dim: 16384, layers: 32, femtos: 59049, color: '#14b8a6', params: '5B' },
+      { id: 'unity', name: 'Unity', icon: '✨', dim: 65536, layers: 64, femtos: 531441, color: '#8b5cf6', params: '50B' }
+    ];
+
+    // Simulated LLM for each level
+    class LevelLLM {
+      constructor(level) {
+        this.level = level;
+        this.hiddenSize = level.dim;
+        this.numLayers = level.layers;
+        this.initWeights();
+      }
+
+      initWeights() {
+        // Simplified weight initialization
+        const size = Math.min(64, this.hiddenSize);
+        this.W = Array(size).fill(null).map(() =>
+          Array(size).fill(null).map(() => (Math.random() * 2 - 1) * 0.1)
+        );
+      }
+
+      tokenize(text) {
+        return text.toLowerCase().split('').map(c => c.charCodeAt(0) % 64);
+      }
+
+      async process(query) {
+        const start = performance.now();
+
+        // Simulate processing time based on complexity
+        const baseTime = 10;
+        const layerTime = this.numLayers * 2;
+        const dimFactor = Math.log2(this.hiddenSize) * 3;
+        const totalDelay = baseTime + layerTime + dimFactor + Math.random() * 20;
+
+        await new Promise(r => setTimeout(r, totalDelay));
+
+        const tokens = this.tokenize(query);
+
+        // Simulate embedding and processing
+        let h = Array(Math.min(64, this.hiddenSize)).fill(0);
+        tokens.slice(0, 32).forEach((t, i) => {
+          h[t % h.length] += 1 / tokens.length;
+        });
+
+        // Apply simulated transformer layers
+        for (let l = 0; l < this.numLayers; l++) {
+          h = h.map((v, i) => {
+            const attn = this.W[i % this.W.length].reduce((s, w, j) => s + w * (h[j] || 0), 0);
+            return Math.tanh(v + attn * 0.1);
+          });
+        }
+
+        const energy = h.reduce((a, b) => a + Math.abs(b), 0);
+        const elapsed = performance.now() - start;
+
+        // Generate level-appropriate response
+        const responses = this.generateResponse(query, energy);
+
+        return {
+          level: this.level.id,
+          output: responses,
+          energy: energy.toFixed(2),
+          time: elapsed,
+          tokens: tokens.length
+        };
+      }
+
+      generateResponse(query, energy) {
+        const levelResponses = {
+          femto: [
+            `Basic pattern detected.`,
+            `Simple: ${query.split(' ')[0]}...`,
+            `16-dim embedding created.`
+          ],
+          pico: [
+            `Query tokenized and embedded (64d).`,
+            `9 Femtos processed: "${query.slice(0, 20)}..."`,
+            `Aggregated response ready.`
+          ],
+          nano: [
+            `81 Femtos analyzed: "${query.slice(0, 30)}..."`,
+            `Multi-layer attention applied (4 layers).`,
+            `256-dim representation computed.`
+          ],
+          micro: [
+            `Deep processing through 729 units.`,
+            `8-layer transformer engaged for: "${query.slice(0, 40)}..."`,
+            `Context vectors aligned.`
+          ],
+          centi: [
+            `6,561 Femtos in consensus.`,
+            `16 attention layers processed.`,
+            `High-dimensional patterns emerging for query.`
+          ],
+          deci: [
+            `59,049 units converging on meaning.`,
+            `32-layer deep reasoning activated.`,
+            `Near-complete semantic understanding achieved.`
+          ],
+          unity: [
+            `531,441 Femtos unified in consciousness.`,
+            `Full 64-layer processing complete.`,
+            `Holistic understanding: Query embodies recursive self-reference, a fundamental concept where solutions contain smaller instances of themselves. Energy: ${energy}`
+          ]
+        };
+
+        const options = levelResponses[this.level.id];
+        return options[Math.floor(energy * 10) % options.length];
+      }
+    }
+
+    // Create LLM instances
+    const llms = {};
+    LEVELS.forEach(level => {
+      llms[level.id] = new LevelLLM(level);
+    });
+
+    // State
+    let mode = 'parallel';
+    let totalQueries = 0;
+    let results = {};
+
+    // Build UI
+    const grid = document.getElementById('hierarchyGrid');
+    const chart = document.getElementById('comparisonChart');
+
+    LEVELS.forEach(level => {
+      // Level card
+      const card = document.createElement('div');
+      card.className = 'level-card';
+      card.id = `card-${level.id}`;
+      card.style.setProperty('--level-color', level.color);
+      card.style.setProperty('--level-glow', `${level.color}40`);
+
+      card.innerHTML = `
+        <div class="level-header">
+          <span class="level-icon">${level.icon}</span>
+          <span class="level-name">${level.name}</span>
+          <span class="level-dim">${level.dim}d</span>
+        </div>
+        <div class="level-specs">
+          <div class="spec"><div class="spec-val">${level.layers}</div><div class="spec-lbl">Layers</div></div>
+          <div class="spec"><div class="spec-val">${level.femtos.toLocaleString()}</div><div class="spec-lbl">Femtos</div></div>
+          <div class="spec"><div class="spec-val">${level.params}</div><div class="spec-lbl">Params</div></div>
+          <div class="spec"><div class="spec-val">-</div><div class="spec-lbl" data-stat="time">Time</div></div>
+        </div>
+        <div class="level-visual"><canvas id="canvas-${level.id}"></canvas></div>
+        <div class="level-output" id="output-${level.id}">Waiting for query...</div>
+        <div class="level-stats">
+          <span>Energy: <span class="stat-highlight" id="energy-${level.id}">-</span></span>
+          <span>Tokens: <span class="stat-highlight" id="tokens-${level.id}">-</span></span>
+        </div>
+      `;
+      grid.appendChild(card);
+
+      // Chart bar
+      const barWrap = document.createElement('div');
+      barWrap.className = 'chart-bar-wrap';
+      barWrap.innerHTML = `
+        <div class="chart-bar" id="bar-${level.id}" style="background:${level.color};height:0px"></div>
+        <div class="chart-label">${level.name}</div>
+        <div class="chart-value" id="barval-${level.id}">-</div>
+      `;
+      chart.appendChild(barWrap);
+
+      // Initialize mini visualization
+      initMiniViz(level);
+    });
+
+    // Build cascade flow
+    const cascadeFlow = document.getElementById('cascadeFlow');
+    LEVELS.forEach((level, i) => {
+      const node = document.createElement('div');
+      node.className = 'cascade-node';
+      node.id = `cascade-${level.id}`;
+      node.style.borderColor = level.color;
+      node.style.color = level.color;
+      node.innerHTML = `
+        <div style="font-size:24px">${level.icon}</div>
+        <div style="font-weight:bold">${level.name}</div>
+        <div class="cascade-count">${level.femtos.toLocaleString()} femtos</div>
+      `;
+      cascadeFlow.appendChild(node);
+
+      if (i < LEVELS.length - 1) {
+        const arrow = document.createElement('div');
+        arrow.className = 'cascade-arrow';
+        arrow.textContent = '→';
+        cascadeFlow.appendChild(arrow);
+      }
+    });
+
+    // Mini visualization for each level
+    function initMiniViz(level) {
+      const canvas = document.getElementById(`canvas-${level.id}`);
+      const ctx = canvas.getContext('2d');
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * 2;
+      canvas.height = rect.height * 2;
+
+      let phase = Math.random() * Math.PI * 2;
+      const nodeCount = Math.min(9, Math.ceil(Math.log2(level.femtos + 1)));
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        phase += 0.02;
+
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const radius = Math.min(cx, cy) * 0.6;
+
+        // Draw connections
+        ctx.strokeStyle = `${level.color}30`;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < nodeCount; i++) {
+          const a1 = (i / nodeCount) * Math.PI * 2 + phase;
+          const x1 = cx + Math.cos(a1) * radius;
+          const y1 = cy + Math.sin(a1) * radius;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }
+
+        // Draw nodes
+        for (let i = 0; i < nodeCount; i++) {
+          const a = (i / nodeCount) * Math.PI * 2 + phase;
+          const x = cx + Math.cos(a) * radius;
+          const y = cy + Math.sin(a) * radius;
+
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fillStyle = level.color;
+          ctx.fill();
+        }
+
+        // Central node
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.fillStyle = level.color;
+        ctx.fill();
+
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // Mode toggle
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.mode;
+        document.getElementById('cascadeView').classList.toggle('active', mode === 'cascade');
+      });
+    });
+
+    // Run query
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const query = document.getElementById('queryInput').value.trim();
+      if (!query) return;
+
+      const btn = document.getElementById('runBtn');
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      totalQueries++;
+
+      // Reset UI
+      LEVELS.forEach(level => {
+        document.getElementById(`card-${level.id}`).classList.remove('active');
+        document.getElementById(`card-${level.id}`).classList.add('processing');
+        document.getElementById(`output-${level.id}`).textContent = 'Processing...';
+        document.getElementById(`output-${level.id}`).classList.remove('has-result');
+        document.getElementById(`cascade-${level.id}`).classList.remove('active');
+      });
+
+      results = {};
+
+      if (mode === 'parallel') {
+        // Run all in parallel
+        const promises = LEVELS.map(level =>
+          llms[level.id].process(query).then(result => {
+            updateLevelUI(level, result);
+            results[level.id] = result;
+          })
+        );
+        await Promise.all(promises);
+      } else {
+        // Cascade mode - sequential
+        for (const level of LEVELS) {
+          document.getElementById(`cascade-${level.id}`).classList.add('active');
+          const result = await llms[level.id].process(query);
+          updateLevelUI(level, result);
+          results[level.id] = result;
+          await new Promise(r => setTimeout(r, 200));
+          document.getElementById(`cascade-${level.id}`).classList.remove('active');
+        }
+      }
+
+      // Update comparison
+      updateComparison();
+
+      btn.disabled = false;
+      btn.textContent = 'Run All Levels';
+    });
+
+    function updateLevelUI(level, result) {
+      const card = document.getElementById(`card-${level.id}`);
+      card.classList.remove('processing');
+      card.classList.add('active');
+
+      document.getElementById(`output-${level.id}`).textContent = result.output;
+      document.getElementById(`output-${level.id}`).classList.add('has-result');
+      document.getElementById(`energy-${level.id}`).textContent = result.energy;
+      document.getElementById(`tokens-${level.id}`).textContent = result.tokens;
+
+      // Update time in specs
+      const timeSpec = card.querySelector('.spec:nth-child(4) .spec-val');
+      timeSpec.textContent = `${result.time.toFixed(0)}ms`;
+    }
+
+    function updateComparison() {
+      const times = LEVELS.map(l => results[l.id]?.time || 0);
+      const maxTime = Math.max(...times);
+
+      LEVELS.forEach(level => {
+        const time = results[level.id]?.time || 0;
+        const height = maxTime > 0 ? (time / maxTime) * 100 : 0;
+        document.getElementById(`bar-${level.id}`).style.height = `${height}px`;
+        document.getElementById(`barval-${level.id}`).textContent = `${time.toFixed(0)}ms`;
+      });
+
+      // Metrics
+      const totalFemtos = LEVELS.reduce((s, l) => s + l.femtos, 0);
+      const totalDims = LEVELS.reduce((s, l) => s + l.dim, 0);
+      const fastest = LEVELS.reduce((min, l) =>
+        (results[l.id]?.time || Infinity) < (results[min.id]?.time || Infinity) ? l : min
+      , LEVELS[0]);
+
+      document.getElementById('totalFemtos').textContent = totalFemtos.toLocaleString();
+      document.getElementById('totalDims').textContent = totalDims.toLocaleString();
+      document.getElementById('fastestLevel').textContent = fastest.name;
+      document.getElementById('fastestTime').textContent = `${results[fastest.id]?.time.toFixed(0) || 0}ms`;
+      document.getElementById('totalQueries').textContent = totalQueries;
+    }
+
+    // Initial metrics
+    document.getElementById('totalFemtos').textContent = LEVELS.reduce((s, l) => s + l.femtos, 0).toLocaleString();
+    document.getElementById('totalDims').textContent = LEVELS.reduce((s, l) => s + l.dim, 0).toLocaleString();
+
+    // Global API
+    window.LLMExplorer = {
+      levels: LEVELS,
+      llms,
+      runQuery: async (q) => {
+        document.getElementById('queryInput').value = q;
+        document.getElementById('runBtn').click();
+      }
+    };
+  </script>
+</body>
+</html>
