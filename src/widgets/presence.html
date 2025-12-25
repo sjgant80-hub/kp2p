@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<!--
+@file presence.html
+@desc Presence Widget - Show who's online in a P2P room
+@api  window.Presence - presence controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Presence</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:13px/1.4 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;padding:16px}
+
+    .card{background:var(--b2);border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:16px}
+    .card-header{padding:14px 16px;background:rgba(0,0,0,.2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
+    .card-header .icon{font-size:20px}
+    .card-header .title{flex:1;font-weight:600}
+    .card-header .count{background:var(--a);color:#000;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px}
+    .card-body{padding:16px}
+
+    .room-form{display:flex;gap:8px}
+    .room-form input{flex:1;padding:10px 14px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--f);font-size:12px}
+    .room-form input:focus{outline:0;border-color:var(--a)}
+    .room-form button{padding:10px 20px;background:var(--a);border:0;border-radius:8px;color:#000;font-weight:600;font-size:11px;cursor:pointer}
+    .room-form button:hover{opacity:.9}
+
+    .status{display:flex;align-items:center;gap:8px;padding:12px;background:rgba(0,0,0,.2);border-radius:8px;margin-bottom:16px}
+    .status .dot{width:10px;height:10px;border-radius:50%;background:#64748b;flex-shrink:0}
+    .status .dot.online{background:var(--g);box-shadow:0 0 8px var(--g)}
+    .status .dot.connecting{background:var(--o);animation:pulse .8s infinite}
+    @keyframes pulse{50%{opacity:.4}}
+    .status .text{flex:1}
+    .status .room{font-weight:600}
+    .status .sub{font-size:11px;color:#64748b}
+
+    .users{display:flex;flex-direction:column;gap:8px}
+    .user{display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;transition:background .15s}
+    .user:hover{background:rgba(255,255,255,.06)}
+    .user.self{border:1px solid var(--a);background:rgba(0,217,255,.05)}
+    .user .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--a2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .user .info{flex:1;min-width:0}
+    .user .name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .user .id{font-size:10px;color:#64748b;font-family:monospace}
+    .user .state{font-size:10px;padding:3px 8px;border-radius:10px;background:rgba(16,185,129,.15);color:var(--g)}
+    .user .state.away{background:rgba(249,115,22,.15);color:var(--o)}
+    .user .state.busy{background:rgba(239,68,68,.15);color:var(--r)}
+    .user .joined{font-size:9px;color:#475569}
+
+    .empty{text-align:center;padding:30px;color:#64748b}
+    .empty .icon{font-size:40px;margin-bottom:10px}
+
+    .activity{padding:10px 12px;background:rgba(0,0,0,.2);border-radius:6px;font-size:11px;color:#64748b;max-height:120px;overflow-y:auto}
+    .activity .event{margin-bottom:4px;display:flex;align-items:center;gap:6px}
+    .activity .event .time{color:#475569;font-size:9px}
+    .activity .event.join{color:var(--g)}
+    .activity .event.leave{color:var(--o)}
+
+    .me-section{margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06)}
+    .me-section h4{font-size:11px;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+    .me-row{display:flex;gap:8px;margin-bottom:8px}
+    .me-row input{flex:1;padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font-size:11px}
+    .me-row select{padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font-size:11px}
+    .me-row button{padding:8px 14px;background:var(--a2);border:0;border-radius:6px;color:#fff;font-size:10px;font-weight:600;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">👥</span>
+      <span class="title">Presence</span>
+      <span class="count" id="count">0</span>
+    </div>
+    <div class="card-body">
+      <div class="room-form">
+        <input id="room" value="konomi-lobby" placeholder="Room name...">
+        <button id="join">Join</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="status" id="status">
+        <span class="dot" id="dot"></span>
+        <div class="text">
+          <div class="room" id="roomName">Not connected</div>
+          <div class="sub" id="statusSub">Enter a room name to join</div>
+        </div>
+      </div>
+
+      <div class="users" id="users">
+        <div class="empty">
+          <div class="icon">🌐</div>
+          <div>Join a room to see who's online</div>
+        </div>
+      </div>
+
+      <div class="me-section">
+        <h4>Your Profile</h4>
+        <div class="me-row">
+          <input id="myName" placeholder="Display name...">
+          <select id="myStatus">
+            <option value="online">Online</option>
+            <option value="away">Away</option>
+            <option value="busy">Busy</option>
+          </select>
+          <button id="update">Update</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">📋</span>
+      <span class="title">Activity</span>
+    </div>
+    <div class="card-body">
+      <div class="activity" id="activity">
+        <div class="event"><span class="time">--:--</span> Waiting for connection...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    /**
+     * Presence Widget
+     * Show who's online in a P2P room
+     *
+     * @usage
+     *   const presence = window.Presence;
+     *   presence.join('my-room');
+     *   presence.setProfile({ name: 'Alice', status: 'online' });
+     *   presence.on('user:join', (user) => console.log('Joined:', user));
+     *   presence.on('user:leave', (user) => console.log('Left:', user));
+     */
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class Presence {
+      constructor() {
+        this.id = this.genId();
+        this.emoji = this.randomEmoji();
+        this.name = 'User-' + this.id.slice(-4);
+        this.status = 'online';
+        this.room = null;
+        this.ws = null;
+        this.users = new Map();
+        this.dcs = new Map();
+        this.pending = new Map();
+
+        this.handlers = {
+          'user:join': [],
+          'user:leave': [],
+          'user:update': [],
+          'connect': [],
+          'disconnect': []
+        };
+
+        this.init();
+      }
+
+      genId() {
+        const bytes = crypto.getRandomValues(new Uint8Array(8));
+        return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      randomEmoji() {
+        const emojis = '😀😎🤖👾🦊🐱🐶🦁🐼🐨🦋🌟🚀🎮💎🔥';
+        return [...emojis][Math.floor(Math.random() * 16)];
+      }
+
+      on(event, handler) {
+        if (this.handlers[event]) this.handlers[event].push(handler);
+      }
+
+      emit(event, ...args) {
+        if (this.handlers[event]) this.handlers[event].forEach(h => h(...args));
+      }
+
+      setStatus(online, room, sub) {
+        $('dot').className = 'dot' + (online ? ' online' : this.ws ? ' connecting' : '');
+        $('roomName').textContent = room || 'Not connected';
+        $('statusSub').textContent = sub || '';
+      }
+
+      addActivity(text, type = '') {
+        const activity = $('activity');
+        const event = document.createElement('div');
+        event.className = 'event ' + type;
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        event.innerHTML = `<span class="time">${time}</span> ${esc(text)}`;
+        activity.insertBefore(event, activity.firstChild);
+
+        // Keep max 20 events
+        while (activity.children.length > 20) {
+          activity.removeChild(activity.lastChild);
+        }
+      }
+
+      updateUI() {
+        const container = $('users');
+        const allUsers = [
+          { id: this.id, name: this.name, emoji: this.emoji, status: this.status, self: true },
+          ...Array.from(this.users.values())
+        ];
+
+        $('count').textContent = allUsers.length;
+
+        if (allUsers.length === 1 && !this.room) {
+          container.innerHTML = `<div class="empty"><div class="icon">🌐</div><div>Join a room to see who's online</div></div>`;
+          return;
+        }
+
+        container.innerHTML = allUsers.map(u => `
+          <div class="user${u.self ? ' self' : ''}">
+            <div class="avatar">${esc(u.emoji)}</div>
+            <div class="info">
+              <div class="name">${esc(u.name)}${u.self ? ' (you)' : ''}</div>
+              <div class="id">${u.id.slice(0, 12)}...</div>
+            </div>
+            <span class="state ${u.status}">${u.status}</span>
+          </div>
+        `).join('');
+      }
+
+      setProfile(profile) {
+        if (profile.name) this.name = profile.name;
+        if (profile.status) this.status = profile.status;
+        this.broadcast({ type: 'update', id: this.id, name: this.name, emoji: this.emoji, status: this.status });
+        this.updateUI();
+      }
+
+      async join(roomName) {
+        if (this.ws) this.ws.close();
+        this.users.clear();
+        this.dcs.clear();
+        this.pending.clear();
+
+        this.room = roomName;
+        this.setStatus(false, roomName, 'Connecting...');
+        this.addActivity(`Joining ${roomName}...`);
+
+        // Hash room
+        const data = new TextEncoder().encode('konomi:' + roomName);
+        const hash = await crypto.subtle.digest('SHA-1', data);
+        const hashHex = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // Connect
+        this.ws = new WebSocket('wss://tracker.openwebtorrent.com');
+
+        this.ws.onopen = async () => {
+          this.setStatus(true, roomName, `Connected • ${this.users.size + 1} online`);
+          this.addActivity('Connected!', 'join');
+          this.emit('connect', roomName);
+
+          const offers = await this.createOffers(5, hashHex);
+          this.ws.send(JSON.stringify({
+            action: 'announce',
+            info_hash: hashHex,
+            peer_id: this.id,
+            numwant: 20,
+            offers
+          }));
+
+          this.updateUI();
+        };
+
+        this.ws.onmessage = async (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.offer && msg.peer_id !== this.id) {
+              await this.handleOffer(msg, hashHex);
+            }
+            if (msg.answer && msg.offer_id) {
+              const pending = this.pending.get(msg.offer_id);
+              if (pending) await pending.pc.setRemoteDescription(msg.answer);
+            }
+            if (msg.interval) {
+              setTimeout(async () => {
+                if (this.ws?.readyState === 1) {
+                  const offers = await this.createOffers(3, hashHex);
+                  this.ws.send(JSON.stringify({ action: 'announce', info_hash: hashHex, peer_id: this.id, numwant: 10, offers }));
+                }
+              }, msg.interval * 1000);
+            }
+          } catch {}
+        };
+
+        this.ws.onerror = () => {
+          this.setStatus(false, roomName, 'Connection error');
+          this.addActivity('Connection error', 'leave');
+        };
+
+        this.ws.onclose = () => {
+          this.setStatus(false, roomName, 'Disconnected');
+          this.addActivity('Disconnected', 'leave');
+          this.emit('disconnect');
+        };
+      }
+
+      async createOffers(count, hashHex) {
+        const offers = [];
+        for (let i = 0; i < count; i++) {
+          const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+          const dc = pc.createDataChannel('presence');
+          const offerId = crypto.randomUUID();
+
+          await new Promise(r => {
+            pc.onicecandidate = e => { if (!e.candidate) r(); };
+            pc.createOffer().then(o => pc.setLocalDescription(o));
+          });
+
+          offers.push({ offer_id: offerId, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+          this.pending.set(offerId, { pc, dc });
+          this.setupDC(dc, offerId, pc);
+        }
+        return offers;
+      }
+
+      setupDC(dc, id, pc) {
+        dc.onopen = () => {
+          this.dcs.set(id, dc);
+          dc.send(JSON.stringify({ type: 'announce', id: this.id, name: this.name, emoji: this.emoji, status: this.status }));
+        };
+
+        dc.onclose = () => {
+          this.dcs.delete(id);
+          const user = this.users.get(id);
+          if (user) {
+            this.addActivity(`${user.emoji} ${user.name} left`, 'leave');
+            this.users.delete(id);
+            this.emit('user:leave', user);
+            this.updateUI();
+            this.setStatus(true, this.room, `Connected • ${this.users.size + 1} online`);
+          }
+        };
+
+        dc.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'announce' || msg.type === 'update') {
+              const isNew = !this.users.has(msg.id);
+              this.users.set(msg.id, { id: msg.id, name: msg.name, emoji: msg.emoji, status: msg.status });
+
+              if (isNew) {
+                this.addActivity(`${msg.emoji} ${msg.name} joined`, 'join');
+                this.emit('user:join', msg);
+              } else {
+                this.emit('user:update', msg);
+              }
+
+              this.updateUI();
+              this.setStatus(true, this.room, `Connected • ${this.users.size + 1} online`);
+            }
+          } catch {}
+        };
+      }
+
+      async handleOffer(msg, hashHex) {
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        pc.ondatachannel = (e) => this.setupDC(e.channel, msg.peer_id, pc);
+        await pc.setRemoteDescription(msg.offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await new Promise(r => {
+          if (pc.iceGatheringState === 'complete') r();
+          else pc.onicecandidate = e => { if (!e.candidate) r(); };
+        });
+        this.ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: hashHex,
+          peer_id: this.id,
+          to_peer_id: msg.peer_id,
+          answer: { type: 'answer', sdp: pc.localDescription.sdp },
+          offer_id: msg.offer_id
+        }));
+      }
+
+      broadcast(msg) {
+        const data = JSON.stringify(msg);
+        for (const dc of this.dcs.values()) {
+          if (dc.readyState === 'open') dc.send(data);
+        }
+      }
+
+      init() {
+        $('join').onclick = () => {
+          const room = $('room').value.trim();
+          if (room) this.join(room);
+        };
+
+        $('room').onkeydown = (e) => {
+          if (e.key === 'Enter') $('join').click();
+        };
+
+        $('update').onclick = () => {
+          this.setProfile({
+            name: $('myName').value.trim() || this.name,
+            status: $('myStatus').value
+          });
+          this.addActivity('Profile updated');
+        };
+
+        // Set initial name
+        $('myName').value = this.name;
+
+        this.updateUI();
+      }
+    }
+
+    const presence = new Presence();
+    window.Presence = presence;
+  </script>
+</body>
+</html>

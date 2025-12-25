@@ -8,6 +8,10 @@
  * - ai-comm.html - AI-powered free communication (LLM + P2P + SMS)
  * - p2p-mesh.html - WebRTC mesh network with data channels
  * - webtorrent-tracker.html - WebTorrent tracker signaling layer
+ * - os-desktop.html - Embeddable KonomiOS desktop
+ * - terminal.html - P2P shared terminal
+ * - ai-chat.html - WebLLM browser AI chat
+ * - presence.html - Who's online widget
  */
 
 // Telephony UDTs
@@ -22,6 +26,10 @@ export const WIDGET_PATHS = {
   aiCommV3: './ai-comm-v3.html',
   p2pMesh: './p2p-mesh.html',
   webtorrentTracker: './webtorrent-tracker.html',
+  osDesktop: './os-desktop.html',
+  terminal: './terminal.html',
+  aiChat: './ai-chat.html',
+  presence: './presence.html',
 }
 
 /**

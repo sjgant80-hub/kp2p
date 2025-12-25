@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<!--
+@file terminal.html
+@desc P2P Terminal Widget - Shared command terminal with P2P sync
+@api  window.KonomiTerminal - terminal controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P Terminal</title>
+  <style>
+    :root{--b:#0a0a12;--f:#e4e4e7;--a:#00d9ff;--g:#10b981;--r:#ef4444;--o:#f97316;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'SF Mono','Fira Code',monospace;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(0,0,0,.4);border-bottom:1px solid rgba(255,255,255,.06)}
+    .dots{display:flex;gap:6px}
+    .dots span{width:12px;height:12px;border-radius:50%}
+    .dots .r{background:var(--r)}.dots .y{background:var(--o)}.dots .g{background:var(--g)}
+    .title{flex:1;text-align:center;font-size:11px;color:#64748b}
+    .status{display:flex;align-items:center;gap:6px;font-size:10px}
+    .status .dot{width:6px;height:6px;border-radius:50%;background:#64748b}
+    .status .dot.on{background:var(--g);box-shadow:0 0 6px var(--g)}
+    .status .dot.con{background:var(--o);animation:pulse .8s infinite}
+    @keyframes pulse{50%{opacity:.4}}
+
+    .term{flex:1;padding:12px 16px;overflow-y:auto;font-size:12px;line-height:1.6}
+    .term::-webkit-scrollbar{width:6px}
+    .term::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+
+    .line{margin-bottom:2px;white-space:pre-wrap;word-break:break-all}
+    .line.prompt{color:var(--g)}
+    .line.output{color:#94a3b8}
+    .line.error{color:var(--r)}
+    .line.info{color:var(--a)}
+    .line.warn{color:var(--o)}
+    .line.peer{color:var(--y)}
+    .line .user{color:var(--a);font-weight:500}
+    .line .time{color:#475569;font-size:10px;margin-left:8px}
+
+    .input-line{display:flex;align-items:center;padding:8px 16px;background:rgba(0,0,0,.3);border-top:1px solid rgba(255,255,255,.06)}
+    .prompt-char{color:var(--g);margin-right:8px;font-weight:bold}
+    .input-line input{flex:1;background:0;border:0;color:var(--f);font:inherit;outline:0}
+    .input-line input::placeholder{color:#475569}
+
+    .hint{padding:8px 16px;background:rgba(0,217,255,.05);border-top:1px solid rgba(0,217,255,.1);font-size:10px;color:#64748b}
+    .hint code{background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px;color:var(--a)}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="title">konomi-terminal — <span id="room">local</span></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">Local</span></div>
+  </div>
+
+  <div class="term" id="term"></div>
+
+  <div class="input-line">
+    <span class="prompt-char">❯</span>
+    <input id="input" placeholder="Type a command..." autofocus>
+  </div>
+
+  <div class="hint">
+    Commands: <code>help</code> <code>join &lt;room&gt;</code> <code>say &lt;msg&gt;</code> <code>peers</code> <code>clear</code>
+  </div>
+
+  <script type="module">
+    /**
+     * P2P Terminal Widget
+     * Shared terminal with P2P mesh sync
+     *
+     * @usage
+     *   const term = window.KonomiTerminal;
+     *   term.print('Hello!', 'info');
+     *   term.exec('help');
+     *   term.join('my-room');
+     *   term.on('command', (cmd, args) => { ... });
+     */
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class KonomiTerminal {
+      constructor() {
+        this.history = [];
+        this.historyIndex = -1;
+        this.peers = new Map();
+        this.ws = null;
+        this.room = null;
+        this.dcs = new Map();
+
+        this.id = this.genId();
+        this.name = 'user-' + this.id.slice(-4);
+
+        this.handlers = {
+          command: [],
+          message: [],
+          connect: [],
+          disconnect: []
+        };
+
+        this.commands = {
+          help: () => this.print('Commands: help, clear, echo, date, join, leave, say, peers, whoami, neofetch', 'info'),
+          clear: () => { $('term').innerHTML = ''; },
+          echo: (args) => this.print(args.join(' ')),
+          date: () => this.print(new Date().toLocaleString()),
+          whoami: () => this.print(`${this.name} (${this.id.slice(0, 12)}...)`, 'info'),
+          neofetch: () => {
+            this.print('╭─────────────────────────╮', 'info');
+            this.print('│  KonomiTerminal v1.0    │', 'info');
+            this.print('├─────────────────────────┤', 'info');
+            this.print(`│  User: ${this.name.padEnd(16)} │`, 'output');
+            this.print(`│  Room: ${(this.room || 'local').padEnd(16)} │`, 'output');
+            this.print(`│  Peers: ${String(this.peers.size).padEnd(15)} │`, 'output');
+            this.print('╰─────────────────────────╯', 'info');
+          },
+          join: (args) => {
+            if (!args[0]) { this.print('Usage: join <room>', 'error'); return; }
+            this.join(args[0]);
+          },
+          leave: () => {
+            if (this.ws) { this.ws.close(); this.ws = null; }
+            this.setStatus(false, 'Local');
+            this.room = null;
+            $('room').textContent = 'local';
+            this.print('Left room', 'info');
+          },
+          say: (args) => {
+            if (!args.length) { this.print('Usage: say <message>', 'error'); return; }
+            const msg = args.join(' ');
+            this.broadcast({ type: 'chat', name: this.name, text: msg });
+            this.printChat(this.name, msg, true);
+          },
+          peers: () => {
+            this.print(`Connected peers: ${this.peers.size}`, 'info');
+            for (const [id, peer] of this.peers) {
+              this.print(`  • ${peer.name || id.slice(0, 8)}`, 'peer');
+            }
+          }
+        };
+
+        this.init();
+      }
+
+      genId() {
+        const bytes = crypto.getRandomValues(new Uint8Array(8));
+        return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      on(event, handler) {
+        if (this.handlers[event]) this.handlers[event].push(handler);
+      }
+
+      emit(event, ...args) {
+        if (this.handlers[event]) this.handlers[event].forEach(h => h(...args));
+      }
+
+      print(text, cls = 'output') {
+        const term = $('term');
+        const line = document.createElement('div');
+        line.className = 'line ' + cls;
+        line.innerHTML = esc(text);
+        term.appendChild(line);
+        term.scrollTop = term.scrollHeight;
+      }
+
+      printChat(name, text, self = false) {
+        const term = $('term');
+        const line = document.createElement('div');
+        line.className = 'line ' + (self ? 'output' : 'peer');
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        line.innerHTML = `<span class="user">${esc(name)}</span>: ${esc(text)}<span class="time">${time}</span>`;
+        term.appendChild(line);
+        term.scrollTop = term.scrollHeight;
+      }
+
+      setStatus(online, text) {
+        const dot = $('dot');
+        dot.className = 'dot' + (online ? ' on' : '');
+        $('statusText').textContent = text;
+      }
+
+      exec(input) {
+        const trimmed = input.trim();
+        if (!trimmed) return;
+
+        // Add to history
+        this.history.push(trimmed);
+        this.historyIndex = this.history.length;
+
+        // Print command
+        this.print('❯ ' + trimmed, 'prompt');
+
+        // Parse and execute
+        const [cmd, ...args] = trimmed.split(/\s+/);
+        const lowerCmd = cmd.toLowerCase();
+
+        if (this.commands[lowerCmd]) {
+          this.commands[lowerCmd](args);
+        } else {
+          this.print(`Command not found: ${cmd}`, 'error');
+          this.print('Type "help" for available commands', 'info');
+        }
+
+        this.emit('command', lowerCmd, args);
+      }
+
+      async join(roomName) {
+        this.print(`Joining room: ${roomName}...`, 'info');
+        this.room = roomName;
+        $('room').textContent = roomName;
+        this.setStatus(false, 'Connecting...');
+        $('dot').classList.add('con');
+
+        // Hash room name
+        const data = new TextEncoder().encode('konomi:' + roomName);
+        const hash = await crypto.subtle.digest('SHA-1', data);
+        const hashHex = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // Connect to tracker
+        const tracker = 'wss://tracker.openwebtorrent.com';
+        this.ws = new WebSocket(tracker);
+
+        this.ws.onopen = async () => {
+          this.setStatus(true, 'Connected');
+          this.print('Connected to mesh!', 'info');
+          this.emit('connect', roomName);
+
+          // Create offers
+          const offers = await this.createOffers(3);
+          this.ws.send(JSON.stringify({
+            action: 'announce',
+            info_hash: hashHex,
+            peer_id: this.id,
+            numwant: 10,
+            offers
+          }));
+        };
+
+        this.ws.onmessage = async (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.offer && msg.peer_id !== this.id) {
+              await this.handleOffer(msg, hashHex);
+            }
+            if (msg.answer && msg.offer_id) {
+              await this.handleAnswer(msg);
+            }
+          } catch {}
+        };
+
+        this.ws.onerror = () => {
+          this.print('Connection error', 'error');
+          this.setStatus(false, 'Error');
+        };
+
+        this.ws.onclose = () => {
+          this.print('Disconnected', 'warn');
+          this.setStatus(false, 'Disconnected');
+        };
+      }
+
+      async createOffers(count) {
+        const offers = [];
+        for (let i = 0; i < count; i++) {
+          const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+          const dc = pc.createDataChannel('term');
+          const offerId = crypto.randomUUID();
+
+          await new Promise(r => {
+            pc.onicecandidate = e => { if (!e.candidate) r(); };
+            pc.createOffer().then(o => pc.setLocalDescription(o));
+          });
+
+          offers.push({ offer_id: offerId, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+          this.setupDC(dc, offerId, pc);
+        }
+        return offers;
+      }
+
+      setupDC(dc, id, pc) {
+        dc.onopen = () => {
+          this.dcs.set(id, dc);
+          this.peers.set(id, { name: 'peer-' + id.slice(0, 4) });
+          this.print(`Peer connected: ${id.slice(0, 8)}...`, 'peer');
+          dc.send(JSON.stringify({ type: 'announce', name: this.name }));
+        };
+
+        dc.onclose = () => {
+          this.dcs.delete(id);
+          const peer = this.peers.get(id);
+          if (peer) this.print(`Peer left: ${peer.name}`, 'warn');
+          this.peers.delete(id);
+        };
+
+        dc.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'announce') {
+              const peer = this.peers.get(id);
+              if (peer) peer.name = msg.name;
+            } else if (msg.type === 'chat') {
+              this.printChat(msg.name, msg.text);
+              this.emit('message', msg);
+            }
+          } catch {}
+        };
+      }
+
+      async handleOffer(msg, hashHex) {
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        pc.ondatachannel = (e) => this.setupDC(e.channel, msg.peer_id, pc);
+        await pc.setRemoteDescription(msg.offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await new Promise(r => {
+          if (pc.iceGatheringState === 'complete') r();
+          else pc.onicecandidate = e => { if (!e.candidate) r(); };
+        });
+        this.ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: hashHex,
+          peer_id: this.id,
+          to_peer_id: msg.peer_id,
+          answer: { type: 'answer', sdp: pc.localDescription.sdp },
+          offer_id: msg.offer_id
+        }));
+      }
+
+      async handleAnswer(msg) {
+        // Simplified - would need pending PC tracking
+      }
+
+      broadcast(msg) {
+        const data = JSON.stringify(msg);
+        for (const dc of this.dcs.values()) {
+          if (dc.readyState === 'open') dc.send(data);
+        }
+      }
+
+      init() {
+        const input = $('input');
+
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter') {
+            this.exec(input.value);
+            input.value = '';
+          } else if (e.key === 'ArrowUp') {
+            if (this.historyIndex > 0) {
+              this.historyIndex--;
+              input.value = this.history[this.historyIndex];
+            }
+            e.preventDefault();
+          } else if (e.key === 'ArrowDown') {
+            if (this.historyIndex < this.history.length - 1) {
+              this.historyIndex++;
+              input.value = this.history[this.historyIndex];
+            } else {
+              this.historyIndex = this.history.length;
+              input.value = '';
+            }
+            e.preventDefault();
+          }
+        };
+
+        // Welcome message
+        this.print('Welcome to KonomiTerminal', 'info');
+        this.print('Type "help" for commands, "join <room>" to connect P2P', 'info');
+        this.print('', 'output');
+      }
+    }
+
+    const term = new KonomiTerminal();
+    window.KonomiTerminal = term;
+  </script>
+</body>
+</html>
