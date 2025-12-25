@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<!--
+@file os-mesh-global-v8.html
+@desc KonomiOS v8 - Ambient Chat Background + Built-in AI Agent
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KonomiOS v8</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316;--y:#eab308;--br:#334155;--gl:rgba(12,12,20,.92)}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:var(--b);color:var(--f);height:100vh;overflow:hidden;user-select:none}
+
+    /* Desktop with ambient chat background */
+    .D{position:absolute;inset:0 0 52px 0;background:linear-gradient(135deg,#0a0a12,#12121e 50%,#0a1628);overflow:hidden}
+    .D::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(0,217,255,.06),transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(124,58,237,.06),transparent 50%);pointer-events:none;z-index:1}
+
+    /* Floating chat messages in background */
+    .chat-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+    .chat-bubble{position:absolute;padding:8px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.04);border-radius:16px;font-size:12px;color:rgba(255,255,255,.25);max-width:280px;animation:float 60s linear infinite;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(4px)}
+    .chat-bubble.self{background:rgba(0,217,255,.04);border-color:rgba(0,217,255,.08);color:rgba(0,217,255,.3)}
+    .chat-bubble.ai{background:rgba(124,58,237,.05);border-color:rgba(124,58,237,.1);color:rgba(124,58,237,.35)}
+    .chat-bubble .av{margin-right:6px}
+    @keyframes float{
+      0%{transform:translateY(0) translateX(0);opacity:0}
+      2%{opacity:1}
+      95%{opacity:1}
+      100%{transform:translateY(-100vh) translateX(20px);opacity:0}
+    }
+
+    .DI{position:absolute;top:16px;left:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;z-index:5}
+    .di{width:68px;text-align:center;cursor:pointer;padding:8px 4px;border-radius:10px;transition:.2s}.di:hover{background:rgba(255,255,255,.08)}.di:active{transform:scale(.95)}.di i{font-size:28px;display:block;margin-bottom:4px}.di span{font-size:9px;text-shadow:0 1px 2px #000}
+
+    /* Windows */
+    .W{position:absolute;background:var(--gl);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);display:none;flex-direction:column;overflow:hidden;min-width:260px;min-height:160px;resize:both;z-index:10}
+    .W.o{display:flex}.W.a{z-index:100;box-shadow:0 16px 64px rgba(0,0,0,.6)}.W.m{inset:0!important;width:100%!important;height:100%!important;border-radius:0;resize:none}
+    .Wh{padding:10px 12px;background:rgba(0,0,0,.4);border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:move}
+    .Wc{display:flex;gap:6px}.Wc button{width:12px;height:12px;border-radius:50%;border:none;cursor:pointer;transition:.15s}.Wc button:hover{transform:scale(1.2)}.Wc .c{background:var(--r)}.Wc .n{background:var(--o)}.Wc .x{background:var(--g)}
+    .Wt{flex:1;font-size:11px;font-weight:500;opacity:.85}.Wb{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+    /* Taskbar */
+    .TB{position:absolute;bottom:0;left:0;right:0;height:52px;background:rgba(0,0,0,.8);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;padding:0 12px;gap:6px;z-index:200}
+    .Ts{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--a),var(--a2));border-radius:10px;font-size:18px;cursor:pointer;margin-right:8px;transition:.2s}.Ts:hover{transform:scale(1.05)}
+    .Ta{display:flex;gap:4px;flex:1;overflow-x:auto}.Ta::-webkit-scrollbar{display:none}.Ta div{padding:6px 10px;background:rgba(255,255,255,.05);border:1px solid transparent;border-radius:6px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:.2s}.Ta div:hover{background:rgba(255,255,255,.1)}.Ta div.a{background:rgba(0,217,255,.15);border-color:var(--a)}
+    .Ty{display:flex;align-items:center;gap:10px;padding:0 8px;font-size:10px}.Ty .d{width:8px;height:8px;border-radius:50%}.Ty .d.on{background:var(--g);box-shadow:0 0 8px var(--g)}.Ty .d.c{background:var(--o);animation:p 1s infinite}@keyframes p{50%{opacity:.4}}
+
+    /* AI Agent Panel */
+    .ai-panel{display:flex;flex-direction:column;height:100%}
+    .ai-chat{flex:1;overflow-y:auto;padding:12px;scroll-behavior:smooth}
+    .ai-msg{margin-bottom:12px;display:flex;gap:8px}
+    .ai-msg.user{flex-direction:row-reverse}
+    .ai-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+    .ai-msg.user .ai-av{background:linear-gradient(135deg,var(--a),var(--a2))}
+    .ai-msg.bot .ai-av{background:linear-gradient(135deg,var(--a2),#ec4899)}
+    .ai-bubble{max-width:75%;padding:10px 14px;border-radius:16px;font-size:12px;line-height:1.5}
+    .ai-msg.user .ai-bubble{background:linear-gradient(135deg,var(--a),var(--a2));border-bottom-right-radius:4px}
+    .ai-msg.bot .ai-bubble{background:rgba(255,255,255,.08);border-bottom-left-radius:4px}
+    .ai-typing{display:flex;gap:4px;padding:8px 12px}
+    .ai-typing span{width:6px;height:6px;background:var(--a2);border-radius:50%;animation:bounce .6s infinite}
+    .ai-typing span:nth-child(2){animation-delay:.1s}
+    .ai-typing span:nth-child(3){animation-delay:.2s}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+    .ai-input{display:flex;padding:10px;gap:8px;background:rgba(0,0,0,.3);border-top:1px solid rgba(255,255,255,.05)}
+    .ai-input input{flex:1;padding:10px 14px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:20px;color:var(--f);font-size:12px;outline:0}
+    .ai-input input:focus{border-color:var(--a2)}
+    .ai-input button{padding:10px 18px;background:linear-gradient(135deg,var(--a2),#ec4899);border:0;border-radius:20px;color:#fff;font-weight:600;font-size:11px;cursor:pointer;transition:.2s}
+    .ai-input button:hover{transform:scale(1.02)}
+    .ai-input button:disabled{opacity:.5;cursor:not-allowed}
+    .ai-status{font-size:9px;color:#64748b;padding:4px 12px;text-align:center}
+    .ai-anchor{min-height:1px}
+
+    /* Terminal */
+    .trm{flex:1;background:rgba(0,0,0,.6);padding:10px;overflow-y:auto;font-family:'SF Mono',monospace;font-size:11px;line-height:1.5;scroll-behavior:smooth}
+    .trm .l{margin-bottom:1px;white-space:pre-wrap}.trm .p{color:var(--g)}.trm .o{color:#94a3b8}.trm .e{color:var(--r)}.trm .i{color:var(--a)}
+    .tri{display:flex;padding:6px 10px;background:rgba(0,0,0,.4);gap:6px}.tri input{flex:1;background:0;border:0;color:var(--f);font-family:inherit;font-size:11px;outline:0}
+
+    /* Files/Peers/Settings */
+    .fls{flex:1;display:flex;flex-direction:column}.flt{padding:6px 8px;background:rgba(0,0,0,.3);display:flex;gap:4px}.flt input{flex:1;padding:5px 8px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--f);font-size:10px}.flt button{padding:5px 10px;background:var(--a);border:0;border-radius:5px;color:#000;font-size:9px;font-weight:600;cursor:pointer}
+    .fll{flex:1;overflow-y:auto;padding:8px}.fll .fi{display:flex;align-items:center;gap:8px;padding:8px;background:rgba(255,255,255,.04);border-radius:6px;margin-bottom:4px;cursor:pointer;font-size:11px;transition:.2s}.fll .fi:hover{background:rgba(255,255,255,.08)}
+    .prs{flex:1;overflow-y:auto;padding:8px}.prs .pc{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,.04);border-radius:8px;margin-bottom:6px}.prs .pc.s{border:1px solid var(--a);background:rgba(0,217,255,.05)}.prs .av{font-size:24px}.prs .pi{flex:1}.prs .pn{font-size:12px;font-weight:500}.prs .pid{font-size:9px;color:#64748b;font-family:monospace}
+    .sts{flex:1;overflow-y:auto;padding:12px}.sts .sec{margin-bottom:16px}.sts .st{font-size:9px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}.sts .si{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:6px;margin-bottom:4px;font-size:11px}.sts .si .v{color:var(--a);font-family:monospace;font-size:10px}.sts input{padding:5px 8px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:4px;color:var(--f);font-size:10px;width:120px}.sts button{padding:6px 12px;background:var(--a);border:0;border-radius:4px;color:#000;font-size:10px;font-weight:600;cursor:pointer}
+
+    .SM{position:absolute;bottom:60px;left:12px;width:240px;background:var(--gl);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);display:none;overflow:hidden;z-index:300}.SM.o{display:block}.SM h{display:block;padding:12px;background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;font-size:14px;font-weight:600}.SM h small{display:block;font-size:9px;opacity:.7;font-weight:400;margin-top:2px}.SM .si{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:11px;transition:.2s}.SM .si:hover{background:rgba(255,255,255,.08)}.SM .si i{font-size:16px}
+    .emp{text-align:center;padding:24px;color:#64748b;font-size:11px}
+    .ifr{flex:1;border:0;background:#000;border-radius:0 0 12px 12px}
+    .wvh{display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(0,0,0,.3);font-size:10px}.wvh input{flex:1;padding:5px 8px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:4px;color:var(--f);font-size:10px}.wvh button{padding:5px 10px;background:var(--a);border:0;border-radius:4px;color:#000;font-size:9px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="D" id="D">
+    <div class="chat-bg" id="chatBg"></div>
+  </div>
+  <div class="SM" id="SM"><h>🌍 KonomiOS<small>v8 Ambient AI</small></h><div id="SMa"></div></div>
+  <div class="TB"><div class="Ts" id="Ts">🌍</div><div class="Ta" id="Ta"></div><div class="Ty"><span class="d" id="cd"></span><span id="cs">Offline</span><span style="margin-left:4px">👥</span><span id="pc">0</span><span style="margin-left:6px" id="clk">00:00</span></div></div>
+
+  <script type="module">
+    // =========================================================================
+    // APP CONFIG
+    // =========================================================================
+    const APPS = {
+      A: { n: 'AI Agent', i: '🤖', w: 380, h: 480, x: 80, y: 30 },
+      T: { n: 'Terminal', i: '💻', w: 480, h: 320, x: 500, y: 50 },
+      F: { n: 'Files', i: '📁', w: 360, h: 280, x: 220, y: 70 },
+      P: { n: 'Peers', i: '👥', w: 280, h: 340, x: 600, y: 100 },
+      S: { n: 'Settings', i: '⚙️', w: 340, h: 320, x: 400, y: 80 },
+      V: { n: 'Viewer', i: '🌐', w: 600, h: 450, x: 150, y: 50, hidden: true }
+    };
+
+    const CMDS = {
+      help: () => `Commands: help whoami peers room ls cat write clear neofetch ai`,
+      whoami: () => `${ME.e} ${ME.id}`,
+      peers: () => [ME.e + ' ' + ME.n + ' (you)', ...[...peers.values()].map(p => p.e + ' ' + p.n)].join('\n'),
+      room: () => room || 'N/A',
+      ls: () => files.size ? [...files.keys()].join('\n') : '(empty)',
+      cat: a => { const f = files.get(a[0]) || files.get('/' + a[0]); return f ? f.c : 'Not found'; },
+      write: a => { if (!a[0]) return 'Usage: write <f> <c>'; const p = '/' + a[0].replace(/^\//,''), c = a.slice(1).join(' '); files.set(p, { c, o: ME.id }); updF(); bc({ t: 'f', p, c, o: ME.id }); return 'Created ' + p; },
+      clear: () => { $('trm').innerHTML = ''; return ''; },
+      ai: () => { O('A'); return 'Opening AI Agent...'; },
+      neofetch: () => `\n ██╗  ██╗ ██████╗ ███████╗\n ██║ ██╔╝██╔═══██╗██╔════╝\n █████╔╝ ██║   ██║███████╗  v8 Ambient AI\n ██╔═██╗ ██║   ██║╚════██║  ${ME.e} ${ME.n}\n ██║  ██╗╚██████╔╝███████║  Room: ${room||'N/A'}\n ╚═╝  ╚═╝ ╚═════╝ ╚══════╝  Peers: ${peers.size+1} Files: ${files.size}`
+    };
+
+    const TPL = {
+      win: (k, app) => app.hidden ? '' : `<div class="W" id="W${k}" style="width:${app.w}px;height:${app.h}px;top:${app.y}px;left:${app.x}px"><div class="Wh" onmousedown="D(event,'${k}')"><div class="Wc"><button class="c" onclick="X('${k}')"></button><button class="n" onclick="N('${k}')"></button><button class="x" onclick="M('${k}')"></button></div><span class="Wt">${app.i} ${app.n}</span></div><div class="Wb" id="B${k}"></div></div>`,
+      vwin: () => `<div class="W" id="WV" style="width:${APPS.V.w}px;height:${APPS.V.h}px;top:${APPS.V.y}px;left:${APPS.V.x}px"><div class="Wh" onmousedown="D(event,'V')"><div class="Wc"><button class="c" onclick="X('V')"></button><button class="n" onclick="N('V')"></button><button class="x" onclick="M('V')"></button></div><span class="Wt" id="VT">🌐 Viewer</span></div><div class="Wb"><div class="wvh"><input id="vu" readonly><button onclick="window.open($('vu').value,'_blank')">↗ Open</button></div><iframe class="ifr" id="vif"></iframe></div></div>`,
+      icon: (k, app) => app.hidden ? '' : `<div class="di" onclick="O('${k}')"><i>${app.i}</i><span>${app.n}</span></div>`,
+      smItem: (k, app) => app.hidden ? '' : `<div class="si" onclick="O('${k}');SM()"><i>${app.i}</i><span>${app.n}</span></div>`,
+      A: () => `<div class="ai-panel"><div class="ai-status" id="aiStatus">🧠 Local AI Ready</div><div class="ai-chat" id="aiChat"><div class="ai-anchor" id="aiAnchor"></div></div><div class="ai-input"><input id="aiIn" placeholder="Ask me anything..."><button id="aiSend">Send</button></div></div>`,
+      T: () => `<div class="trm" id="trm"></div><div class="tri"><span style="color:var(--g)">❯</span><input id="ci" placeholder="command..."></div>`,
+      F: () => `<div class="fls"><div class="flt"><input id="nfn" placeholder="file.txt"><button onclick="nF()">+ New</button></div><div class="fll" id="fll"><div class="emp">No files</div></div></div>`,
+      P: () => `<div class="prs" id="prs"></div>`,
+      S: () => `<div class="sts"><div class="sec"><div class="st">Network</div><div class="si"><span>Room</span><input id="ri" value="konomi-global"></div><div class="si"><span>Status</span><span class="v" id="cst">-</span></div><div class="si"><button onclick="RC()">Reconnect</button></div></div><div class="sec"><div class="st">Identity</div><div class="si"><span>ID</span><span class="v" id="mid">-</span></div><div class="si"><span>Avatar</span><span class="v" id="mav">-</span></div></div><div class="sec"><div class="st">Version</div><div class="si"><span>KonomiOS</span><span class="v">v8 Ambient</span></div></div></div>`
+    };
+
+    // =========================================================================
+    // STATE
+    // =========================================================================
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const open = new Set();
+    let active = null, drag = null, zIdx = 10;
+    const peers = new Map(), files = new Map(), dcs = new Map(), pending = new Map();
+    let ws = null, hash = null, room = '';
+
+    const ME = {
+      id: '-KM0001-' + [...crypto.getRandomValues(new Uint8Array(6))].map(b => b.toString(16).padStart(2,'0')).join(''),
+      e: '😀😎🤖👾🦊🐱🐶🦁🐼🐨🦋🌟🚀🎮💎🔥'.split(/(?=.)/u)[Math.random() * 16 | 0]
+    };
+    ME.n = ME.id.slice(0, 10);
+
+    // =========================================================================
+    // AMBIENT CHAT BACKGROUND
+    // =========================================================================
+    const chatBubbles = [];
+    let bubbleId = 0;
+
+    function addBgBubble(text, emoji, isSelf = false, isAI = false) {
+      const bg = $('chatBg');
+      if (!bg) return;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble' + (isSelf ? ' self' : '') + (isAI ? ' ai' : '');
+      bubble.innerHTML = `<span class="av">${esc(emoji)}</span>${esc(text.slice(0, 50))}${text.length > 50 ? '...' : ''}`;
+
+      // Random position
+      bubble.style.left = (10 + Math.random() * 70) + '%';
+      bubble.style.bottom = '-50px';
+      bubble.style.animationDuration = (40 + Math.random() * 40) + 's';
+      bubble.style.animationDelay = (Math.random() * 2) + 's';
+
+      bg.appendChild(bubble);
+
+      // Cleanup old bubbles
+      setTimeout(() => bubble.remove(), 80000);
+    }
+
+    // =========================================================================
+    // AI AGENT (Browser-based LLM simulation with real responses)
+    // =========================================================================
+    const AI_PERSONA = {
+      name: 'Kono',
+      emoji: '🤖',
+      greeting: "Hey! I'm Kono, your AI assistant. I can help you with questions, coding, ideas, or just chat. What's on your mind?",
+      personality: 'helpful, friendly, knowledgeable'
+    };
+
+    const AI_RESPONSES = {
+      greet: [
+        "Hey there! How can I help you today?",
+        "Hi! What's on your mind?",
+        "Hello! Ready to assist with anything you need."
+      ],
+      code: [
+        "Here's a quick example:\n```\nconst hello = () => console.log('Hello!');\nhello();\n```\nWant me to explain or modify it?",
+        "I can help with that! What language or framework are you working with?",
+        "Sure! Let me break down the approach: first, we'd define the structure, then implement the logic. What specific part would you like help with?"
+      ],
+      general: [
+        "That's an interesting question! Let me think about it...",
+        "Great question! Here's my take on it:",
+        "I'd be happy to help with that. Here's what I know:"
+      ],
+      mesh: [
+        "The P2P mesh uses WebRTC for direct peer connections. Messages travel through the network without central servers!",
+        "KonomiOS runs entirely in your browser - no backend needed. All data syncs peer-to-peer.",
+        "This chat you see floating in the background? That's the global mesh - everyone connected sees the same ambient messages!"
+      ],
+      unknown: [
+        "Interesting! Tell me more about what you're looking for.",
+        "I'm not 100% sure, but I can try to help. Could you give me more context?",
+        "Let me think about that... What specific aspect are you curious about?"
+      ]
+    };
+
+    let aiTyping = false;
+    const aiHistory = [];
+
+    function getAIResponse(input) {
+      const lower = input.toLowerCase();
+
+      if (lower.match(/^(hi|hello|hey|sup|yo)/)) {
+        return AI_RESPONSES.greet[Math.random() * AI_RESPONSES.greet.length | 0];
+      }
+      if (lower.match(/code|function|script|program|javascript|python|html|css/)) {
+        return AI_RESPONSES.code[Math.random() * AI_RESPONSES.code.length | 0];
+      }
+      if (lower.match(/mesh|p2p|peer|webrtc|network|how.*(work|does)/)) {
+        return AI_RESPONSES.mesh[Math.random() * AI_RESPONSES.mesh.length | 0];
+      }
+      if (lower.match(/what|why|how|explain|tell me/)) {
+        return AI_RESPONSES.general[Math.random() * AI_RESPONSES.general.length | 0];
+      }
+
+      // Smart fallback - echo understanding
+      if (lower.length > 10) {
+        const topics = lower.match(/\b(about|with|for|on)\s+(\w+)/);
+        if (topics) {
+          return `I'd love to help you with "${topics[2]}"! Can you tell me more specifically what you're trying to achieve?`;
+        }
+      }
+
+      return AI_RESPONSES.unknown[Math.random() * AI_RESPONSES.unknown.length | 0];
+    }
+
+    function addAIMsg(text, isUser = false) {
+      const chat = $('aiChat');
+      const anchor = $('aiAnchor');
+      if (!chat || !anchor) return;
+
+      const msg = document.createElement('div');
+      msg.className = 'ai-msg ' + (isUser ? 'user' : 'bot');
+      msg.innerHTML = `
+        <div class="ai-av">${isUser ? ME.e : AI_PERSONA.emoji}</div>
+        <div class="ai-bubble">${esc(text).replace(/\n/g, '<br>').replace(/```([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,.3);padding:8px;border-radius:6px;margin:4px 0;font-family:monospace;font-size:10px">$1</pre>')}</div>
+      `;
+
+      chat.insertBefore(msg, anchor);
+      requestAnimationFrame(() => anchor.scrollIntoView({ behavior: 'smooth', block: 'end' }));
+
+      // Add to ambient background
+      addBgBubble(text, isUser ? ME.e : AI_PERSONA.emoji, isUser, !isUser);
+    }
+
+    function showTyping(show) {
+      const chat = $('aiChat');
+      const anchor = $('aiAnchor');
+      const existing = chat?.querySelector('.ai-typing');
+
+      if (show && !existing) {
+        const typing = document.createElement('div');
+        typing.className = 'ai-msg bot';
+        typing.innerHTML = `<div class="ai-av">${AI_PERSONA.emoji}</div><div class="ai-typing"><span></span><span></span><span></span></div>`;
+        chat.insertBefore(typing, anchor);
+        requestAnimationFrame(() => anchor.scrollIntoView({ behavior: 'smooth', block: 'end' }));
+      } else if (!show && existing) {
+        existing.remove();
+      }
+    }
+
+    async function sendToAI() {
+      const input = $('aiIn');
+      const btn = $('aiSend');
+      const text = input?.value.trim();
+      if (!text || aiTyping) return;
+
+      input.value = '';
+      aiTyping = true;
+      btn.disabled = true;
+
+      addAIMsg(text, true);
+      aiHistory.push({ role: 'user', content: text });
+
+      showTyping(true);
+
+      // Simulate thinking delay
+      await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+
+      showTyping(false);
+
+      const response = getAIResponse(text);
+      addAIMsg(response, false);
+      aiHistory.push({ role: 'assistant', content: response });
+
+      aiTyping = false;
+      btn.disabled = false;
+      input.focus();
+    }
+
+    // =========================================================================
+    // RENDER
+    // =========================================================================
+    function init() {
+      let icons = '', wins = '', sm = '';
+      for (const [k, app] of Object.entries(APPS)) {
+        icons += TPL.icon(k, app);
+        wins += TPL.win(k, app);
+        sm += TPL.smItem(k, app);
+      }
+      wins += TPL.vwin();
+      $('D').innerHTML = `<div class="chat-bg" id="chatBg"></div><div class="DI">${icons}</div>${wins}`;
+      $('SMa').innerHTML = sm;
+
+      for (const k of Object.keys(APPS)) if (!APPS[k].hidden) $('B' + k).innerHTML = TPL[k]();
+
+      // Event listeners
+      $('ci')?.addEventListener('keydown', e => { if (e.key === 'Enter') runCmd(); });
+      $('aiIn')?.addEventListener('keydown', e => { if (e.key === 'Enter') sendToAI(); });
+      $('aiSend')?.addEventListener('click', sendToAI);
+      $('Ts').onclick = SM;
+
+      $('mid').textContent = ME.id.slice(0, 12) + '…';
+      $('mav').textContent = ME.e;
+      updP(); updF();
+
+      tP('KonomiOS v8 - Ambient AI Edition', 'i');
+      tP('Chat floats in background • Type "ai" for AI Agent', 'i');
+
+      // Show AI greeting
+      setTimeout(() => addAIMsg(AI_PERSONA.greeting, false), 1000);
+
+      O('A'); // Open AI panel by default
+      setTimeout(() => join($('ri')?.value || 'konomi-global'), 500);
+      setInterval(clk, 1000); clk();
+    }
+
+    function clk() { $('clk').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+
+    // =========================================================================
+    // WINDOW MANAGER
+    // =========================================================================
+    window.O = k => { const w = $('W' + k); if (!w) return; w.classList.add('o'); open.add(k); F(k); updTB(); };
+    window.X = k => { const w = $('W' + k); if (!w) return; w.classList.remove('o', 'm'); open.delete(k); if (active === k) active = null; if (k === 'V') $('vif').src = ''; updTB(); };
+    window.N = k => $('W' + k)?.classList.remove('o');
+    window.M = k => $('W' + k)?.classList.toggle('m');
+    window.F = k => { for (const a of Object.keys(APPS)) $('W' + a)?.classList.remove('a'); const w = $('W' + k); if (w) { w.classList.add('a'); w.style.zIndex = ++zIdx; } active = k; updTB(); };
+    window.D = (e, k) => { if (e.target.tagName === 'BUTTON') return; const w = $('W' + k); if (w.classList.contains('m')) return; drag = { w, sx: e.clientX, sy: e.clientY, ox: w.offsetLeft, oy: w.offsetTop }; F(k); };
+    window.SM = () => $('SM').classList.toggle('o');
+    window.RC = () => join($('ri')?.value || 'konomi-global');
+
+    document.addEventListener('mousemove', e => { if (!drag) return; drag.w.style.left = (drag.ox + e.clientX - drag.sx) + 'px'; drag.w.style.top = (drag.oy + e.clientY - drag.sy) + 'px'; });
+    document.addEventListener('mouseup', () => drag = null);
+    document.addEventListener('click', e => { if (!e.target.closest('.SM') && !e.target.closest('.Ts')) $('SM').classList.remove('o'); });
+
+    function updTB() {
+      $('Ta').innerHTML = [...open].map(k => {
+        const app = APPS[k] || { i: '🌐', n: 'Viewer' };
+        return `<div class="${active === k ? 'a' : ''}" onclick="O('${k}')">${app.i} ${app.n}</div>`;
+      }).join('');
+    }
+
+    // =========================================================================
+    // TERMINAL
+    // =========================================================================
+    function tP(t, c = 'o') {
+      const trm = $('trm');
+      if (!trm) return;
+      const l = document.createElement('div');
+      l.className = 'l ' + c;
+      l.textContent = t;
+      trm.appendChild(l);
+      requestAnimationFrame(() => { trm.scrollTop = trm.scrollHeight; });
+    }
+
+    function runCmd() {
+      const ci = $('ci');
+      const v = ci.value.trim();
+      if (!v) return;
+      ci.value = '';
+      tP('$ ' + v, 'p');
+      const [c, ...a] = v.split(' ');
+      const r = CMDS[c]?.(a);
+      if (r) tP(r);
+      else if (c) tP('Unknown: ' + c, 'e');
+    }
+
+    // =========================================================================
+    // FILES
+    // =========================================================================
+    function updF() {
+      const l = $('fll'); if (!l) return;
+      if (!files.size) { l.innerHTML = '<div class="emp">No files</div>'; return; }
+      l.innerHTML = [...files].map(([p, f]) => `<div class="fi" onclick="tP('$ cat ${p}','p');tP('${esc(f.c).replace(/'/g,"\\'")}');O('T')"><span>📄</span><span style="flex:1">${esc(p)}</span><span style="color:#64748b;font-size:9px">${f.c?.length||0}b</span></div>`).join('');
+    }
+    window.nF = () => { const n = $('nfn')?.value.trim(); if (!n) return; $('nfn').value = ''; const c = prompt('Content:') || '', p = '/' + n.replace(/^\//,''); files.set(p, { c, o: ME.id }); updF(); bc({ t: 'f', p, c, o: ME.id }); tP('Created ' + p, 'i'); };
+
+    // =========================================================================
+    // PEERS
+    // =========================================================================
+    function updP() {
+      const g = $('prs'); if (!g) return;
+      g.innerHTML = `<div class="pc s"><div class="av">${ME.e}</div><div class="pi"><div class="pn">${esc(ME.n)} (you)</div><div class="pid">${ME.id.slice(0,12)}…</div></div></div>` +
+        [...peers].map(([id, p]) => `<div class="pc"><div class="av">${esc(p.e)}</div><div class="pi"><div class="pn">${esc(p.n)}</div><div class="pid">${id.slice(0,12)}…</div></div></div>`).join('');
+      $('pc').textContent = peers.size + 1;
+    }
+
+    // =========================================================================
+    // P2P (WebTorrent Tracker - Global)
+    // =========================================================================
+    const TRK = 'wss://tracker.openwebtorrent.com';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    async function h2(n) { const d = new TextEncoder().encode('konomi:' + n); const h = await crypto.subtle.digest('SHA-1', d); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2,'0')).join(''); }
+
+    async function mkOff(n) {
+      const offs = [];
+      for (let i = 0; i < n; i++) {
+        const pc = new RTCPeerConnection(ICE), dc = pc.createDataChannel('m'), oid = crypto.randomUUID();
+        await new Promise(r => { pc.onicecandidate = e => { if (!e.candidate) r(); }; pc.createOffer().then(o => pc.setLocalDescription(o)); });
+        offs.push({ offer_id: oid, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+        pending.set(oid, { pc, dc }); setupPC(pc, dc, oid);
+      }
+      return offs;
+    }
+
+    function setupPC(pc, dc, id) {
+      dc.onopen = () => {
+        dcs.set(id, dc);
+        if (!peers.has(id)) {
+          peers.set(id, { n: id.slice(0,10), e: '🌐' });
+          updP();
+          const joinMsg = '🌐 ' + id.slice(0,8) + ' joined';
+          tP(joinMsg, 'i');
+          addBgBubble(joinMsg, '🌐', false, false);
+        }
+        for (const [p, f] of files) dc.send(JSON.stringify({ t: 'f', p, c: f.c, o: f.o }));
+        dc.send(JSON.stringify({ t: 'a', n: ME.n, e: ME.e }));
+      };
+      dc.onclose = () => {
+        dcs.delete(id);
+        if (peers.has(id)) {
+          const p = peers.get(id);
+          const leftMsg = p.e + ' ' + p.n + ' left';
+          tP(leftMsg, 'i');
+          addBgBubble(leftMsg, p.e, false, false);
+          peers.delete(id);
+          updP();
+        }
+      };
+      dc.onmessage = e => {
+        try {
+          const m = JSON.parse(e.data); if (m.sid === ME.id) return;
+          if (m.t === 'c') {
+            const p = peers.get(m.sid) || { n: m.sid?.slice(0,10), e: '🌐' };
+            // Add to ambient background
+            addBgBubble(m.m, p.e, false, false);
+            tP(`${p.e} ${p.n}: ${m.m}`, 'o');
+          }
+          else if (m.t === 'f') { files.set(m.p, { c: m.c, o: m.o }); updF(); }
+          else if (m.t === 'a' && !peers.has(m.sid)) { peers.set(m.sid, { n: m.n || m.sid?.slice(0,10), e: m.e || '🌐' }); updP(); }
+        } catch {}
+      };
+    }
+
+    async function hOff(m) {
+      const pc = new RTCPeerConnection(ICE);
+      pc.ondatachannel = e => setupPC(pc, e.channel, m.peer_id);
+      await pc.setRemoteDescription(m.offer);
+      const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+      await new Promise(r => { if (pc.iceGatheringState === 'complete') r(); else pc.onicecandidate = e => { if (!e.candidate) r(); }; });
+      ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, to_peer_id: m.peer_id, answer: { type: 'answer', sdp: pc.localDescription.sdp }, offer_id: m.offer_id }));
+    }
+
+    async function hAns(m) { const p = pending.get(m.offer_id); if (p) await p.pc.setRemoteDescription(m.answer); }
+
+    function bc(m) {
+      m.sid = ME.id;
+      const d = JSON.stringify(m);
+      for (const dc of dcs.values()) if (dc.readyState === 'open') dc.send(d);
+      // Add own messages to ambient
+      if (m.t === 'c') addBgBubble(m.m, ME.e, true, false);
+    }
+
+    // Send chat message (called from quick input if we add one)
+    window.sendChat = msg => {
+      if (!msg) return;
+      bc({ t: 'c', m: msg });
+      tP(`${ME.e} ${ME.n}: ${msg}`, 'p');
+    };
+
+    function setSt(s) {
+      const d = $('cd'), cs = $('cs'), cst = $('cst');
+      d.className = 'd'; cs.textContent = cst.textContent = s === 1 ? 'Online' : s === 2 ? 'Connecting…' : 'Offline';
+      if (s === 1) d.classList.add('on'); else if (s === 2) d.classList.add('c');
+    }
+
+    async function join(r) {
+      if (ws) ws.close(); dcs.clear(); pending.clear(); peers.clear();
+      room = r; hash = await h2(r); setSt(2); tP('Joining: ' + r, 'i');
+      const offs = await mkOff(5);
+      ws = new WebSocket(TRK);
+      ws.onopen = () => {
+        setSt(1);
+        tP('Connected to global mesh!', 'i');
+        addBgBubble('Connected to ' + r, '🌍', false, false);
+        ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, numwant: 10, uploaded: 0, downloaded: 0, left: 1, offers: offs }));
+      };
+      ws.onmessage = async e => { try { const m = JSON.parse(e.data); if (m.offer && m.peer_id !== ME.id) await hOff(m); if (m.answer && m.offer_id) await hAns(m); if (m.interval) setTimeout(async () => { if (ws?.readyState === 1) { const o = await mkOff(5); ws.send(JSON.stringify({ action: 'announce', info_hash: hash, peer_id: ME.id, numwant: 10, offers: o })); } }, m.interval * 1000); } catch {} };
+      ws.onerror = () => { tP('Error', 'e'); setSt(0); };
+      ws.onclose = () => { tP('Reconnecting…', 'i'); setSt(2); setTimeout(() => join(room), 5000); };
+      updP(); updF();
+    }
+
+    // =========================================================================
+    // STORAGE
+    // =========================================================================
+    try { const s = localStorage.getItem('kos8-files'); if (s) for (const [k, v] of JSON.parse(s)) files.set(k, v); } catch {}
+    setInterval(() => { try { localStorage.setItem('kos8-files', JSON.stringify([...files])); } catch {} }, 5000);
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    init();
+  </script>
+</body>
+</html>
