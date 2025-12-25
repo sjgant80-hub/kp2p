@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI FreeComm - AI-Powered Free Communication</title>
+  <meta name="widget-id" content="ai-freecomm-v1">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --text: #e0e0e0; --muted: #888; --accent: #00d4aa;
+      --purple: #9b59b6; --blue: #3498db; --orange: #e67e22;
+      --green: #2ecc71; --red: #e74c3c; --yellow: #f1c40f;
+    }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 1rem; }
+
+    header { text-align: center; padding: 2rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+    header h1 { font-size: 2rem; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    header p { color: var(--muted); margin-top: 0.5rem; }
+
+    .badges { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+    .badge { padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; }
+    .badge.ai { background: var(--purple); color: white; }
+    .badge.p2p { background: var(--accent); color: black; }
+    .badge.sms { background: var(--blue); color: white; }
+    .badge.free { background: var(--green); color: white; }
+
+    .main-grid { display: grid; grid-template-columns: 300px 1fr 320px; gap: 1rem; min-height: 70vh; }
+    @media (max-width: 1200px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem; }
+    .panel h3 { font-size: 0.875rem; color: var(--accent); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* Left Panel - Transports & AI */
+    .transport-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .transport { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg); border-radius: 0.5rem; cursor: pointer; transition: all 0.2s; }
+    .transport:hover { background: #1a1a2e; }
+    .transport.active { border: 1px solid var(--accent); }
+    .transport-icon { width: 32px; height: 32px; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .transport-info { flex: 1; }
+    .transport-name { font-weight: 600; font-size: 0.875rem; }
+    .transport-status { font-size: 0.7rem; color: var(--muted); }
+    .transport-toggle { width: 40px; height: 22px; background: var(--border); border-radius: 11px; position: relative; cursor: pointer; }
+    .transport-toggle.on { background: var(--accent); }
+    .transport-toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: 0.2s; }
+    .transport-toggle.on::after { left: 20px; }
+
+    .ai-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .ai-model-select { width: 100%; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; color: var(--text); font-size: 0.875rem; }
+    .ai-status { margin-top: 0.5rem; font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 0.5rem; }
+    .ai-status .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .ai-status .dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+    .ai-status .dot.ready { background: var(--green); }
+    .ai-status .dot.error { background: var(--red); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .ai-features { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .ai-feat { padding: 0.25rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-size: 0.7rem; color: var(--purple); border: 1px solid var(--purple); cursor: pointer; }
+    .ai-feat:hover { background: var(--purple); color: white; }
+
+    /* Center Panel - Chat */
+    .chat-container { display: flex; flex-direction: column; height: 100%; }
+    .chat-header { display: flex; align-items: center; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .chat-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+    .chat-peer-info { flex: 1; }
+    .chat-peer-name { font-weight: 600; }
+    .chat-peer-id { font-size: 0.75rem; color: var(--muted); font-family: monospace; }
+    .chat-actions { display: flex; gap: 0.5rem; }
+    .chat-action { width: 40px; height: 40px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .chat-action:hover { background: var(--accent); color: black; }
+
+    .messages { flex: 1; overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; gap: 0.75rem; }
+    .message { max-width: 80%; padding: 0.75rem 1rem; border-radius: 1rem; position: relative; }
+    .message.sent { background: var(--accent); color: black; align-self: flex-end; border-bottom-right-radius: 0.25rem; }
+    .message.received { background: var(--bg); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 0.25rem; }
+    .message.ai-generated { border: 1px dashed var(--purple); }
+    .message-text { font-size: 0.9rem; line-height: 1.4; }
+    .message-meta { font-size: 0.65rem; margin-top: 0.25rem; opacity: 0.7; display: flex; gap: 0.5rem; }
+    .message-transport { padding: 0.1rem 0.3rem; background: rgba(0,0,0,0.2); border-radius: 0.25rem; }
+
+    .chat-input-area { display: flex; flex-direction: column; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .ai-assist-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .ai-assist-btn { padding: 0.25rem 0.5rem; background: var(--bg); border: 1px solid var(--purple); border-radius: 0.25rem; color: var(--purple); font-size: 0.7rem; cursor: pointer; }
+    .ai-assist-btn:hover { background: var(--purple); color: white; }
+    .chat-input-row { display: flex; gap: 0.5rem; }
+    .chat-input { flex: 1; padding: 0.75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; color: var(--text); font-size: 0.9rem; resize: none; }
+    .chat-input:focus { outline: none; border-color: var(--accent); }
+    .send-btn { padding: 0.75rem 1.5rem; background: var(--accent); color: black; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; }
+    .send-btn:hover { background: #00eebb; }
+
+    /* Right Panel - Status & SMS */
+    .sms-gateway { margin-bottom: 1rem; }
+    .sms-provider { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--bg); border-radius: 0.5rem; margin-bottom: 0.5rem; }
+    .sms-provider-logo { width: 24px; height: 24px; background: var(--blue); border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; }
+    .sms-provider-info { flex: 1; }
+    .sms-provider-name { font-size: 0.8rem; font-weight: 600; }
+    .sms-provider-rate { font-size: 0.65rem; color: var(--green); }
+
+    .sms-compose { margin-top: 0.5rem; }
+    .sms-input { width: 100%; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; color: var(--text); font-size: 0.8rem; margin-bottom: 0.5rem; }
+    .sms-send { width: 100%; padding: 0.5rem; background: var(--blue); color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.8rem; }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem; }
+    .stat-card { background: var(--bg); padding: 0.75rem; border-radius: 0.5rem; text-align: center; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.65rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .network-status { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .peer-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 150px; overflow-y: auto; }
+    .peer { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--bg); border-radius: 0.5rem; font-size: 0.75rem; }
+    .peer-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.6rem; }
+    .peer-id { flex: 1; font-family: monospace; color: var(--muted); }
+    .peer-ping { color: var(--green); }
+
+    .cost-comparison { margin-top: 1rem; padding: 0.75rem; background: linear-gradient(135deg, var(--green), #27ae60); border-radius: 0.5rem; }
+    .cost-title { font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .cost-row { display: flex; justify-content: space-between; font-size: 0.7rem; padding: 0.25rem 0; }
+    .cost-row.savings { font-weight: 700; border-top: 1px solid rgba(255,255,255,0.3); margin-top: 0.25rem; padding-top: 0.5rem; }
+
+    /* Voice UI */
+    .voice-controls { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .voice-btn { flex: 1; padding: 0.75rem; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .voice-btn.call { background: var(--green); color: white; }
+    .voice-btn.voice { background: var(--purple); color: white; }
+    .voice-btn.video { background: var(--blue); color: white; }
+
+    /* Footer */
+    footer { text-align: center; padding: 2rem 0; color: var(--muted); font-size: 0.75rem; margin-top: 2rem; border-top: 1px solid var(--border); }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AI FreeComm</h1>
+      <p>AI-Powered Free Communication - No API Keys, No Fees, Total Privacy</p>
+      <div class="badges">
+        <span class="badge ai">Local AI</span>
+        <span class="badge p2p">P2P Mesh</span>
+        <span class="badge sms">SMS Gateway</span>
+        <span class="badge free">100% Free</span>
+      </div>
+    </header>
+
+    <div class="main-grid">
+      <!-- Left Panel - Transports & AI -->
+      <div class="panel">
+        <h3>Transports</h3>
+        <div class="transport-list">
+          <div class="transport active" data-transport="webrtc">
+            <div class="transport-icon" style="background: var(--accent);">P2P</div>
+            <div class="transport-info">
+              <div class="transport-name">WebRTC P2P</div>
+              <div class="transport-status">12 peers connected</div>
+            </div>
+            <div class="transport-toggle on"></div>
+          </div>
+          <div class="transport" data-transport="sms">
+            <div class="transport-icon" style="background: var(--blue);">SMS</div>
+            <div class="transport-info">
+              <div class="transport-name">KonoTel SMS</div>
+              <div class="transport-status">$0.002/msg via Telnyx</div>
+            </div>
+            <div class="transport-toggle on"></div>
+          </div>
+          <div class="transport" data-transport="wifi">
+            <div class="transport-icon" style="background: var(--purple);">WiFi</div>
+            <div class="transport-info">
+              <div class="transport-name">WiFi Direct</div>
+              <div class="transport-status">3 devices nearby</div>
+            </div>
+            <div class="transport-toggle"></div>
+          </div>
+          <div class="transport" data-transport="bluetooth">
+            <div class="transport-icon" style="background: var(--orange);">BT</div>
+            <div class="transport-info">
+              <div class="transport-name">Bluetooth Mesh</div>
+              <div class="transport-status">2 devices paired</div>
+            </div>
+            <div class="transport-toggle"></div>
+          </div>
+          <div class="transport" data-transport="lora">
+            <div class="transport-icon" style="background: var(--yellow); color: black;">LoRa</div>
+            <div class="transport-info">
+              <div class="transport-name">LoRa Radio</div>
+              <div class="transport-status">Long range mode</div>
+            </div>
+            <div class="transport-toggle"></div>
+          </div>
+          <div class="transport" data-transport="audio">
+            <div class="transport-icon" style="background: var(--red);">~</div>
+            <div class="transport-info">
+              <div class="transport-name">Audio Modem</div>
+              <div class="transport-status">Ultrasonic mode</div>
+            </div>
+            <div class="transport-toggle"></div>
+          </div>
+        </div>
+
+        <div class="ai-section">
+          <h3>Local AI Model</h3>
+          <select class="ai-model-select" id="aiModel">
+            <option value="smollm2-360m">SmolLM2-360M (Fast)</option>
+            <option value="smollm2-1.7b">SmolLM2-1.7B (Better)</option>
+            <option value="tinyllama-1.1b">TinyLlama-1.1B</option>
+            <option value="qwen2.5-0.5b">Qwen2.5-0.5B</option>
+            <option value="qwen2.5-1.5b">Qwen2.5-1.5B</option>
+            <option value="llama-3.2-1b">Llama-3.2-1B</option>
+            <option value="phi-3.5-mini">Phi-3.5-Mini</option>
+          </select>
+          <div class="ai-status">
+            <div class="dot ready" id="aiDot"></div>
+            <span id="aiStatusText">Model ready - WebGPU</span>
+          </div>
+          <div class="ai-features">
+            <span class="ai-feat" data-action="compose">Compose</span>
+            <span class="ai-feat" data-action="translate">Translate</span>
+            <span class="ai-feat" data-action="summarize">Summarize</span>
+            <span class="ai-feat" data-action="reply">Smart Reply</span>
+            <span class="ai-feat" data-action="tone">Change Tone</span>
+            <span class="ai-feat" data-action="grammar">Fix Grammar</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Panel - Chat -->
+      <div class="panel chat-container">
+        <div class="chat-header">
+          <div class="chat-avatar">A</div>
+          <div class="chat-peer-info">
+            <div class="chat-peer-name">Alice (P2P)</div>
+            <div class="chat-peer-id">kp2p:8f3a...7b2c</div>
+          </div>
+          <div class="chat-actions">
+            <button class="chat-action" title="Voice Call">C</button>
+            <button class="chat-action" title="Video Call">V</button>
+            <button class="chat-action" title="Voice Message">M</button>
+          </div>
+        </div>
+
+        <div class="messages" id="messages">
+          <div class="message received">
+            <div class="message-text">Hey! Are you using that new AI comm app?</div>
+            <div class="message-meta">
+              <span>10:32 AM</span>
+              <span class="message-transport">WebRTC</span>
+            </div>
+          </div>
+          <div class="message sent">
+            <div class="message-text">Yes! It's amazing - completely free and all AI runs locally in my browser. No API keys needed!</div>
+            <div class="message-meta">
+              <span>10:33 AM</span>
+              <span class="message-transport">WebRTC</span>
+            </div>
+          </div>
+          <div class="message received">
+            <div class="message-text">Wait, so it works without internet too?</div>
+            <div class="message-meta">
+              <span>10:34 AM</span>
+              <span class="message-transport">WiFi Direct</span>
+            </div>
+          </div>
+          <div class="message sent ai-generated">
+            <div class="message-text">Exactly! It uses mesh networking - WebRTC when online, WiFi Direct/Bluetooth when offline, and even LoRa for long range. The AI helps translate, compose, and even compress messages!</div>
+            <div class="message-meta">
+              <span>10:35 AM</span>
+              <span class="message-transport">P2P</span>
+              <span style="color: var(--purple);">AI Assisted</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="ai-assist-bar">
+            <button class="ai-assist-btn" data-assist="smart-reply">Smart Reply</button>
+            <button class="ai-assist-btn" data-assist="translate-es">Traducir</button>
+            <button class="ai-assist-btn" data-assist="translate-zh">翻译</button>
+            <button class="ai-assist-btn" data-assist="formal">Make Formal</button>
+            <button class="ai-assist-btn" data-assist="casual">Make Casual</button>
+            <button class="ai-assist-btn" data-assist="summarize">Summarize Chat</button>
+          </div>
+          <div class="chat-input-row">
+            <textarea class="chat-input" id="messageInput" placeholder="Type a message... (AI will help compose)" rows="2"></textarea>
+            <button class="send-btn" id="sendBtn">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel - Status & SMS -->
+      <div class="panel">
+        <h3>KonoTel SMS Gateway</h3>
+        <div class="sms-gateway">
+          <div class="sms-provider">
+            <div class="sms-provider-logo">T</div>
+            <div class="sms-provider-info">
+              <div class="sms-provider-name">Telnyx</div>
+              <div class="sms-provider-rate">$0.002/SMS - 76% cheaper than Twilio</div>
+            </div>
+          </div>
+          <div class="sms-compose">
+            <input class="sms-input" placeholder="+1 (555) 123-4567" id="smsNumber">
+            <textarea class="sms-input" placeholder="SMS message (AI can help compose)" rows="2" id="smsMessage"></textarea>
+            <button class="sms-send" id="smsSend">Send SMS via KonoTel</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="msgSent">247</div>
+            <div class="stat-label">Messages Sent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="msgP2P">189</div>
+            <div class="stat-label">Free P2P</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="msgSMS">58</div>
+            <div class="stat-label">SMS (Fallback)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="aiAssists">34</div>
+            <div class="stat-label">AI Assists</div>
+          </div>
+        </div>
+
+        <div class="network-status">
+          <h3>P2P Network</h3>
+          <div class="peer-list" id="peerList">
+            <div class="peer">
+              <div class="peer-avatar">A</div>
+              <div class="peer-id">8f3a...7b2c</div>
+              <div class="peer-ping">12ms</div>
+            </div>
+            <div class="peer">
+              <div class="peer-avatar">B</div>
+              <div class="peer-id">2c4d...9e1f</div>
+              <div class="peer-ping">45ms</div>
+            </div>
+            <div class="peer">
+              <div class="peer-avatar">C</div>
+              <div class="peer-id">7a8b...3c4d</div>
+              <div class="peer-ping">89ms</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cost-comparison">
+          <div class="cost-title">Cost Savings This Month</div>
+          <div class="cost-row">
+            <span>P2P Messages (189)</span>
+            <span>$0.00</span>
+          </div>
+          <div class="cost-row">
+            <span>KonoTel SMS (58)</span>
+            <span>$0.12</span>
+          </div>
+          <div class="cost-row">
+            <span>Twilio would cost</span>
+            <span>$2.47</span>
+          </div>
+          <div class="cost-row savings">
+            <span>You Saved</span>
+            <span>$2.35 (95%)</span>
+          </div>
+        </div>
+
+        <div class="voice-controls">
+          <button class="voice-btn call">Call</button>
+          <button class="voice-btn voice">Voice</button>
+          <button class="voice-btn video">Video</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>AI FreeComm - Part of <a href="../../index.html">KP2P</a> |
+        <a href="../../network/konotel.js">KonoTel</a> |
+        <a href="../../llm/local.js">Local LLM</a> |
+        <a href="phone-v2.html">FreeComm</a>
+      </p>
+      <p style="margin-top: 0.5rem;">100% Open Source - No API Keys - No Tracking - Total Privacy</p>
+    </footer>
+  </div>
+
+  <script type="module">
+    // ============================================
+    // AI FreeComm - Combining Local LLM + FreeComm + KonoTel
+    // ============================================
+
+    // Import our modules
+    import { LocalLLM, WEBGPU_MODELS } from '../../llm/local.js';
+    import { KonoTel, SMS_STATUS } from '../../network/konotel.js';
+
+    // State
+    const state = {
+      llm: null,
+      konotel: null,
+      peers: new Map(),
+      messages: [],
+      aiEnabled: true,
+      activeTransports: ['webrtc', 'sms']
+    };
+
+    // ============================================
+    // Local LLM Integration
+    // ============================================
+
+    async function initAI() {
+      const dot = document.getElementById('aiDot');
+      const status = document.getElementById('aiStatusText');
+
+      try {
+        dot.className = 'dot loading';
+        status.textContent = 'Loading AI model...';
+
+        state.llm = new LocalLLM();
+        const modelId = document.getElementById('aiModel').value;
+
+        await state.llm.loadModel(modelId, (progress) => {
+          status.textContent = `Loading: ${Math.round(progress * 100)}%`;
+        });
+
+        dot.className = 'dot ready';
+        status.textContent = 'Model ready - WebGPU';
+      } catch (err) {
+        dot.className = 'dot error';
+        status.textContent = err.message;
+        console.error('AI init failed:', err);
+      }
+    }
+
+    async function aiCompose(prompt, context = '') {
+      if (!state.llm) return null;
+
+      const systemPrompt = `You are a helpful AI assistant for messaging. Keep responses concise and natural. ${context}`;
+
+      let result = '';
+      await state.llm.generate(prompt, {
+        system: systemPrompt,
+        maxTokens: 150,
+        onToken: (token) => { result += token; }
+      });
+
+      return result.trim();
+    }
+
+    async function aiTranslate(text, targetLang) {
+      return aiCompose(`Translate to ${targetLang}: "${text}"`, 'You are a translator. Only output the translation, nothing else.');
+    }
+
+    async function aiSmartReply(conversation) {
+      const context = conversation.slice(-5).map(m => `${m.sent ? 'Me' : 'Them'}: ${m.text}`).join('\n');
+      return aiCompose(`Based on this conversation, suggest a brief, natural reply:\n${context}`, 'Generate a single brief reply suggestion.');
+    }
+
+    async function aiFormalizeOrCasualize(text, formal = true) {
+      const instruction = formal
+        ? 'Rewrite this message in a formal, professional tone'
+        : 'Rewrite this message in a casual, friendly tone';
+      return aiCompose(`${instruction}: "${text}"`, 'Only output the rewritten message.');
+    }
+
+    // ============================================
+    // KonoTel SMS Gateway
+    // ============================================
+
+    async function initSMS() {
+      state.konotel = new KonoTel({
+        provider: 'telnyx',
+        apiKey: localStorage.getItem('konotel_key') || ''
+      });
+    }
+
+    async function sendSMS(to, message) {
+      if (!state.konotel) {
+        console.warn('KonoTel not initialized');
+        return { success: false, error: 'SMS not configured' };
+      }
+
+      try {
+        const result = await state.konotel.sendSMS(to, message);
+        incrementStat('msgSMS');
+        return result;
+      } catch (err) {
+        console.error('SMS failed:', err);
+        return { success: false, error: err.message };
+      }
+    }
+
+    // ============================================
+    // P2P Mesh Network (WebRTC + DTN)
+    // ============================================
+
+    class P2PMesh {
+      constructor() {
+        this.peers = new Map();
+        this.messageQueue = []; // Store & Forward
+      }
+
+      async connect(peerId) {
+        // WebRTC connection logic
+        console.log('Connecting to peer:', peerId);
+      }
+
+      async send(peerId, message) {
+        const peer = this.peers.get(peerId);
+        if (peer && peer.connected) {
+          // Direct send
+          peer.channel.send(JSON.stringify(message));
+          return { delivered: true, transport: 'webrtc' };
+        } else {
+          // Store for later (DTN)
+          this.messageQueue.push({ to: peerId, message, timestamp: Date.now() });
+          return { delivered: false, queued: true, transport: 'dtn' };
+        }
+      }
+
+      async broadcast(message) {
+        for (const [peerId, peer] of this.peers) {
+          if (peer.connected) {
+            peer.channel.send(JSON.stringify(message));
+          }
+        }
+      }
+    }
+
+    const mesh = new P2PMesh();
+
+    // ============================================
+    // UI Handlers
+    // ============================================
+
+    function addMessage(text, sent = true, transport = 'webrtc', aiGenerated = false) {
+      const messages = document.getElementById('messages');
+      const msg = document.createElement('div');
+      msg.className = `message ${sent ? 'sent' : 'received'}${aiGenerated ? ' ai-generated' : ''}`;
+
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      msg.innerHTML = `
+        <div class="message-text">${text}</div>
+        <div class="message-meta">
+          <span>${time}</span>
+          <span class="message-transport">${transport}</span>
+          ${aiGenerated ? '<span style="color: var(--purple);">AI Assisted</span>' : ''}
+        </div>
+      `;
+
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+
+      state.messages.push({ text, sent, transport, timestamp: Date.now() });
+      incrementStat('msgSent');
+      if (transport === 'webrtc' || transport === 'P2P') incrementStat('msgP2P');
+    }
+
+    function incrementStat(id) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = parseInt(el.textContent) + 1;
+    }
+
+    // Transport toggles
+    document.querySelectorAll('.transport-toggle').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        toggle.classList.toggle('on');
+        const transport = toggle.closest('.transport').dataset.transport;
+        if (toggle.classList.contains('on')) {
+          state.activeTransports.push(transport);
+        } else {
+          state.activeTransports = state.activeTransports.filter(t => t !== transport);
+        }
+      });
+    });
+
+    // AI feature buttons
+    document.querySelectorAll('.ai-feat').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const action = btn.dataset.action;
+        const input = document.getElementById('messageInput');
+
+        document.getElementById('aiDot').className = 'dot loading';
+
+        try {
+          let result;
+          switch (action) {
+            case 'compose':
+              result = await aiCompose('Write a friendly message to check in on someone');
+              break;
+            case 'translate':
+              result = await aiTranslate(input.value || 'Hello, how are you?', 'Spanish');
+              break;
+            case 'summarize':
+              result = await aiCompose('Summarize this conversation briefly', state.messages.map(m => m.text).join(' | '));
+              break;
+            case 'reply':
+              result = await aiSmartReply(state.messages);
+              break;
+            case 'tone':
+              result = await aiFormalizeOrCasualize(input.value, true);
+              break;
+            case 'grammar':
+              result = await aiCompose(`Fix any grammar issues: "${input.value}"`, 'Only output the corrected text.');
+              break;
+          }
+
+          if (result) {
+            input.value = result;
+            incrementStat('aiAssists');
+          }
+        } finally {
+          document.getElementById('aiDot').className = 'dot ready';
+        }
+      });
+    });
+
+    // AI assist bar
+    document.querySelectorAll('.ai-assist-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const assist = btn.dataset.assist;
+        const input = document.getElementById('messageInput');
+
+        document.getElementById('aiDot').className = 'dot loading';
+
+        try {
+          let result;
+          switch (assist) {
+            case 'smart-reply':
+              result = await aiSmartReply(state.messages);
+              break;
+            case 'translate-es':
+              result = await aiTranslate(input.value || state.messages.slice(-1)[0]?.text || '', 'Spanish');
+              break;
+            case 'translate-zh':
+              result = await aiTranslate(input.value || state.messages.slice(-1)[0]?.text || '', 'Chinese');
+              break;
+            case 'formal':
+              result = await aiFormalizeOrCasualize(input.value, true);
+              break;
+            case 'casual':
+              result = await aiFormalizeOrCasualize(input.value, false);
+              break;
+            case 'summarize':
+              result = await aiCompose('Summarize this conversation in one sentence', state.messages.map(m => m.text).join(' | '));
+              break;
+          }
+
+          if (result) {
+            input.value = result;
+            incrementStat('aiAssists');
+          }
+        } finally {
+          document.getElementById('aiDot').className = 'dot ready';
+        }
+      });
+    });
+
+    // Send message
+    document.getElementById('sendBtn').addEventListener('click', () => {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      // Determine best transport
+      let transport = 'webrtc';
+      if (state.activeTransports.includes('webrtc') && mesh.peers.size > 0) {
+        transport = 'WebRTC';
+      } else if (state.activeTransports.includes('sms')) {
+        transport = 'SMS';
+      }
+
+      addMessage(text, true, transport);
+      input.value = '';
+
+      // Simulate response after 1-2 seconds
+      setTimeout(() => {
+        const responses = [
+          "That's awesome! The AI features are super helpful.",
+          "I love how it works offline too with the mesh network.",
+          "The SMS fallback is great for reaching people not on P2P yet.",
+          "Have you tried the voice messages? WebRTC quality is amazing!"
+        ];
+        addMessage(responses[Math.floor(Math.random() * responses.length)], false, transport);
+      }, 1000 + Math.random() * 1000);
+    });
+
+    // Enter to send
+    document.getElementById('messageInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('sendBtn').click();
+      }
+    });
+
+    // SMS send
+    document.getElementById('smsSend').addEventListener('click', async () => {
+      const number = document.getElementById('smsNumber').value;
+      const message = document.getElementById('smsMessage').value;
+
+      if (!number || !message) {
+        alert('Please enter phone number and message');
+        return;
+      }
+
+      const result = await sendSMS(number, message);
+      if (result.success) {
+        addMessage(`[SMS to ${number}] ${message}`, true, 'SMS');
+        document.getElementById('smsMessage').value = '';
+      } else {
+        alert('SMS failed: ' + (result.error || 'Unknown error'));
+      }
+    });
+
+    // Model change
+    document.getElementById('aiModel').addEventListener('change', () => {
+      initAI();
+    });
+
+    // ============================================
+    // Initialize
+    // ============================================
+
+    async function init() {
+      console.log('AI FreeComm initializing...');
+
+      // Check WebGPU support
+      if (!navigator.gpu) {
+        console.warn('WebGPU not supported, AI features limited');
+        document.getElementById('aiStatusText').textContent = 'WebGPU not available';
+        document.getElementById('aiDot').className = 'dot error';
+      } else {
+        // Delay AI init to not block UI
+        setTimeout(initAI, 100);
+      }
+
+      // Init SMS gateway
+      initSMS();
+
+      // Simulate peer connections
+      setTimeout(() => {
+        document.querySelector('.transport[data-transport="webrtc"] .transport-status').textContent = '12 peers connected';
+      }, 500);
+    }
+
+    init();
+  </script>
+</body>
+</html>

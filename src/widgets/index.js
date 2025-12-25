@@ -5,6 +5,7 @@
  * HTML widgets are in this directory:
  * - phone.html - Basic phone UI
  * - phone-v2.html - FreeComm multi-transport phone
+ * - ai-comm.html - AI-powered free communication (LLM + P2P + SMS)
  */
 
 // Telephony UDTs
@@ -14,6 +15,7 @@ export { TELEPHONY_UDTS } from './udts.js'
 export const WIDGET_PATHS = {
   phone: './phone.html',
   phoneV2: './phone-v2.html',
+  aiComm: './ai-comm.html',
 }
 
 /**
