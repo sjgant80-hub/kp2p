@@ -373,9 +373,10 @@ Features:
           return content ? `<style>${content}</style>` : match;
         });
 
-        html = html.replace(/<script[^>]+src=["']([^"']+)["'][^>]*><\/script>/gi, (match, src) => {
+        const scriptRe = new RegExp('<scr' + 'ipt[^>]+src=["\']([^"\']+)["\'][^>]*><\\/scr' + 'ipt>', 'gi');
+        html = html.replace(scriptRe, (match, src) => {
           const content = this.fs.read('/' + src.replace(/^\//, ''));
-          return content ? `<script>${content}</script>` : match;
+          return content ? '<scr' + 'ipt>' + content + '<\/scr' + 'ipt>' : match;
         });
 
         const blob = new Blob([html], { type: 'text/html' });
