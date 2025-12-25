@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KISA - Konomi ISA-95 Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 30px 0; }
+        .logo { font-size: 48px; margin-bottom: 12px; }
+        h1 { font-size: 1.8rem; color: #38bdf8; margin-bottom: 8px; }
+        .subtitle { color: #64748b; font-size: 13px; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab:hover { border-color: #38bdf8; color: #e2e8f0; }
+        .tab.active {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: #fff;
+            border-color: transparent;
+            font-weight: 600;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); box-shadow: none; }
+        .btn-sm { padding: 6px 12px; font-size: 11px; }
+
+        /* ISA-95 Hierarchy */
+        .hierarchy-levels {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+        .level-card {
+            min-width: 180px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .level-card:hover { border-color: #38bdf8; }
+        .level-card.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+        .level-num {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .level-name { font-weight: 600; margin: 8px 0 4px; }
+        .level-desc { font-size: 11px; color: #64748b; }
+        .level-time { font-size: 10px; color: #475569; margin-top: 8px; }
+
+        /* Hierarchy Tree */
+        .tree { padding: 16px 0; }
+        .tree-node {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin: 4px 0;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tree-node:hover { background: rgba(0, 0, 0, 0.4); }
+        .tree-node.selected { background: rgba(56, 189, 248, 0.15); border-left: 3px solid #38bdf8; }
+        .tree-indent { width: 24px; }
+        .tree-icon { font-size: 20px; }
+        .tree-label { flex: 1; }
+        .tree-label strong { display: block; }
+        .tree-label span { font-size: 11px; color: #64748b; }
+        .tree-state { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .state-execute { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .state-stopped { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .state-idle { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .state-held { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+
+        /* PackML State Machine */
+        .packml-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+        }
+        .packml-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .packml-state {
+            min-width: 100px;
+            padding: 12px 16px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid #334155;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .packml-state:hover { border-color: #38bdf8; }
+        .packml-state.active {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            border-color: #38bdf8;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+        }
+        .packml-state.waiting { border-style: dashed; }
+        .packml-arrow { color: #475569; font-size: 20px; align-self: center; }
+
+        /* Alarms */
+        .alarm-list { display: flex; flex-direction: column; gap: 8px; }
+        .alarm-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .alarm-critical { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .alarm-high { border-color: #f97316; background: rgba(249, 115, 22, 0.1); }
+        .alarm-medium { border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .alarm-low { border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+        .alarm-icon { font-size: 20px; }
+        .alarm-info { flex: 1; }
+        .alarm-msg { font-weight: 600; margin-bottom: 4px; }
+        .alarm-meta { font-size: 11px; color: #64748b; }
+        .alarm-time { font-size: 11px; color: #64748b; }
+
+        /* UDT Explorer */
+        .udt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .udt-card {
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .udt-card:hover { border-color: #38bdf8; transform: translateY(-2px); }
+        .udt-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .udt-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .udt-name { font-weight: 600; }
+        .udt-type { font-size: 11px; color: #64748b; }
+        .udt-desc { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+        .udt-props { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .udt-prop {
+            padding: 4px 8px;
+            background: rgba(56, 189, 248, 0.1);
+            border-radius: 4px;
+            font-size: 10px;
+            color: #38bdf8;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            line-height: 1.6;
+        }
+        .code-key { color: #38bdf8; }
+        .code-str { color: #22c55e; }
+        .code-num { color: #f59e0b; }
+
+        /* Sparkplug Messages */
+        .msg-list { max-height: 400px; overflow-y: auto; }
+        .msg-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .msg-type {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            min-width: 60px;
+            text-align: center;
+        }
+        .msg-birth { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .msg-death { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .msg-data { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+        .msg-cmd { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+        .msg-content { flex: 1; font-size: 12px; }
+        .msg-topic { font-weight: 600; margin-bottom: 4px; }
+        .msg-payload { color: #64748b; font-family: monospace; font-size: 11px; }
+        .msg-time { font-size: 10px; color: #475569; white-space: nowrap; }
+
+        .hidden { display: none !important; }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; }
+
+        .footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #475569;
+            font-size: 12px;
+        }
+        .footer a { color: #38bdf8; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🏭</div>
+            <h1>KISA</h1>
+            <p class="subtitle">Konomi ISA-95 UDT Manager - Industrial Automation Types</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="hierarchy">Hierarchy</div>
+            <div class="tab" data-tab="packml">PackML States</div>
+            <div class="tab" data-tab="alarms">Alarms</div>
+            <div class="tab" data-tab="messages">Sparkplug</div>
+            <div class="tab" data-tab="udts">UDT Explorer</div>
+        </div>
+
+        <!-- Hierarchy Tab -->
+        <div id="tab-hierarchy" class="tab-content">
+            <div class="card">
+                <div class="card-title">ISA-95 Levels</div>
+                <div class="hierarchy-levels">
+                    <div class="level-card" data-level="4">
+                        <div class="level-num">L4</div>
+                        <div class="level-name">Business</div>
+                        <div class="level-desc">Planning / ERP</div>
+                        <div class="level-time">Days - Months</div>
+                    </div>
+                    <div class="level-card active" data-level="3">
+                        <div class="level-num">L3</div>
+                        <div class="level-name">MOM/MES</div>
+                        <div class="level-desc">Manufacturing Ops</div>
+                        <div class="level-time">Shifts - Days</div>
+                    </div>
+                    <div class="level-card" data-level="2">
+                        <div class="level-num">L2</div>
+                        <div class="level-name">Control</div>
+                        <div class="level-desc">Supervision / SCADA</div>
+                        <div class="level-time">Seconds - Hours</div>
+                    </div>
+                    <div class="level-card" data-level="1">
+                        <div class="level-num">L1</div>
+                        <div class="level-name">Sensing</div>
+                        <div class="level-desc">Direct Control / PLC</div>
+                        <div class="level-time">Milliseconds</div>
+                    </div>
+                    <div class="level-card" data-level="0">
+                        <div class="level-num">L0</div>
+                        <div class="level-name">Process</div>
+                        <div class="level-desc">Physical Equipment</div>
+                        <div class="level-time">Continuous</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span>Equipment Hierarchy</span>
+                    <button class="btn btn-sm btn-secondary" onclick="addNode()">+ Add Node</button>
+                </div>
+                <div class="tree" id="hierarchyTree">
+                    <div class="tree-node selected">
+                        <span class="tree-icon">🏢</span>
+                        <div class="tree-label">
+                            <strong>Konomi Enterprise</strong>
+                            <span>L4 • Enterprise</span>
+                        </div>
+                    </div>
+                    <div class="tree-node">
+                        <div class="tree-indent"></div>
+                        <span class="tree-icon">🏭</span>
+                        <div class="tree-label">
+                            <strong>Factory Alpha</strong>
+                            <span>L3 • Site</span>
+                        </div>
+                        <span class="tree-state state-execute">Running</span>
+                    </div>
+                    <div class="tree-node">
+                        <div class="tree-indent"></div>
+                        <div class="tree-indent"></div>
+                        <span class="tree-icon">📦</span>
+                        <div class="tree-label">
+                            <strong>Packaging Area</strong>
+                            <span>L2 • Area</span>
+                        </div>
+                        <span class="tree-state state-execute">Running</span>
+                    </div>
+                    <div class="tree-node">
+                        <div class="tree-indent"></div>
+                        <div class="tree-indent"></div>
+                        <div class="tree-indent"></div>
+                        <span class="tree-icon">⚙️</span>
+                        <div class="tree-label">
+                            <strong>Line 01</strong>
+                            <span>L1 • Production Line</span>
+                        </div>
+                        <span class="tree-state state-execute">Execute</span>
+                    </div>
+                    <div class="tree-node">
+                        <div class="tree-indent"></div>
+                        <div class="tree-indent"></div>
+                        <div class="tree-indent"></div>
+                        <span class="tree-icon">⚙️</span>
+                        <div class="tree-label">
+                            <strong>Line 02</strong>
+                            <span>L1 • Production Line</span>
+                        </div>
+                        <span class="tree-state state-held">Held</span>
+                    </div>
+                    <div class="tree-node">
+                        <div class="tree-indent"></div>
+                        <div class="tree-indent"></div>
+                        <span class="tree-icon">🔧</span>
+                        <div class="tree-label">
+                            <strong>Assembly Area</strong>
+                            <span>L2 • Area</span>
+                        </div>
+                        <span class="tree-state state-idle">Idle</span>
+                    </div>
+                    <div class="tree-node">
+                        <div class="tree-indent"></div>
+                        <span class="tree-icon">🏭</span>
+                        <div class="tree-label">
+                            <strong>Factory Beta</strong>
+                            <span>L3 • Site</span>
+                        </div>
+                        <span class="tree-state state-stopped">Stopped</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PackML Tab -->
+        <div id="tab-packml" class="tab-content hidden">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Running</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">1</div>
+                    <div class="stat-label">Held</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">2</div>
+                    <div class="stat-label">Idle</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">1</div>
+                    <div class="stat-label">Stopped</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">PackML State Machine - Line 01</div>
+                <div class="packml-diagram">
+                    <div class="packml-row">
+                        <div class="packml-state">Clearing</div>
+                        <span class="packml-arrow">→</span>
+                        <div class="packml-state">Stopped</div>
+                        <span class="packml-arrow">→</span>
+                        <div class="packml-state">Resetting</div>
+                    </div>
+                    <div class="packml-row">
+                        <span class="packml-arrow">↓</span>
+                    </div>
+                    <div class="packml-row">
+                        <div class="packml-state">Aborted</div>
+                        <span class="packml-arrow">←</span>
+                        <div class="packml-state">Aborting</div>
+                        <span class="packml-arrow" style="visibility: hidden;">←</span>
+                        <div class="packml-state">Idle</div>
+                    </div>
+                    <div class="packml-row">
+                        <span class="packml-arrow">↓</span>
+                    </div>
+                    <div class="packml-row">
+                        <div class="packml-state">Held</div>
+                        <span class="packml-arrow">←</span>
+                        <div class="packml-state">Holding</div>
+                        <span class="packml-arrow">←</span>
+                        <div class="packml-state">Starting</div>
+                    </div>
+                    <div class="packml-row">
+                        <span class="packml-arrow">↓</span>
+                    </div>
+                    <div class="packml-row">
+                        <div class="packml-state">Unholding</div>
+                        <span class="packml-arrow">→</span>
+                        <div class="packml-state active">Execute</div>
+                        <span class="packml-arrow">→</span>
+                        <div class="packml-state">Completing</div>
+                    </div>
+                    <div class="packml-row">
+                        <span class="packml-arrow">↓</span>
+                    </div>
+                    <div class="packml-row">
+                        <div class="packml-state waiting">Stopping</div>
+                        <span class="packml-arrow" style="visibility: hidden;">→</span>
+                        <span class="packml-arrow" style="visibility: hidden;">→</span>
+                        <div class="packml-state">Complete</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">State Transitions</div>
+                <div class="code-block">
+<span class="code-key">"transitions"</span>: {
+  <span class="code-key">"stopped"</span>: [<span class="code-str">"resetting"</span>, <span class="code-str">"aborting"</span>],
+  <span class="code-key">"idle"</span>: [<span class="code-str">"starting"</span>, <span class="code-str">"stopping"</span>],
+  <span class="code-key">"execute"</span>: [<span class="code-str">"completing"</span>, <span class="code-str">"holding"</span>, <span class="code-str">"stopping"</span>, <span class="code-str">"aborting"</span>],
+  <span class="code-key">"held"</span>: [<span class="code-str">"unholding"</span>, <span class="code-str">"stopping"</span>, <span class="code-str">"aborting"</span>]
+}
+                </div>
+            </div>
+        </div>
+
+        <!-- Alarms Tab -->
+        <div id="tab-alarms" class="tab-content hidden">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" style="background: linear-gradient(135deg, #ef4444, #dc2626); -webkit-background-clip: text;">2</div>
+                    <div class="stat-label">Critical</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="background: linear-gradient(135deg, #f97316, #ea580c); -webkit-background-clip: text;">3</div>
+                    <div class="stat-label">High</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="background: linear-gradient(135deg, #f59e0b, #d97706); -webkit-background-clip: text;">5</div>
+                    <div class="stat-label">Medium</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">12</div>
+                    <div class="stat-label">Low</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span>Active Alarms</span>
+                    <button class="btn btn-sm" onclick="ackAll()">Acknowledge All</button>
+                </div>
+                <div class="alarm-list" id="alarmList">
+                    <div class="alarm-item alarm-critical">
+                        <span class="alarm-icon">🚨</span>
+                        <div class="alarm-info">
+                            <div class="alarm-msg">Emergency Stop Activated - Line 01</div>
+                            <div class="alarm-meta">Cell: Packaging-01 | Tag: ES_001</div>
+                        </div>
+                        <div class="alarm-time">2 min ago</div>
+                        <button class="btn btn-sm btn-secondary">ACK</button>
+                    </div>
+                    <div class="alarm-item alarm-critical">
+                        <span class="alarm-icon">🔥</span>
+                        <div class="alarm-info">
+                            <div class="alarm-msg">Temperature Exceeded Limit</div>
+                            <div class="alarm-meta">Cell: Oven-02 | Tag: TI_102 | Value: 285°C</div>
+                        </div>
+                        <div class="alarm-time">5 min ago</div>
+                        <button class="btn btn-sm btn-secondary">ACK</button>
+                    </div>
+                    <div class="alarm-item alarm-high">
+                        <span class="alarm-icon">⚠️</span>
+                        <div class="alarm-info">
+                            <div class="alarm-msg">Motor Overload Warning</div>
+                            <div class="alarm-meta">Cell: Conveyor-03 | Tag: MOT_003</div>
+                        </div>
+                        <div class="alarm-time">12 min ago</div>
+                        <button class="btn btn-sm btn-secondary">ACK</button>
+                    </div>
+                    <div class="alarm-item alarm-medium">
+                        <span class="alarm-icon">⚡</span>
+                        <div class="alarm-info">
+                            <div class="alarm-msg">Power Quality Deviation</div>
+                            <div class="alarm-meta">Cell: MCC-01 | Tag: PQ_001</div>
+                        </div>
+                        <div class="alarm-time">28 min ago</div>
+                        <button class="btn btn-sm btn-secondary">ACK</button>
+                    </div>
+                    <div class="alarm-item alarm-low">
+                        <span class="alarm-icon">ℹ️</span>
+                        <div class="alarm-info">
+                            <div class="alarm-msg">Maintenance Due - Filter Replacement</div>
+                            <div class="alarm-meta">Cell: HVAC-01 | Tag: FLT_001</div>
+                        </div>
+                        <div class="alarm-time">2 hours ago</div>
+                        <button class="btn btn-sm btn-secondary">ACK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sparkplug Messages Tab -->
+        <div id="tab-messages" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">
+                    <span>Sparkplug-B Messages</span>
+                    <button class="btn btn-sm btn-secondary" onclick="clearMessages()">Clear</button>
+                </div>
+                <div class="msg-list" id="msgList">
+                    <div class="msg-item">
+                        <span class="msg-type msg-birth">BIRTH</span>
+                        <div class="msg-content">
+                            <div class="msg-topic">spBv1.0/Konomi/NBIRTH/Line01</div>
+                            <div class="msg-payload">{"seq":0,"metrics":[{"name":"bdSeq","value":1}]}</div>
+                        </div>
+                        <div class="msg-time">10:42:15</div>
+                    </div>
+                    <div class="msg-item">
+                        <span class="msg-type msg-data">DATA</span>
+                        <div class="msg-content">
+                            <div class="msg-topic">spBv1.0/Konomi/DDATA/Line01/Cell01</div>
+                            <div class="msg-payload">{"seq":42,"metrics":[{"name":"Temperature","value":72.5}]}</div>
+                        </div>
+                        <div class="msg-time">10:42:18</div>
+                    </div>
+                    <div class="msg-item">
+                        <span class="msg-type msg-data">DATA</span>
+                        <div class="msg-content">
+                            <div class="msg-topic">spBv1.0/Konomi/DDATA/Line01/Cell01</div>
+                            <div class="msg-payload">{"seq":43,"metrics":[{"name":"Speed","value":1500}]}</div>
+                        </div>
+                        <div class="msg-time">10:42:19</div>
+                    </div>
+                    <div class="msg-item">
+                        <span class="msg-type msg-cmd">CMD</span>
+                        <div class="msg-content">
+                            <div class="msg-topic">spBv1.0/Konomi/DCMD/Line01/Cell01</div>
+                            <div class="msg-payload">{"seq":1,"metrics":[{"name":"SetSpeed","value":1800}]}</div>
+                        </div>
+                        <div class="msg-time">10:42:22</div>
+                    </div>
+                    <div class="msg-item">
+                        <span class="msg-type msg-death">DEATH</span>
+                        <div class="msg-content">
+                            <div class="msg-topic">spBv1.0/Konomi/NDEATH/Line02</div>
+                            <div class="msg-payload">{"seq":0}</div>
+                        </div>
+                        <div class="msg-time">10:40:05</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UDT Explorer Tab -->
+        <div id="tab-udts" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">Enterprise UDT Definitions</div>
+                <div class="udt-grid" id="udtGrid">
+                    <div class="udt-card" onclick="showUDT('isa95-level')">
+                        <div class="udt-header">
+                            <div class="udt-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">📊</div>
+                            <div>
+                                <div class="udt-name">ISA95Level</div>
+                                <div class="udt-type">enum</div>
+                            </div>
+                        </div>
+                        <div class="udt-desc">ISA-95 hierarchy levels (L0-L4)</div>
+                        <div class="udt-props">
+                            <span class="udt-prop">L4: Business</span>
+                            <span class="udt-prop">L3: MOM</span>
+                            <span class="udt-prop">L2: Control</span>
+                            <span class="udt-prop">L1: Sensing</span>
+                            <span class="udt-prop">L0: Process</span>
+                        </div>
+                    </div>
+                    <div class="udt-card" onclick="showUDT('hierarchy-node')">
+                        <div class="udt-header">
+                            <div class="udt-icon" style="background: linear-gradient(135deg, #22c55e, #16a34a);">🌲</div>
+                            <div>
+                                <div class="udt-name">HierarchyNode</div>
+                                <div class="udt-type">struct</div>
+                            </div>
+                        </div>
+                        <div class="udt-desc">ISA-95 hierarchy node with state</div>
+                        <div class="udt-props">
+                            <span class="udt-prop">id</span>
+                            <span class="udt-prop">name</span>
+                            <span class="udt-prop">path</span>
+                            <span class="udt-prop">level</span>
+                            <span class="udt-prop">state</span>
+                        </div>
+                    </div>
+                    <div class="udt-card" onclick="showUDT('packml-state')">
+                        <div class="udt-header">
+                            <div class="udt-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">🔄</div>
+                            <div>
+                                <div class="udt-name">PackMLState</div>
+                                <div class="udt-type">enum</div>
+                            </div>
+                        </div>
+                        <div class="udt-desc">PackML equipment states</div>
+                        <div class="udt-props">
+                            <span class="udt-prop">stopped</span>
+                            <span class="udt-prop">idle</span>
+                            <span class="udt-prop">execute</span>
+                            <span class="udt-prop">held</span>
+                            <span class="udt-prop">+9 more</span>
+                        </div>
+                    </div>
+                    <div class="udt-card" onclick="showUDT('alarm')">
+                        <div class="udt-header">
+                            <div class="udt-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">🚨</div>
+                            <div>
+                                <div class="udt-name">Alarm</div>
+                                <div class="udt-type">struct</div>
+                            </div>
+                        </div>
+                        <div class="udt-desc">Active alarm with priority and state</div>
+                        <div class="udt-props">
+                            <span class="udt-prop">id</span>
+                            <span class="udt-prop">message</span>
+                            <span class="udt-prop">priority</span>
+                            <span class="udt-prop">state</span>
+                            <span class="udt-prop">timestamp</span>
+                        </div>
+                    </div>
+                    <div class="udt-card" onclick="showUDT('sparkplug-msg')">
+                        <div class="udt-header">
+                            <div class="udt-icon" style="background: linear-gradient(135deg, #a855f7, #7c3aed);">⚡</div>
+                            <div>
+                                <div class="udt-name">SparkplugMsgType</div>
+                                <div class="udt-type">enum</div>
+                            </div>
+                        </div>
+                        <div class="udt-desc">Sparkplug-B message types</div>
+                        <div class="udt-props">
+                            <span class="udt-prop">BIRTH</span>
+                            <span class="udt-prop">DEATH</span>
+                            <span class="udt-prop">DATA</span>
+                            <span class="udt-prop">CMD</span>
+                        </div>
+                    </div>
+                    <div class="udt-card" onclick="showUDT('quality-code')">
+                        <div class="udt-header">
+                            <div class="udt-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">✓</div>
+                            <div>
+                                <div class="udt-name">QualityCode</div>
+                                <div class="udt-type">enum</div>
+                            </div>
+                        </div>
+                        <div class="udt-desc">OPC-UA quality codes</div>
+                        <div class="udt-props">
+                            <span class="udt-prop">good</span>
+                            <span class="udt-prop">bad</span>
+                            <span class="udt-prop">uncertain</span>
+                            <span class="udt-prop">stale</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Part of <a href="index.html">KISS MySaaS</a> - Konomi Instant Serverless Solutions
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+            });
+        });
+
+        // Level selection
+        document.querySelectorAll('.level-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.level-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+            });
+        });
+
+        // Tree node selection
+        document.querySelectorAll('.tree-node').forEach(node => {
+            node.addEventListener('click', () => {
+                document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('selected'));
+                node.classList.add('selected');
+            });
+        });
+
+        // PackML state selection
+        document.querySelectorAll('.packml-state').forEach(state => {
+            state.addEventListener('click', () => {
+                document.querySelectorAll('.packml-state').forEach(s => s.classList.remove('active'));
+                state.classList.add('active');
+            });
+        });
+
+        function addNode() {
+            alert('Add Node dialog would open here');
+        }
+
+        function ackAll() {
+            document.querySelectorAll('.alarm-item').forEach(item => {
+                item.style.opacity = '0.5';
+            });
+        }
+
+        function clearMessages() {
+            document.getElementById('msgList').innerHTML = '<div style="text-align:center;color:#64748b;padding:40px;">No messages</div>';
+        }
+
+        function showUDT(name) {
+            alert(`Would show full UDT definition for: ${name}`);
+        }
+
+        // Simulate real-time message updates
+        function addMessage(type, topic, payload) {
+            const msgList = document.getElementById('msgList');
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const typeClass = {
+                'BIRTH': 'msg-birth',
+                'DEATH': 'msg-death',
+                'DATA': 'msg-data',
+                'CMD': 'msg-cmd'
+            }[type] || 'msg-data';
+
+            const html = `
+                <div class="msg-item">
+                    <span class="msg-type ${typeClass}">${type}</span>
+                    <div class="msg-content">
+                        <div class="msg-topic">${topic}</div>
+                        <div class="msg-payload">${JSON.stringify(payload)}</div>
+                    </div>
+                    <div class="msg-time">${time}</div>
+                </div>
+            `;
+            msgList.insertAdjacentHTML('afterbegin', html);
+        }
+
+        // Demo: simulate messages every few seconds
+        setInterval(() => {
+            const types = ['DATA', 'DATA', 'DATA', 'CMD'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const metrics = [
+                { name: 'Temperature', value: (70 + Math.random() * 10).toFixed(1) },
+                { name: 'Pressure', value: (100 + Math.random() * 20).toFixed(1) },
+                { name: 'Speed', value: Math.floor(1400 + Math.random() * 200) },
+                { name: 'Count', value: Math.floor(Math.random() * 1000) }
+            ];
+            const metric = metrics[Math.floor(Math.random() * metrics.length)];
+            addMessage(type, `spBv1.0/Konomi/D${type}/Line01/Cell0${Math.floor(Math.random() * 3) + 1}`, {
+                seq: Math.floor(Math.random() * 1000),
+                metrics: [metric]
+            });
+        }, 5000);
+    </script>
+</body>
+</html>
