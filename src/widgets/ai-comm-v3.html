@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI FreeComm v3 - Dynamic P2P Communication</title>
+  <meta name="widget-id" content="ai-freecomm-v3">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --s1: #12121a; --s2: #1a1a2e; --border: #252535;
+      --text: #e0e0e0; --muted: #666; --accent: #00d4aa;
+      --purple: #9b59b6; --blue: #3498db; --orange: #e67e22;
+      --green: #2ecc71; --red: #e74c3c; --yellow: #f1c40f;
+    }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .app { display: grid; grid-template-columns: 300px 1fr 300px; grid-template-rows: auto 1fr; height: 100vh; }
+    @media (max-width: 1000px) { .app { grid-template-columns: 1fr; } }
+
+    .header { grid-column: 1 / -1; background: var(--s1); border-bottom: 1px solid var(--border); padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .logo { font-size: 1.25rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .your-id { display: flex; align-items: center; gap: 0.5rem; background: var(--s2); padding: 0.4rem 0.75rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.75rem; }
+    .your-id .label { color: var(--muted); }
+    .your-id .id { color: var(--accent); cursor: pointer; }
+    .your-id .copy-btn { background: var(--accent); color: black; border: none; padding: 0.2rem 0.5rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.65rem; }
+    .header-stats { margin-left: auto; display: flex; gap: 1rem; font-size: 0.75rem; }
+    .header-stat { display: flex; align-items: center; gap: 0.3rem; }
+    .header-stat .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .header-stat .dot.online { background: var(--green); }
+    .header-stat .dot.offline { background: var(--red); }
+    .header-stat .dot.connecting { background: var(--yellow); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+    .panel { background: var(--s1); border-right: 1px solid var(--border); overflow-y: auto; }
+    .panel:last-child { border-right: none; border-left: 1px solid var(--border); }
+    .panel-section { padding: 1rem; border-bottom: 1px solid var(--border); }
+    .panel-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 0.75rem; }
+
+    /* Share Section */
+    .share-box { background: var(--s2); border-radius: 0.5rem; padding: 1rem; text-align: center; }
+    .share-qr { width: 120px; height: 120px; background: white; margin: 0 auto 0.75rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; }
+    .share-qr canvas { max-width: 100%; max-height: 100%; }
+    .share-url { font-size: 0.65rem; color: var(--muted); word-break: break-all; margin-bottom: 0.5rem; }
+    .share-actions { display: flex; gap: 0.5rem; }
+    .share-btn { flex: 1; padding: 0.5rem; border: none; border-radius: 0.375rem; font-size: 0.7rem; cursor: pointer; }
+    .share-btn.primary { background: var(--accent); color: black; }
+    .share-btn.secondary { background: var(--s1); color: var(--text); border: 1px solid var(--border); }
+
+    /* Transport Status */
+    .transport-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--bg); border-radius: 0.375rem; margin-bottom: 0.5rem; }
+    .transport-icon { width: 28px; height: 28px; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+    .transport-info { flex: 1; }
+    .transport-name { font-size: 0.75rem; font-weight: 600; }
+    .transport-status { font-size: 0.6rem; color: var(--muted); }
+    .transport-status.available { color: var(--green); }
+    .transport-status.unavailable { color: var(--red); }
+    .transport-status.checking { color: var(--yellow); }
+
+    /* Peers List */
+    .peer-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--bg); border-radius: 0.375rem; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s; }
+    .peer-item:hover { background: var(--s2); }
+    .peer-item.active { border: 1px solid var(--accent); }
+    .peer-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; }
+    .peer-info { flex: 1; min-width: 0; }
+    .peer-id { font-size: 0.7rem; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .peer-meta { font-size: 0.6rem; color: var(--muted); }
+    .peer-ping { font-size: 0.65rem; color: var(--green); }
+    .no-peers { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: 0.8rem; }
+
+    /* Chat Area */
+    .chat-area { display: flex; flex-direction: column; background: var(--bg); }
+    .chat-header { padding: 0.75rem 1rem; background: var(--s1); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.75rem; }
+    .chat-target { flex: 1; }
+    .chat-target-name { font-weight: 600; font-size: 0.9rem; }
+    .chat-target-id { font-size: 0.65rem; color: var(--muted); font-family: monospace; }
+    .chat-actions { display: flex; gap: 0.5rem; }
+    .chat-action { width: 32px; height: 32px; border-radius: 50%; background: var(--s2); border: none; color: var(--text); cursor: pointer; }
+    .chat-action:hover { background: var(--accent); color: black; }
+
+    .messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .msg { max-width: 75%; }
+    .msg.sent { align-self: flex-end; }
+    .msg.received { align-self: flex-start; }
+    .msg.system { align-self: center; max-width: 90%; }
+    .msg-bubble { padding: 0.6rem 0.9rem; border-radius: 1rem; }
+    .msg.sent .msg-bubble { background: var(--accent); color: black; border-bottom-right-radius: 0.25rem; }
+    .msg.received .msg-bubble { background: var(--s2); border-bottom-left-radius: 0.25rem; }
+    .msg.system .msg-bubble { background: var(--s2); border: 1px dashed var(--border); font-size: 0.75rem; color: var(--muted); text-align: center; }
+    .msg-text { font-size: 0.875rem; line-height: 1.4; }
+    .msg-meta { font-size: 0.6rem; margin-top: 0.25rem; opacity: 0.7; display: flex; gap: 0.5rem; }
+    .msg.sent .msg-meta { justify-content: flex-end; }
+
+    .input-area { padding: 0.75rem 1rem; background: var(--s1); border-top: 1px solid var(--border); }
+    .connect-input { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .connect-input input { flex: 1; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text); font-size: 0.8rem; font-family: monospace; }
+    .connect-input button { padding: 0.5rem 1rem; background: var(--purple); color: white; border: none; border-radius: 0.375rem; cursor: pointer; font-size: 0.8rem; }
+    .msg-input-row { display: flex; gap: 0.5rem; }
+    .msg-input { flex: 1; padding: 0.6rem 0.9rem; background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; color: var(--text); font-size: 0.875rem; resize: none; }
+    .msg-input:focus { outline: none; border-color: var(--accent); }
+    .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); border: none; color: black; cursor: pointer; font-size: 1rem; }
+    .send-btn:disabled { background: var(--border); cursor: not-allowed; }
+
+    /* Right Panel - Stats */
+    .stat-card { background: var(--bg); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.5rem; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 0.25rem 0; }
+    .stat-label { color: var(--muted); }
+    .stat-value { font-weight: 600; font-family: monospace; }
+    .stat-value.good { color: var(--green); }
+    .stat-value.warn { color: var(--yellow); }
+    .stat-value.bad { color: var(--red); }
+
+    /* Clearnet Endpoint */
+    .endpoint-box { background: linear-gradient(135deg, var(--s2), #1a2030); border-radius: 0.5rem; padding: 0.75rem; }
+    .endpoint-url { font-family: monospace; font-size: 0.65rem; word-break: break-all; background: var(--bg); padding: 0.5rem; border-radius: 0.375rem; margin: 0.5rem 0; }
+    .endpoint-status { font-size: 0.65rem; display: flex; align-items: center; gap: 0.25rem; }
+    .endpoint-test { margin-top: 0.5rem; width: 100%; padding: 0.4rem; background: var(--blue); color: white; border: none; border-radius: 0.375rem; cursor: pointer; font-size: 0.7rem; }
+
+    /* Webhook Log */
+    .webhook-log { max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.6rem; background: var(--bg); border-radius: 0.375rem; padding: 0.5rem; }
+    .webhook-entry { padding: 0.25rem 0; border-bottom: 1px solid var(--border); }
+    .webhook-entry:last-child { border-bottom: none; }
+    .webhook-time { color: var(--muted); }
+    .webhook-method { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <span class="logo">AI FreeComm v3</span>
+      <div class="your-id">
+        <span class="label">Your ID:</span>
+        <span class="id" id="myPeerId">Generating...</span>
+        <button class="copy-btn" onclick="copyId()">Copy</button>
+      </div>
+      <div class="header-stats">
+        <div class="header-stat">
+          <span class="dot connecting" id="connectionDot"></span>
+          <span id="connectionStatus">Connecting...</span>
+        </div>
+        <div class="header-stat">
+          <span id="peerCount">0</span> peers
+        </div>
+        <div class="header-stat">
+          <span id="msgCount">0</span> msgs
+        </div>
+      </div>
+    </header>
+
+    <!-- Left Panel -->
+    <aside class="panel">
+      <!-- Share Section -->
+      <div class="panel-section">
+        <div class="panel-title">Share Your Endpoint</div>
+        <div class="share-box">
+          <div class="share-qr" id="qrCode"></div>
+          <div class="share-url" id="shareUrl">Loading...</div>
+          <div class="share-actions">
+            <button class="share-btn primary" onclick="copyShareUrl()">Copy Link</button>
+            <button class="share-btn secondary" onclick="shareNative()">Share</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic Transport Detection -->
+      <div class="panel-section">
+        <div class="panel-title">Detected Transports</div>
+        <div id="transports">
+          <div class="transport-item">
+            <div class="transport-icon" style="background:var(--accent);">P2P</div>
+            <div class="transport-info">
+              <div class="transport-name">WebRTC</div>
+              <div class="transport-status checking" id="webrtcStatus">Checking...</div>
+            </div>
+          </div>
+          <div class="transport-item">
+            <div class="transport-icon" style="background:var(--blue);">WS</div>
+            <div class="transport-info">
+              <div class="transport-name">WebSocket</div>
+              <div class="transport-status checking" id="wsStatus">Checking...</div>
+            </div>
+          </div>
+          <div class="transport-item">
+            <div class="transport-icon" style="background:var(--purple);">BT</div>
+            <div class="transport-info">
+              <div class="transport-name">Bluetooth</div>
+              <div class="transport-status checking" id="btStatus">Checking...</div>
+            </div>
+          </div>
+          <div class="transport-item">
+            <div class="transport-icon" style="background:var(--orange);">NFC</div>
+            <div class="transport-info">
+              <div class="transport-name">NFC</div>
+              <div class="transport-status checking" id="nfcStatus">Checking...</div>
+            </div>
+          </div>
+          <div class="transport-item">
+            <div class="transport-icon" style="background:var(--yellow);color:black;">GPU</div>
+            <div class="transport-info">
+              <div class="transport-name">WebGPU (AI)</div>
+              <div class="transport-status checking" id="gpuStatus">Checking...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connected Peers -->
+      <div class="panel-section">
+        <div class="panel-title">Connected Peers (<span id="peerListCount">0</span>)</div>
+        <div id="peerList">
+          <div class="no-peers">No peers connected yet.<br>Share your ID to connect!</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Chat Area -->
+    <main class="chat-area">
+      <div class="chat-header">
+        <div class="chat-target">
+          <div class="chat-target-name" id="chatTargetName">Broadcast (All Peers)</div>
+          <div class="chat-target-id" id="chatTargetId">Messages go to all connected peers</div>
+        </div>
+        <div class="chat-actions">
+          <button class="chat-action" onclick="clearChat()" title="Clear">🗑️</button>
+          <button class="chat-action" onclick="exportChat()" title="Export">📥</button>
+        </div>
+      </div>
+
+      <div class="messages" id="messages"></div>
+
+      <div class="input-area">
+        <div class="connect-input">
+          <input type="text" id="connectPeerId" placeholder="Enter peer ID to connect...">
+          <button onclick="connectToPeer()">Connect</button>
+        </div>
+        <div class="msg-input-row">
+          <textarea class="msg-input" id="msgInput" placeholder="Type a message..." rows="1"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>→</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Panel - Stats -->
+    <aside class="panel">
+      <!-- Live Stats -->
+      <div class="panel-section">
+        <div class="panel-title">Live Statistics</div>
+        <div class="stat-card">
+          <div class="stat-row">
+            <span class="stat-label">Session Duration</span>
+            <span class="stat-value" id="sessionDuration">0:00</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Messages Sent</span>
+            <span class="stat-value" id="msgsSent">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Messages Received</span>
+            <span class="stat-value" id="msgsReceived">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Bytes Transferred</span>
+            <span class="stat-value" id="bytesTransferred">0 B</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Avg Latency</span>
+            <span class="stat-value" id="avgLatency">-- ms</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clearnet Endpoint -->
+      <div class="panel-section">
+        <div class="panel-title">Clearnet Webhook</div>
+        <div class="endpoint-box">
+          <div style="font-size:0.7rem;margin-bottom:0.5rem;">POST messages to this URL:</div>
+          <div class="endpoint-url" id="webhookUrl">Generating...</div>
+          <div class="endpoint-status">
+            <span class="dot" id="webhookDot"></span>
+            <span id="webhookStatus">Initializing...</span>
+          </div>
+          <button class="endpoint-test" onclick="testWebhook()">Test Webhook</button>
+        </div>
+      </div>
+
+      <!-- Webhook Log -->
+      <div class="panel-section">
+        <div class="panel-title">Incoming Webhooks</div>
+        <div class="webhook-log" id="webhookLog">
+          <div style="color:var(--muted);text-align:center;padding:1rem;">No webhooks received yet</div>
+        </div>
+      </div>
+
+      <!-- Network Info -->
+      <div class="panel-section">
+        <div class="panel-title">Network Info</div>
+        <div class="stat-card">
+          <div class="stat-row">
+            <span class="stat-label">Connection Type</span>
+            <span class="stat-value" id="connType">--</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Effective Type</span>
+            <span class="stat-value" id="effType">--</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Downlink</span>
+            <span class="stat-value" id="downlink">-- Mbps</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">RTT</span>
+            <span class="stat-value" id="rtt">-- ms</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    // ============================================
+    // AI FreeComm v3 - Dynamic P2P Communication
+    // ============================================
+
+    // State - all dynamic, no hardcoding
+    const state = {
+      peerId: null,
+      peers: new Map(),
+      messages: [],
+      stats: {
+        sessionStart: Date.now(),
+        msgsSent: 0,
+        msgsReceived: 0,
+        bytesTransferred: 0,
+        latencies: []
+      },
+      transports: {},
+      webhookCallbacks: [],
+      rtcConfig: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    };
+
+    // Generate unique peer ID
+    function generatePeerId() {
+      const chars = 'abcdef0123456789';
+      let id = '';
+      for (let i = 0; i < 16; i++) {
+        id += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return id;
+    }
+
+    // ============================================
+    // Transport Detection (Dynamic)
+    // ============================================
+    async function detectTransports() {
+      // WebRTC
+      const webrtcEl = document.getElementById('webrtcStatus');
+      if (window.RTCPeerConnection) {
+        state.transports.webrtc = true;
+        webrtcEl.textContent = 'Available';
+        webrtcEl.className = 'transport-status available';
+      } else {
+        state.transports.webrtc = false;
+        webrtcEl.textContent = 'Not supported';
+        webrtcEl.className = 'transport-status unavailable';
+      }
+
+      // WebSocket
+      const wsEl = document.getElementById('wsStatus');
+      if (window.WebSocket) {
+        state.transports.websocket = true;
+        wsEl.textContent = 'Available';
+        wsEl.className = 'transport-status available';
+      } else {
+        state.transports.websocket = false;
+        wsEl.textContent = 'Not supported';
+        wsEl.className = 'transport-status unavailable';
+      }
+
+      // Bluetooth
+      const btEl = document.getElementById('btStatus');
+      if (navigator.bluetooth) {
+        state.transports.bluetooth = true;
+        btEl.textContent = 'Available';
+        btEl.className = 'transport-status available';
+      } else {
+        state.transports.bluetooth = false;
+        btEl.textContent = 'Not supported';
+        btEl.className = 'transport-status unavailable';
+      }
+
+      // NFC
+      const nfcEl = document.getElementById('nfcStatus');
+      if ('NDEFReader' in window) {
+        state.transports.nfc = true;
+        nfcEl.textContent = 'Available';
+        nfcEl.className = 'transport-status available';
+      } else {
+        state.transports.nfc = false;
+        nfcEl.textContent = 'Not supported';
+        nfcEl.className = 'transport-status unavailable';
+      }
+
+      // WebGPU (for AI)
+      const gpuEl = document.getElementById('gpuStatus');
+      if (navigator.gpu) {
+        try {
+          const adapter = await navigator.gpu.requestAdapter();
+          if (adapter) {
+            state.transports.webgpu = true;
+            gpuEl.textContent = 'Available';
+            gpuEl.className = 'transport-status available';
+          } else {
+            throw new Error('No adapter');
+          }
+        } catch {
+          state.transports.webgpu = false;
+          gpuEl.textContent = 'No adapter';
+          gpuEl.className = 'transport-status unavailable';
+        }
+      } else {
+        state.transports.webgpu = false;
+        gpuEl.textContent = 'Not supported';
+        gpuEl.className = 'transport-status unavailable';
+      }
+    }
+
+    // ============================================
+    // Network Info Detection (Dynamic)
+    // ============================================
+    function updateNetworkInfo() {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn) {
+        document.getElementById('connType').textContent = conn.type || 'unknown';
+        document.getElementById('effType').textContent = conn.effectiveType || '--';
+        document.getElementById('downlink').textContent = conn.downlink ? `${conn.downlink} Mbps` : '--';
+        document.getElementById('rtt').textContent = conn.rtt ? `${conn.rtt} ms` : '--';
+      } else {
+        document.getElementById('connType').textContent = 'N/A';
+        document.getElementById('effType').textContent = 'N/A';
+      }
+    }
+
+    // ============================================
+    // WebRTC P2P Connection
+    // ============================================
+    class PeerConnection {
+      constructor(peerId, initiator = false) {
+        this.peerId = peerId;
+        this.initiator = initiator;
+        this.pc = new RTCPeerConnection(state.rtcConfig);
+        this.channel = null;
+        this.connected = false;
+        this.pingStart = null;
+
+        this.pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            this.sendSignal({ type: 'ice', candidate: e.candidate });
+          }
+        };
+
+        this.pc.onconnectionstatechange = () => {
+          this.updateStatus();
+        };
+
+        if (initiator) {
+          this.channel = this.pc.createDataChannel('data');
+          this.setupChannel();
+        } else {
+          this.pc.ondatachannel = (e) => {
+            this.channel = e.channel;
+            this.setupChannel();
+          };
+        }
+      }
+
+      setupChannel() {
+        this.channel.onopen = () => {
+          this.connected = true;
+          this.updateStatus();
+          this.ping();
+          addSystemMessage(`Connected to peer ${this.peerId.slice(0, 8)}...`);
+          updatePeerList();
+          document.getElementById('sendBtn').disabled = false;
+        };
+
+        this.channel.onclose = () => {
+          this.connected = false;
+          this.updateStatus();
+          addSystemMessage(`Peer ${this.peerId.slice(0, 8)}... disconnected`);
+          updatePeerList();
+        };
+
+        this.channel.onmessage = (e) => {
+          const data = JSON.parse(e.data);
+          if (data.type === 'ping') {
+            this.channel.send(JSON.stringify({ type: 'pong', ts: data.ts }));
+          } else if (data.type === 'pong') {
+            const latency = Date.now() - data.ts;
+            state.stats.latencies.push(latency);
+            if (state.stats.latencies.length > 50) state.stats.latencies.shift();
+            this.latency = latency;
+            updatePeerList();
+          } else if (data.type === 'message') {
+            receiveMessage(data, this.peerId);
+          }
+        };
+      }
+
+      ping() {
+        if (this.connected && this.channel.readyState === 'open') {
+          this.channel.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
+        }
+        setTimeout(() => this.ping(), 5000);
+      }
+
+      updateStatus() {
+        const connDot = document.getElementById('connectionDot');
+        const connStatus = document.getElementById('connectionStatus');
+        const connectedCount = Array.from(state.peers.values()).filter(p => p.connected).length;
+
+        if (connectedCount > 0) {
+          connDot.className = 'dot online';
+          connStatus.textContent = `Online (${connectedCount} peers)`;
+        } else {
+          connDot.className = 'dot connecting';
+          connStatus.textContent = 'Connecting...';
+        }
+        document.getElementById('peerCount').textContent = connectedCount;
+      }
+
+      async createOffer() {
+        const offer = await this.pc.createOffer();
+        await this.pc.setLocalDescription(offer);
+        return offer;
+      }
+
+      async handleOffer(offer) {
+        await this.pc.setRemoteDescription(offer);
+        const answer = await this.pc.createAnswer();
+        await this.pc.setLocalDescription(answer);
+        return answer;
+      }
+
+      async handleAnswer(answer) {
+        await this.pc.setRemoteDescription(answer);
+      }
+
+      async handleIce(candidate) {
+        await this.pc.addIceCandidate(candidate);
+      }
+
+      sendSignal(signal) {
+        // In a real app, this would go through a signaling server
+        // For demo, we store in localStorage for same-browser testing
+        const signals = JSON.parse(localStorage.getItem(`signal_${this.peerId}`) || '[]');
+        signals.push({ from: state.peerId, ...signal });
+        localStorage.setItem(`signal_${this.peerId}`, JSON.stringify(signals));
+      }
+
+      send(message) {
+        if (this.connected && this.channel.readyState === 'open') {
+          const data = JSON.stringify({ type: 'message', ...message });
+          this.channel.send(data);
+          state.stats.bytesTransferred += data.length;
+          return true;
+        }
+        return false;
+      }
+    }
+
+    // ============================================
+    // Signaling (using localStorage for demo, BroadcastChannel for multi-tab)
+    // ============================================
+    const signalChannel = new BroadcastChannel('freecomm_signals');
+
+    signalChannel.onmessage = async (e) => {
+      const { from, to, type, ...data } = e.data;
+      if (to !== state.peerId) return;
+
+      let peer = state.peers.get(from);
+      if (!peer && type === 'offer') {
+        peer = new PeerConnection(from, false);
+        state.peers.set(from, peer);
+      }
+      if (!peer) return;
+
+      if (type === 'offer') {
+        const answer = await peer.handleOffer(data.offer);
+        signalChannel.postMessage({ from: state.peerId, to: from, type: 'answer', answer });
+      } else if (type === 'answer') {
+        await peer.handleAnswer(data.answer);
+      } else if (type === 'ice') {
+        await peer.handleIce(data.candidate);
+      }
+    };
+
+    async function connectToPeer() {
+      const input = document.getElementById('connectPeerId');
+      const targetId = input.value.trim();
+      if (!targetId || targetId === state.peerId) return;
+
+      if (state.peers.has(targetId)) {
+        addSystemMessage('Already connected to this peer');
+        return;
+      }
+
+      const peer = new PeerConnection(targetId, true);
+      state.peers.set(targetId, peer);
+
+      const offer = await peer.createOffer();
+      signalChannel.postMessage({ from: state.peerId, to: targetId, type: 'offer', offer });
+      addSystemMessage(`Connecting to ${targetId.slice(0, 8)}...`);
+      input.value = '';
+    }
+
+    // ============================================
+    // Messaging
+    // ============================================
+    function sendMessage() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const message = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        text,
+        from: state.peerId,
+        timestamp: Date.now()
+      };
+
+      // Send to all connected peers
+      let sentCount = 0;
+      for (const peer of state.peers.values()) {
+        if (peer.send(message)) sentCount++;
+      }
+
+      if (sentCount > 0) {
+        state.stats.msgsSent++;
+        state.messages.push({ ...message, sent: true });
+        addMessageToUI(message, true);
+        updateStats();
+      } else {
+        addSystemMessage('No connected peers to send to');
+      }
+
+      input.value = '';
+    }
+
+    function receiveMessage(message, fromPeerId) {
+      state.stats.msgsReceived++;
+      state.stats.bytesTransferred += JSON.stringify(message).length;
+      state.messages.push({ ...message, sent: false, fromPeerId });
+      addMessageToUI(message, false);
+      updateStats();
+    }
+
+    function addMessageToUI(message, sent) {
+      const container = document.getElementById('messages');
+      const el = document.createElement('div');
+      el.className = `msg ${sent ? 'sent' : 'received'}`;
+
+      const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      el.innerHTML = `
+        <div class="msg-bubble">
+          <div class="msg-text">${escapeHtml(message.text)}</div>
+        </div>
+        <div class="msg-meta">
+          <span>${time}</span>
+          <span>${sent ? 'Sent' : 'From: ' + message.from.slice(0, 8) + '...'}</span>
+        </div>
+      `;
+
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+      document.getElementById('msgCount').textContent = state.messages.length;
+    }
+
+    function addSystemMessage(text) {
+      const container = document.getElementById('messages');
+      const el = document.createElement('div');
+      el.className = 'msg system';
+      el.innerHTML = `<div class="msg-bubble"><div class="msg-text">${escapeHtml(text)}</div></div>`;
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ============================================
+    // Clearnet Webhook Endpoint
+    // ============================================
+    function setupWebhook() {
+      // Create a unique webhook URL using the peer ID
+      // In production, this would be a real server endpoint
+      // For demo, we simulate with localStorage polling
+      const webhookId = state.peerId;
+      const webhookUrl = `${location.origin}${location.pathname}?webhook=${webhookId}`;
+
+      document.getElementById('webhookUrl').textContent = webhookUrl;
+      document.getElementById('webhookDot').className = 'dot online';
+      document.getElementById('webhookStatus').textContent = 'Listening';
+
+      // Check URL params for incoming webhook
+      const params = new URLSearchParams(location.search);
+      if (params.get('webhook') && params.get('msg')) {
+        const msg = params.get('msg');
+        logWebhook('GET', msg);
+        addSystemMessage(`Webhook received: ${msg}`);
+      }
+
+      // Poll for webhook messages (simulated)
+      setInterval(() => {
+        const webhooks = JSON.parse(localStorage.getItem(`webhook_${webhookId}`) || '[]');
+        if (webhooks.length > 0) {
+          webhooks.forEach(wh => {
+            logWebhook(wh.method, wh.body);
+            addSystemMessage(`Webhook: ${wh.body}`);
+          });
+          localStorage.removeItem(`webhook_${webhookId}`);
+        }
+      }, 1000);
+    }
+
+    function logWebhook(method, body) {
+      const log = document.getElementById('webhookLog');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'webhook-entry';
+      entry.innerHTML = `<span class="webhook-time">${time}</span> <span class="webhook-method">${method}</span> ${escapeHtml(body.slice(0, 50))}`;
+
+      if (log.querySelector('div[style]')) {
+        log.innerHTML = '';
+      }
+      log.appendChild(entry);
+    }
+
+    function testWebhook() {
+      const webhooks = JSON.parse(localStorage.getItem(`webhook_${state.peerId}`) || '[]');
+      webhooks.push({ method: 'POST', body: 'Test webhook message at ' + new Date().toISOString() });
+      localStorage.setItem(`webhook_${state.peerId}`, JSON.stringify(webhooks));
+    }
+
+    // ============================================
+    // Peer List UI
+    // ============================================
+    function updatePeerList() {
+      const container = document.getElementById('peerList');
+      const peers = Array.from(state.peers.entries());
+
+      document.getElementById('peerListCount').textContent = peers.filter(([,p]) => p.connected).length;
+
+      if (peers.length === 0) {
+        container.innerHTML = '<div class="no-peers">No peers connected yet.<br>Share your ID to connect!</div>';
+        return;
+      }
+
+      container.innerHTML = peers.map(([id, peer]) => `
+        <div class="peer-item ${peer.connected ? 'active' : ''}" onclick="selectPeer('${id}')">
+          <div class="peer-avatar">${id.slice(0, 2).toUpperCase()}</div>
+          <div class="peer-info">
+            <div class="peer-id">${id}</div>
+            <div class="peer-meta">${peer.connected ? 'Connected' : 'Connecting...'}</div>
+          </div>
+          ${peer.latency ? `<div class="peer-ping">${peer.latency}ms</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function selectPeer(id) {
+      document.getElementById('chatTargetName').textContent = `Peer ${id.slice(0, 8)}...`;
+      document.getElementById('chatTargetId').textContent = id;
+    }
+
+    // ============================================
+    // Stats
+    // ============================================
+    function updateStats() {
+      document.getElementById('msgsSent').textContent = state.stats.msgsSent;
+      document.getElementById('msgsReceived').textContent = state.stats.msgsReceived;
+
+      const bytes = state.stats.bytesTransferred;
+      let bytesStr = bytes + ' B';
+      if (bytes > 1024) bytesStr = (bytes / 1024).toFixed(1) + ' KB';
+      if (bytes > 1048576) bytesStr = (bytes / 1048576).toFixed(1) + ' MB';
+      document.getElementById('bytesTransferred').textContent = bytesStr;
+
+      if (state.stats.latencies.length > 0) {
+        const avg = state.stats.latencies.reduce((a, b) => a + b, 0) / state.stats.latencies.length;
+        document.getElementById('avgLatency').textContent = Math.round(avg) + ' ms';
+      }
+    }
+
+    function updateSessionDuration() {
+      const seconds = Math.floor((Date.now() - state.stats.sessionStart) / 1000);
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      document.getElementById('sessionDuration').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // ============================================
+    // Share Functions
+    // ============================================
+    function copyId() {
+      navigator.clipboard.writeText(state.peerId);
+      addSystemMessage('Peer ID copied to clipboard');
+    }
+
+    function copyShareUrl() {
+      const url = `${location.origin}${location.pathname}?connect=${state.peerId}`;
+      navigator.clipboard.writeText(url);
+      addSystemMessage('Share URL copied to clipboard');
+    }
+
+    function shareNative() {
+      if (navigator.share) {
+        navigator.share({
+          title: 'Connect on AI FreeComm',
+          text: `Connect with me on AI FreeComm! My ID: ${state.peerId}`,
+          url: `${location.origin}${location.pathname}?connect=${state.peerId}`
+        });
+      } else {
+        copyShareUrl();
+      }
+    }
+
+    function clearChat() {
+      document.getElementById('messages').innerHTML = '';
+      state.messages = [];
+      addSystemMessage('Chat cleared');
+    }
+
+    function exportChat() {
+      const text = state.messages.map(m =>
+        `[${new Date(m.timestamp).toISOString()}] ${m.sent ? 'You' : m.from.slice(0, 8)}: ${m.text}`
+      ).join('\n');
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `freecomm-${state.peerId.slice(0, 8)}-${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ============================================
+    // Initialize
+    // ============================================
+    async function init() {
+      console.log('AI FreeComm v3 initializing...');
+
+      // Generate or restore peer ID
+      state.peerId = localStorage.getItem('freecomm_peerid') || generatePeerId();
+      localStorage.setItem('freecomm_peerid', state.peerId);
+
+      document.getElementById('myPeerId').textContent = state.peerId;
+
+      // Generate QR code
+      const shareUrl = `${location.origin}${location.pathname}?connect=${state.peerId}`;
+      document.getElementById('shareUrl').textContent = shareUrl;
+      if (typeof QRCode !== 'undefined') {
+        QRCode.toCanvas(document.querySelector('.share-qr'), shareUrl, { width: 100, margin: 1 }, (err) => {
+          if (err) console.error(err);
+        });
+      }
+
+      // Detect transports
+      await detectTransports();
+
+      // Update network info
+      updateNetworkInfo();
+      if (navigator.connection) {
+        navigator.connection.addEventListener('change', updateNetworkInfo);
+      }
+
+      // Setup webhook
+      setupWebhook();
+
+      // Check for auto-connect
+      const params = new URLSearchParams(location.search);
+      const connectTo = params.get('connect');
+      if (connectTo && connectTo !== state.peerId) {
+        document.getElementById('connectPeerId').value = connectTo;
+        setTimeout(connectToPeer, 500);
+      }
+
+      // Start timers
+      setInterval(updateSessionDuration, 1000);
+      setInterval(updateStats, 2000);
+
+      // Enable send on Enter
+      document.getElementById('msgInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      addSystemMessage(`Your ID: ${state.peerId}`);
+      addSystemMessage('Share your ID or use the QR code to let others connect!');
+
+      console.log('AI FreeComm v3 ready');
+    }
+
+    init();
+  </script>
+</body>
+</html>

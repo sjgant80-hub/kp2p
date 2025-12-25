@@ -17,6 +17,7 @@ export const WIDGET_PATHS = {
   phoneV2: './phone-v2.html',
   aiComm: './ai-comm.html',
   aiCommV2: './ai-comm-v2.html',
+  aiCommV3: './ai-comm-v3.html',
 }
 
 /**
