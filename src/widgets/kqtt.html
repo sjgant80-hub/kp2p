@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KQTT - Konomi P2P MQTT</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 30px 0; }
+        .logo { font-size: 48px; margin-bottom: 12px; }
+        h1 { font-size: 1.8rem; color: #c084fc; margin-bottom: 8px; }
+        .subtitle { color: #64748b; font-size: 13px; }
+
+        .broker-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .broker-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #a855f7;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .broker-id {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #c084fc;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .broker-stats { display: flex; gap: 24px; color: #64748b; font-size: 12px; }
+        .broker-stats span { display: flex; align-items: center; gap: 6px; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab:hover { border-color: #a855f7; color: #e2e8f0; }
+        .tab.active {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            color: #fff;
+            border-color: transparent;
+            font-weight: 600;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            gap: 20px;
+        }
+        @media (max-width: 1100px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: rgba(15, 10, 30, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3); }
+        .btn-sm { padding: 5px 10px; font-size: 11px; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); }
+
+        /* Topic Tree */
+        .topic-tree { max-height: 400px; overflow-y: auto; }
+        .topic-item {
+            padding: 10px 12px;
+            margin: 4px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.15s;
+            border-left: 3px solid transparent;
+        }
+        .topic-item:hover { background: rgba(168, 85, 247, 0.1); }
+        .topic-item.active { background: rgba(168, 85, 247, 0.15); border-left-color: #a855f7; }
+        .topic-icon { font-size: 16px; }
+        .topic-name { flex: 1; font-size: 13px; font-family: monospace; }
+        .topic-count {
+            font-size: 10px;
+            padding: 2px 8px;
+            background: rgba(168, 85, 247, 0.2);
+            border-radius: 10px;
+            color: #c084fc;
+        }
+        .topic-retained { color: #f59e0b; font-size: 12px; }
+
+        /* Message Stream */
+        .msg-stream { max-height: 500px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .msg-item {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border-left: 3px solid #a855f7;
+        }
+        .msg-item.incoming { border-left-color: #22c55e; }
+        .msg-item.outgoing { border-left-color: #3b82f6; }
+        .msg-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .msg-topic { color: #c084fc; font-family: monospace; font-weight: 600; }
+        .msg-qos { padding: 2px 6px; background: rgba(168, 85, 247, 0.2); border-radius: 4px; }
+        .msg-time { margin-left: auto; }
+        .msg-payload {
+            font-family: monospace;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+        .msg-payload.json { color: #22c55e; }
+
+        /* Publish Form */
+        .publish-form { display: flex; flex-direction: column; gap: 12px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-label { font-size: 11px; color: #64748b; text-transform: uppercase; }
+        .form-input {
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            font-family: inherit;
+        }
+        .form-input:focus { outline: none; border-color: #a855f7; }
+        .form-input.mono { font-family: monospace; }
+        textarea.form-input { min-height: 100px; resize: vertical; }
+        .form-row { display: flex; gap: 12px; }
+        .form-row > * { flex: 1; }
+
+        /* Subscriptions */
+        .sub-list { display: flex; flex-direction: column; gap: 8px; }
+        .sub-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        .sub-topic { flex: 1; font-family: monospace; font-size: 13px; color: #c084fc; }
+        .sub-qos { font-size: 10px; padding: 2px 8px; background: rgba(168, 85, 247, 0.2); border-radius: 4px; }
+
+        /* Peers Grid */
+        .peers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        .peer-card {
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .peer-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .peer-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .peer-id { font-family: monospace; font-size: 11px; color: #94a3b8; }
+        .peer-stats { display: flex; gap: 16px; font-size: 11px; color: #64748b; }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+        .stat-card {
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #c084fc, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-label { font-size: 10px; color: #64748b; margin-top: 4px; text-transform: uppercase; }
+
+        .hidden { display: none !important; }
+
+        .footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #475569;
+            font-size: 12px;
+        }
+        .footer a { color: #a855f7; text-decoration: none; }
+
+        /* Protocol badge */
+        .protocol-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(124, 58, 237, 0.2));
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 20px;
+            font-size: 11px;
+            color: #c084fc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📡</div>
+            <h1>KQTT</h1>
+            <p class="subtitle">Konomi P2P MQTT - Serverless Publish/Subscribe over WebRTC</p>
+            <div style="margin-top: 12px;">
+                <span class="protocol-badge">🌐 P2P Protocol</span>
+                <span class="protocol-badge">🔒 E2E Encrypted</span>
+                <span class="protocol-badge">⚡ Zero Server</span>
+            </div>
+        </div>
+
+        <div class="broker-bar">
+            <div class="broker-status">
+                <div class="status-dot"></div>
+                <span>P2P Mesh Active</span>
+            </div>
+            <div class="broker-id">kqtt://mesh/<span id="peerId">k7x9f2m4</span></div>
+            <div class="broker-stats">
+                <span>👥 <strong id="peerCount">5</strong> peers</span>
+                <span>📨 <strong id="msgCount">1,247</strong> msgs</span>
+                <span>📋 <strong id="topicCount">12</strong> topics</span>
+            </div>
+            <button class="btn btn-secondary" onclick="copyBrokerId()">Copy ID</button>
+            <button class="btn" onclick="invitePeer()">+ Invite Peer</button>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="pubsub">Pub/Sub</div>
+            <div class="tab" data-tab="topics">Topics</div>
+            <div class="tab" data-tab="peers">Mesh Peers</div>
+            <div class="tab" data-tab="protocol">Protocol</div>
+        </div>
+
+        <!-- Pub/Sub Tab -->
+        <div id="tab-pubsub" class="tab-content">
+            <div class="main-layout">
+                <!-- Topics Sidebar -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>Subscriptions</span>
+                        <button class="btn btn-sm btn-secondary" onclick="showSubscribe()">+</button>
+                    </div>
+                    <div class="topic-tree" id="topicTree">
+                        <div class="topic-item active" data-topic="#">
+                            <span class="topic-icon">📁</span>
+                            <span class="topic-name"># (all)</span>
+                            <span class="topic-count">47</span>
+                        </div>
+                        <div class="topic-item" data-topic="konomi/+/status">
+                            <span class="topic-icon">📊</span>
+                            <span class="topic-name">konomi/+/status</span>
+                            <span class="topic-count">12</span>
+                        </div>
+                        <div class="topic-item" data-topic="konomi/line01/temp">
+                            <span class="topic-icon">🌡️</span>
+                            <span class="topic-name">konomi/line01/temp</span>
+                            <span class="topic-count">8</span>
+                            <span class="topic-retained">⬤</span>
+                        </div>
+                        <div class="topic-item" data-topic="konomi/line01/speed">
+                            <span class="topic-icon">💨</span>
+                            <span class="topic-name">konomi/line01/speed</span>
+                            <span class="topic-count">15</span>
+                        </div>
+                        <div class="topic-item" data-topic="chat/general">
+                            <span class="topic-icon">💬</span>
+                            <span class="topic-name">chat/general</span>
+                            <span class="topic-count">12</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message Stream -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>Message Stream</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-sm btn-secondary" onclick="clearMessages()">Clear</button>
+                            <button class="btn btn-sm btn-secondary" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+                        </div>
+                    </div>
+                    <div class="msg-stream" id="msgStream">
+                        <div class="msg-item incoming">
+                            <div class="msg-header">
+                                <span class="msg-topic">konomi/line01/temp</span>
+                                <span class="msg-qos">QoS 1</span>
+                                <span>from: peer-a3f2</span>
+                                <span class="msg-time">10:42:15</span>
+                            </div>
+                            <div class="msg-payload json">{"value": 72.5, "unit": "°C"}</div>
+                        </div>
+                        <div class="msg-item outgoing">
+                            <div class="msg-header">
+                                <span class="msg-topic">konomi/line01/cmd</span>
+                                <span class="msg-qos">QoS 2</span>
+                                <span>to: all</span>
+                                <span class="msg-time">10:42:14</span>
+                            </div>
+                            <div class="msg-payload json">{"action": "setSpeed", "value": 1500}</div>
+                        </div>
+                        <div class="msg-item incoming">
+                            <div class="msg-header">
+                                <span class="msg-topic">chat/general</span>
+                                <span class="msg-qos">QoS 0</span>
+                                <span>from: peer-b7c1</span>
+                                <span class="msg-time">10:42:10</span>
+                            </div>
+                            <div class="msg-payload">Hello from the P2P mesh!</div>
+                        </div>
+                        <div class="msg-item incoming">
+                            <div class="msg-header">
+                                <span class="msg-topic">konomi/line01/speed</span>
+                                <span class="msg-qos">QoS 1</span>
+                                <span>from: peer-a3f2</span>
+                                <span class="msg-time">10:42:08</span>
+                            </div>
+                            <div class="msg-payload json">{"value": 1450, "unit": "rpm"}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Publish Panel -->
+                <div class="card">
+                    <div class="card-title">Publish Message</div>
+                    <div class="publish-form">
+                        <div class="form-group">
+                            <label class="form-label">Topic</label>
+                            <input type="text" class="form-input mono" id="pubTopic" placeholder="konomi/device/data">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Payload</label>
+                            <textarea class="form-input mono" id="pubPayload" placeholder='{"key": "value"}'></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">QoS</label>
+                                <select class="form-input" id="pubQos">
+                                    <option value="0">0 - At most once</option>
+                                    <option value="1" selected>1 - At least once</option>
+                                    <option value="2">2 - Exactly once</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Options</label>
+                                <div style="display: flex; gap: 12px; padding-top: 8px;">
+                                    <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                                        <input type="checkbox" id="pubRetain"> Retain
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="publish()">📤 Publish</button>
+                    </div>
+
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div class="card-title">Quick Subscribe</div>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" class="form-input mono" id="subTopic" placeholder="topic/+/data" style="flex: 1;">
+                            <button class="btn" onclick="subscribe()">Subscribe</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Topics Tab -->
+        <div id="tab-topics" class="tab-content hidden">
+            <div class="stats-grid" style="margin-bottom: 20px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTopics">12</div>
+                    <div class="stat-label">Topics</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="retainedCount">3</div>
+                    <div class="stat-label">Retained</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="subsCount">8</div>
+                    <div class="stat-label">Subscriptions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="msgRate">42/s</div>
+                    <div class="stat-label">Msg Rate</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Topic Hierarchy</div>
+                <div style="font-family: monospace; font-size: 13px;">
+                    <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <span style="color: #a855f7;">konomi/</span>
+                        <div style="margin-left: 20px; color: #94a3b8;">
+                            <div style="padding: 4px 0;"><span style="color: #c084fc;">line01/</span> temp, speed, status, cmd</div>
+                            <div style="padding: 4px 0;"><span style="color: #c084fc;">line02/</span> temp, speed, status</div>
+                            <div style="padding: 4px 0;"><span style="color: #c084fc;">alerts/</span> critical, warning</div>
+                        </div>
+                    </div>
+                    <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <span style="color: #a855f7;">chat/</span>
+                        <div style="margin-left: 20px; color: #94a3b8;">
+                            <div style="padding: 4px 0;"><span style="color: #c084fc;">general</span></div>
+                            <div style="padding: 4px 0;"><span style="color: #c084fc;">support</span></div>
+                        </div>
+                    </div>
+                    <div style="padding: 8px 0;">
+                        <span style="color: #a855f7;">$SYS/</span>
+                        <div style="margin-left: 20px; color: #94a3b8;">
+                            <div style="padding: 4px 0;"><span style="color: #c084fc;">mesh/</span> peers, stats</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Retained Messages</div>
+                <div class="sub-list">
+                    <div class="sub-item">
+                        <span style="color: #f59e0b;">⬤</span>
+                        <span class="sub-topic">konomi/line01/temp</span>
+                        <span style="font-family: monospace; font-size: 12px; color: #22c55e;">{"value": 72.5}</span>
+                    </div>
+                    <div class="sub-item">
+                        <span style="color: #f59e0b;">⬤</span>
+                        <span class="sub-topic">konomi/line01/status</span>
+                        <span style="font-family: monospace; font-size: 12px; color: #22c55e;">{"state": "running"}</span>
+                    </div>
+                    <div class="sub-item">
+                        <span style="color: #f59e0b;">⬤</span>
+                        <span class="sub-topic">$SYS/mesh/peers</span>
+                        <span style="font-family: monospace; font-size: 12px; color: #22c55e;">{"count": 5}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Peers Tab -->
+        <div id="tab-peers" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">
+                    <span>Connected Peers</span>
+                    <button class="btn btn-sm" onclick="invitePeer()">+ Invite</button>
+                </div>
+                <div class="peers-grid" id="peersGrid">
+                    <div class="peer-card">
+                        <div class="peer-header">
+                            <div class="peer-avatar">👤</div>
+                            <div>
+                                <div style="font-weight: 600;">You</div>
+                                <div class="peer-id">k7x9f2m4</div>
+                            </div>
+                        </div>
+                        <div class="peer-stats">
+                            <span>📤 124 pub</span>
+                            <span>📥 342 sub</span>
+                        </div>
+                    </div>
+                    <div class="peer-card">
+                        <div class="peer-header">
+                            <div class="peer-avatar">🖥️</div>
+                            <div>
+                                <div style="font-weight: 600;">Peer A</div>
+                                <div class="peer-id">a3f2b7c1</div>
+                            </div>
+                        </div>
+                        <div class="peer-stats">
+                            <span>📤 89 pub</span>
+                            <span>📥 156 sub</span>
+                        </div>
+                    </div>
+                    <div class="peer-card">
+                        <div class="peer-header">
+                            <div class="peer-avatar">📱</div>
+                            <div>
+                                <div style="font-weight: 600;">Peer B</div>
+                                <div class="peer-id">b7c1d4e2</div>
+                            </div>
+                        </div>
+                        <div class="peer-stats">
+                            <span>📤 45 pub</span>
+                            <span>📥 78 sub</span>
+                        </div>
+                    </div>
+                    <div class="peer-card">
+                        <div class="peer-header">
+                            <div class="peer-avatar">🏭</div>
+                            <div>
+                                <div style="font-weight: 600;">Line01 PLC</div>
+                                <div class="peer-id">c4e2f5a3</div>
+                            </div>
+                        </div>
+                        <div class="peer-stats">
+                            <span>📤 567 pub</span>
+                            <span>📥 23 sub</span>
+                        </div>
+                    </div>
+                    <div class="peer-card">
+                        <div class="peer-header">
+                            <div class="peer-avatar">📊</div>
+                            <div>
+                                <div style="font-weight: 600;">Dashboard</div>
+                                <div class="peer-id">d5a3b8c6</div>
+                            </div>
+                        </div>
+                        <div class="peer-stats">
+                            <span>📤 12 pub</span>
+                            <span>📥 890 sub</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Mesh Topology</div>
+                <div style="text-align: center; padding: 40px; color: #64748b;">
+                    <div style="font-size: 60px; margin-bottom: 16px;">🕸️</div>
+                    <div>Full mesh topology - all peers directly connected</div>
+                    <div style="font-size: 12px; margin-top: 8px;">WebRTC DataChannels with DTLS encryption</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Protocol Tab -->
+        <div id="tab-protocol" class="tab-content hidden">
+            <div class="card">
+                <div class="card-title">KQTT Protocol Specification</div>
+                <div style="color: #94a3b8; line-height: 1.8;">
+                    <p style="margin-bottom: 16px;">
+                        <strong style="color: #c084fc;">KQTT</strong> is a P2P adaptation of MQTT that operates over WebRTC DataChannels.
+                        It maintains MQTT semantics (topics, QoS, retain) while eliminating the need for a central broker.
+                    </p>
+
+                    <h3 style="color: #a855f7; margin: 20px 0 10px;">Key Features</h3>
+                    <ul style="margin-left: 20px;">
+                        <li><strong>Serverless:</strong> No central broker required</li>
+                        <li><strong>P2P Mesh:</strong> Messages propagate through peer network</li>
+                        <li><strong>MQTT Compatible:</strong> Same topic/QoS/retain semantics</li>
+                        <li><strong>E2E Encrypted:</strong> DTLS over WebRTC</li>
+                        <li><strong>Offline First:</strong> Local message queue with sync</li>
+                    </ul>
+
+                    <h3 style="color: #a855f7; margin: 20px 0 10px;">Message Format</h3>
+                    <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px;">
+{
+  <span style="color: #c084fc;">"type"</span>: <span style="color: #22c55e;">"PUBLISH"</span>,
+  <span style="color: #c084fc;">"topic"</span>: <span style="color: #22c55e;">"konomi/line01/temp"</span>,
+  <span style="color: #c084fc;">"payload"</span>: <span style="color: #22c55e;">"..."</span>,
+  <span style="color: #c084fc;">"qos"</span>: <span style="color: #f59e0b;">1</span>,
+  <span style="color: #c084fc;">"retain"</span>: <span style="color: #f59e0b;">false</span>,
+  <span style="color: #c084fc;">"msgId"</span>: <span style="color: #22c55e;">"uuid-v4"</span>,
+  <span style="color: #c084fc;">"from"</span>: <span style="color: #22c55e;">"peer-id"</span>,
+  <span style="color: #c084fc;">"ts"</span>: <span style="color: #f59e0b;">1703500935123</span>
+}
+                    </div>
+
+                    <h3 style="color: #a855f7; margin: 20px 0 10px;">Message Types</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div style="font-size: 24px; margin-bottom: 8px;">📤</div>
+                            <div style="color: #c084fc; font-weight: 600;">PUBLISH</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
+                            <div style="color: #c084fc; font-weight: 600;">SUBSCRIBE</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🚫</div>
+                            <div style="color: #c084fc; font-weight: 600;">UNSUBSCRIBE</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 24px; margin-bottom: 8px;">✅</div>
+                            <div style="color: #c084fc; font-weight: 600;">PUBACK</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
+                            <div style="color: #c084fc; font-weight: 600;">SYNC</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 24px; margin-bottom: 8px;">💓</div>
+                            <div style="color: #c084fc; font-weight: 600;">PING</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Part of <a href="index.html">KISS MySaaS</a> - Konomi Instant Serverless Solutions
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+            });
+        });
+
+        // Topic selection
+        document.querySelectorAll('.topic-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.topic-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+
+        // Publish message
+        function publish() {
+            const topic = document.getElementById('pubTopic').value;
+            const payload = document.getElementById('pubPayload').value;
+            const qos = document.getElementById('pubQos').value;
+            const retain = document.getElementById('pubRetain').checked;
+
+            if (!topic) {
+                alert('Please enter a topic');
+                return;
+            }
+
+            addMessage('outgoing', topic, payload, qos, 'to: all');
+            document.getElementById('pubPayload').value = '';
+
+            // Update stats
+            const count = parseInt(document.getElementById('msgCount').textContent.replace(',', '')) + 1;
+            document.getElementById('msgCount').textContent = count.toLocaleString();
+        }
+
+        // Subscribe
+        function subscribe() {
+            const topic = document.getElementById('subTopic').value;
+            if (!topic) return;
+
+            const tree = document.getElementById('topicTree');
+            const item = document.createElement('div');
+            item.className = 'topic-item';
+            item.dataset.topic = topic;
+            item.innerHTML = `
+                <span class="topic-icon">📋</span>
+                <span class="topic-name">${topic}</span>
+                <span class="topic-count">0</span>
+            `;
+            item.onclick = () => {
+                document.querySelectorAll('.topic-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            };
+            tree.appendChild(item);
+            document.getElementById('subTopic').value = '';
+        }
+
+        function showSubscribe() {
+            const topic = prompt('Enter topic pattern (e.g., sensors/+/temp)');
+            if (topic) {
+                document.getElementById('subTopic').value = topic;
+                subscribe();
+            }
+        }
+
+        // Add message to stream
+        function addMessage(direction, topic, payload, qos, peer) {
+            const stream = document.getElementById('msgStream');
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+            let isJson = false;
+            try {
+                JSON.parse(payload);
+                isJson = true;
+            } catch {}
+
+            const html = `
+                <div class="msg-item ${direction}">
+                    <div class="msg-header">
+                        <span class="msg-topic">${topic}</span>
+                        <span class="msg-qos">QoS ${qos}</span>
+                        <span>${peer}</span>
+                        <span class="msg-time">${time}</span>
+                    </div>
+                    <div class="msg-payload ${isJson ? 'json' : ''}">${payload || '(empty)'}</div>
+                </div>
+            `;
+            stream.insertAdjacentHTML('afterbegin', html);
+        }
+
+        function clearMessages() {
+            document.getElementById('msgStream').innerHTML = '';
+        }
+
+        let paused = false;
+        function togglePause() {
+            paused = !paused;
+            document.getElementById('pauseBtn').textContent = paused ? '▶ Resume' : '⏸ Pause';
+        }
+
+        function copyBrokerId() {
+            const id = document.getElementById('peerId').textContent;
+            navigator.clipboard.writeText('kqtt://mesh/' + id);
+            alert('Copied to clipboard!');
+        }
+
+        function invitePeer() {
+            const id = document.getElementById('peerId').textContent;
+            alert('Share this link with peers:\n\nkqtt://mesh/' + id);
+        }
+
+        // Simulate incoming messages
+        const sampleTopics = [
+            { topic: 'konomi/line01/temp', payload: () => JSON.stringify({ value: (70 + Math.random() * 5).toFixed(1), unit: '°C' }) },
+            { topic: 'konomi/line01/speed', payload: () => JSON.stringify({ value: Math.floor(1400 + Math.random() * 100), unit: 'rpm' }) },
+            { topic: 'konomi/line01/status', payload: () => JSON.stringify({ state: 'running', uptime: Math.floor(Math.random() * 10000) }) }
+        ];
+
+        setInterval(() => {
+            if (paused) return;
+            const sample = sampleTopics[Math.floor(Math.random() * sampleTopics.length)];
+            const peers = ['peer-a3f2', 'peer-b7c1', 'peer-c4e2'];
+            addMessage('incoming', sample.topic, sample.payload(), 1, 'from: ' + peers[Math.floor(Math.random() * peers.length)]);
+
+            // Update count
+            const count = parseInt(document.getElementById('msgCount').textContent.replace(',', '')) + 1;
+            document.getElementById('msgCount').textContent = count.toLocaleString();
+        }, 3000);
+    </script>
+</body>
+</html>
