@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer - Focus Sessions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container { max-width: 500px; width: 100%; padding: 20px; }
+
+        .header { text-align: center; margin-bottom: 30px; }
+        .logo { font-size: 48px; margin-bottom: 12px; }
+        h1 { font-size: 1.8rem; color: #ef4444; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 13px; }
+
+        .timer-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .mode-tab {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 20px;
+            color: #888;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-tab:hover { background: rgba(255, 255, 255, 0.1); }
+        .mode-tab.active.focus { background: #ef4444; color: #fff; }
+        .mode-tab.active.short { background: #22c55e; color: #fff; }
+        .mode-tab.active.long { background: #3b82f6; color: #fff; }
+
+        .timer-display {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 30px;
+        }
+
+        .timer-ring {
+            transform: rotate(-90deg);
+        }
+
+        .timer-ring-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 8;
+        }
+
+        .timer-ring-progress {
+            fill: none;
+            stroke: #ef4444;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .timer-ring-progress.short { stroke: #22c55e; }
+        .timer-ring-progress.long { stroke: #3b82f6; }
+
+        .timer-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .time {
+            font-size: 64px;
+            font-weight: 700;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            letter-spacing: 2px;
+        }
+
+        .time.focus { color: #ef4444; }
+        .time.short { color: #22c55e; }
+        .time.long { color: #3b82f6; }
+
+        .session-label {
+            font-size: 14px;
+            color: #888;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-primary.running {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+
+        .btn:hover { transform: scale(1.1); }
+        .btn:active { transform: scale(0.95); }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat { text-align: center; }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ef4444;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .settings {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+        }
+
+        .settings-title {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .settings-label { font-size: 13px; color: #aaa; }
+
+        .settings-input {
+            width: 70px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .settings-input:focus { outline: none; border-color: #ef4444; }
+
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle.active { background: #ef4444; }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .toggle.active::after { transform: translateX(22px); }
+
+        /* Notification pulse */
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+        }
+
+        .timer-card.complete { animation: pulse 1s infinite; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🍅</div>
+            <h1>Pomodoro Timer</h1>
+            <p class="subtitle">Stay focused, take breaks, get things done</p>
+        </div>
+
+        <div class="timer-card" id="timerCard">
+            <div class="mode-tabs">
+                <button class="mode-tab active focus" onclick="Pomo.setMode('focus')">Focus</button>
+                <button class="mode-tab short" onclick="Pomo.setMode('short')">Short Break</button>
+                <button class="mode-tab long" onclick="Pomo.setMode('long')">Long Break</button>
+            </div>
+
+            <div class="timer-display">
+                <svg class="timer-ring" width="280" height="280" viewBox="0 0 280 280">
+                    <circle class="timer-ring-bg" cx="140" cy="140" r="130"/>
+                    <circle class="timer-ring-progress focus" id="progress" cx="140" cy="140" r="130"
+                        stroke-dasharray="816.81" stroke-dashoffset="0"/>
+                </svg>
+                <div class="timer-text">
+                    <div class="time focus" id="time">25:00</div>
+                    <div class="session-label" id="sessionLabel">Focus Time</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="Pomo.reset()">↺</button>
+                <button class="btn btn-primary" id="playBtn" onclick="Pomo.toggle()">▶</button>
+                <button class="btn btn-secondary" onclick="Pomo.skip()">⏭</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="sessionsCount">0</div>
+                    <div class="stat-label">Sessions</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="focusTime">0m</div>
+                    <div class="stat-label">Focus Time</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings">
+            <div class="settings-title">⚙️ Settings</div>
+            <div class="settings-row">
+                <span class="settings-label">Focus Duration (min)</span>
+                <input type="number" class="settings-input" id="focusDuration" value="25" min="1" max="60" onchange="Pomo.updateSettings()">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Short Break (min)</span>
+                <input type="number" class="settings-input" id="shortDuration" value="5" min="1" max="30" onchange="Pomo.updateSettings()">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Long Break (min)</span>
+                <input type="number" class="settings-input" id="longDuration" value="15" min="1" max="60" onchange="Pomo.updateSettings()">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Sound Notifications</span>
+                <div class="toggle active" id="soundToggle" onclick="Pomo.toggleSound()"></div>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Auto-start Breaks</span>
+                <div class="toggle" id="autoToggle" onclick="Pomo.toggleAuto()"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PomodoroTimer {
+            constructor() {
+                this.modes = {
+                    focus: { duration: 25 * 60, label: 'Focus Time', color: 'focus' },
+                    short: { duration: 5 * 60, label: 'Short Break', color: 'short' },
+                    long: { duration: 15 * 60, label: 'Long Break', color: 'long' }
+                };
+                this.currentMode = 'focus';
+                this.timeRemaining = this.modes.focus.duration;
+                this.isRunning = false;
+                this.interval = null;
+                this.sessions = 0;
+                this.totalFocusTime = 0;
+                this.soundEnabled = true;
+                this.autoStart = false;
+                this.circumference = 2 * Math.PI * 130; // radius = 130
+
+                this.loadState();
+                this.updateDisplay();
+            }
+
+            setMode(mode) {
+                if (this.isRunning) this.pause();
+
+                this.currentMode = mode;
+                this.timeRemaining = this.modes[mode].duration;
+
+                // Update tabs
+                document.querySelectorAll('.mode-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`.mode-tab.${mode}`).classList.add('active');
+
+                // Update colors
+                const progress = document.getElementById('progress');
+                const time = document.getElementById('time');
+                progress.className = `timer-ring-progress ${mode}`;
+                time.className = `time ${mode}`;
+
+                document.getElementById('sessionLabel').textContent = this.modes[mode].label;
+                document.getElementById('timerCard').classList.remove('complete');
+
+                this.updateDisplay();
+            }
+
+            toggle() {
+                if (this.isRunning) {
+                    this.pause();
+                } else {
+                    this.start();
+                }
+            }
+
+            start() {
+                this.isRunning = true;
+                document.getElementById('playBtn').textContent = '⏸';
+                document.getElementById('playBtn').classList.add('running');
+                document.getElementById('timerCard').classList.remove('complete');
+
+                this.interval = setInterval(() => this.tick(), 1000);
+            }
+
+            pause() {
+                this.isRunning = false;
+                document.getElementById('playBtn').textContent = '▶';
+                document.getElementById('playBtn').classList.remove('running');
+
+                if (this.interval) {
+                    clearInterval(this.interval);
+                    this.interval = null;
+                }
+            }
+
+            reset() {
+                this.pause();
+                this.timeRemaining = this.modes[this.currentMode].duration;
+                document.getElementById('timerCard').classList.remove('complete');
+                this.updateDisplay();
+            }
+
+            skip() {
+                this.pause();
+
+                if (this.currentMode === 'focus') {
+                    // After focus, take a break
+                    this.sessions++;
+                    if (this.sessions % 4 === 0) {
+                        this.setMode('long');
+                    } else {
+                        this.setMode('short');
+                    }
+                } else {
+                    // After break, focus again
+                    this.setMode('focus');
+                }
+
+                this.updateStats();
+                if (this.autoStart) this.start();
+            }
+
+            tick() {
+                this.timeRemaining--;
+
+                if (this.currentMode === 'focus') {
+                    this.totalFocusTime++;
+                }
+
+                if (this.timeRemaining <= 0) {
+                    this.complete();
+                } else {
+                    this.updateDisplay();
+                }
+
+                this.saveState();
+            }
+
+            complete() {
+                this.pause();
+                document.getElementById('timerCard').classList.add('complete');
+
+                if (this.soundEnabled) {
+                    this.playSound();
+                }
+
+                // Notification
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Pomodoro Complete!', {
+                        body: this.currentMode === 'focus' ? 'Time for a break!' : 'Ready to focus?',
+                        icon: '🍅'
+                    });
+                }
+
+                // Auto-advance
+                setTimeout(() => this.skip(), 1500);
+            }
+
+            playSound() {
+                // Generate a pleasant notification sound
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5
+
+                frequencies.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.5);
+
+                    osc.start(ctx.currentTime + i * 0.15);
+                    osc.stop(ctx.currentTime + i * 0.15 + 0.5);
+                });
+            }
+
+            updateDisplay() {
+                const minutes = Math.floor(this.timeRemaining / 60);
+                const seconds = this.timeRemaining % 60;
+
+                document.getElementById('time').textContent =
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                // Update progress ring
+                const total = this.modes[this.currentMode].duration;
+                const progress = this.timeRemaining / total;
+                const offset = this.circumference * (1 - progress);
+                document.getElementById('progress').style.strokeDashoffset = offset;
+
+                // Update page title
+                document.title = `${minutes}:${seconds.toString().padStart(2, '0')} - Pomodoro`;
+            }
+
+            updateStats() {
+                document.getElementById('sessionsCount').textContent = this.sessions;
+
+                const mins = Math.floor(this.totalFocusTime / 60);
+                document.getElementById('focusTime').textContent =
+                    mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+            }
+
+            updateSettings() {
+                this.modes.focus.duration = parseInt(document.getElementById('focusDuration').value) * 60;
+                this.modes.short.duration = parseInt(document.getElementById('shortDuration').value) * 60;
+                this.modes.long.duration = parseInt(document.getElementById('longDuration').value) * 60;
+
+                if (!this.isRunning) {
+                    this.timeRemaining = this.modes[this.currentMode].duration;
+                    this.updateDisplay();
+                }
+
+                this.saveState();
+            }
+
+            toggleSound() {
+                this.soundEnabled = !this.soundEnabled;
+                document.getElementById('soundToggle').classList.toggle('active', this.soundEnabled);
+                this.saveState();
+            }
+
+            toggleAuto() {
+                this.autoStart = !this.autoStart;
+                document.getElementById('autoToggle').classList.toggle('active', this.autoStart);
+                this.saveState();
+            }
+
+            saveState() {
+                localStorage.setItem('pomodoro-state', JSON.stringify({
+                    sessions: this.sessions,
+                    totalFocusTime: this.totalFocusTime,
+                    soundEnabled: this.soundEnabled,
+                    autoStart: this.autoStart,
+                    focusDuration: this.modes.focus.duration / 60,
+                    shortDuration: this.modes.short.duration / 60,
+                    longDuration: this.modes.long.duration / 60
+                }));
+            }
+
+            loadState() {
+                const saved = localStorage.getItem('pomodoro-state');
+                if (saved) {
+                    const state = JSON.parse(saved);
+                    this.sessions = state.sessions || 0;
+                    this.totalFocusTime = state.totalFocusTime || 0;
+                    this.soundEnabled = state.soundEnabled !== false;
+                    this.autoStart = state.autoStart || false;
+
+                    if (state.focusDuration) {
+                        this.modes.focus.duration = state.focusDuration * 60;
+                        document.getElementById('focusDuration').value = state.focusDuration;
+                    }
+                    if (state.shortDuration) {
+                        this.modes.short.duration = state.shortDuration * 60;
+                        document.getElementById('shortDuration').value = state.shortDuration;
+                    }
+                    if (state.longDuration) {
+                        this.modes.long.duration = state.longDuration * 60;
+                        document.getElementById('longDuration').value = state.longDuration;
+                    }
+
+                    this.timeRemaining = this.modes.focus.duration;
+                    this.updateStats();
+
+                    document.getElementById('soundToggle').classList.toggle('active', this.soundEnabled);
+                    document.getElementById('autoToggle').classList.toggle('active', this.autoStart);
+                }
+
+                // Request notification permission
+                if ('Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission();
+                }
+            }
+        }
+
+        const Pomo = new PomodoroTimer();
+    </script>
+</body>
+</html>

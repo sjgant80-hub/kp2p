@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container { max-width: 600px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 30px 0; }
+        .logo { font-size: 48px; margin-bottom: 12px; }
+        h1 { font-size: 1.8rem; color: #8b5cf6; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 13px; }
+
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .input-section { margin-bottom: 24px; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 10px;
+            color: #888;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { background: rgba(255, 255, 255, 0.1); }
+        .tab.active {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: #fff;
+        }
+
+        .input-group { margin-bottom: 16px; }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+        }
+
+        textarea { resize: vertical; min-height: 100px; }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23888' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 20px;
+        }
+
+        .row { display: flex; gap: 16px; }
+        .row > * { flex: 1; }
+
+        .qr-display {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .qr-container {
+            display: inline-block;
+            padding: 20px;
+            background: #fff;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        #qrcode {
+            width: 200px;
+            height: 200px;
+        }
+
+        #qrcode canvas {
+            border-radius: 4px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { transform: scale(1.05); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .color-input {
+            width: 50px;
+            height: 40px;
+            padding: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .color-hex {
+            flex: 1;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .size-slider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #8b5cf6;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .size-value {
+            min-width: 60px;
+            text-align: right;
+            font-family: 'Fira Code', monospace;
+            color: #8b5cf6;
+        }
+
+        .hidden { display: none; }
+
+        .templates {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .template {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .template-icon { font-size: 24px; margin-bottom: 8px; }
+        .template-name { font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📱</div>
+            <h1>QR Code Generator</h1>
+            <p class="subtitle">Create QR codes for URLs, text, WiFi, and more</p>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="QR.setType('text', this)">Text/URL</button>
+                <button class="tab" onclick="QR.setType('wifi', this)">WiFi</button>
+                <button class="tab" onclick="QR.setType('vcard', this)">Contact</button>
+                <button class="tab" onclick="QR.setType('email', this)">Email</button>
+            </div>
+
+            <!-- Text/URL Input -->
+            <div class="input-section" id="input-text">
+                <div class="input-group">
+                    <label>Enter text or URL</label>
+                    <textarea id="textInput" placeholder="https://example.com or any text..." oninput="QR.generate()"></textarea>
+                </div>
+            </div>
+
+            <!-- WiFi Input -->
+            <div class="input-section hidden" id="input-wifi">
+                <div class="input-group">
+                    <label>Network Name (SSID)</label>
+                    <input type="text" id="wifiSsid" placeholder="MyWiFiNetwork" oninput="QR.generate()">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="wifiPass" placeholder="Password" oninput="QR.generate()">
+                </div>
+                <div class="input-group">
+                    <label>Security</label>
+                    <select id="wifiSec" onchange="QR.generate()">
+                        <option value="WPA">WPA/WPA2</option>
+                        <option value="WEP">WEP</option>
+                        <option value="nopass">None</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- vCard Input -->
+            <div class="input-section hidden" id="input-vcard">
+                <div class="row">
+                    <div class="input-group">
+                        <label>First Name</label>
+                        <input type="text" id="vcardFirst" oninput="QR.generate()">
+                    </div>
+                    <div class="input-group">
+                        <label>Last Name</label>
+                        <input type="text" id="vcardLast" oninput="QR.generate()">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Phone</label>
+                    <input type="tel" id="vcardPhone" placeholder="+1 555 123 4567" oninput="QR.generate()">
+                </div>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="vcardEmail" oninput="QR.generate()">
+                </div>
+                <div class="input-group">
+                    <label>Company</label>
+                    <input type="text" id="vcardOrg" oninput="QR.generate()">
+                </div>
+            </div>
+
+            <!-- Email Input -->
+            <div class="input-section hidden" id="input-email">
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="emailTo" placeholder="hello@example.com" oninput="QR.generate()">
+                </div>
+                <div class="input-group">
+                    <label>Subject</label>
+                    <input type="text" id="emailSubject" oninput="QR.generate()">
+                </div>
+                <div class="input-group">
+                    <label>Message</label>
+                    <textarea id="emailBody" oninput="QR.generate()"></textarea>
+                </div>
+            </div>
+
+            <!-- Options -->
+            <div class="row" style="margin-top: 20px;">
+                <div class="input-group">
+                    <label>Foreground</label>
+                    <div class="color-picker">
+                        <input type="color" class="color-input" id="fgColor" value="#000000" onchange="QR.generate()">
+                        <input type="text" class="color-hex" id="fgHex" value="#000000" onchange="QR.syncColor('fg')">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Background</label>
+                    <div class="color-picker">
+                        <input type="color" class="color-input" id="bgColor" value="#FFFFFF" onchange="QR.generate()">
+                        <input type="text" class="color-hex" id="bgHex" value="#FFFFFF" onchange="QR.syncColor('bg')">
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Size</label>
+                <div class="size-slider">
+                    <input type="range" class="slider" id="sizeSlider" min="100" max="400" value="200" oninput="QR.generate()">
+                    <span class="size-value" id="sizeValue">200px</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="qr-display">
+                <div class="qr-container">
+                    <div id="qrcode"></div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="QR.download('png')">Download PNG</button>
+                    <button class="btn btn-secondary" onclick="QR.download('svg')">Download SVG</button>
+                    <button class="btn btn-secondary" onclick="QR.copy()">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <label style="margin-bottom: 12px;">Quick Templates</label>
+            <div class="templates">
+                <div class="template" onclick="QR.useTemplate('website')">
+                    <div class="template-icon">🌐</div>
+                    <div class="template-name">Website</div>
+                </div>
+                <div class="template" onclick="QR.useTemplate('wifi')">
+                    <div class="template-icon">📶</div>
+                    <div class="template-name">WiFi</div>
+                </div>
+                <div class="template" onclick="QR.useTemplate('contact')">
+                    <div class="template-icon">👤</div>
+                    <div class="template-name">Contact</div>
+                </div>
+                <div class="template" onclick="QR.useTemplate('phone')">
+                    <div class="template-icon">📞</div>
+                    <div class="template-name">Phone</div>
+                </div>
+                <div class="template" onclick="QR.useTemplate('sms')">
+                    <div class="template-icon">💬</div>
+                    <div class="template-name">SMS</div>
+                </div>
+                <div class="template" onclick="QR.useTemplate('location')">
+                    <div class="template-icon">📍</div>
+                    <div class="template-name">Location</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        class QRGenerator {
+            constructor() {
+                this.type = 'text';
+                this.generate();
+            }
+
+            setType(type, el) {
+                this.type = type;
+
+                // Update tabs
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+
+                // Show/hide input sections
+                document.querySelectorAll('.input-section').forEach(s => s.classList.add('hidden'));
+                document.getElementById(`input-${type}`).classList.remove('hidden');
+
+                this.generate();
+            }
+
+            getData() {
+                switch (this.type) {
+                    case 'text':
+                        return document.getElementById('textInput').value || 'Hello World';
+
+                    case 'wifi':
+                        const ssid = document.getElementById('wifiSsid').value;
+                        const pass = document.getElementById('wifiPass').value;
+                        const sec = document.getElementById('wifiSec').value;
+                        return `WIFI:T:${sec};S:${ssid};P:${pass};;`;
+
+                    case 'vcard':
+                        const first = document.getElementById('vcardFirst').value;
+                        const last = document.getElementById('vcardLast').value;
+                        const phone = document.getElementById('vcardPhone').value;
+                        const email = document.getElementById('vcardEmail').value;
+                        const org = document.getElementById('vcardOrg').value;
+                        return `BEGIN:VCARD
+VERSION:3.0
+N:${last};${first}
+FN:${first} ${last}
+TEL:${phone}
+EMAIL:${email}
+ORG:${org}
+END:VCARD`;
+
+                    case 'email':
+                        const to = document.getElementById('emailTo').value;
+                        const subject = encodeURIComponent(document.getElementById('emailSubject').value);
+                        const body = encodeURIComponent(document.getElementById('emailBody').value);
+                        return `mailto:${to}?subject=${subject}&body=${body}`;
+
+                    default:
+                        return 'Hello World';
+                }
+            }
+
+            generate() {
+                const data = this.getData();
+                const size = parseInt(document.getElementById('sizeSlider').value);
+                const fg = document.getElementById('fgColor').value;
+                const bg = document.getElementById('bgColor').value;
+
+                document.getElementById('sizeValue').textContent = `${size}px`;
+                document.getElementById('fgHex').value = fg.toUpperCase();
+                document.getElementById('bgHex').value = bg.toUpperCase();
+
+                const container = document.getElementById('qrcode');
+                container.innerHTML = '';
+
+                QRCode.toCanvas(data, {
+                    width: size,
+                    margin: 2,
+                    color: {
+                        dark: fg,
+                        light: bg
+                    },
+                    errorCorrectionLevel: 'M'
+                }, (err, canvas) => {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    container.appendChild(canvas);
+                });
+            }
+
+            syncColor(type) {
+                const hex = document.getElementById(`${type}Hex`).value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                    document.getElementById(`${type}Color`).value = hex;
+                    this.generate();
+                }
+            }
+
+            download(format) {
+                const data = this.getData();
+                const size = parseInt(document.getElementById('sizeSlider').value);
+                const fg = document.getElementById('fgColor').value;
+                const bg = document.getElementById('bgColor').value;
+
+                if (format === 'png') {
+                    QRCode.toDataURL(data, {
+                        width: size * 2, // Higher resolution for download
+                        margin: 2,
+                        color: { dark: fg, light: bg }
+                    }, (err, url) => {
+                        if (err) return;
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'qrcode.png';
+                        a.click();
+                    });
+                } else {
+                    QRCode.toString(data, {
+                        type: 'svg',
+                        width: size,
+                        margin: 2,
+                        color: { dark: fg, light: bg }
+                    }, (err, svg) => {
+                        if (err) return;
+                        const blob = new Blob([svg], { type: 'image/svg+xml' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'qrcode.svg';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    });
+                }
+            }
+
+            copy() {
+                const canvas = document.querySelector('#qrcode canvas');
+                if (!canvas) return;
+
+                canvas.toBlob(blob => {
+                    navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': blob })
+                    ]).then(() => {
+                        alert('QR code copied to clipboard!');
+                    });
+                });
+            }
+
+            useTemplate(template) {
+                switch (template) {
+                    case 'website':
+                        this.setType('text', document.querySelector('.tab'));
+                        document.getElementById('textInput').value = 'https://';
+                        break;
+                    case 'wifi':
+                        this.setType('wifi', document.querySelectorAll('.tab')[1]);
+                        break;
+                    case 'contact':
+                        this.setType('vcard', document.querySelectorAll('.tab')[2]);
+                        break;
+                    case 'phone':
+                        this.setType('text', document.querySelector('.tab'));
+                        document.getElementById('textInput').value = 'tel:+1';
+                        break;
+                    case 'sms':
+                        this.setType('text', document.querySelector('.tab'));
+                        document.getElementById('textInput').value = 'sms:+1?body=';
+                        break;
+                    case 'location':
+                        this.setType('text', document.querySelector('.tab'));
+                        document.getElementById('textInput').value = 'geo:0,0?q=';
+                        break;
+                }
+                this.generate();
+            }
+        }
+
+        const QR = new QRGenerator();
+    </script>
+</body>
+</html>
