@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<!--
+@file cli.html
+@desc CLI Builder Widget - Visual CLI API designer & runner
+@api  window.CLI - CLI builder controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CLI Builder</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{padding:16px 24px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:16px;align-items:center}
+    .logo{font-size:24px}
+    .header h1{flex:1;font-size:18px}
+    .header-btns{display:flex;gap:8px}
+    .header-btns button{padding:10px 16px;background:rgba(255,255,255,.06);border:0;border-radius:8px;color:var(--f);font-size:12px;cursor:pointer}
+    .header-btns button:hover{background:rgba(255,255,255,.1)}
+    .header-btns .primary{background:var(--a);color:#000}
+
+    .main{display:flex;flex:1;overflow:hidden}
+
+    .sidebar{width:280px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .sidebar-header{padding:16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px}
+    .sidebar-header h2{flex:1;font-size:14px}
+    .sidebar-header button{width:28px;height:28px;background:var(--g);border:0;border-radius:6px;color:#000;cursor:pointer;font-size:16px}
+
+    .cmd-list{flex:1;overflow-y:auto;padding:8px}
+    .cmd-item{display:flex;align-items:center;gap:10px;padding:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+    .cmd-item:hover{border-color:rgba(255,255,255,.15)}
+    .cmd-item.active{border-color:var(--a);background:rgba(0,217,255,.1)}
+    .cmd-item .icon{font-size:18px}
+    .cmd-item .info{flex:1;min-width:0}
+    .cmd-item .name{font-weight:600;font-size:13px;font-family:'SF Mono',monospace}
+    .cmd-item .desc{font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .cmd-item .delete{opacity:0;width:24px;height:24px;background:0;border:0;color:var(--r);cursor:pointer}
+    .cmd-item:hover .delete{opacity:1}
+
+    .content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+    .editor{flex:1;display:flex;overflow:hidden}
+
+    .editor-panel{flex:1;padding:24px;overflow-y:auto;border-right:1px solid rgba(255,255,255,.06)}
+    .editor-panel:last-child{border-right:0}
+    .editor-panel h3{font-size:14px;margin-bottom:16px;color:#94a3b8}
+
+    .form-group{margin-bottom:20px}
+    .form-group label{display:block;font-size:12px;color:#64748b;margin-bottom:6px}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font:inherit}
+    .form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:0;border-color:var(--a)}
+    .form-group textarea{min-height:100px;font-family:'SF Mono',monospace;font-size:12px}
+    .form-group .hint{font-size:11px;color:#475569;margin-top:4px}
+
+    .args-list{display:flex;flex-direction:column;gap:8px}
+    .arg-item{display:flex;gap:8px;padding:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:8px}
+    .arg-item input{flex:1}
+    .arg-item select{width:100px}
+    .arg-item .remove{width:32px;background:rgba(239,68,68,.2);border:0;border-radius:6px;color:var(--r);cursor:pointer}
+    .add-arg{padding:10px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:8px;color:#64748b;cursor:pointer;text-align:center;font-size:12px}
+    .add-arg:hover{background:rgba(255,255,255,.08)}
+
+    .terminal{height:300px;background:#000;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .terminal-header{padding:8px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px;font-size:12px;color:#64748b}
+    .terminal-header .dots{display:flex;gap:6px}
+    .terminal-header .dot{width:10px;height:10px;border-radius:50%}
+    .terminal-header .dot.r{background:#ef4444}
+    .terminal-header .dot.y{background:#eab308}
+    .terminal-header .dot.g{background:#22c55e}
+    .terminal-body{flex:1;padding:16px;overflow-y:auto;font-family:'SF Mono',monospace;font-size:13px}
+    .terminal-line{margin-bottom:4px}
+    .terminal-line.cmd{color:var(--a)}
+    .terminal-line.out{color:#94a3b8}
+    .terminal-line.err{color:var(--r)}
+    .terminal-line.success{color:var(--g)}
+    .terminal-input{display:flex;align-items:center;gap:8px;padding:12px 16px;background:rgba(255,255,255,.03);border-top:1px solid rgba(255,255,255,.06)}
+    .terminal-input .prompt{color:var(--g);font-family:'SF Mono',monospace}
+    .terminal-input input{flex:1;background:0;border:0;color:var(--f);font-family:'SF Mono',monospace;font-size:13px}
+    .terminal-input input:focus{outline:0}
+
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;text-align:center;padding:40px}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+
+    .code-preview{background:#000;border-radius:8px;padding:16px;font-family:'SF Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;white-space:pre}
+    .code-preview .kw{color:var(--a2)}
+    .code-preview .fn{color:var(--a)}
+    .code-preview .str{color:var(--g)}
+    .code-preview .cmt{color:#475569}
+
+    @media(max-width:900px){
+      .sidebar{width:220px}
+      .editor{flex-direction:column}
+      .editor-panel{border-right:0;border-bottom:1px solid rgba(255,255,255,.06)}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">⚡</span>
+    <h1>CLI Builder</h1>
+    <div class="header-btns">
+      <button id="importBtn">Import</button>
+      <button id="exportBtn">Export</button>
+      <button class="primary" id="generateBtn">Generate Code</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>Commands</h2>
+        <button id="addCmdBtn" title="Add Command">+</button>
+      </div>
+      <div class="cmd-list" id="cmdList"></div>
+    </div>
+
+    <div class="content">
+      <div class="editor" id="editor">
+        <div class="empty">
+          <div class="icon">⚡</div>
+          <div>Select or create a command to get started</div>
+        </div>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+          <span>Terminal - Test your commands</span>
+        </div>
+        <div class="terminal-body" id="termOutput"></div>
+        <div class="terminal-input">
+          <span class="prompt">$</span>
+          <input type="text" id="termInput" placeholder="Type a command...">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class CLI {
+      constructor() {
+        this.commands = JSON.parse(localStorage.getItem('cli-commands') || '[]');
+        this.selected = null;
+        this.history = [];
+        this.historyIdx = -1;
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('cli-commands', JSON.stringify(this.commands));
+      }
+
+      addCommand() {
+        const cmd = {
+          id: Date.now().toString(36),
+          name: 'new-command',
+          description: 'Description here',
+          args: [],
+          options: [],
+          handler: '// Command logic here\nconsole.log("Hello from", args);'
+        };
+        this.commands.push(cmd);
+        this.save();
+        this.renderList();
+        this.select(cmd.id);
+      }
+
+      deleteCommand(id) {
+        this.commands = this.commands.filter(c => c.id !== id);
+        if (this.selected === id) this.selected = null;
+        this.save();
+        this.renderList();
+        this.renderEditor();
+      }
+
+      select(id) {
+        this.selected = id;
+        this.renderList();
+        this.renderEditor();
+      }
+
+      getSelected() {
+        return this.commands.find(c => c.id === this.selected);
+      }
+
+      updateSelected(updates) {
+        const cmd = this.getSelected();
+        if (cmd) {
+          Object.assign(cmd, updates);
+          this.save();
+          this.renderList();
+        }
+      }
+
+      renderList() {
+        $('cmdList').innerHTML = this.commands.length ? this.commands.map(cmd => `
+          <div class="cmd-item ${cmd.id === this.selected ? 'active' : ''}" data-id="${cmd.id}">
+            <span class="icon">⚡</span>
+            <div class="info">
+              <div class="name">${esc(cmd.name)}</div>
+              <div class="desc">${esc(cmd.description)}</div>
+            </div>
+            <button class="delete" data-delete="${cmd.id}">×</button>
+          </div>
+        `).join('') : '<div class="empty" style="padding:20px"><div class="icon">📦</div><div>No commands yet</div></div>';
+      }
+
+      renderEditor() {
+        const cmd = this.getSelected();
+        if (!cmd) {
+          $('editor').innerHTML = `<div class="empty"><div class="icon">⚡</div><div>Select or create a command to get started</div></div>`;
+          return;
+        }
+
+        $('editor').innerHTML = `
+          <div class="editor-panel">
+            <h3>Command Definition</h3>
+            <div class="form-group">
+              <label>Command Name</label>
+              <input type="text" id="cmdName" value="${esc(cmd.name)}" placeholder="my-command">
+              <div class="hint">Use lowercase, hyphens for multi-word</div>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="cmdDesc" value="${esc(cmd.description)}" placeholder="What does this command do?">
+            </div>
+            <div class="form-group">
+              <label>Arguments</label>
+              <div class="args-list" id="argsList">
+                ${cmd.args.map((arg, i) => `
+                  <div class="arg-item">
+                    <input type="text" value="${esc(arg.name)}" placeholder="name" data-arg="${i}" data-field="name">
+                    <select data-arg="${i}" data-field="type">
+                      <option value="string" ${arg.type === 'string' ? 'selected' : ''}>String</option>
+                      <option value="number" ${arg.type === 'number' ? 'selected' : ''}>Number</option>
+                      <option value="boolean" ${arg.type === 'boolean' ? 'selected' : ''}>Boolean</option>
+                    </select>
+                    <select data-arg="${i}" data-field="required">
+                      <option value="true" ${arg.required ? 'selected' : ''}>Required</option>
+                      <option value="false" ${!arg.required ? 'selected' : ''}>Optional</option>
+                    </select>
+                    <button class="remove" data-remove-arg="${i}">×</button>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="add-arg" id="addArgBtn">+ Add Argument</div>
+            </div>
+            <div class="form-group">
+              <label>Options (Flags)</label>
+              <div class="args-list" id="optsList">
+                ${cmd.options.map((opt, i) => `
+                  <div class="arg-item">
+                    <input type="text" value="${esc(opt.name)}" placeholder="--flag" data-opt="${i}" data-field="name">
+                    <input type="text" value="${esc(opt.short || '')}" placeholder="-f" style="width:60px" data-opt="${i}" data-field="short">
+                    <select data-opt="${i}" data-field="type">
+                      <option value="boolean" ${opt.type === 'boolean' ? 'selected' : ''}>Flag</option>
+                      <option value="string" ${opt.type === 'string' ? 'selected' : ''}>String</option>
+                      <option value="number" ${opt.type === 'number' ? 'selected' : ''}>Number</option>
+                    </select>
+                    <button class="remove" data-remove-opt="${i}">×</button>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="add-arg" id="addOptBtn">+ Add Option</div>
+            </div>
+          </div>
+          <div class="editor-panel">
+            <h3>Handler (JavaScript)</h3>
+            <div class="form-group">
+              <label>Command Logic</label>
+              <textarea id="cmdHandler" style="min-height:200px">${esc(cmd.handler)}</textarea>
+              <div class="hint">Available: args (object), options (object), print(msg), error(msg)</div>
+            </div>
+            <h3 style="margin-top:24px">Generated Code Preview</h3>
+            <div class="code-preview" id="codePreview"></div>
+          </div>
+        `;
+
+        this.updateCodePreview();
+        this.bindEditorEvents();
+      }
+
+      bindEditorEvents() {
+        const cmd = this.getSelected();
+        if (!cmd) return;
+
+        $('cmdName').oninput = e => this.updateSelected({ name: e.target.value });
+        $('cmdDesc').oninput = e => this.updateSelected({ description: e.target.value });
+        $('cmdHandler').oninput = e => {
+          this.updateSelected({ handler: e.target.value });
+          this.updateCodePreview();
+        };
+
+        $('addArgBtn').onclick = () => {
+          cmd.args.push({ name: 'arg', type: 'string', required: true });
+          this.save();
+          this.renderEditor();
+        };
+
+        $('addOptBtn').onclick = () => {
+          cmd.options.push({ name: '--option', short: '-o', type: 'boolean' });
+          this.save();
+          this.renderEditor();
+        };
+
+        // Arg/option changes
+        $('editor').querySelectorAll('[data-arg]').forEach(el => {
+          el.onchange = el.oninput = () => {
+            const idx = parseInt(el.dataset.arg);
+            const field = el.dataset.field;
+            let value = el.value;
+            if (field === 'required') value = value === 'true';
+            cmd.args[idx][field] = value;
+            this.save();
+          };
+        });
+
+        $('editor').querySelectorAll('[data-opt]').forEach(el => {
+          el.onchange = el.oninput = () => {
+            const idx = parseInt(el.dataset.opt);
+            const field = el.dataset.field;
+            cmd.options[idx][field] = el.value;
+            this.save();
+          };
+        });
+
+        // Remove arg/opt
+        $('editor').querySelectorAll('[data-remove-arg]').forEach(btn => {
+          btn.onclick = () => {
+            cmd.args.splice(parseInt(btn.dataset.removeArg), 1);
+            this.save();
+            this.renderEditor();
+          };
+        });
+
+        $('editor').querySelectorAll('[data-remove-opt]').forEach(btn => {
+          btn.onclick = () => {
+            cmd.options.splice(parseInt(btn.dataset.removeOpt), 1);
+            this.save();
+            this.renderEditor();
+          };
+        });
+      }
+
+      updateCodePreview() {
+        const cmd = this.getSelected();
+        if (!cmd) return;
+
+        const preview = $('codePreview');
+        if (!preview) return;
+
+        const argsStr = cmd.args.map(a => `${a.name}: ${a.type}`).join(', ');
+        const optsStr = cmd.options.map(o => `${o.name.replace('--', '')}: ${o.type}`).join(', ');
+
+        preview.innerHTML = `<span class="cmt">#!/usr/bin/env node</span>
+<span class="cmt">// Generated by CLI Builder</span>
+
+<span class="kw">const</span> { Command } = <span class="fn">require</span>(<span class="str">'commander'</span>);
+
+<span class="kw">const</span> program = <span class="kw">new</span> <span class="fn">Command</span>();
+
+program
+  .<span class="fn">name</span>(<span class="str">'${esc(cmd.name)}'</span>)
+  .<span class="fn">description</span>(<span class="str">'${esc(cmd.description)}'</span>)
+${cmd.args.map(a => `  .<span class="fn">argument</span>(<span class="str">'${a.required ? `<${a.name}>` : `[${a.name}]`}'</span>, <span class="str">'${a.type}'</span>)`).join('\n')}
+${cmd.options.map(o => `  .<span class="fn">option</span>(<span class="str">'${o.short || ''}, ${o.name}'</span>, <span class="str">'${o.type}'</span>)`).join('\n')}
+  .<span class="fn">action</span>((${cmd.args.map(a => a.name).join(', ')}${cmd.args.length && cmd.options.length ? ', ' : ''}options) => {
+    <span class="cmt">// Your handler code</span>
+    ${esc(cmd.handler).split('\n').join('\n    ')}
+  });
+
+program.<span class="fn">parse</span>();`;
+      }
+
+      // Execute command in terminal
+      execute(input) {
+        const parts = input.trim().split(/\s+/);
+        const cmdName = parts[0];
+        const cmdArgs = parts.slice(1);
+
+        this.log(input, 'cmd');
+
+        const cmd = this.commands.find(c => c.name === cmdName);
+        if (!cmd) {
+          if (cmdName === 'help') {
+            this.log('Available commands:', 'out');
+            this.commands.forEach(c => this.log(`  ${c.name} - ${c.description}`, 'out'));
+            return;
+          }
+          if (cmdName === 'clear') {
+            $('termOutput').innerHTML = '';
+            return;
+          }
+          this.log(`Command not found: ${cmdName}. Type 'help' for available commands.`, 'err');
+          return;
+        }
+
+        // Parse args and options
+        const args = {};
+        const options = {};
+        let argIdx = 0;
+
+        for (let i = 0; i < cmdArgs.length; i++) {
+          const arg = cmdArgs[i];
+          if (arg.startsWith('--')) {
+            const opt = cmd.options.find(o => o.name === arg);
+            if (opt) {
+              if (opt.type === 'boolean') {
+                options[opt.name.replace('--', '')] = true;
+              } else {
+                options[opt.name.replace('--', '')] = cmdArgs[++i];
+              }
+            }
+          } else if (arg.startsWith('-')) {
+            const opt = cmd.options.find(o => o.short === arg);
+            if (opt) {
+              if (opt.type === 'boolean') {
+                options[opt.name.replace('--', '')] = true;
+              } else {
+                options[opt.name.replace('--', '')] = cmdArgs[++i];
+              }
+            }
+          } else if (argIdx < cmd.args.length) {
+            const argDef = cmd.args[argIdx++];
+            args[argDef.name] = argDef.type === 'number' ? parseFloat(arg) : arg;
+          }
+        }
+
+        // Execute handler
+        try {
+          const print = msg => this.log(msg, 'out');
+          const error = msg => this.log(msg, 'err');
+          const success = msg => this.log(msg, 'success');
+
+          const fn = new Function('args', 'options', 'print', 'error', 'success', cmd.handler);
+          fn(args, options, print, error, success);
+        } catch (e) {
+          this.log(`Error: ${e.message}`, 'err');
+        }
+      }
+
+      log(msg, type = 'out') {
+        const line = document.createElement('div');
+        line.className = `terminal-line ${type}`;
+        line.textContent = type === 'cmd' ? `$ ${msg}` : msg;
+        $('termOutput').appendChild(line);
+        $('termOutput').scrollTop = $('termOutput').scrollHeight;
+      }
+
+      generateCode() {
+        let code = `#!/usr/bin/env node
+// Generated by CLI Builder - KISS MySaaS
+const { Command } = require('commander');
+const program = new Command();
+
+program.name('mycli').version('1.0.0');
+
+`;
+        this.commands.forEach(cmd => {
+          code += `
+program
+  .command('${cmd.name}')
+  .description('${cmd.description}')
+${cmd.args.map(a => `  .argument('${a.required ? `<${a.name}>` : `[${a.name}]`}', '${a.type}')`).join('\n')}
+${cmd.options.map(o => `  .option('${o.short || ''}, ${o.name}', '${o.type}')`).join('\n')}
+  .action((${cmd.args.map(a => a.name).join(', ')}${cmd.args.length && cmd.options.length ? ', ' : ''}options) => {
+    const args = { ${cmd.args.map(a => a.name).join(', ')} };
+    const print = console.log;
+    const error = msg => console.error(msg);
+    const success = msg => console.log('✓', msg);
+    ${cmd.handler}
+  });
+`;
+        });
+
+        code += `\nprogram.parse();`;
+
+        const blob = new Blob([code], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'cli.js';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      init() {
+        // Demo commands
+        if (this.commands.length === 0) {
+          this.commands = [
+            {
+              id: '1',
+              name: 'greet',
+              description: 'Greet a user',
+              args: [{ name: 'name', type: 'string', required: true }],
+              options: [{ name: '--loud', short: '-l', type: 'boolean' }],
+              handler: 'const msg = `Hello, ${args.name}!`;\nif (options.loud) print(msg.toUpperCase());\nelse print(msg);'
+            },
+            {
+              id: '2',
+              name: 'calc',
+              description: 'Simple calculator',
+              args: [
+                { name: 'a', type: 'number', required: true },
+                { name: 'op', type: 'string', required: true },
+                { name: 'b', type: 'number', required: true }
+              ],
+              options: [],
+              handler: 'const ops = {"+": (a,b)=>a+b, "-": (a,b)=>a-b, "*": (a,b)=>a*b, "/": (a,b)=>a/b};\nconst result = ops[args.op]?.(args.a, args.b);\nif (result !== undefined) success(`Result: ${result}`);\nelse error("Unknown operator");'
+            }
+          ];
+          this.save();
+        }
+
+        this.renderList();
+        this.renderEditor();
+
+        // Event listeners
+        $('addCmdBtn').onclick = () => this.addCommand();
+        $('generateBtn').onclick = () => this.generateCode();
+
+        $('cmdList').onclick = e => {
+          const item = e.target.closest('.cmd-item');
+          const deleteBtn = e.target.closest('[data-delete]');
+
+          if (deleteBtn) {
+            e.stopPropagation();
+            this.deleteCommand(deleteBtn.dataset.delete);
+          } else if (item) {
+            this.select(item.dataset.id);
+          }
+        };
+
+        // Terminal
+        $('termInput').onkeydown = e => {
+          if (e.key === 'Enter') {
+            const input = e.target.value.trim();
+            if (input) {
+              this.history.push(input);
+              this.historyIdx = this.history.length;
+              this.execute(input);
+              e.target.value = '';
+            }
+          } else if (e.key === 'ArrowUp') {
+            if (this.historyIdx > 0) {
+              this.historyIdx--;
+              e.target.value = this.history[this.historyIdx];
+            }
+          } else if (e.key === 'ArrowDown') {
+            if (this.historyIdx < this.history.length - 1) {
+              this.historyIdx++;
+              e.target.value = this.history[this.historyIdx];
+            } else {
+              e.target.value = '';
+            }
+          }
+        };
+
+        // Welcome message
+        this.log('CLI Builder Terminal - Type "help" for commands', 'out');
+      }
+    }
+
+    window.CLI = new CLI();
+  </script>
+</body>
+</html>

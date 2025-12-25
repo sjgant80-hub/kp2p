@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<!--
+@file mcp.html
+@desc MCP Server Builder Widget - Visual Model Context Protocol server designer
+@api  window.MCP - MCP server builder controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MCP Server Builder</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{padding:16px 24px;background:linear-gradient(135deg,var(--a2),var(--a));display:flex;gap:16px;align-items:center}
+    .logo{font-size:24px}
+    .header h1{flex:1;font-size:18px;color:#fff}
+    .header-btns{display:flex;gap:8px}
+    .header-btns button{padding:10px 16px;background:rgba(255,255,255,.2);border:0;border-radius:8px;color:#fff;font-size:12px;cursor:pointer}
+    .header-btns button:hover{background:rgba(255,255,255,.3)}
+    .header-btns .primary{background:#fff;color:var(--a2)}
+
+    .main{display:flex;flex:1;overflow:hidden}
+
+    .sidebar{width:260px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+
+    .tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06)}
+    .tab{flex:1;padding:14px;text-align:center;font-size:12px;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}
+    .tab:hover{color:var(--f)}
+    .tab.active{color:var(--a);border-color:var(--a)}
+
+    .item-list{flex:1;overflow-y:auto;padding:8px}
+    .item{display:flex;align-items:center;gap:10px;padding:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:8px;margin-bottom:8px;cursor:pointer}
+    .item:hover{border-color:rgba(255,255,255,.15)}
+    .item.active{border-color:var(--a);background:rgba(0,217,255,.1)}
+    .item .icon{font-size:20px}
+    .item .info{flex:1;min-width:0}
+    .item .name{font-weight:600;font-size:13px}
+    .item .type{font-size:10px;padding:2px 6px;background:rgba(255,255,255,.1);border-radius:4px;color:#94a3b8}
+    .item .delete{opacity:0;width:24px;height:24px;background:0;border:0;color:var(--r);cursor:pointer}
+    .item:hover .delete{opacity:1}
+
+    .add-btn{margin:8px;padding:12px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:8px;color:#64748b;cursor:pointer;text-align:center;font-size:12px}
+    .add-btn:hover{background:rgba(255,255,255,.08)}
+
+    .content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+    .editor{flex:1;overflow-y:auto;padding:24px}
+    .editor h2{font-size:18px;margin-bottom:20px;display:flex;align-items:center;gap:12px}
+    .editor h2 .badge{font-size:10px;padding:4px 10px;background:var(--a2);border-radius:10px}
+
+    .form-section{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px;margin-bottom:20px}
+    .form-section h3{font-size:14px;margin-bottom:16px;color:#94a3b8}
+
+    .form-group{margin-bottom:16px}
+    .form-group:last-child{margin-bottom:0}
+    .form-group label{display:block;font-size:12px;color:#64748b;margin-bottom:6px}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font:inherit}
+    .form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:0;border-color:var(--a)}
+    .form-group textarea{min-height:80px;font-family:'SF Mono',monospace;font-size:12px}
+    .form-group .hint{font-size:11px;color:#475569;margin-top:4px}
+
+    .row{display:flex;gap:16px}
+    .row > *{flex:1}
+
+    .schema-builder{border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden}
+    .schema-row{display:flex;gap:8px;padding:10px;background:rgba(0,0,0,.2);border-bottom:1px solid rgba(255,255,255,.06)}
+    .schema-row:last-child{border-bottom:0}
+    .schema-row input{flex:1;padding:8px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:4px;color:var(--f);font-size:12px}
+    .schema-row select{width:100px;padding:8px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:4px;color:var(--f);font-size:12px}
+    .schema-row .remove{width:32px;background:rgba(239,68,68,.2);border:0;border-radius:4px;color:var(--r);cursor:pointer}
+    .add-field{padding:10px;background:rgba(255,255,255,.02);color:#64748b;cursor:pointer;text-align:center;font-size:12px}
+    .add-field:hover{background:rgba(255,255,255,.05)}
+
+    .test-panel{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden}
+    .test-header{padding:16px;background:rgba(0,0,0,.2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px}
+    .test-header h3{flex:1;font-size:14px}
+    .test-header button{padding:8px 16px;background:var(--g);border:0;border-radius:6px;color:#000;font-size:12px;font-weight:600;cursor:pointer}
+    .test-body{display:flex}
+    .test-input,.test-output{flex:1;padding:16px}
+    .test-input{border-right:1px solid rgba(255,255,255,.06)}
+    .test-input label,.test-output label{display:block;font-size:11px;color:#64748b;margin-bottom:8px;text-transform:uppercase}
+    .test-input textarea,.test-output pre{width:100%;min-height:150px;padding:12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:6px;font-family:'SF Mono',monospace;font-size:12px;color:var(--f);resize:none}
+    .test-output pre{overflow:auto;white-space:pre-wrap}
+    .test-output.error pre{color:var(--r)}
+    .test-output.success pre{color:var(--g)}
+
+    .code-preview{background:#000;border-radius:8px;padding:16px;font-family:'SF Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;white-space:pre;max-height:400px;overflow-y:auto}
+    .code-preview .kw{color:var(--a2)}
+    .code-preview .fn{color:var(--a)}
+    .code-preview .str{color:var(--g)}
+    .code-preview .cmt{color:#475569}
+    .code-preview .num{color:var(--o)}
+
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;text-align:center;padding:40px}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+
+    @media(max-width:900px){
+      .sidebar{width:220px}
+      .row{flex-direction:column}
+      .test-body{flex-direction:column}
+      .test-input{border-right:0;border-bottom:1px solid rgba(255,255,255,.06)}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🔌</span>
+    <h1>MCP Server Builder</h1>
+    <div class="header-btns">
+      <button id="importBtn">Import</button>
+      <button id="exportBtn">Export JSON</button>
+      <button class="primary" id="generateBtn">Generate Server</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="tabs">
+        <div class="tab active" data-tab="tools">🔧 Tools</div>
+        <div class="tab" data-tab="resources">📦 Resources</div>
+        <div class="tab" data-tab="prompts">💬 Prompts</div>
+      </div>
+      <div class="item-list" id="itemList"></div>
+      <div class="add-btn" id="addBtn">+ Add New</div>
+    </div>
+
+    <div class="content">
+      <div class="editor" id="editor">
+        <div class="empty">
+          <div class="icon">🔌</div>
+          <div>Select or create a tool, resource, or prompt</div>
+          <div style="margin-top:8px;font-size:12px">Build MCP servers visually - no code required</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class MCP {
+      constructor() {
+        this.data = JSON.parse(localStorage.getItem('mcp-server') || '{"tools":[],"resources":[],"prompts":[]}');
+        this.activeTab = 'tools';
+        this.selected = null;
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('mcp-server', JSON.stringify(this.data));
+      }
+
+      getItems() {
+        return this.data[this.activeTab] || [];
+      }
+
+      getSelected() {
+        return this.getItems().find(i => i.id === this.selected);
+      }
+
+      addItem() {
+        const items = this.getItems();
+        let item;
+
+        if (this.activeTab === 'tools') {
+          item = {
+            id: Date.now().toString(36),
+            name: 'new_tool',
+            description: 'A new tool',
+            inputSchema: [{ name: 'input', type: 'string', description: 'Input parameter', required: true }],
+            handler: '// Tool handler\nreturn { result: args.input };'
+          };
+        } else if (this.activeTab === 'resources') {
+          item = {
+            id: Date.now().toString(36),
+            uri: 'resource://example',
+            name: 'New Resource',
+            description: 'A resource description',
+            mimeType: 'text/plain',
+            handler: '// Resource handler\nreturn "Resource content here";'
+          };
+        } else {
+          item = {
+            id: Date.now().toString(36),
+            name: 'new_prompt',
+            description: 'A prompt template',
+            arguments: [{ name: 'topic', description: 'The topic', required: true }],
+            template: 'Generate content about {{topic}}'
+          };
+        }
+
+        items.push(item);
+        this.save();
+        this.renderList();
+        this.select(item.id);
+      }
+
+      deleteItem(id) {
+        this.data[this.activeTab] = this.getItems().filter(i => i.id !== id);
+        if (this.selected === id) this.selected = null;
+        this.save();
+        this.renderList();
+        this.renderEditor();
+      }
+
+      select(id) {
+        this.selected = id;
+        this.renderList();
+        this.renderEditor();
+      }
+
+      updateSelected(updates) {
+        const item = this.getSelected();
+        if (item) {
+          Object.assign(item, updates);
+          this.save();
+          this.renderList();
+        }
+      }
+
+      renderList() {
+        const items = this.getItems();
+        const icons = { tools: '🔧', resources: '📦', prompts: '💬' };
+        const icon = icons[this.activeTab];
+
+        $('itemList').innerHTML = items.length ? items.map(item => `
+          <div class="item ${item.id === this.selected ? 'active' : ''}" data-id="${item.id}">
+            <span class="icon">${icon}</span>
+            <div class="info">
+              <div class="name">${esc(item.name || item.uri)}</div>
+            </div>
+            <button class="delete" data-delete="${item.id}">×</button>
+          </div>
+        `).join('') : `<div class="empty" style="padding:40px"><div class="icon">${icon}</div><div>No ${this.activeTab} yet</div></div>`;
+      }
+
+      renderEditor() {
+        const item = this.getSelected();
+        if (!item) {
+          $('editor').innerHTML = `<div class="empty"><div class="icon">🔌</div><div>Select or create a tool, resource, or prompt</div></div>`;
+          return;
+        }
+
+        if (this.activeTab === 'tools') {
+          this.renderToolEditor(item);
+        } else if (this.activeTab === 'resources') {
+          this.renderResourceEditor(item);
+        } else {
+          this.renderPromptEditor(item);
+        }
+      }
+
+      renderToolEditor(tool) {
+        $('editor').innerHTML = `
+          <h2>🔧 ${esc(tool.name)} <span class="badge">Tool</span></h2>
+
+          <div class="form-section">
+            <h3>Tool Definition</h3>
+            <div class="row">
+              <div class="form-group">
+                <label>Tool Name</label>
+                <input type="text" id="toolName" value="${esc(tool.name)}" placeholder="my_tool">
+                <div class="hint">Use snake_case for tool names</div>
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="toolDesc" value="${esc(tool.description)}" placeholder="What does this tool do?">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Input Schema</h3>
+            <div class="schema-builder" id="schemaBuilder">
+              ${tool.inputSchema.map((param, i) => `
+                <div class="schema-row">
+                  <input type="text" value="${esc(param.name)}" placeholder="param_name" data-param="${i}" data-field="name">
+                  <select data-param="${i}" data-field="type">
+                    <option value="string" ${param.type === 'string' ? 'selected' : ''}>String</option>
+                    <option value="number" ${param.type === 'number' ? 'selected' : ''}>Number</option>
+                    <option value="boolean" ${param.type === 'boolean' ? 'selected' : ''}>Boolean</option>
+                    <option value="array" ${param.type === 'array' ? 'selected' : ''}>Array</option>
+                    <option value="object" ${param.type === 'object' ? 'selected' : ''}>Object</option>
+                  </select>
+                  <input type="text" value="${esc(param.description || '')}" placeholder="Description" data-param="${i}" data-field="description">
+                  <select data-param="${i}" data-field="required">
+                    <option value="true" ${param.required ? 'selected' : ''}>Required</option>
+                    <option value="false" ${!param.required ? 'selected' : ''}>Optional</option>
+                  </select>
+                  <button class="remove" data-remove="${i}">×</button>
+                </div>
+              `).join('')}
+              <div class="add-field" id="addParam">+ Add Parameter</div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Handler Function</h3>
+            <div class="form-group">
+              <label>JavaScript Code</label>
+              <textarea id="toolHandler" style="min-height:150px">${esc(tool.handler)}</textarea>
+              <div class="hint">Available: args (input object). Return result object or throw error.</div>
+            </div>
+          </div>
+
+          <div class="test-panel">
+            <div class="test-header">
+              <h3>🧪 Test Tool</h3>
+              <button id="runTest">Run Test</button>
+            </div>
+            <div class="test-body">
+              <div class="test-input">
+                <label>Input (JSON)</label>
+                <textarea id="testInput">${JSON.stringify(Object.fromEntries(tool.inputSchema.map(p => [p.name, p.type === 'number' ? 0 : p.type === 'boolean' ? false : ''])), null, 2)}</textarea>
+              </div>
+              <div class="test-output" id="testOutput">
+                <label>Output</label>
+                <pre>Click "Run Test" to execute</pre>
+              </div>
+            </div>
+          </div>
+        `;
+
+        this.bindToolEvents(tool);
+      }
+
+      renderResourceEditor(resource) {
+        $('editor').innerHTML = `
+          <h2>📦 ${esc(resource.name)} <span class="badge">Resource</span></h2>
+
+          <div class="form-section">
+            <h3>Resource Definition</h3>
+            <div class="form-group">
+              <label>URI</label>
+              <input type="text" id="resUri" value="${esc(resource.uri)}" placeholder="resource://path/to/resource">
+              <div class="hint">Unique identifier for this resource</div>
+            </div>
+            <div class="row">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="resName" value="${esc(resource.name)}" placeholder="Resource Name">
+              </div>
+              <div class="form-group">
+                <label>MIME Type</label>
+                <select id="resMime">
+                  <option value="text/plain" ${resource.mimeType === 'text/plain' ? 'selected' : ''}>text/plain</option>
+                  <option value="application/json" ${resource.mimeType === 'application/json' ? 'selected' : ''}>application/json</option>
+                  <option value="text/markdown" ${resource.mimeType === 'text/markdown' ? 'selected' : ''}>text/markdown</option>
+                  <option value="text/html" ${resource.mimeType === 'text/html' ? 'selected' : ''}>text/html</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="resDesc" value="${esc(resource.description)}" placeholder="What is this resource?">
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Content Handler</h3>
+            <div class="form-group">
+              <label>JavaScript Code</label>
+              <textarea id="resHandler" style="min-height:150px">${esc(resource.handler)}</textarea>
+              <div class="hint">Return the resource content as a string</div>
+            </div>
+          </div>
+
+          <div class="test-panel">
+            <div class="test-header">
+              <h3>🧪 Test Resource</h3>
+              <button id="runTest">Fetch</button>
+            </div>
+            <div class="test-body">
+              <div class="test-output" id="testOutput" style="flex:1">
+                <label>Content</label>
+                <pre>Click "Fetch" to load resource</pre>
+              </div>
+            </div>
+          </div>
+        `;
+
+        this.bindResourceEvents(resource);
+      }
+
+      renderPromptEditor(prompt) {
+        $('editor').innerHTML = `
+          <h2>💬 ${esc(prompt.name)} <span class="badge">Prompt</span></h2>
+
+          <div class="form-section">
+            <h3>Prompt Definition</h3>
+            <div class="row">
+              <div class="form-group">
+                <label>Prompt Name</label>
+                <input type="text" id="promptName" value="${esc(prompt.name)}" placeholder="my_prompt">
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="promptDesc" value="${esc(prompt.description)}" placeholder="What is this prompt for?">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Arguments</h3>
+            <div class="schema-builder" id="argsBuilder">
+              ${prompt.arguments.map((arg, i) => `
+                <div class="schema-row">
+                  <input type="text" value="${esc(arg.name)}" placeholder="arg_name" data-arg="${i}" data-field="name">
+                  <input type="text" value="${esc(arg.description || '')}" placeholder="Description" data-arg="${i}" data-field="description" style="flex:2">
+                  <select data-arg="${i}" data-field="required">
+                    <option value="true" ${arg.required ? 'selected' : ''}>Required</option>
+                    <option value="false" ${!arg.required ? 'selected' : ''}>Optional</option>
+                  </select>
+                  <button class="remove" data-remove="${i}">×</button>
+                </div>
+              `).join('')}
+              <div class="add-field" id="addArg">+ Add Argument</div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Prompt Template</h3>
+            <div class="form-group">
+              <label>Template</label>
+              <textarea id="promptTemplate" style="min-height:150px">${esc(prompt.template)}</textarea>
+              <div class="hint">Use {{arg_name}} for variable substitution</div>
+            </div>
+          </div>
+
+          <div class="test-panel">
+            <div class="test-header">
+              <h3>🧪 Test Prompt</h3>
+              <button id="runTest">Render</button>
+            </div>
+            <div class="test-body">
+              <div class="test-input">
+                <label>Arguments (JSON)</label>
+                <textarea id="testInput">${JSON.stringify(Object.fromEntries(prompt.arguments.map(a => [a.name, ''])), null, 2)}</textarea>
+              </div>
+              <div class="test-output" id="testOutput">
+                <label>Rendered Prompt</label>
+                <pre>Click "Render" to preview</pre>
+              </div>
+            </div>
+          </div>
+        `;
+
+        this.bindPromptEvents(prompt);
+      }
+
+      bindToolEvents(tool) {
+        $('toolName').oninput = e => this.updateSelected({ name: e.target.value });
+        $('toolDesc').oninput = e => this.updateSelected({ description: e.target.value });
+        $('toolHandler').oninput = e => this.updateSelected({ handler: e.target.value });
+
+        $('addParam').onclick = () => {
+          tool.inputSchema.push({ name: 'param', type: 'string', description: '', required: false });
+          this.save();
+          this.renderEditor();
+        };
+
+        $('schemaBuilder').querySelectorAll('[data-param]').forEach(el => {
+          el.onchange = el.oninput = () => {
+            const idx = parseInt(el.dataset.param);
+            const field = el.dataset.field;
+            let value = el.value;
+            if (field === 'required') value = value === 'true';
+            tool.inputSchema[idx][field] = value;
+            this.save();
+          };
+        });
+
+        $('schemaBuilder').querySelectorAll('[data-remove]').forEach(btn => {
+          btn.onclick = () => {
+            tool.inputSchema.splice(parseInt(btn.dataset.remove), 1);
+            this.save();
+            this.renderEditor();
+          };
+        });
+
+        $('runTest').onclick = () => {
+          try {
+            const args = JSON.parse($('testInput').value);
+            const fn = new Function('args', tool.handler);
+            const result = fn(args);
+            $('testOutput').className = 'test-output success';
+            $('testOutput').querySelector('pre').textContent = JSON.stringify(result, null, 2);
+          } catch (e) {
+            $('testOutput').className = 'test-output error';
+            $('testOutput').querySelector('pre').textContent = `Error: ${e.message}`;
+          }
+        };
+      }
+
+      bindResourceEvents(resource) {
+        $('resUri').oninput = e => this.updateSelected({ uri: e.target.value });
+        $('resName').oninput = e => this.updateSelected({ name: e.target.value });
+        $('resDesc').oninput = e => this.updateSelected({ description: e.target.value });
+        $('resMime').onchange = e => this.updateSelected({ mimeType: e.target.value });
+        $('resHandler').oninput = e => this.updateSelected({ handler: e.target.value });
+
+        $('runTest').onclick = () => {
+          try {
+            const fn = new Function(resource.handler);
+            const result = fn();
+            $('testOutput').className = 'test-output success';
+            $('testOutput').querySelector('pre').textContent = result;
+          } catch (e) {
+            $('testOutput').className = 'test-output error';
+            $('testOutput').querySelector('pre').textContent = `Error: ${e.message}`;
+          }
+        };
+      }
+
+      bindPromptEvents(prompt) {
+        $('promptName').oninput = e => this.updateSelected({ name: e.target.value });
+        $('promptDesc').oninput = e => this.updateSelected({ description: e.target.value });
+        $('promptTemplate').oninput = e => this.updateSelected({ template: e.target.value });
+
+        $('addArg').onclick = () => {
+          prompt.arguments.push({ name: 'arg', description: '', required: false });
+          this.save();
+          this.renderEditor();
+        };
+
+        $('argsBuilder').querySelectorAll('[data-arg]').forEach(el => {
+          el.onchange = el.oninput = () => {
+            const idx = parseInt(el.dataset.arg);
+            const field = el.dataset.field;
+            let value = el.value;
+            if (field === 'required') value = value === 'true';
+            prompt.arguments[idx][field] = value;
+            this.save();
+          };
+        });
+
+        $('argsBuilder').querySelectorAll('[data-remove]').forEach(btn => {
+          btn.onclick = () => {
+            prompt.arguments.splice(parseInt(btn.dataset.remove), 1);
+            this.save();
+            this.renderEditor();
+          };
+        });
+
+        $('runTest').onclick = () => {
+          try {
+            const args = JSON.parse($('testInput').value);
+            let result = prompt.template;
+            for (const [key, value] of Object.entries(args)) {
+              result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+            }
+            $('testOutput').className = 'test-output success';
+            $('testOutput').querySelector('pre').textContent = result;
+          } catch (e) {
+            $('testOutput').className = 'test-output error';
+            $('testOutput').querySelector('pre').textContent = `Error: ${e.message}`;
+          }
+        };
+      }
+
+      generateServer() {
+        const code = `#!/usr/bin/env node
+/**
+ * MCP Server - Generated by MCP Builder (KISS MySaaS)
+ * Run with: npx @anthropic-ai/mcp-server-stdio
+ */
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
+const server = new Server({
+  name: 'generated-mcp-server',
+  version: '1.0.0'
+}, {
+  capabilities: {
+    tools: ${this.data.tools.length > 0 ? '{}' : 'undefined'},
+    resources: ${this.data.resources.length > 0 ? '{}' : 'undefined'},
+    prompts: ${this.data.prompts.length > 0 ? '{}' : 'undefined'}
+  }
+});
+
+// ============ TOOLS ============
+${this.data.tools.map(t => `
+server.setRequestHandler('tools/call', async (request) => {
+  if (request.params.name === '${t.name}') {
+    const args = request.params.arguments || {};
+    ${t.handler.split('\n').map(l => '    ' + l).join('\n')}
+  }
+});
+
+server.setRequestHandler('tools/list', async () => ({
+  tools: [${this.data.tools.map(t => `{
+    name: '${t.name}',
+    description: '${t.description}',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ${t.inputSchema.map(p => `${p.name}: { type: '${p.type}', description: '${p.description || ''}' }`).join(',\n        ')}
+      },
+      required: [${t.inputSchema.filter(p => p.required).map(p => `'${p.name}'`).join(', ')}]
+    }
+  }`).join(', ')}]
+}));`).join('\n')}
+
+// ============ RESOURCES ============
+${this.data.resources.length > 0 ? `
+server.setRequestHandler('resources/list', async () => ({
+  resources: [${this.data.resources.map(r => `{
+    uri: '${r.uri}',
+    name: '${r.name}',
+    description: '${r.description}',
+    mimeType: '${r.mimeType}'
+  }`).join(', ')}]
+}));
+
+server.setRequestHandler('resources/read', async (request) => {
+  const uri = request.params.uri;
+  ${this.data.resources.map(r => `
+  if (uri === '${r.uri}') {
+    ${r.handler.split('\n').map(l => '    ' + l).join('\n')}
+  }`).join('\n')}
+});` : ''}
+
+// ============ PROMPTS ============
+${this.data.prompts.length > 0 ? `
+server.setRequestHandler('prompts/list', async () => ({
+  prompts: [${this.data.prompts.map(p => `{
+    name: '${p.name}',
+    description: '${p.description}',
+    arguments: [${p.arguments.map(a => `{ name: '${a.name}', description: '${a.description}', required: ${a.required} }`).join(', ')}]
+  }`).join(', ')}]
+}));
+
+server.setRequestHandler('prompts/get', async (request) => {
+  const name = request.params.name;
+  const args = request.params.arguments || {};
+  ${this.data.prompts.map(p => `
+  if (name === '${p.name}') {
+    let text = \`${p.template}\`;
+    for (const [key, value] of Object.entries(args)) {
+      text = text.replace(new RegExp(\`{{$\{key}}}\`, 'g'), value);
+    }
+    return { messages: [{ role: 'user', content: { type: 'text', text } }] };
+  }`).join('\n')}
+});` : ''}
+
+// Start server
+const transport = new StdioServerTransport();
+await server.connect(transport);
+console.error('MCP Server running on stdio');
+`;
+
+        const blob = new Blob([code], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'mcp-server.js';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      init() {
+        // Demo data
+        if (this.data.tools.length === 0 && this.data.resources.length === 0) {
+          this.data.tools = [{
+            id: '1',
+            name: 'get_weather',
+            description: 'Get current weather for a location',
+            inputSchema: [
+              { name: 'location', type: 'string', description: 'City name', required: true },
+              { name: 'units', type: 'string', description: 'celsius or fahrenheit', required: false }
+            ],
+            handler: '// Mock weather data\nconst temps = { "New York": 72, "London": 55, "Tokyo": 68 };\nconst temp = temps[args.location] || 65;\nconst unit = args.units === "celsius" ? "C" : "F";\nreturn { temperature: temp, unit, location: args.location };'
+          }];
+          this.data.resources = [{
+            id: '1',
+            uri: 'resource://config',
+            name: 'App Config',
+            description: 'Application configuration',
+            mimeType: 'application/json',
+            handler: 'return JSON.stringify({ version: "1.0", debug: true }, null, 2);'
+          }];
+          this.data.prompts = [{
+            id: '1',
+            name: 'summarize',
+            description: 'Summarize text content',
+            arguments: [{ name: 'text', description: 'Text to summarize', required: true }],
+            template: 'Please provide a concise summary of the following text:\n\n{{text}}'
+          }];
+          this.save();
+        }
+
+        this.renderList();
+        this.renderEditor();
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+          tab.onclick = () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            this.activeTab = tab.dataset.tab;
+            this.selected = null;
+            this.renderList();
+            this.renderEditor();
+          };
+        });
+
+        $('addBtn').onclick = () => this.addItem();
+        $('generateBtn').onclick = () => this.generateServer();
+
+        $('exportBtn').onclick = () => {
+          const blob = new Blob([JSON.stringify(this.data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'mcp-config.json';
+          a.click();
+        };
+
+        $('itemList').onclick = e => {
+          const item = e.target.closest('.item');
+          const deleteBtn = e.target.closest('[data-delete]');
+
+          if (deleteBtn) {
+            e.stopPropagation();
+            this.deleteItem(deleteBtn.dataset.delete);
+          } else if (item) {
+            this.select(item.dataset.id);
+          }
+        };
+      }
+    }
+
+    window.MCP = new MCP();
+  </script>
+</body>
+</html>

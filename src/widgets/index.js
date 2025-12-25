@@ -45,6 +45,8 @@ export const WIDGET_PATHS = {
   roadmap: './roadmap.html',
   faq: './faq.html',
   snippets: './snippets.html',
+  cli: './cli.html',
+  mcp: './mcp.html',
 }
 
 /**
