@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Stone Circuits - Koxels</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module" src="https://esm.run/@anthropic-ai/claude-lite"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: #1a1a2e;
+            overflow: hidden;
+        }
+        #game { width: 100vw; height: 100vh; display: block; }
+
+        .hud {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 10px;
+            text-shadow: 2px 2px #000;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .hotbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            z-index: 100;
+        }
+        .hotbar-slot {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #555;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .hotbar-slot.active { border-color: #f59e0b; transform: scale(1.1); }
+        .hotbar-slot:hover { border-color: #888; }
+        .slot-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+        }
+        .slot-name {
+            font-size: 6px;
+            color: #aaa;
+            margin-top: 2px;
+        }
+        .slot-key {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 8px;
+            color: #666;
+        }
+
+        .crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            pointer-events: none;
+            z-index: 100;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        .menu-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .menu-overlay.hidden { display: none; }
+        .menu-title {
+            font-size: 32px;
+            color: #f59e0b;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+        }
+        .menu-subtitle {
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .menu-btn {
+            padding: 15px 40px;
+            font-family: inherit;
+            font-size: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.2s;
+        }
+        .menu-btn:hover { transform: scale(1.05); }
+        .btn-play { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .btn-back { background: #333; color: #888; }
+
+        /* AI Chat Panel */
+        .ai-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 350px;
+            max-height: 70vh;
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .ai-panel.minimized {
+            max-height: 40px;
+        }
+        .ai-panel.minimized .ai-messages,
+        .ai-panel.minimized .ai-input-area,
+        .ai-panel.minimized .ai-status { display: none; }
+
+        .ai-header {
+            padding: 10px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .ai-title {
+            font-size: 10px;
+            color: #000;
+        }
+        .ai-toggle {
+            background: none;
+            border: none;
+            color: #000;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .ai-status {
+            padding: 8px 10px;
+            font-size: 8px;
+            color: #888;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+        }
+        .status-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+        .status-dot.ready { background: #22c55e; }
+        .status-dot.error { background: #ef4444; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .ai-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+        }
+        .ai-message {
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 9px;
+            line-height: 1.6;
+        }
+        .ai-message.user {
+            background: #2a2a4a;
+            color: #fff;
+            align-self: flex-end;
+            max-width: 80%;
+        }
+        .ai-message.assistant {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f5d59e;
+            align-self: flex-start;
+            max-width: 90%;
+        }
+
+        .ai-input-area {
+            padding: 10px;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 8px;
+        }
+        .ai-input {
+            flex: 1;
+            padding: 10px;
+            font-family: inherit;
+            font-size: 9px;
+            background: #2a2a4a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            outline: none;
+        }
+        .ai-input:focus { border-color: #f59e0b; }
+        .ai-send {
+            padding: 10px 15px;
+            font-family: inherit;
+            font-size: 9px;
+            background: #f59e0b;
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .ai-send:hover { background: #fbbf24; }
+        .ai-send:disabled { background: #666; cursor: not-allowed; }
+
+        /* Quick prompts */
+        .quick-prompts {
+            padding: 8px 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            border-top: 1px solid #333;
+        }
+        .quick-btn {
+            padding: 5px 10px;
+            font-family: inherit;
+            font-size: 7px;
+            background: #2a2a4a;
+            color: #aaa;
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .quick-btn:hover { background: #3a3a5a; color: #fff; }
+
+        /* Circuit info panel */
+        .circuit-info {
+            position: fixed;
+            bottom: 90px;
+            left: 10px;
+            background: rgba(20, 20, 35, 0.9);
+            border: 2px solid #f59e0b;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 8px;
+            color: #fff;
+            z-index: 100;
+            max-width: 250px;
+        }
+        .circuit-info h3 {
+            color: #f59e0b;
+            margin-bottom: 8px;
+        }
+        .circuit-info p {
+            color: #aaa;
+            line-height: 1.5;
+        }
+
+        .controls-hint {
+            position: fixed;
+            bottom: 90px;
+            right: 10px;
+            font-size: 8px;
+            color: #666;
+            text-align: right;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-overlay" id="menu">
+        <h1 class="menu-title">⚡ K-STONE</h1>
+        <p class="menu-subtitle">Circuit Builder with AI Tutor</p>
+        <button class="menu-btn btn-play" onclick="startGame()">START BUILDING</button>
+        <br>
+        <a href="index.html" class="menu-btn btn-back">BACK TO MENU</a>
+    </div>
+
+    <canvas id="game"></canvas>
+    <div class="crosshair" id="crosshair">+</div>
+
+    <div class="hud" id="hud">
+        <div>K-STONE CIRCUITS</div>
+        <div id="power-status">Power: Calculating...</div>
+    </div>
+
+    <div class="hotbar" id="hotbar"></div>
+
+    <div class="circuit-info" id="circuitInfo">
+        <h3>⚡ K-Wire</h3>
+        <p>Conducts power from sources to components. Place in lines to create circuits.</p>
+    </div>
+
+    <div class="controls-hint">
+        WASD: Move | SPACE: Fly up | SHIFT: Fly down<br>
+        LEFT CLICK: Place | RIGHT CLICK: Break<br>
+        1-8: Select component | E: Toggle power<br>
+        TAB: Toggle AI panel
+    </div>
+
+    <!-- AI Chat Panel -->
+    <div class="ai-panel" id="aiPanel">
+        <div class="ai-header" onclick="toggleAIPanel()">
+            <span class="ai-title">🤖 K-STONE AI TUTOR</span>
+            <button class="ai-toggle" id="aiToggle">−</button>
+        </div>
+        <div class="ai-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Initializing AI...</span>
+        </div>
+        <div class="ai-messages" id="aiMessages">
+            <div class="ai-message assistant">
+                Welcome to K-Stone Circuits! I'm your AI tutor. Ask me anything about building circuits, logic gates, or how components work. Try placing some K-Wire and a K-Torch to get started!
+            </div>
+        </div>
+        <div class="quick-prompts">
+            <button class="quick-btn" onclick="askAI('How do I build an AND gate?')">AND gate</button>
+            <button class="quick-btn" onclick="askAI('How do I make a door toggle?')">Door toggle</button>
+            <button class="quick-btn" onclick="askAI('Explain K-Repeaters')">Repeaters</button>
+            <button class="quick-btn" onclick="askAI('What am I building wrong?')">Debug help</button>
+        </div>
+        <div class="ai-input-area">
+            <input type="text" class="ai-input" id="aiInput" placeholder="Ask about circuits..." onkeypress="if(event.key==='Enter')sendMessage()">
+            <button class="ai-send" id="aiSend" onclick="sendMessage()">ASK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createWebLLMEngine } from 'https://esm.run/@anthropic-ai/claude-lite';
+
+        // K-Stone component definitions
+        const COMPONENTS = [
+            { id: 'wire', name: 'K-Wire', color: 0xf59e0b, desc: 'Conducts power from sources to components. Place in lines to create circuits.' },
+            { id: 'torch', name: 'K-Torch', color: 0xef4444, desc: 'Power source! Always outputs power. Place to start your circuits.', isPower: true },
+            { id: 'switch', name: 'K-Switch', color: 0x22c55e, desc: 'Toggle with E key. Outputs power when ON. Great for manual controls.' },
+            { id: 'lamp', name: 'K-Lamp', color: 0xfbbf24, desc: 'Lights up when receiving power. Use to visualize your circuit output.' },
+            { id: 'and', name: 'AND Gate', color: 0x3b82f6, desc: 'Outputs power only when BOTH inputs are powered. Classic logic gate.' },
+            { id: 'or', name: 'OR Gate', color: 0xa855f7, desc: 'Outputs power when ANY input is powered. Combine multiple signals.' },
+            { id: 'not', name: 'NOT Gate', color: 0xec4899, desc: 'Inverts signal - outputs power when input is OFF. Also called inverter.' },
+            { id: 'repeater', name: 'K-Repeater', color: 0x06b6d4, desc: 'Extends signal range and adds delay. Chain them for longer circuits.' }
+        ];
+
+        let scene, camera, renderer, blocks = [], circuitBlocks = new Map();
+        let selectedSlot = 0;
+        let isPlaying = false;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let moveUp = false, moveDown = false;
+        let velocity = new THREE.Vector3();
+        let player = { x: 0, y: 10, z: 20 };
+
+        // WebLLM
+        let engine = null;
+        let isAIReady = false;
+        let conversationHistory = [];
+
+        // Initialize Three.js
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.Fog(0x1a1a2e, 30, 100);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(player.x, player.y, player.z);
+
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(50, 100, 50);
+            scene.add(sun);
+
+            // Ground grid
+            const gridHelper = new THREE.GridHelper(100, 100, 0x444444, 0x333333);
+            scene.add(gridHelper);
+
+            // Ground plane
+            const groundGeo = new THREE.PlaneGeometry(100, 100);
+            const groundMat = new THREE.MeshLambertMaterial({ color: 0x2a2a3e });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.01;
+            scene.add(ground);
+
+            // Build hotbar
+            buildHotbar();
+
+            // Event listeners
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('click', onClick);
+            document.addEventListener('contextmenu', onRightClick);
+            document.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('resize', onResize);
+
+            // Start render loop
+            animate();
+
+            // Initialize AI
+            initAI();
+        }
+
+        function buildHotbar() {
+            const hotbar = document.getElementById('hotbar');
+            hotbar.innerHTML = '';
+            COMPONENTS.forEach((comp, i) => {
+                const slot = document.createElement('div');
+                slot.className = `hotbar-slot ${i === selectedSlot ? 'active' : ''}`;
+                slot.innerHTML = `
+                    <span class="slot-key">${i + 1}</span>
+                    <div class="slot-icon" style="background: #${comp.color.toString(16).padStart(6, '0')}"></div>
+                    <span class="slot-name">${comp.name}</span>
+                `;
+                slot.onclick = () => selectSlot(i);
+                hotbar.appendChild(slot);
+            });
+        }
+
+        function selectSlot(index) {
+            selectedSlot = index;
+            document.querySelectorAll('.hotbar-slot').forEach((s, i) => {
+                s.classList.toggle('active', i === index);
+            });
+            updateCircuitInfo();
+        }
+
+        function updateCircuitInfo() {
+            const comp = COMPONENTS[selectedSlot];
+            document.getElementById('circuitInfo').innerHTML = `
+                <h3>⚡ ${comp.name}</h3>
+                <p>${comp.desc}</p>
+            `;
+        }
+
+        async function initAI() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            statusDot.className = 'status-dot loading';
+            statusText.textContent = 'Loading AI model...';
+
+            try {
+                engine = await createWebLLMEngine({
+                    model: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+                    onProgress: (progress) => {
+                        if (progress.text) {
+                            statusText.textContent = progress.text;
+                        }
+                    }
+                });
+
+                statusDot.className = 'status-dot ready';
+                statusText.textContent = 'AI Ready - Ask me anything!';
+                isAIReady = true;
+            } catch (error) {
+                console.error('AI init error:', error);
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'AI unavailable - using fallback';
+            }
+        }
+
+        window.toggleAIPanel = function() {
+            const panel = document.getElementById('aiPanel');
+            const toggle = document.getElementById('aiToggle');
+            panel.classList.toggle('minimized');
+            toggle.textContent = panel.classList.contains('minimized') ? '+' : '−';
+        };
+
+        window.askAI = async function(question) {
+            document.getElementById('aiInput').value = question;
+            sendMessage();
+        };
+
+        window.sendMessage = async function() {
+            const input = document.getElementById('aiInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const messagesDiv = document.getElementById('aiMessages');
+
+            // Add user message
+            messagesDiv.innerHTML += `<div class="ai-message user">${message}</div>`;
+            input.value = '';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // Get circuit context
+            const circuitContext = getCircuitContext();
+
+            if (isAIReady && engine) {
+                document.getElementById('aiSend').disabled = true;
+
+                const systemPrompt = `You are a helpful K-Stone circuit tutor in a voxel game similar to Minecraft's redstone.
+
+K-Stone components:
+- K-Wire: Conducts power, like redstone dust
+- K-Torch: Always-on power source
+- K-Switch: Toggleable power source (E key)
+- K-Lamp: Lights up when powered
+- AND Gate: Outputs when both inputs powered
+- OR Gate: Outputs when any input powered
+- NOT Gate: Inverts signal (outputs when input OFF)
+- K-Repeater: Extends signal range, adds delay
+
+Current circuit state: ${circuitContext}
+
+Give helpful, concise answers about building circuits. Use simple language. If they ask what's wrong, analyze their circuit.`;
+
+                try {
+                    conversationHistory.push({ role: 'user', content: message });
+
+                    const response = await engine.chat.completions.create({
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            ...conversationHistory
+                        ],
+                        max_tokens: 300,
+                        temperature: 0.7
+                    });
+
+                    const reply = response.choices[0].message.content;
+                    conversationHistory.push({ role: 'assistant', content: reply });
+
+                    messagesDiv.innerHTML += `<div class="ai-message assistant">${reply}</div>`;
+                } catch (error) {
+                    messagesDiv.innerHTML += `<div class="ai-message assistant">Sorry, I had trouble processing that. Try asking differently!</div>`;
+                }
+
+                document.getElementById('aiSend').disabled = false;
+            } else {
+                // Fallback responses
+                const fallback = getFallbackResponse(message);
+                messagesDiv.innerHTML += `<div class="ai-message assistant">${fallback}</div>`;
+            }
+
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        };
+
+        function getCircuitContext() {
+            const components = [];
+            circuitBlocks.forEach((data, key) => {
+                components.push(`${data.type} at ${key} (powered: ${data.powered})`);
+            });
+            return components.length > 0 ? components.join(', ') : 'No components placed yet';
+        }
+
+        function getFallbackResponse(message) {
+            const lower = message.toLowerCase();
+            if (lower.includes('and gate')) {
+                return 'To build an AND gate: Place two K-Switches, connect both with K-Wire to an AND Gate block, then connect output to a K-Lamp. The lamp only lights when BOTH switches are ON!';
+            }
+            if (lower.includes('or gate')) {
+                return 'OR gates output power when ANY input is powered. Connect multiple K-Switches to an OR Gate - the output lights up if any switch is on!';
+            }
+            if (lower.includes('not') || lower.includes('inverter')) {
+                return 'NOT gates invert the signal! Connect a K-Switch to a NOT Gate - when switch is OFF, output is ON. Great for making things turn off when powered.';
+            }
+            if (lower.includes('door') || lower.includes('toggle')) {
+                return 'For a toggle door: Use a K-Switch connected to a K-Lamp (representing the door). Press E on the switch to toggle! For auto-doors, try using pressure plates (coming soon).';
+            }
+            if (lower.includes('repeater')) {
+                return 'K-Repeaters extend signal range and add delay. Place them in a line of K-Wire every 15 blocks to boost the signal. Chain multiple for longer delays!';
+            }
+            if (lower.includes('wrong') || lower.includes('debug') || lower.includes('not working')) {
+                return 'Common issues: 1) Make sure K-Wire connects all components. 2) Check power source (K-Torch or K-Switch ON). 3) Logic gates need correct inputs. 4) Use K-Repeaters for long distances!';
+            }
+            return 'Try placing K-Wire to connect components. K-Torch provides power, K-Switch toggles with E key. Lamps light up when powered. Ask about specific gates like AND, OR, or NOT!';
+        }
+
+        function placeBlock(position) {
+            const comp = COMPONENTS[selectedSlot];
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+
+            // Create material based on powered state
+            const material = new THREE.MeshLambertMaterial({
+                color: comp.color,
+                emissive: comp.isPower ? comp.color : 0x000000,
+                emissiveIntensity: comp.isPower ? 0.5 : 0
+            });
+
+            const block = new THREE.Mesh(geometry, material);
+            block.position.copy(position);
+            block.userData = {
+                type: comp.id,
+                powered: comp.isPower || false,
+                component: comp
+            };
+
+            scene.add(block);
+            blocks.push(block);
+
+            const key = `${position.x},${position.y},${position.z}`;
+            circuitBlocks.set(key, {
+                type: comp.id,
+                powered: comp.isPower || false,
+                block: block
+            });
+
+            // Update circuit
+            setTimeout(updateCircuit, 50);
+        }
+
+        function removeBlock(block) {
+            scene.remove(block);
+            blocks = blocks.filter(b => b !== block);
+
+            const key = `${block.position.x},${block.position.y},${block.position.z}`;
+            circuitBlocks.delete(key);
+
+            setTimeout(updateCircuit, 50);
+        }
+
+        function toggleSwitch(block) {
+            if (block.userData.type === 'switch') {
+                block.userData.powered = !block.userData.powered;
+                const key = `${block.position.x},${block.position.y},${block.position.z}`;
+                const data = circuitBlocks.get(key);
+                if (data) data.powered = block.userData.powered;
+
+                block.material.emissive.setHex(block.userData.powered ? 0x22c55e : 0x000000);
+                block.material.emissiveIntensity = block.userData.powered ? 0.5 : 0;
+
+                updateCircuit();
+            }
+        }
+
+        function updateCircuit() {
+            // Reset all non-source blocks
+            circuitBlocks.forEach((data, key) => {
+                if (data.type !== 'torch' && data.type !== 'switch') {
+                    data.powered = false;
+                }
+            });
+
+            // Propagate power from sources
+            let changed = true;
+            let iterations = 0;
+            while (changed && iterations < 50) {
+                changed = false;
+                iterations++;
+
+                circuitBlocks.forEach((data, key) => {
+                    const [x, y, z] = key.split(',').map(Number);
+                    const neighbors = getNeighborPower(x, y, z);
+
+                    if (data.type === 'wire' || data.type === 'repeater') {
+                        if (neighbors.anyPowered && !data.powered) {
+                            data.powered = true;
+                            changed = true;
+                        }
+                    } else if (data.type === 'lamp') {
+                        if (neighbors.anyPowered && !data.powered) {
+                            data.powered = true;
+                            changed = true;
+                        }
+                    } else if (data.type === 'and') {
+                        const shouldPower = neighbors.count >= 2;
+                        if (shouldPower !== data.powered) {
+                            data.powered = shouldPower;
+                            changed = true;
+                        }
+                    } else if (data.type === 'or') {
+                        if (neighbors.anyPowered !== data.powered) {
+                            data.powered = neighbors.anyPowered;
+                            changed = true;
+                        }
+                    } else if (data.type === 'not') {
+                        const shouldPower = !neighbors.anyPowered;
+                        if (shouldPower !== data.powered) {
+                            data.powered = shouldPower;
+                            changed = true;
+                        }
+                    }
+                });
+            }
+
+            // Update visuals
+            circuitBlocks.forEach((data, key) => {
+                if (data.block) {
+                    const intensity = data.powered ? 0.6 : 0;
+                    data.block.material.emissive.setHex(data.powered ? data.block.userData.component.color : 0x000000);
+                    data.block.material.emissiveIntensity = intensity;
+                }
+            });
+
+            // Update power status display
+            let poweredCount = 0;
+            circuitBlocks.forEach(data => { if (data.powered) poweredCount++; });
+            document.getElementById('power-status').textContent = `Power: ${poweredCount}/${circuitBlocks.size} active`;
+        }
+
+        function getNeighborPower(x, y, z) {
+            const dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+            let anyPowered = false;
+            let count = 0;
+
+            for (const [dx, dy, dz] of dirs) {
+                const key = `${x+dx},${y+dy},${z+dz}`;
+                const neighbor = circuitBlocks.get(key);
+                if (neighbor && neighbor.powered) {
+                    anyPowered = true;
+                    count++;
+                }
+            }
+
+            return { anyPowered, count };
+        }
+
+        function onClick(e) {
+            if (!isPlaying) return;
+            if (e.target.closest('.ai-panel')) return;
+
+            // Raycast to find placement position
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+            const intersects = raycaster.intersectObjects([...blocks, scene.children.find(c => c.type === 'Mesh' && c.geometry.type === 'PlaneGeometry')]);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                const pos = new THREE.Vector3();
+
+                if (hit.object.userData.type) {
+                    // Hit a block, place adjacent
+                    pos.copy(hit.point).add(hit.face.normal.multiplyScalar(0.5));
+                } else {
+                    // Hit ground
+                    pos.copy(hit.point).add(new THREE.Vector3(0, 0.5, 0));
+                }
+
+                pos.x = Math.round(pos.x);
+                pos.y = Math.round(pos.y);
+                pos.z = Math.round(pos.z);
+
+                // Check if space is empty
+                const key = `${pos.x},${pos.y},${pos.z}`;
+                if (!circuitBlocks.has(key)) {
+                    placeBlock(pos);
+                }
+            }
+        }
+
+        function onRightClick(e) {
+            e.preventDefault();
+            if (!isPlaying) return;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+            const intersects = raycaster.intersectObjects(blocks);
+
+            if (intersects.length > 0) {
+                removeBlock(intersects[0].object);
+            }
+        }
+
+        function onKeyDown(e) {
+            if (document.activeElement.tagName === 'INPUT') return;
+
+            switch(e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'Space': moveUp = true; break;
+                case 'ShiftLeft': moveDown = true; break;
+                case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4':
+                case 'Digit5': case 'Digit6': case 'Digit7': case 'Digit8':
+                    selectSlot(parseInt(e.code.replace('Digit', '')) - 1);
+                    break;
+                case 'KeyE':
+                    // Toggle switch
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                    const intersects = raycaster.intersectObjects(blocks);
+                    if (intersects.length > 0) {
+                        toggleSwitch(intersects[0].object);
+                    }
+                    break;
+                case 'Tab':
+                    e.preventDefault();
+                    toggleAIPanel();
+                    break;
+            }
+        }
+
+        function onKeyUp(e) {
+            switch(e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+                case 'Space': moveUp = false; break;
+                case 'ShiftLeft': moveDown = false; break;
+            }
+        }
+
+        let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        function onMouseMove(e) {
+            if (!isPlaying || !document.pointerLockElement) return;
+
+            euler.setFromQuaternion(camera.quaternion);
+            euler.y -= e.movementX * 0.002;
+            euler.x -= e.movementY * 0.002;
+            euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+            camera.quaternion.setFromEuler(euler);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isPlaying) {
+                // Movement
+                const speed = 0.3;
+                const direction = new THREE.Vector3();
+
+                if (moveForward) direction.z -= 1;
+                if (moveBackward) direction.z += 1;
+                if (moveLeft) direction.x -= 1;
+                if (moveRight) direction.x += 1;
+
+                direction.applyQuaternion(camera.quaternion);
+                direction.y = 0;
+                direction.normalize();
+
+                camera.position.x += direction.x * speed;
+                camera.position.z += direction.z * speed;
+                if (moveUp) camera.position.y += speed;
+                if (moveDown) camera.position.y -= speed;
+
+                camera.position.y = Math.max(1, camera.position.y);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.startGame = function() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('game').requestPointerLock();
+            isPlaying = true;
+        };
+
+        document.addEventListener('pointerlockchange', () => {
+            if (!document.pointerLockElement && isPlaying) {
+                document.getElementById('menu').classList.remove('hidden');
+                isPlaying = false;
+            }
+        });
+
+        // Initialize
+        init();
+        updateCircuitInfo();
+    </script>
+</body>
+</html>
