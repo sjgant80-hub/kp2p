@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<!--
+@file src/apps/demo/os-mesh-global-v4.html
+@desc P2P OS Mesh v4 - Desktop Edition
+      Mini desktop OS with apps, keeping WebTorrent global P2P
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KonomiOS v4</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg: #1a1a2e;
+      --bg2: #16213e;
+      --bg3: #0f3460;
+      --fg: #e4e4e7;
+      --accent: #00d9ff;
+      --accent2: #7c3aed;
+      --green: #10b981;
+      --red: #ef4444;
+      --orange: #f97316;
+      --border: #334155;
+      --glass: rgba(15, 52, 96, 0.85);
+      --shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    body {
+      font-family: 'SF Pro Display', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: var(--fg);
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Desktop */
+    .desktop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 48px;
+      overflow: hidden;
+    }
+
+    /* Desktop Icons */
+    .desktop-icons {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .desktop-icon {
+      width: 80px;
+      text-align: center;
+      cursor: pointer;
+      padding: 10px 5px;
+      border-radius: 12px;
+      transition: all 0.2s;
+    }
+    .desktop-icon:hover { background: rgba(255,255,255,0.1); }
+    .desktop-icon:active { transform: scale(0.95); }
+    .desktop-icon .icon { font-size: 36px; margin-bottom: 6px; }
+    .desktop-icon .label { font-size: 11px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
+    /* Wallpaper Pattern */
+    .desktop::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(0,217,255,0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(124,58,237,0.1) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* Windows */
+    .window {
+      position: absolute;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 300px;
+      min-height: 200px;
+    }
+    .window.active { z-index: 100; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
+    .window.open { display: flex; }
+    .window.maximized {
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 0;
+    }
+
+    .window-header {
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: move;
+    }
+    .window-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .window-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+    }
+    .window-btn.close { background: var(--red); }
+    .window-btn.minimize { background: var(--orange); }
+    .window-btn.maximize { background: var(--green); }
+    .window-btn:hover { filter: brightness(1.2); }
+    .window-title {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+    .window-body {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Taskbar */
+    .taskbar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 4px;
+    }
+    .taskbar-start {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    .taskbar-start:hover { filter: brightness(1.1); }
+    .taskbar-apps {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+    }
+    .taskbar-app {
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .taskbar-app:hover { background: rgba(255,255,255,0.1); }
+    .taskbar-app.active {
+      background: rgba(0,217,255,0.2);
+      border-color: var(--accent);
+    }
+    .taskbar-tray {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 12px;
+      font-size: 12px;
+    }
+    .tray-item { display: flex; align-items: center; gap: 4px; }
+    .tray-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .tray-dot.on { background: var(--green); }
+    .tray-dot.off { background: #666; }
+    .tray-dot.connecting { background: var(--orange); animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    .clock { font-variant-numeric: tabular-nums; }
+
+    /* Terminal App */
+    .terminal {
+      flex: 1;
+      background: rgba(0,0,0,0.5);
+      padding: 12px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .terminal .line { margin-bottom: 2px; white-space: pre-wrap; word-break: break-all; }
+    .terminal .prompt { color: var(--green); }
+    .terminal .output { color: #a1a1aa; }
+    .terminal .error { color: var(--red); }
+    .terminal .info { color: var(--accent); }
+    .terminal-input {
+      display: flex;
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.3);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      gap: 8px;
+    }
+    .terminal-input input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+
+    /* Chat App */
+    .chat-container { flex: 1; display: flex; flex-direction: column; }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .chat-msg { margin-bottom: 12px; display: flex; flex-direction: column; }
+    .chat-msg.self { align-items: flex-end; }
+    .chat-meta { font-size: 10px; color: #888; margin-bottom: 4px; }
+    .chat-bubble {
+      max-width: 75%;
+      padding: 8px 14px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px;
+      font-size: 13px;
+    }
+    .chat-msg.self .chat-bubble {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .chat-bubble.system {
+      background: transparent;
+      color: #666;
+      font-style: italic;
+      font-size: 11px;
+    }
+    .chat-input {
+      display: flex;
+      padding: 12px;
+      gap: 8px;
+      background: rgba(0,0,0,0.2);
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      color: var(--fg);
+      font-size: 13px;
+      outline: none;
+    }
+    .chat-input button {
+      padding: 10px 20px;
+      background: var(--accent);
+      border: none;
+      border-radius: 20px;
+      color: #000;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Files App */
+    .files-container { flex: 1; display: flex; flex-direction: column; }
+    .files-toolbar {
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .files-toolbar input {
+      flex: 1;
+      padding: 6px 10px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: var(--fg);
+      font-size: 12px;
+    }
+    .files-toolbar button {
+      padding: 6px 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #000;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .file-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .file-item:hover { background: rgba(255,255,255,0.1); }
+    .file-item .icon { font-size: 20px; }
+    .file-item .name { flex: 1; font-size: 13px; }
+    .file-item .size { font-size: 11px; color: #888; }
+
+    /* Peers App */
+    .peers-container { flex: 1; overflow-y: auto; padding: 12px; }
+    .peer-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+    .peer-card.self { border: 1px solid var(--accent); }
+    .peer-avatar { font-size: 32px; }
+    .peer-info { flex: 1; }
+    .peer-name { font-size: 14px; font-weight: 500; }
+    .peer-id { font-size: 11px; color: #888; font-family: monospace; }
+    .peer-status { font-size: 11px; color: var(--green); }
+
+    /* Settings App */
+    .settings-container { flex: 1; overflow-y: auto; padding: 16px; }
+    .settings-section {
+      margin-bottom: 24px;
+    }
+    .settings-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .settings-item .label { font-size: 13px; }
+    .settings-item .value { font-size: 12px; color: var(--accent); font-family: monospace; }
+    .settings-input {
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: var(--fg);
+      font-size: 12px;
+      width: 150px;
+    }
+    .settings-btn {
+      padding: 8px 16px;
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #000;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 13px;
+    }
+
+    /* Start Menu */
+    .start-menu {
+      position: absolute;
+      bottom: 56px;
+      left: 12px;
+      width: 280px;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      display: none;
+      overflow: hidden;
+    }
+    .start-menu.open { display: block; }
+    .start-header {
+      padding: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .start-header h2 { font-size: 16px; margin-bottom: 4px; }
+    .start-header p { font-size: 11px; opacity: 0.8; }
+    .start-apps { padding: 8px; }
+    .start-app-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .start-app-item:hover { background: rgba(255,255,255,0.1); }
+    .start-app-item .icon { font-size: 24px; }
+    .start-app-item .name { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <!-- Desktop -->
+  <div class="desktop" id="desktop">
+    <!-- Desktop Icons -->
+    <div class="desktop-icons">
+      <div class="desktop-icon" onclick="openApp('terminal')">
+        <div class="icon">💻</div>
+        <div class="label">Terminal</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('chat')">
+        <div class="icon">💬</div>
+        <div class="label">Chat</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('files')">
+        <div class="icon">📁</div>
+        <div class="label">Files</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('peers')">
+        <div class="icon">👥</div>
+        <div class="label">Peers</div>
+      </div>
+      <div class="desktop-icon" onclick="openApp('settings')">
+        <div class="icon">⚙️</div>
+        <div class="label">Settings</div>
+      </div>
+    </div>
+
+    <!-- Terminal Window -->
+    <div class="window" id="win-terminal" style="width:550px;height:380px;top:50px;left:120px">
+      <div class="window-header" onmousedown="startDrag(event,'win-terminal')">
+        <div class="window-controls">
+          <button class="window-btn close" onclick="closeApp('terminal')"></button>
+          <button class="window-btn minimize" onclick="minimizeApp('terminal')"></button>
+          <button class="window-btn maximize" onclick="maximizeApp('terminal')"></button>
+        </div>
+        <span class="window-title">💻 Terminal</span>
+      </div>
+      <div class="window-body">
+        <div class="terminal" id="terminal"></div>
+        <div class="terminal-input">
+          <span style="color:var(--green)">❯</span>
+          <input type="text" id="cmdInput" placeholder="Type command..." autofocus>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Window -->
+    <div class="window" id="win-chat" style="width:400px;height:450px;top:80px;left:200px">
+      <div class="window-header" onmousedown="startDrag(event,'win-chat')">
+        <div class="window-controls">
+          <button class="window-btn close" onclick="closeApp('chat')"></button>
+          <button class="window-btn minimize" onclick="minimizeApp('chat')"></button>
+          <button class="window-btn maximize" onclick="maximizeApp('chat')"></button>
+        </div>
+        <span class="window-title">💬 Global Chat</span>
+      </div>
+      <div class="window-body">
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="chat-input">
+            <input type="text" id="chatInput" placeholder="Type message...">
+            <button onclick="sendChat()">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Files Window -->
+    <div class="window" id="win-files" style="width:420px;height:350px;top:100px;left:280px">
+      <div class="window-header" onmousedown="startDrag(event,'win-files')">
+        <div class="window-controls">
+          <button class="window-btn close" onclick="closeApp('files')"></button>
+          <button class="window-btn minimize" onclick="minimizeApp('files')"></button>
+          <button class="window-btn maximize" onclick="maximizeApp('files')"></button>
+        </div>
+        <span class="window-title">📁 Shared Files</span>
+      </div>
+      <div class="window-body">
+        <div class="files-container">
+          <div class="files-toolbar">
+            <input type="text" id="newFileName" placeholder="filename.txt">
+            <button onclick="createFile()">+ New</button>
+          </div>
+          <div class="file-list" id="fileList">
+            <div class="empty-state">No shared files yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Peers Window -->
+    <div class="window" id="win-peers" style="width:320px;height:400px;top:60px;left:350px">
+      <div class="window-header" onmousedown="startDrag(event,'win-peers')">
+        <div class="window-controls">
+          <button class="window-btn close" onclick="closeApp('peers')"></button>
+          <button class="window-btn minimize" onclick="minimizeApp('peers')"></button>
+          <button class="window-btn maximize" onclick="maximizeApp('peers')"></button>
+        </div>
+        <span class="window-title">👥 Connected Peers</span>
+        <span style="font-size:11px;color:#888" id="peerCountLabel">1 online</span>
+      </div>
+      <div class="window-body">
+        <div class="peers-container" id="peerGrid"></div>
+      </div>
+    </div>
+
+    <!-- Settings Window -->
+    <div class="window" id="win-settings" style="width:400px;height:380px;top:70px;left:180px">
+      <div class="window-header" onmousedown="startDrag(event,'win-settings')">
+        <div class="window-controls">
+          <button class="window-btn close" onclick="closeApp('settings')"></button>
+          <button class="window-btn minimize" onclick="minimizeApp('settings')"></button>
+          <button class="window-btn maximize" onclick="maximizeApp('settings')"></button>
+        </div>
+        <span class="window-title">⚙️ Settings</span>
+      </div>
+      <div class="window-body">
+        <div class="settings-container">
+          <div class="settings-section">
+            <div class="settings-title">Network</div>
+            <div class="settings-item">
+              <span class="label">Room</span>
+              <input type="text" class="settings-input" id="roomInput" value="konomi-global">
+            </div>
+            <div class="settings-item">
+              <span class="label">Status</span>
+              <span class="value" id="connStatusText">Disconnected</span>
+            </div>
+            <div class="settings-item">
+              <button class="settings-btn" onclick="reconnect()">Reconnect</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-title">Identity</div>
+            <div class="settings-item">
+              <span class="label">Your ID</span>
+              <span class="value" id="myIdDisplay">-</span>
+            </div>
+            <div class="settings-item">
+              <span class="label">Avatar</span>
+              <span class="value" id="myEmojiDisplay">-</span>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-title">About</div>
+            <div class="settings-item">
+              <span class="label">Version</span>
+              <span class="value">KonomiOS v4.0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Menu -->
+  <div class="start-menu" id="startMenu">
+    <div class="start-header">
+      <h2>🌍 KonomiOS</h2>
+      <p>P2P Desktop v4</p>
+    </div>
+    <div class="start-apps">
+      <div class="start-app-item" onclick="openApp('terminal');toggleStartMenu()">
+        <span class="icon">💻</span>
+        <span class="name">Terminal</span>
+      </div>
+      <div class="start-app-item" onclick="openApp('chat');toggleStartMenu()">
+        <span class="icon">💬</span>
+        <span class="name">Chat</span>
+      </div>
+      <div class="start-app-item" onclick="openApp('files');toggleStartMenu()">
+        <span class="icon">📁</span>
+        <span class="name">Files</span>
+      </div>
+      <div class="start-app-item" onclick="openApp('peers');toggleStartMenu()">
+        <span class="icon">👥</span>
+        <span class="name">Peers</span>
+      </div>
+      <div class="start-app-item" onclick="openApp('settings');toggleStartMenu()">
+        <span class="icon">⚙️</span>
+        <span class="name">Settings</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Taskbar -->
+  <div class="taskbar">
+    <div class="taskbar-start" onclick="toggleStartMenu()">🌍 Start</div>
+    <div class="taskbar-apps" id="taskbarApps"></div>
+    <div class="taskbar-tray">
+      <div class="tray-item">
+        <span class="tray-dot" id="connDot"></span>
+        <span id="connStatus">Offline</span>
+      </div>
+      <div class="tray-item">
+        <span>👥</span>
+        <span id="peerCount">0</span>
+      </div>
+      <div class="clock" id="clock">00:00</div>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // WINDOW MANAGER
+    // =========================================================================
+    const apps = ['terminal', 'chat', 'files', 'peers', 'settings'];
+    const openApps = new Set();
+    let activeApp = null;
+    let dragState = null;
+    let zIndex = 10;
+
+    function openApp(name) {
+      const win = document.getElementById(`win-${name}`);
+      if (!win) return;
+
+      win.classList.add('open');
+      openApps.add(name);
+      focusApp(name);
+      updateTaskbar();
+    }
+
+    function closeApp(name) {
+      const win = document.getElementById(`win-${name}`);
+      if (!win) return;
+
+      win.classList.remove('open', 'maximized');
+      openApps.delete(name);
+      if (activeApp === name) activeApp = null;
+      updateTaskbar();
+    }
+
+    function minimizeApp(name) {
+      const win = document.getElementById(`win-${name}`);
+      if (win) win.classList.remove('open');
+    }
+
+    function maximizeApp(name) {
+      const win = document.getElementById(`win-${name}`);
+      if (win) win.classList.toggle('maximized');
+    }
+
+    function focusApp(name) {
+      apps.forEach(a => {
+        const w = document.getElementById(`win-${a}`);
+        if (w) w.classList.remove('active');
+      });
+      const win = document.getElementById(`win-${name}`);
+      if (win) {
+        win.classList.add('active');
+        win.style.zIndex = ++zIndex;
+      }
+      activeApp = name;
+      updateTaskbar();
+    }
+
+    function startDrag(e, winId) {
+      if (e.target.classList.contains('window-btn')) return;
+      const win = document.getElementById(winId);
+      if (win.classList.contains('maximized')) return;
+
+      dragState = {
+        win,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: win.offsetLeft,
+        origY: win.offsetTop
+      };
+      focusApp(winId.replace('win-', ''));
+    }
+
+    document.addEventListener('mousemove', e => {
+      if (!dragState) return;
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      dragState.win.style.left = (dragState.origX + dx) + 'px';
+      dragState.win.style.top = (dragState.origY + dy) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => { dragState = null; });
+
+    function updateTaskbar() {
+      const container = document.getElementById('taskbarApps');
+      container.innerHTML = '';
+
+      for (const app of openApps) {
+        const btn = document.createElement('div');
+        btn.className = `taskbar-app ${activeApp === app ? 'active' : ''}`;
+        btn.innerHTML = `<span>${getAppIcon(app)}</span><span>${capitalize(app)}</span>`;
+        btn.onclick = () => {
+          const win = document.getElementById(`win-${app}`);
+          if (win.classList.contains('open') && activeApp === app) {
+            minimizeApp(app);
+          } else {
+            openApp(app);
+          }
+        };
+        container.appendChild(btn);
+      }
+    }
+
+    function getAppIcon(name) {
+      const icons = { terminal: '💻', chat: '💬', files: '📁', peers: '👥', settings: '⚙️' };
+      return icons[name] || '📱';
+    }
+
+    function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    function toggleStartMenu() {
+      document.getElementById('startMenu').classList.toggle('open');
+    }
+
+    // Close start menu when clicking outside
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.start-menu') && !e.target.closest('.taskbar-start')) {
+        document.getElementById('startMenu').classList.remove('open');
+      }
+    });
+
+    // Focus window on click
+    apps.forEach(app => {
+      const win = document.getElementById(`win-${app}`);
+      if (win) win.addEventListener('mousedown', () => focusApp(app));
+    });
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent =
+        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // =========================================================================
+    // P2P NETWORKING (WebTorrent Tracker - same as v3)
+    // =========================================================================
+    const TRACKER = 'wss://tracker.openwebtorrent.com';
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const NUM_OFFERS = 5;
+
+    let ws = null;
+    let infoHash = null;
+    let currentRoom = '';
+    const peers = new Map();
+    const sharedFiles = new Map();
+    const dataChannels = new Map();
+    const pendingOffers = new Map();
+
+    // Identity
+    const myId = '-KM0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6)))
+      .map(b => b.toString(16).padStart(2,'0')).join('');
+    const myName = myId.slice(0, 12);
+    const myEmoji = ['😀','😎','🤖','👾','🦊','🐱','🐶','🦁','🐼','🐨','🦋','🌟'][Math.floor(Math.random() * 12)];
+
+    document.getElementById('myIdDisplay').textContent = myId.slice(0, 16) + '...';
+    document.getElementById('myEmojiDisplay').textContent = myEmoji;
+
+    // Terminal
+    function termPrint(text, type = 'output') {
+      const line = document.createElement('div');
+      line.className = `line ${type}`;
+      line.textContent = text;
+      document.getElementById('terminal').appendChild(line);
+      document.getElementById('terminal').scrollTop = 99999;
+    }
+
+    // Chat
+    function addChatMsg(userId, name, emoji, text, isSystem = false) {
+      const isSelf = userId === myId;
+      const div = document.createElement('div');
+      div.className = `chat-msg ${isSelf ? 'self' : ''}`;
+
+      if (isSystem) {
+        div.innerHTML = `<div class="chat-bubble system">${escapeHtml(text)}</div>`;
+      } else {
+        div.innerHTML = `
+          <div class="chat-meta">${escapeHtml(emoji)} ${escapeHtml(name)}</div>
+          <div class="chat-bubble">${escapeHtml(text)}</div>
+        `;
+      }
+
+      document.getElementById('chatMessages').appendChild(div);
+      document.getElementById('chatMessages').scrollTop = 99999;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function roomToHash(name) {
+      const data = new TextEncoder().encode('konomi:' + name);
+      const hash = await crypto.subtle.digest('SHA-1', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function generateOffers(count) {
+      const offers = [];
+      for (let i = 0; i < count; i++) {
+        const pc = new RTCPeerConnection(ICE);
+        const dc = pc.createDataChannel('mesh');
+        const offerId = crypto.randomUUID();
+
+        await new Promise(resolve => {
+          pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+          pc.createOffer().then(o => pc.setLocalDescription(o));
+        });
+
+        offers.push({ offer_id: offerId, offer: { type: 'offer', sdp: pc.localDescription.sdp } });
+        pendingOffers.set(offerId, { pc, dc });
+        setupPeerConnection(pc, dc, offerId);
+      }
+      return offers;
+    }
+
+    function setupPeerConnection(pc, dc, id) {
+      dc.onopen = () => {
+        termPrint(`Connected: ${id.slice(0,8)}`, 'info');
+        dataChannels.set(id, dc);
+        if (!peers.has(id)) {
+          peers.set(id, { name: id.slice(0,12), emoji: '🌐', webrtc: true });
+          updatePeers();
+          addChatMsg(null, null, null, `🌐 Peer ${id.slice(0,8)} joined`, true);
+        }
+        for (const [path, file] of sharedFiles) {
+          dc.send(JSON.stringify({ type: 'file', senderId: myId, path, content: file.content, owner: file.owner }));
+        }
+        dc.send(JSON.stringify({ type: 'announce', senderId: myId, name: myName, emoji: myEmoji }));
+      };
+
+      dc.onclose = () => {
+        dataChannels.delete(id);
+        if (peers.has(id)) {
+          const peer = peers.get(id);
+          addChatMsg(null, null, null, `${peer.emoji} ${peer.name} left`, true);
+          peers.delete(id);
+          updatePeers();
+        }
+      };
+
+      dc.onmessage = e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.senderId === myId) return;
+
+          switch (msg.type) {
+            case 'chat':
+              const peer = peers.get(msg.senderId) || { name: msg.senderId.slice(0,12), emoji: '🌐' };
+              addChatMsg(msg.senderId, peer.name, peer.emoji, msg.text);
+              break;
+            case 'file':
+              sharedFiles.set(msg.path, { content: msg.content, owner: msg.owner });
+              updateFiles();
+              break;
+            case 'announce':
+              if (!peers.has(msg.senderId)) {
+                peers.set(msg.senderId, { name: msg.name || msg.senderId.slice(0,12), emoji: msg.emoji || '🌐', webrtc: true });
+                updatePeers();
+              }
+              break;
+          }
+        } catch (err) {}
+      };
+    }
+
+    async function handleOffer(msg) {
+      const pc = new RTCPeerConnection(ICE);
+      const peerId = msg.peer_id;
+
+      pc.ondatachannel = e => setupPeerConnection(pc, e.channel, peerId);
+      await pc.setRemoteDescription(msg.offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      await new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') resolve();
+        else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+      });
+
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: myId,
+        to_peer_id: peerId,
+        answer: { type: 'answer', sdp: pc.localDescription.sdp },
+        offer_id: msg.offer_id
+      }));
+    }
+
+    async function handleAnswer(msg) {
+      const pending = pendingOffers.get(msg.offer_id);
+      if (pending) await pending.pc.setRemoteDescription(msg.answer);
+    }
+
+    async function reannounce() {
+      if (ws?.readyState !== 1) return;
+      const offers = await generateOffers(NUM_OFFERS);
+      ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: infoHash,
+        peer_id: myId,
+        numwant: 10,
+        offers: offers
+      }));
+    }
+
+    function broadcastToWebRTC(msg) {
+      const data = JSON.stringify(msg);
+      for (const dc of dataChannels.values()) {
+        if (dc.readyState === 'open') dc.send(data);
+      }
+    }
+
+    function updatePeers() {
+      const grid = document.getElementById('peerGrid');
+      grid.innerHTML = '';
+
+      // Self
+      const selfCard = document.createElement('div');
+      selfCard.className = 'peer-card self';
+      selfCard.innerHTML = `
+        <div class="peer-avatar">${escapeHtml(myEmoji)}</div>
+        <div class="peer-info">
+          <div class="peer-name">${escapeHtml(myName)} (you)</div>
+          <div class="peer-id">${myId.slice(0,16)}...</div>
+        </div>
+        <div class="peer-status">Online</div>
+      `;
+      grid.appendChild(selfCard);
+
+      for (const [id, peer] of peers) {
+        const card = document.createElement('div');
+        card.className = 'peer-card';
+        card.innerHTML = `
+          <div class="peer-avatar">${escapeHtml(peer.emoji)}</div>
+          <div class="peer-info">
+            <div class="peer-name">${escapeHtml(peer.name)}</div>
+            <div class="peer-id">${id.slice(0,16)}...</div>
+          </div>
+          <div class="peer-status">Connected</div>
+        `;
+        grid.appendChild(card);
+      }
+
+      const count = peers.size + 1;
+      document.getElementById('peerCount').textContent = count;
+      document.getElementById('peerCountLabel').textContent = `${count} online`;
+    }
+
+    function updateFiles() {
+      const list = document.getElementById('fileList');
+
+      if (sharedFiles.size === 0) {
+        list.innerHTML = '<div class="empty-state">No shared files yet</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      for (const [path, file] of sharedFiles) {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `
+          <span class="icon">📄</span>
+          <span class="name">${escapeHtml(path)}</span>
+          <span class="size">${file.content?.length || 0}b</span>
+        `;
+        div.onclick = () => {
+          termPrint(`$ cat ${path}`, 'prompt');
+          termPrint(file.content || '(empty)');
+          openApp('terminal');
+        };
+        list.appendChild(div);
+      }
+    }
+
+    async function joinRoom(roomName) {
+      if (ws) ws.close();
+      dataChannels.clear();
+      pendingOffers.clear();
+      peers.clear();
+
+      currentRoom = roomName;
+      infoHash = await roomToHash(roomName);
+
+      setConnectionState('connecting');
+      termPrint(`Joining room: ${roomName}`, 'info');
+
+      const offers = await generateOffers(NUM_OFFERS);
+      ws = new WebSocket(TRACKER);
+
+      ws.onopen = () => {
+        termPrint('Connected to P2P network!', 'info');
+        setConnectionState('connected');
+        addChatMsg(null, null, null, `Connected to room: ${roomName}`, true);
+
+        ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: infoHash,
+          peer_id: myId,
+          numwant: 10,
+          uploaded: 0,
+          downloaded: 0,
+          left: 1,
+          offers: offers
+        }));
+      };
+
+      ws.onmessage = async (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.offer && msg.peer_id !== myId) await handleOffer(msg);
+          if (msg.answer && msg.offer_id) await handleAnswer(msg);
+          if (msg.interval) setTimeout(() => reannounce(), msg.interval * 1000);
+        } catch (err) {}
+      };
+
+      ws.onerror = () => {
+        termPrint('Connection error', 'error');
+        setConnectionState('error');
+      };
+
+      ws.onclose = () => {
+        termPrint('Disconnected - reconnecting...', 'info');
+        setConnectionState('connecting');
+        setTimeout(() => joinRoom(currentRoom), 5000);
+      };
+
+      updatePeers();
+      updateFiles();
+    }
+
+    function setConnectionState(state) {
+      const dot = document.getElementById('connDot');
+      const status = document.getElementById('connStatus');
+      const statusText = document.getElementById('connStatusText');
+
+      dot.className = 'tray-dot';
+      switch (state) {
+        case 'connected':
+          dot.classList.add('on');
+          status.textContent = 'Online';
+          statusText.textContent = 'Connected';
+          break;
+        case 'connecting':
+          dot.classList.add('connecting');
+          status.textContent = 'Connecting';
+          statusText.textContent = 'Connecting...';
+          break;
+        default:
+          status.textContent = 'Offline';
+          statusText.textContent = 'Disconnected';
+      }
+    }
+
+    window.reconnect = () => {
+      joinRoom(document.getElementById('roomInput').value.trim() || 'konomi-global');
+    };
+
+    // =========================================================================
+    // TERMINAL COMMANDS
+    // =========================================================================
+    const commands = {
+      help: () => `Commands:
+  help        Show this help
+  whoami      Show your ID
+  peers       List connected peers
+  room        Show current room
+  ls          List shared files
+  cat <file>  View file content
+  write <f> <c>  Create file
+  clear       Clear terminal
+  neofetch    System info`,
+      whoami: () => `${myEmoji} ${myId}`,
+      peers: () => {
+        const list = [`${myEmoji} ${myName} (you)`];
+        for (const [, peer] of peers) list.push(`${peer.emoji} ${peer.name}`);
+        return list.join('\n');
+      },
+      room: () => currentRoom || 'Not connected',
+      ls: () => sharedFiles.size ? [...sharedFiles.keys()].join('\n') : '(no files)',
+      cat: (args) => {
+        const path = args[0];
+        if (!path) return 'Usage: cat <file>';
+        const file = sharedFiles.get(path) || sharedFiles.get('/' + path);
+        return file ? file.content : 'File not found';
+      },
+      write: (args) => {
+        const path = args[0];
+        const content = args.slice(1).join(' ');
+        if (!path) return 'Usage: write <file> <content>';
+        const fullPath = path.startsWith('/') ? path : '/' + path;
+        const file = { content, owner: myId };
+        sharedFiles.set(fullPath, file);
+        updateFiles();
+        broadcastToWebRTC({ type: 'file', senderId: myId, path: fullPath, content, owner: myId });
+        return `Created ${fullPath}`;
+      },
+      clear: () => { document.getElementById('terminal').innerHTML = ''; return ''; },
+      neofetch: () => `
+ ██╗  ██╗ ██████╗ ███████╗
+ ██║ ██╔╝██╔═══██╗██╔════╝
+ █████╔╝ ██║   ██║███████╗
+ ██╔═██╗ ██║   ██║╚════██║
+ ██║  ██╗╚██████╔╝███████║
+ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+
+ KonomiOS v4.0 Desktop
+ ─────────────────────
+ User: ${myEmoji} ${myName}
+ Room: ${currentRoom || 'N/A'}
+ Peers: ${peers.size + 1}
+ Files: ${sharedFiles.size}
+ Network: WebRTC P2P`
+    };
+
+    function runCommand() {
+      const input = document.getElementById('cmdInput').value.trim();
+      if (!input) return;
+      document.getElementById('cmdInput').value = '';
+
+      termPrint(`$ ${input}`, 'prompt');
+      const [cmd, ...args] = input.split(' ');
+
+      if (commands[cmd]) {
+        const result = commands[cmd](args);
+        if (result) termPrint(result);
+      } else {
+        termPrint(`Command not found: ${cmd}`, 'error');
+      }
+    }
+
+    document.getElementById('cmdInput').onkeydown = (e) => {
+      if (e.key === 'Enter') runCommand();
+    };
+
+    // =========================================================================
+    // CHAT
+    // =========================================================================
+    window.sendChat = function() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      broadcastToWebRTC({ type: 'chat', senderId: myId, text });
+      addChatMsg(myId, myName, myEmoji, text);
+    };
+
+    document.getElementById('chatInput').onkeydown = (e) => {
+      if (e.key === 'Enter') sendChat();
+    };
+
+    // =========================================================================
+    // FILES
+    // =========================================================================
+    window.createFile = function() {
+      const nameInput = document.getElementById('newFileName');
+      const name = nameInput.value.trim();
+      if (!name) return;
+      nameInput.value = '';
+
+      const content = prompt('File content:') || '';
+      const path = '/' + name.replace(/^\//, '');
+      const file = { content, owner: myId };
+      sharedFiles.set(path, file);
+      updateFiles();
+      broadcastToWebRTC({ type: 'file', senderId: myId, path, content, owner: myId });
+      termPrint(`Created ${path}`, 'info');
+    };
+
+    // Load saved files
+    try {
+      const saved = localStorage.getItem('os-mesh-v4-files');
+      if (saved) {
+        for (const [k, v] of JSON.parse(saved)) sharedFiles.set(k, v);
+        updateFiles();
+      }
+    } catch (e) {}
+
+    // Auto-save
+    setInterval(() => {
+      try {
+        localStorage.setItem('os-mesh-v4-files', JSON.stringify([...sharedFiles]));
+      } catch (e) {}
+    }, 5000);
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    window.openApp = openApp;
+    window.closeApp = closeApp;
+    window.minimizeApp = minimizeApp;
+    window.maximizeApp = maximizeApp;
+    window.toggleStartMenu = toggleStartMenu;
+
+    // Welcome
+    termPrint('Welcome to KonomiOS v4 Desktop!', 'info');
+    termPrint("Type 'help' for commands, 'neofetch' for system info.", 'info');
+    termPrint('', 'output');
+
+    updatePeers();
+    updateFiles();
+
+    // Open terminal by default
+    openApp('terminal');
+
+    // Auto-connect
+    setTimeout(() => {
+      joinRoom(document.getElementById('roomInput').value.trim() || 'konomi-global');
+    }, 500);
+  </script>
+</body>
+</html>
