@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 // P2P Bridge Client - Connects to browser peers via Trystero
 
-import { joinRoom } from 'trystero';
+// Polyfill WebRTC for Node.js
+import wrtc from '@roamhq/wrtc';
+globalThis.RTCPeerConnection = wrtc.RTCPeerConnection;
+globalThis.RTCSessionDescription = wrtc.RTCSessionDescription;
+globalThis.RTCIceCandidate = wrtc.RTCIceCandidate;
+
+import { joinRoom } from 'trystero/nostr';
 import readline from 'readline';
 
 const APP_ID = 'konomi-p2p-bridge-v1';
