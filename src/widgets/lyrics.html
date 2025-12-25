@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<!--
+Lyrically Correct - 90s & 2000s Music Trivia
+Guess the song from the lyrics!
+Part of KISS MySaaS
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Lyrically Correct - 90s & 2000s Trivia</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d1b4e 100%); color: #fff; min-height: 100vh; }
+
+    .header { background: rgba(0,0,0,0.5); padding: 16px 24px; display: flex; align-items: center; gap: 20px; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { font-size: 32px; }
+    .logo-text { font-size: 22px; font-weight: 700; background: linear-gradient(90deg, #ec4899, #8b5cf6, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo-sub { font-size: 11px; color: #888; }
+
+    .decade-toggle { display: flex; gap: 4px; margin-left: 24px; background: rgba(255,255,255,0.1); padding: 4px; border-radius: 8px; }
+    .decade-btn { padding: 8px 16px; border: none; background: transparent; color: #888; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+    .decade-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; }
+
+    .stats { margin-left: auto; display: flex; gap: 24px; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 24px; font-weight: 700; }
+    .stat-value.score { color: #22c55e; }
+    .stat-value.streak { color: #f59e0b; }
+    .stat-label { font-size: 10px; color: #666; text-transform: uppercase; }
+
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; }
+    .btn-primary:hover { opacity: 0.9; }
+
+    .game-container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+
+    /* Game modes */
+    .mode-select { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .mode-btn { padding: 24px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 16px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    .mode-btn:hover { border-color: #ec4899; transform: translateY(-4px); }
+    .mode-btn.active { border-color: #ec4899; background: rgba(236,72,153,0.1); }
+    .mode-icon { font-size: 40px; margin-bottom: 12px; }
+    .mode-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .mode-desc { font-size: 12px; color: #888; }
+
+    /* Question card */
+    .question-card { background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); border-radius: 24px; padding: 40px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.1); }
+    .question-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .question-num { font-size: 14px; color: #888; }
+    .question-mode { padding: 6px 12px; background: linear-gradient(135deg, #ec4899, #8b5cf6); border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .question-decade { margin-left: auto; padding: 6px 12px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 12px; }
+
+    .lyrics-display { text-align: center; padding: 40px 20px; margin-bottom: 32px; }
+    .lyrics-text { font-size: 28px; line-height: 1.6; font-style: italic; color: #f0abfc; }
+    .lyrics-text .blank { display: inline-block; min-width: 120px; border-bottom: 3px solid #ec4899; margin: 0 8px; color: transparent; }
+    .lyrics-text .blank.revealed { color: #22c55e; border-color: #22c55e; }
+    .lyrics-hint { margin-top: 20px; font-size: 14px; color: #888; }
+
+    .answer-input { display: flex; gap: 12px; margin-bottom: 24px; }
+    .answer-input input { flex: 1; padding: 16px 24px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-size: 18px; outline: none; }
+    .answer-input input:focus { border-color: #ec4899; }
+    .answer-input input::placeholder { color: #666; }
+
+    .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .answer-btn { padding: 16px 20px; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); border-radius: 12px; color: white; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+    .answer-btn:hover:not(:disabled) { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+    .answer-btn .artist { color: #888; font-size: 12px; }
+    .answer-btn.correct { background: #22c55e22; border-color: #22c55e; }
+    .answer-btn.wrong { background: #ef444422; border-color: #ef4444; }
+    .answer-btn:disabled { cursor: not-allowed; }
+
+    .result { text-align: center; padding: 24px; border-radius: 16px; margin-bottom: 24px; display: none; }
+    .result.show { display: block; animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } }
+    .result.correct { background: linear-gradient(135deg, #22c55e22, #16a34a22); border: 1px solid #22c55e44; }
+    .result.wrong { background: linear-gradient(135deg, #ef444422, #dc262622); border: 1px solid #ef444444; }
+    .result-icon { font-size: 48px; margin-bottom: 12px; }
+    .result-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .result.correct .result-title { color: #22c55e; }
+    .result.wrong .result-title { color: #ef4444; }
+    .result-info { background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; margin-top: 16px; }
+    .result-song { font-size: 18px; font-weight: 600; color: #f0abfc; }
+    .result-artist { font-size: 14px; color: #888; }
+    .result-year { font-size: 12px; color: #666; margin-top: 4px; }
+
+    .timer { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .timer-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+    .timer-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #22c55e); transition: width 0.1s, background 0.3s; }
+    .timer-fill.warning { background: linear-gradient(90deg, #f59e0b, #f59e0b); }
+    .timer-fill.danger { background: linear-gradient(90deg, #ef4444, #ef4444); }
+    .timer-text { font-size: 18px; font-weight: 700; font-family: monospace; min-width: 40px; }
+
+    .controls { text-align: center; }
+
+    /* Equalizer animation */
+    .equalizer { display: flex; gap: 3px; align-items: flex-end; height: 30px; margin: 0 auto 20px; width: fit-content; }
+    .bar { width: 4px; background: linear-gradient(180deg, #ec4899, #8b5cf6); border-radius: 2px; animation: equalize 0.5s ease-in-out infinite alternate; }
+    .bar:nth-child(1) { animation-delay: 0s; }
+    .bar:nth-child(2) { animation-delay: 0.1s; }
+    .bar:nth-child(3) { animation-delay: 0.2s; }
+    .bar:nth-child(4) { animation-delay: 0.3s; }
+    .bar:nth-child(5) { animation-delay: 0.4s; }
+    @keyframes equalize {
+      0% { height: 8px; }
+      100% { height: 30px; }
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span class="logo-icon">🎵</span>
+      <div>
+        <div class="logo-text">Lyrically Correct</div>
+        <div class="logo-sub">90s & 2000s Music Trivia</div>
+      </div>
+    </div>
+    <div class="decade-toggle">
+      <button class="decade-btn active" data-decade="90s">90s</button>
+      <button class="decade-btn" data-decade="2000s">2000s</button>
+      <button class="decade-btn" data-decade="both">Both</button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value score" id="score">0</div>
+        <div class="stat-label">Score</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value streak" id="streak">0</div>
+        <div class="stat-label">Streak</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="round">1</div>
+        <div class="stat-label">Round</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="newGame()">New Game</button>
+  </div>
+
+  <div class="game-container">
+    <!-- Mode Selection -->
+    <div id="modeSelect">
+      <h2 style="text-align:center;margin-bottom:24px;">Choose Game Mode</h2>
+      <div class="mode-select">
+        <div class="mode-btn" data-mode="guess" onclick="selectMode('guess')">
+          <div class="mode-icon">🎤</div>
+          <div class="mode-title">Name That Tune</div>
+          <div class="mode-desc">Guess the song from lyrics</div>
+        </div>
+        <div class="mode-btn" data-mode="fill" onclick="selectMode('fill')">
+          <div class="mode-icon">✏️</div>
+          <div class="mode-title">Fill the Blank</div>
+          <div class="mode-desc">Complete the missing lyrics</div>
+        </div>
+        <div class="mode-btn" data-mode="artist" onclick="selectMode('artist')">
+          <div class="mode-icon">🎸</div>
+          <div class="mode-title">Who Sang It?</div>
+          <div class="mode-desc">Match the artist to the song</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game View -->
+    <div id="gameView" class="hidden">
+      <div class="timer">
+        <div class="timer-bar">
+          <div class="timer-fill" id="timerFill"></div>
+        </div>
+        <span class="timer-text" id="timerText">30</span>
+      </div>
+
+      <div class="question-card">
+        <div class="question-header">
+          <span class="question-num">Question <span id="questionNum">1</span> of 10</span>
+          <span class="question-mode" id="gameMode">Name That Tune</span>
+          <span class="question-decade" id="gameDec">90s</span>
+        </div>
+
+        <div class="equalizer">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+
+        <div class="lyrics-display">
+          <div class="lyrics-text" id="lyricsText">"Loading lyrics..."</div>
+          <div class="lyrics-hint" id="lyricsHint"></div>
+        </div>
+
+        <!-- Fill in blank mode -->
+        <div class="answer-input hidden" id="fillInput">
+          <input type="text" placeholder="Type the missing word(s)..." id="blankAnswer">
+          <button class="btn btn-primary" onclick="submitFill()">Submit</button>
+        </div>
+
+        <!-- Multiple choice mode -->
+        <div class="answers" id="answersGrid"></div>
+      </div>
+
+      <div class="result" id="result">
+        <div class="result-icon" id="resultIcon">🎉</div>
+        <div class="result-title" id="resultTitle">Correct!</div>
+        <div class="result-info">
+          <div class="result-song" id="resultSong">Song Title</div>
+          <div class="result-artist" id="resultArtist">Artist Name</div>
+          <div class="result-year" id="resultYear">1999</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary hidden" id="nextBtn" onclick="nextQuestion()">Next Song →</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Lyrically Correct - 90s & 2000s Music Trivia
+    // =========================================================================
+
+    // Song database with iconic lyrics (short fair-use snippets)
+    const SONGS = {
+      '90s': [
+        { song: "Smells Like Teen Spirit", artist: "Nirvana", year: 1991, lyrics: "Here we are now, entertain us", blank: "entertain", hint: "A call to action for the audience" },
+        { song: "...Baby One More Time", artist: "Britney Spears", year: 1999, lyrics: "My loneliness is killing me", blank: "loneliness", hint: "An emotional state" },
+        { song: "Wannabe", artist: "Spice Girls", year: 1996, lyrics: "If you wanna be my lover, you gotta get with my friends", blank: "friends", hint: "People close to you" },
+        { song: "Iris", artist: "Goo Goo Dolls", year: 1998, lyrics: "And I don't want the world to see me", blank: "world", hint: "Everyone, everything" },
+        { song: "MMMBop", artist: "Hanson", year: 1997, lyrics: "MMMBop, ba duba dop", blank: "MMMBop", hint: "Nonsense syllables" },
+        { song: "Losing My Religion", artist: "R.E.M.", year: 1991, lyrics: "That's me in the corner, that's me in the spotlight", blank: "spotlight", hint: "Center of attention" },
+        { song: "Creep", artist: "Radiohead", year: 1992, lyrics: "I'm a creep, I'm a weirdo", blank: "weirdo", hint: "Strange person" },
+        { song: "No Diggity", artist: "Blackstreet", year: 1996, lyrics: "I like the way you work it, no diggity", blank: "diggity", hint: "Slang for doubt" },
+        { song: "Waterfalls", artist: "TLC", year: 1994, lyrics: "Don't go chasing waterfalls", blank: "waterfalls", hint: "Cascading water" },
+        { song: "I Want It That Way", artist: "Backstreet Boys", year: 1999, lyrics: "Tell me why, ain't nothin' but a heartache", blank: "heartache", hint: "Emotional pain" },
+        { song: "Bitter Sweet Symphony", artist: "The Verve", year: 1997, lyrics: "Cause it's a bitter sweet symphony, this life", blank: "symphony", hint: "Musical composition" },
+        { song: "Under the Bridge", artist: "Red Hot Chili Peppers", year: 1991, lyrics: "Sometimes I feel like I don't have a partner", blank: "partner", hint: "Companion" },
+        { song: "Genie in a Bottle", artist: "Christina Aguilera", year: 1999, lyrics: "I'm a genie in a bottle, you gotta rub me the right way", blank: "genie", hint: "Magical wish-granter" },
+        { song: "All Star", artist: "Smash Mouth", year: 1999, lyrics: "Hey now, you're an all star, get your game on", blank: "game", hint: "Competition or skill" },
+        { song: "Wonderwall", artist: "Oasis", year: 1995, lyrics: "Maybe you're gonna be the one that saves me", blank: "saves", hint: "Rescues" },
+        { song: "Semi-Charmed Life", artist: "Third Eye Blind", year: 1997, lyrics: "I want something else to get me through this", blank: "something", hint: "An unspecified thing" },
+        { song: "Livin' La Vida Loca", artist: "Ricky Martin", year: 1999, lyrics: "She's livin' la vida loca", blank: "loca", hint: "Spanish for crazy" },
+        { song: "Say My Name", artist: "Destiny's Child", year: 1999, lyrics: "Say my name, say my name", blank: "name", hint: "What you're called" },
+        { song: "Smooth", artist: "Santana ft. Rob Thomas", year: 1999, lyrics: "Man, it's a hot one", blank: "hot", hint: "Temperature extreme" },
+        { song: "Tubthumping", artist: "Chumbawamba", year: 1997, lyrics: "I get knocked down, but I get up again", blank: "knocked", hint: "Pushed over" },
+      ],
+      '2000s': [
+        { song: "Crazy in Love", artist: "Beyoncé ft. Jay-Z", year: 2003, lyrics: "Got me looking so crazy right now", blank: "crazy", hint: "Insane, wild" },
+        { song: "Hey Ya!", artist: "OutKast", year: 2003, lyrics: "Shake it like a Polaroid picture", blank: "Polaroid", hint: "Instant camera brand" },
+        { song: "Mr. Brightside", artist: "The Killers", year: 2004, lyrics: "Coming out of my cage and I've been doing just fine", blank: "cage", hint: "Enclosure, prison" },
+        { song: "Since U Been Gone", artist: "Kelly Clarkson", year: 2004, lyrics: "Since you been gone, I can breathe for the first time", blank: "breathe", hint: "Take in air" },
+        { song: "In Da Club", artist: "50 Cent", year: 2003, lyrics: "Go shawty, it's your birthday", blank: "birthday", hint: "Anniversary of birth" },
+        { song: "Toxic", artist: "Britney Spears", year: 2004, lyrics: "With a taste of your lips, I'm on a ride", blank: "toxic", hint: "Poisonous" },
+        { song: "Umbrella", artist: "Rihanna", year: 2007, lyrics: "Under my umbrella, ella, ella", blank: "umbrella", hint: "Rain protection" },
+        { song: "Hips Don't Lie", artist: "Shakira", year: 2006, lyrics: "Oh baby when you talk like that, you make a woman go mad", blank: "mad", hint: "Angry or crazy" },
+        { song: "Complicated", artist: "Avril Lavigne", year: 2002, lyrics: "Why'd you have to go and make things so complicated?", blank: "complicated", hint: "Difficult, complex" },
+        { song: "Beautiful Day", artist: "U2", year: 2000, lyrics: "It's a beautiful day, don't let it get away", blank: "beautiful", hint: "Aesthetically pleasing" },
+        { song: "The Real Slim Shady", artist: "Eminem", year: 2000, lyrics: "Will the real Slim Shady please stand up?", blank: "stand", hint: "Rise to feet" },
+        { song: "Bye Bye Bye", artist: "*NSYNC", year: 2000, lyrics: "Bye bye bye, I'm doing this tonight", blank: "tonight", hint: "This evening" },
+        { song: "Hot in Herre", artist: "Nelly", year: 2002, lyrics: "It's getting hot in here, so take off all your clothes", blank: "clothes", hint: "Garments" },
+        { song: "Lose Yourself", artist: "Eminem", year: 2002, lyrics: "You only get one shot, do not miss your chance to blow", blank: "shot", hint: "Attempt, try" },
+        { song: "Yeah!", artist: "Usher", year: 2004, lyrics: "Yeah, yeah, yeah", blank: "Yeah", hint: "Affirmative exclamation" },
+        { song: "Gold Digger", artist: "Kanye West", year: 2005, lyrics: "She take my money when I'm in need", blank: "money", hint: "Currency" },
+        { song: "Fergalicious", artist: "Fergie", year: 2006, lyrics: "Fergalicious definition make them boys go loco", blank: "loco", hint: "Spanish for crazy" },
+        { song: "I Gotta Feeling", artist: "Black Eyed Peas", year: 2009, lyrics: "I gotta feeling that tonight's gonna be a good night", blank: "feeling", hint: "Intuition, emotion" },
+        { song: "Poker Face", artist: "Lady Gaga", year: 2008, lyrics: "Can't read my poker face", blank: "poker", hint: "Card game" },
+        { song: "Single Ladies", artist: "Beyoncé", year: 2008, lyrics: "If you liked it then you shoulda put a ring on it", blank: "ring", hint: "Circular jewelry" },
+      ]
+    };
+
+    let currentMode = 'guess';
+    let currentDecade = '90s';
+    let currentQuestion = null;
+    let questionNum = 0;
+    let score = 0;
+    let streak = 0;
+    let timer = null;
+    let timeLeft = 30;
+    let usedSongs = [];
+
+    // Decade toggle
+    document.querySelectorAll('.decade-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.decade-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentDecade = btn.dataset.decade;
+      });
+    });
+
+    function selectMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+      startGame();
+    }
+
+    function startGame() {
+      questionNum = 0;
+      score = 0;
+      streak = 0;
+      usedSongs = [];
+      updateStats();
+
+      document.getElementById('modeSelect').classList.add('hidden');
+      document.getElementById('gameView').classList.remove('hidden');
+
+      nextQuestion();
+    }
+
+    function getRandomSong() {
+      let pool = [];
+      if (currentDecade === 'both') {
+        pool = [...SONGS['90s'], ...SONGS['2000s']];
+      } else {
+        pool = [...SONGS[currentDecade]];
+      }
+
+      // Filter out used songs
+      pool = pool.filter(s => !usedSongs.includes(s.song));
+      if (pool.length === 0) {
+        usedSongs = [];
+        pool = currentDecade === 'both'
+          ? [...SONGS['90s'], ...SONGS['2000s']]
+          : [...SONGS[currentDecade]];
+      }
+
+      const song = pool[Math.floor(Math.random() * pool.length)];
+      usedSongs.push(song.song);
+      return song;
+    }
+
+    function nextQuestion() {
+      if (questionNum >= 10) {
+        endGame();
+        return;
+      }
+
+      questionNum++;
+      currentQuestion = getRandomSong();
+
+      document.getElementById('questionNum').textContent = questionNum;
+      document.getElementById('gameDec').textContent = currentQuestion.year < 2000 ? '90s' : '2000s';
+      document.getElementById('result').classList.remove('show', 'correct', 'wrong');
+      document.getElementById('nextBtn').classList.add('hidden');
+
+      const modeNames = { guess: 'Name That Tune', fill: 'Fill the Blank', artist: 'Who Sang It?' };
+      document.getElementById('gameMode').textContent = modeNames[currentMode];
+
+      switch (currentMode) {
+        case 'guess': renderGuessMode(); break;
+        case 'fill': renderFillMode(); break;
+        case 'artist': renderArtistMode(); break;
+      }
+
+      startTimer();
+    }
+
+    function renderGuessMode() {
+      document.getElementById('lyricsText').innerHTML = `"${currentQuestion.lyrics}"`;
+      document.getElementById('lyricsHint').textContent = `Hint: ${currentQuestion.year}`;
+      document.getElementById('fillInput').classList.add('hidden');
+      document.getElementById('answersGrid').classList.remove('hidden');
+
+      // Get wrong answers
+      const allSongs = [...SONGS['90s'], ...SONGS['2000s']].filter(s => s.song !== currentQuestion.song);
+      const wrongAnswers = [];
+      while (wrongAnswers.length < 3) {
+        const wrong = allSongs[Math.floor(Math.random() * allSongs.length)];
+        if (!wrongAnswers.find(w => w.song === wrong.song)) {
+          wrongAnswers.push(wrong);
+        }
+      }
+
+      const answers = [...wrongAnswers, currentQuestion].sort(() => Math.random() - 0.5);
+      document.getElementById('answersGrid').innerHTML = answers.map((a, i) => `
+        <button class="answer-btn" onclick="checkAnswer('${a.song}', this)">
+          <span>${a.song}</span>
+          <span class="artist">${a.artist}</span>
+        </button>
+      `).join('');
+    }
+
+    function renderFillMode() {
+      const lyrics = currentQuestion.lyrics.replace(
+        new RegExp(currentQuestion.blank, 'i'),
+        `<span class="blank">${currentQuestion.blank}</span>`
+      );
+      document.getElementById('lyricsText').innerHTML = `"${lyrics}"`;
+      document.getElementById('lyricsHint').textContent = `Hint: ${currentQuestion.hint}`;
+      document.getElementById('fillInput').classList.remove('hidden');
+      document.getElementById('answersGrid').classList.add('hidden');
+      document.getElementById('blankAnswer').value = '';
+      document.getElementById('blankAnswer').focus();
+    }
+
+    function renderArtistMode() {
+      document.getElementById('lyricsText').innerHTML = `"${currentQuestion.lyrics}"<br><br><strong style="color:#fff;">🎵 ${currentQuestion.song}</strong>`;
+      document.getElementById('lyricsHint').textContent = `Year: ${currentQuestion.year}`;
+      document.getElementById('fillInput').classList.add('hidden');
+      document.getElementById('answersGrid').classList.remove('hidden');
+
+      // Get wrong artists
+      const allSongs = [...SONGS['90s'], ...SONGS['2000s']];
+      const allArtists = [...new Set(allSongs.map(s => s.artist))].filter(a => a !== currentQuestion.artist);
+      const wrongArtists = [];
+      while (wrongArtists.length < 3) {
+        const wrong = allArtists[Math.floor(Math.random() * allArtists.length)];
+        if (!wrongArtists.includes(wrong)) {
+          wrongArtists.push(wrong);
+        }
+      }
+
+      const answers = [...wrongArtists, currentQuestion.artist].sort(() => Math.random() - 0.5);
+      document.getElementById('answersGrid').innerHTML = answers.map(a => `
+        <button class="answer-btn" onclick="checkArtist('${a}', this)">
+          <span>${a}</span>
+        </button>
+      `).join('');
+    }
+
+    function checkAnswer(answer, btn) {
+      clearInterval(timer);
+      document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+
+      const isCorrect = answer === currentQuestion.song;
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+      if (!isCorrect) {
+        document.querySelectorAll('.answer-btn').forEach(b => {
+          if (b.textContent.includes(currentQuestion.song)) b.classList.add('correct');
+        });
+      }
+
+      showResult(isCorrect);
+    }
+
+    function checkArtist(artist, btn) {
+      clearInterval(timer);
+      document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+
+      const isCorrect = artist === currentQuestion.artist;
+      btn.classList.add(isCorrect ? 'correct' : 'wrong');
+
+      if (!isCorrect) {
+        document.querySelectorAll('.answer-btn').forEach(b => {
+          if (b.textContent.includes(currentQuestion.artist)) b.classList.add('correct');
+        });
+      }
+
+      showResult(isCorrect);
+    }
+
+    function submitFill() {
+      clearInterval(timer);
+      const answer = document.getElementById('blankAnswer').value.trim().toLowerCase();
+      const isCorrect = answer === currentQuestion.blank.toLowerCase();
+
+      const blank = document.querySelector('.blank');
+      blank.classList.add('revealed');
+      blank.style.color = isCorrect ? '#22c55e' : '#ef4444';
+
+      showResult(isCorrect);
+    }
+
+    // Enter key for fill mode
+    document.getElementById('blankAnswer').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') submitFill();
+    });
+
+    function showResult(isCorrect) {
+      if (isCorrect) {
+        const timeBonus = timeLeft * 5;
+        const streakBonus = streak * 10;
+        score += 100 + timeBonus + streakBonus;
+        streak++;
+      } else {
+        streak = 0;
+      }
+
+      updateStats();
+
+      const result = document.getElementById('result');
+      result.classList.remove('correct', 'wrong');
+      result.classList.add('show', isCorrect ? 'correct' : 'wrong');
+
+      document.getElementById('resultIcon').textContent = isCorrect ? '🎉' : '😢';
+      document.getElementById('resultTitle').textContent = isCorrect ? 'Correct!' : 'Not Quite!';
+      document.getElementById('resultSong').textContent = currentQuestion.song;
+      document.getElementById('resultArtist').textContent = currentQuestion.artist;
+      document.getElementById('resultYear').textContent = currentQuestion.year;
+
+      document.getElementById('nextBtn').classList.remove('hidden');
+    }
+
+    function startTimer() {
+      timeLeft = 30;
+      updateTimer();
+
+      timer = setInterval(() => {
+        timeLeft--;
+        updateTimer();
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          if (currentMode === 'fill') {
+            submitFill();
+          } else {
+            showResult(false);
+          }
+        }
+      }, 1000);
+    }
+
+    function updateTimer() {
+      document.getElementById('timerText').textContent = timeLeft;
+      const fill = document.getElementById('timerFill');
+      fill.style.width = (timeLeft / 30 * 100) + '%';
+      fill.classList.remove('warning', 'danger');
+      if (timeLeft <= 10) fill.classList.add('danger');
+      else if (timeLeft <= 20) fill.classList.add('warning');
+    }
+
+    function updateStats() {
+      document.getElementById('score').textContent = score;
+      document.getElementById('streak').textContent = streak;
+      document.getElementById('round').textContent = questionNum || 1;
+    }
+
+    function endGame() {
+      alert(`Game Over!\n\nFinal Score: ${score}\nBest Streak: ${streak}`);
+      newGame();
+    }
+
+    function newGame() {
+      clearInterval(timer);
+      questionNum = 0;
+      score = 0;
+      streak = 0;
+      usedSongs = [];
+      updateStats();
+
+      document.getElementById('gameView').classList.add('hidden');
+      document.getElementById('modeSelect').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

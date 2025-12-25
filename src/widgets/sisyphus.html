@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<!--
+Sisyphusian Pursuit - AI-Generated Trivia Game
+WebLLM generates endless unique questions!
+Part of KISS MySaaS
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sisyphusian Pursuit - AI Trivia</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: #fff; min-height: 100vh; }
+
+    .header { background: rgba(0,0,0,0.4); padding: 16px 24px; display: flex; align-items: center; gap: 20px; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { font-size: 36px; animation: roll 3s linear infinite; }
+    @keyframes roll { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .logo-text { font-size: 24px; font-weight: 700; }
+    .logo-text span { background: linear-gradient(90deg, #f59e0b, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo-sub { font-size: 11px; color: #888; margin-top: 2px; }
+
+    .ai-status { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.4); border-radius: 20px; }
+    .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .ai-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+    .ai-dot.ready { background: #22c55e; }
+    .ai-dot.generating { background: #8b5cf6; animation: pulse 0.5s infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+
+    .stats { display: flex; gap: 20px; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 20px; font-weight: 700; color: #f59e0b; }
+    .stat-label { font-size: 10px; color: #666; text-transform: uppercase; }
+
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+
+    .game-container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+
+    /* Boulder progress */
+    .mountain { position: relative; height: 120px; margin-bottom: 40px; background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.05) 100%); border-radius: 0 0 50% 50% / 0 0 100% 100%; overflow: hidden; }
+    .mountain-path { position: absolute; bottom: 10px; left: 5%; right: 5%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; transform: rotate(-5deg); }
+    .boulder { position: absolute; bottom: 20px; left: 5%; width: 50px; height: 50px; background: linear-gradient(135deg, #94a3b8, #64748b); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: left 0.5s ease-out; }
+    .boulder.rolling { animation: roll 0.5s linear; }
+    .summit-flag { position: absolute; right: 5%; top: 20px; font-size: 32px; }
+    .progress-text { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #888; }
+
+    /* Wedges */
+    .wedges { display: flex; justify-content: center; gap: 10px; margin-bottom: 32px; }
+    .wedge { width: 50px; height: 50px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 22px; transition: all 0.3s; position: relative; }
+    .wedge.earned { border-color: #fff; box-shadow: 0 0 25px currentColor; transform: scale(1.15); }
+    .wedge.current { animation: glow 1s ease-in-out infinite alternate; }
+    @keyframes glow { to { box-shadow: 0 0 30px currentColor; } }
+    .wedge-label { position: absolute; bottom: -20px; font-size: 9px; color: #888; white-space: nowrap; }
+    .wedge.philosophy { background: #6366f1; }
+    .wedge.science { background: #22c55e; }
+    .wedge.mythology { background: #f59e0b; }
+    .wedge.absurdism { background: #ec4899; }
+    .wedge.literature { background: #8b5cf6; }
+    .wedge.cosmos { background: #06b6d4; }
+
+    /* Loading state */
+    .loading-screen { text-align: center; padding: 60px; }
+    .loading-spinner { width: 60px; height: 60px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #8b5cf6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 24px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 18px; margin-bottom: 8px; }
+    .loading-sub { font-size: 14px; color: #888; }
+
+    /* Category selection */
+    .categories { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .category-btn { padding: 24px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: all 0.3s; }
+    .category-btn:hover:not(.disabled) { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); border-color: currentColor; }
+    .category-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+    .category-btn .icon { font-size: 40px; }
+    .category-btn.philosophy { border-color: #6366f1; } .category-btn.philosophy:hover { background: #6366f122; }
+    .category-btn.science { border-color: #22c55e; } .category-btn.science:hover { background: #22c55e22; }
+    .category-btn.mythology { border-color: #f59e0b; } .category-btn.mythology:hover { background: #f59e0b22; }
+    .category-btn.absurdism { border-color: #ec4899; } .category-btn.absurdism:hover { background: #ec489922; }
+    .category-btn.literature { border-color: #8b5cf6; } .category-btn.literature:hover { background: #8b5cf622; }
+    .category-btn.cosmos { border-color: #06b6d4; } .category-btn.cosmos:hover { background: #06b6d422; }
+
+    /* Question card */
+    .question-card { background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); border-radius: 24px; padding: 40px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.15); position: relative; overflow: hidden; }
+    .question-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--cat-color), transparent); }
+    .generating-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
+    .generating-overlay .loading-spinner { width: 40px; height: 40px; }
+    .question-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .question-category { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; padding: 6px 14px; border-radius: 20px; background: var(--cat-color); color: #000; font-weight: 600; }
+    .question-badge { font-size: 11px; padding: 4px 10px; background: rgba(139,92,246,0.3); border-radius: 10px; color: #c4b5fd; }
+    .question-text { font-size: 26px; line-height: 1.5; margin-bottom: 32px; font-weight: 500; }
+    .question-context { font-size: 14px; color: #888; margin-bottom: 24px; padding: 12px 16px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid var(--cat-color); }
+
+    .answers { display: grid; gap: 14px; }
+    .answer-btn { padding: 18px 24px; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15); border-radius: 14px; color: white; font-size: 16px; text-align: left; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 14px; }
+    .answer-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); transform: translateX(10px); }
+    .answer-btn .letter { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 14px; }
+    .answer-btn.correct { background: #22c55e22; border-color: #22c55e; }
+    .answer-btn.correct .letter { background: #22c55e; color: #000; }
+    .answer-btn.wrong { background: #ef444422; border-color: #ef4444; }
+    .answer-btn.wrong .letter { background: #ef4444; }
+    .answer-btn:disabled { cursor: not-allowed; }
+
+    .result { text-align: center; padding: 24px; margin-top: 24px; border-radius: 16px; display: none; }
+    .result.show { display: block; animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } }
+    .result.correct { background: linear-gradient(135deg, #22c55e22, #16a34a22); border: 1px solid #22c55e44; }
+    .result.wrong { background: linear-gradient(135deg, #ef444422, #dc262622); border: 1px solid #ef444444; }
+    .result-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .result.correct .result-title { color: #22c55e; }
+    .result.wrong .result-title { color: #ef4444; }
+    .result-points { font-size: 14px; color: #888; margin-bottom: 16px; }
+    .explanation { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; font-size: 14px; color: rgba(255,255,255,0.8); line-height: 1.7; text-align: left; }
+    .explanation strong { color: #f59e0b; }
+
+    .next-btn-container { text-align: center; margin-top: 24px; }
+
+    /* Timer */
+    .timer { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 12px 20px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+    .timer-icon { font-size: 20px; }
+    .timer-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+    .timer-fill { height: 100%; background: #22c55e; transition: width 0.1s linear, background 0.3s; }
+    .timer-fill.warning { background: #f59e0b; }
+    .timer-fill.danger { background: #ef4444; }
+    .timer-text { font-size: 20px; font-weight: 700; min-width: 50px; text-align: right; font-family: monospace; }
+
+    /* Win screen */
+    .win-screen { text-align: center; padding: 60px 40px; }
+    .win-title { font-size: 48px; margin-bottom: 8px; }
+    .win-subtitle { font-size: 20px; color: #888; margin-bottom: 32px; }
+    .sisyphus-message { font-size: 16px; color: #c4b5fd; font-style: italic; margin-bottom: 40px; padding: 20px; background: rgba(139,92,246,0.1); border-radius: 12px; border: 1px solid rgba(139,92,246,0.3); }
+    .win-stats { display: flex; justify-content: center; gap: 48px; margin-bottom: 40px; }
+    .win-stat-value { font-size: 48px; font-weight: 700; background: linear-gradient(135deg, #f59e0b, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .win-stat-label { font-size: 12px; color: #666; text-transform: uppercase; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span class="logo-icon">🪨</span>
+      <div>
+        <div class="logo-text">Sisyphusian <span>Pursuit</span></div>
+        <div class="logo-sub">AI-Generated Infinite Trivia</div>
+      </div>
+    </div>
+    <div class="ai-status">
+      <span class="ai-dot" id="aiDot"></span>
+      <span id="aiStatus">Loading AI...</span>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="score">0</div>
+        <div class="stat-label">Score</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="streak">0</div>
+        <div class="stat-label">Streak</div>
+      </div>
+    </div>
+    <button class="btn btn-secondary" onclick="newGame()">New Game</button>
+  </div>
+
+  <div class="game-container">
+    <!-- Boulder progress -->
+    <div class="mountain">
+      <div class="mountain-path"></div>
+      <div class="boulder" id="boulder">🪨</div>
+      <div class="summit-flag">🏁</div>
+      <div class="progress-text" id="progressText">Push the boulder to the summit!</div>
+    </div>
+
+    <!-- Wedges -->
+    <div class="wedges" id="wedges">
+      <div class="wedge philosophy" title="Philosophy"><span>🧠</span><span class="wedge-label">Philosophy</span></div>
+      <div class="wedge science" title="Science"><span>⚛️</span><span class="wedge-label">Science</span></div>
+      <div class="wedge mythology" title="Mythology"><span>⚡</span><span class="wedge-label">Mythology</span></div>
+      <div class="wedge absurdism" title="Absurdism"><span>🎭</span><span class="wedge-label">Absurdism</span></div>
+      <div class="wedge literature" title="Literature"><span>📚</span><span class="wedge-label">Literature</span></div>
+      <div class="wedge cosmos" title="Cosmos"><span>🌌</span><span class="wedge-label">Cosmos</span></div>
+    </div>
+
+    <!-- Loading screen -->
+    <div id="loadingScreen" class="loading-screen">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Summoning the AI Oracle...</div>
+      <div class="loading-sub" id="loadingStatus">Initializing WebLLM engine</div>
+    </div>
+
+    <!-- Category selection -->
+    <div id="categorySelect" class="hidden">
+      <h2 style="text-align:center;margin-bottom:24px;font-size:24px;">Choose Your Boulder's Path</h2>
+      <div class="categories" id="categories">
+        <button class="category-btn philosophy" data-category="philosophy">
+          <span class="icon">🧠</span>
+          Philosophy
+        </button>
+        <button class="category-btn science" data-category="science">
+          <span class="icon">⚛️</span>
+          Science
+        </button>
+        <button class="category-btn mythology" data-category="mythology">
+          <span class="icon">⚡</span>
+          Mythology
+        </button>
+        <button class="category-btn absurdism" data-category="absurdism">
+          <span class="icon">🎭</span>
+          Absurdism
+        </button>
+        <button class="category-btn literature" data-category="literature">
+          <span class="icon">📚</span>
+          Literature
+        </button>
+        <button class="category-btn cosmos" data-category="cosmos">
+          <span class="icon">🌌</span>
+          Cosmos
+        </button>
+      </div>
+    </div>
+
+    <!-- Question view -->
+    <div id="questionView" class="hidden">
+      <div class="timer">
+        <span class="timer-icon">⏱️</span>
+        <div class="timer-bar">
+          <div class="timer-fill" id="timerFill"></div>
+        </div>
+        <span class="timer-text" id="timerText">45</span>
+      </div>
+
+      <div class="question-card" id="questionCard" style="--cat-color: #8b5cf6;">
+        <div class="generating-overlay hidden" id="generatingOverlay">
+          <div class="loading-spinner"></div>
+          <div style="margin-top:16px;color:#c4b5fd;">AI is crafting your question...</div>
+        </div>
+        <div class="question-meta">
+          <span class="question-category" id="categoryBadge">Philosophy</span>
+          <span class="question-badge">🤖 AI Generated</span>
+        </div>
+        <div class="question-context" id="questionContext"></div>
+        <div class="question-text" id="questionText">Loading question...</div>
+        <div class="answers" id="answers"></div>
+      </div>
+
+      <div class="result" id="result">
+        <div class="result-title" id="resultTitle">Correct!</div>
+        <div class="result-points" id="resultPoints">+150 points</div>
+        <div class="explanation" id="explanation"></div>
+      </div>
+
+      <div class="next-btn-container">
+        <button class="btn btn-primary hidden" id="nextBtn" onclick="nextQuestion()">Continue the Climb</button>
+      </div>
+    </div>
+
+    <!-- Win screen -->
+    <div id="winScreen" class="hidden">
+      <div class="win-screen">
+        <div class="win-title">🏔️ Summit Reached!</div>
+        <div class="win-subtitle">You've conquered the mountain of knowledge!</div>
+        <div class="sisyphus-message">
+          "The struggle itself toward the heights is enough to fill a man's heart. One must imagine Sisyphus happy."<br>
+          <span style="color:#888;">— Albert Camus</span>
+        </div>
+        <div class="wedges" style="margin-bottom:32px;">
+          <div class="wedge philosophy earned">🧠</div>
+          <div class="wedge science earned">⚛️</div>
+          <div class="wedge mythology earned">⚡</div>
+          <div class="wedge absurdism earned">🎭</div>
+          <div class="wedge literature earned">📚</div>
+          <div class="wedge cosmos earned">🌌</div>
+        </div>
+        <div class="win-stats">
+          <div class="win-stat">
+            <div class="win-stat-value" id="finalScore">0</div>
+            <div class="win-stat-label">Final Score</div>
+          </div>
+          <div class="win-stat">
+            <div class="win-stat-value" id="finalStreak">0</div>
+            <div class="win-stat-label">Best Streak</div>
+          </div>
+          <div class="win-stat">
+            <div class="win-stat-value" id="finalQuestions">0</div>
+            <div class="win-stat-label">Questions</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="newGame()" style="font-size:18px;padding:16px 40px;">
+          🪨 Roll Again
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // Sisyphusian Pursuit - AI-Generated Trivia with WebLLM
+    // =========================================================================
+
+    const CATEGORIES = {
+      philosophy: { name: 'Philosophy', icon: '🧠', color: '#6366f1', topics: ['existentialism', 'ethics', 'metaphysics', 'epistemology', 'famous philosophers', 'thought experiments'] },
+      science: { name: 'Science', icon: '⚛️', color: '#22c55e', topics: ['physics', 'chemistry', 'biology', 'astronomy', 'famous scientists', 'discoveries'] },
+      mythology: { name: 'Mythology', icon: '⚡', color: '#f59e0b', topics: ['Greek myths', 'Norse mythology', 'Egyptian gods', 'mythical creatures', 'legendary heroes', 'creation myths'] },
+      absurdism: { name: 'Absurdism', icon: '🎭', color: '#ec4899', topics: ['Camus', 'Kafka', 'absurdist theater', 'existential paradoxes', 'meaning of life', 'absurdist art'] },
+      literature: { name: 'Literature', icon: '📚', color: '#8b5cf6', topics: ['classic novels', 'poetry', 'famous authors', 'literary movements', 'Shakespeare', 'modern literature'] },
+      cosmos: { name: 'Cosmos', icon: '🌌', color: '#06b6d4', topics: ['black holes', 'galaxies', 'space exploration', 'the universe', 'cosmic phenomena', 'famous astronomers'] }
+    };
+
+    let llm = null;
+    let score = 0;
+    let streak = 0;
+    let bestStreak = 0;
+    let questionsAnswered = 0;
+    let currentCategory = null;
+    let currentQuestion = null;
+    let wedgesEarned = {};
+    let timer = null;
+    let timeLeft = 45;
+
+    // Initialize WebLLM
+    async function initLLM() {
+      const dot = document.getElementById('aiDot');
+      const status = document.getElementById('aiStatus');
+      const loadingStatus = document.getElementById('loadingStatus');
+
+      dot.className = 'ai-dot loading';
+      status.textContent = 'Loading AI...';
+
+      try {
+        const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+        loadingStatus.textContent = 'Downloading model (first time only)...';
+
+        llm = await webllm.CreateMLCEngine('Qwen2.5-0.5B-Instruct-q4f16_1-MLC', {
+          initProgressCallback: (progress) => {
+            loadingStatus.textContent = progress.text || 'Loading...';
+          }
+        });
+
+        dot.className = 'ai-dot ready';
+        status.textContent = 'AI Ready';
+
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('categorySelect').classList.remove('hidden');
+
+      } catch (err) {
+        console.error('WebLLM failed:', err);
+        dot.className = 'ai-dot';
+        status.textContent = 'AI Offline (Demo Mode)';
+        loadingStatus.textContent = 'Using fallback questions...';
+
+        setTimeout(() => {
+          document.getElementById('loadingScreen').classList.add('hidden');
+          document.getElementById('categorySelect').classList.remove('hidden');
+        }, 1000);
+      }
+    }
+
+    // Generate question with AI
+    async function generateQuestion(category) {
+      const cat = CATEGORIES[category];
+      const topic = cat.topics[Math.floor(Math.random() * cat.topics.length)];
+
+      if (!llm) {
+        // Fallback demo questions
+        return getFallbackQuestion(category);
+      }
+
+      const dot = document.getElementById('aiDot');
+      dot.className = 'ai-dot generating';
+
+      const prompt = `Generate a trivia question about ${topic} for a ${cat.name} category quiz.
+
+Format your response EXACTLY like this (JSON):
+{
+  "context": "A brief interesting fact or context (1 sentence)",
+  "question": "The trivia question?",
+  "answers": ["Wrong answer 1", "Wrong answer 2", "Wrong answer 3", "Correct answer"],
+  "correct": 3,
+  "explanation": "Why the answer is correct (2-3 sentences)"
+}
+
+Make sure the question is challenging but fair, and the wrong answers are plausible. The correct answer index is 0-3.`;
+
+      try {
+        const response = await llm.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a trivia master. Generate unique, interesting trivia questions. Always respond with valid JSON only.' },
+            { role: 'user', content: prompt }
+          ],
+          max_tokens: 400,
+          temperature: 0.9
+        });
+
+        dot.className = 'ai-dot ready';
+
+        const text = response.choices[0].message.content;
+        // Extract JSON from response
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const q = JSON.parse(jsonMatch[0]);
+          // Shuffle answers
+          const correctAnswer = q.answers[q.correct];
+          const shuffled = [...q.answers].sort(() => Math.random() - 0.5);
+          const newCorrectIndex = shuffled.indexOf(correctAnswer);
+
+          return {
+            context: q.context,
+            question: q.question,
+            answers: shuffled,
+            correct: newCorrectIndex,
+            explanation: q.explanation
+          };
+        }
+      } catch (err) {
+        console.error('Generation failed:', err);
+        dot.className = 'ai-dot ready';
+      }
+
+      return getFallbackQuestion(category);
+    }
+
+    function getFallbackQuestion(category) {
+      const fallbacks = {
+        philosophy: [
+          { context: "This philosopher is famous for sitting in a barrel.", question: "Which Greek philosopher lived in a barrel and carried a lantern searching for an honest man?", answers: ["Socrates", "Plato", "Diogenes", "Aristotle"], correct: 2, explanation: "Diogenes of Sinope was a founder of Cynicism. He famously lived in a large ceramic jar and criticized social conventions." },
+          { context: "A famous philosophical thought experiment about consciousness.", question: "What is the name of the thought experiment about a brain kept alive in a vat?", answers: ["Schrödinger's Cat", "Brain in a Vat", "Chinese Room", "Trolley Problem"], correct: 1, explanation: "The Brain in a Vat thought experiment questions how we can know reality isn't a simulation fed to our brain." }
+        ],
+        science: [
+          { context: "Einstein's most famous equation.", question: "What does E=mc² describe?", answers: ["Gravity", "Mass-energy equivalence", "Quantum entanglement", "Electromagnetic force"], correct: 1, explanation: "E=mc² shows that mass and energy are interchangeable. The equation means energy equals mass times the speed of light squared." },
+          { context: "The fundamental forces of nature.", question: "Which is NOT one of the four fundamental forces?", answers: ["Gravity", "Centrifugal force", "Strong nuclear", "Electromagnetism"], correct: 1, explanation: "Centrifugal force is a 'fictitious' force. The four fundamental forces are gravity, electromagnetism, strong nuclear, and weak nuclear forces." }
+        ],
+        mythology: [
+          { context: "Greek mythology's most famous eternal punishment.", question: "What was Sisyphus condemned to do for eternity?", answers: ["Carry water in a sieve", "Roll a boulder uphill", "Stand in water he can't drink", "Have his liver eaten daily"], correct: 1, explanation: "Sisyphus was punished by Zeus to roll a boulder up a hill, only for it to roll back down, repeating this for eternity." },
+          { context: "The ruler of the Norse gods.", question: "Odin sacrificed what to gain wisdom?", answers: ["His hand", "His eye", "His hammer", "His son"], correct: 1, explanation: "Odin sacrificed his eye at Mímir's well to gain cosmic wisdom. He also hung himself on Yggdrasil for nine days to learn the runes." }
+        ],
+        absurdism: [
+          { context: "The father of absurdism.", question: "Who wrote 'The Myth of Sisyphus'?", answers: ["Jean-Paul Sartre", "Friedrich Nietzsche", "Albert Camus", "Franz Kafka"], correct: 2, explanation: "Albert Camus wrote 'The Myth of Sisyphus' in 1942, where he argues we must imagine Sisyphus happy despite his eternal, meaningless task." },
+          { context: "A famous absurdist play.", question: "In 'Waiting for Godot', who are the two main characters waiting for?", answers: ["Death", "Godot", "The Meaning of Life", "Samuel Beckett"], correct: 1, explanation: "Vladimir and Estragon wait for the mysterious Godot, who never arrives. Beckett never explained who or what Godot represents." }
+        ],
+        literature: [
+          { context: "One of the longest novels ever written.", question: "Who wrote 'In Search of Lost Time'?", answers: ["James Joyce", "Marcel Proust", "Fyodor Dostoevsky", "Leo Tolstoy"], correct: 1, explanation: "Marcel Proust wrote this 7-volume masterpiece containing over 1.2 million words, making it one of the longest novels ever." },
+          { context: "The opening line is one of literature's most famous.", question: "Which novel begins 'Call me Ishmael'?", answers: ["The Great Gatsby", "Moby-Dick", "1984", "Don Quixote"], correct: 1, explanation: "Herman Melville's 'Moby-Dick' (1851) opens with these famous words, introducing the narrator of this epic whale-hunting tale." }
+        ],
+        cosmos: [
+          { context: "The center of our galaxy.", question: "What is at the center of the Milky Way?", answers: ["A neutron star", "A supermassive black hole", "A quasar", "A nebula"], correct: 1, explanation: "Sagittarius A* is a supermassive black hole at our galaxy's center, with a mass of about 4 million suns." },
+          { context: "The largest structure in the known universe.", question: "What is the Hercules-Corona Borealis Great Wall?", answers: ["A constellation", "A galaxy cluster", "A cosmic filament", "A nebula"], correct: 2, explanation: "It's the largest known structure in the universe, a cosmic filament of galaxies spanning about 10 billion light-years." }
+        ]
+      };
+
+      const questions = fallbacks[category] || fallbacks.philosophy;
+      return questions[Math.floor(Math.random() * questions.length)];
+    }
+
+    // Initialize category buttons
+    document.querySelectorAll('.category-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!btn.classList.contains('disabled')) {
+          selectCategory(btn.dataset.category);
+        }
+      });
+    });
+
+    async function selectCategory(category) {
+      currentCategory = category;
+      const cat = CATEGORIES[category];
+
+      document.getElementById('categorySelect').classList.add('hidden');
+      document.getElementById('questionView').classList.remove('hidden');
+
+      // Show generating overlay
+      const overlay = document.getElementById('generatingOverlay');
+      overlay.classList.remove('hidden');
+
+      // Set category color
+      document.getElementById('questionCard').style.setProperty('--cat-color', cat.color);
+      document.getElementById('categoryBadge').textContent = cat.name;
+      document.getElementById('categoryBadge').style.background = cat.color;
+
+      // Highlight current wedge
+      document.querySelectorAll('.wedge').forEach(w => w.classList.remove('current'));
+      document.querySelector(`.wedge.${category}`).classList.add('current');
+
+      // Generate question
+      currentQuestion = await generateQuestion(category);
+
+      overlay.classList.add('hidden');
+      showQuestion();
+    }
+
+    function showQuestion() {
+      document.getElementById('questionContext').textContent = currentQuestion.context || '';
+      document.getElementById('questionText').textContent = currentQuestion.question;
+
+      const answersEl = document.getElementById('answers');
+      answersEl.innerHTML = currentQuestion.answers.map((a, i) => `
+        <button class="answer-btn" onclick="checkAnswer(${i}, this)">
+          <span class="letter">${String.fromCharCode(65 + i)}</span>
+          <span>${a}</span>
+        </button>
+      `).join('');
+
+      document.getElementById('result').classList.remove('show', 'correct', 'wrong');
+      document.getElementById('nextBtn').classList.add('hidden');
+
+      startTimer();
+    }
+
+    function startTimer() {
+      timeLeft = 45;
+      updateTimer();
+
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        updateTimer();
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          timeUp();
+        }
+      }, 1000);
+    }
+
+    function updateTimer() {
+      document.getElementById('timerText').textContent = timeLeft;
+      const fill = document.getElementById('timerFill');
+      fill.style.width = (timeLeft / 45 * 100) + '%';
+      fill.classList.remove('warning', 'danger');
+      if (timeLeft <= 10) fill.classList.add('danger');
+      else if (timeLeft <= 20) fill.classList.add('warning');
+    }
+
+    function timeUp() {
+      document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+
+      // Show correct
+      const buttons = document.querySelectorAll('.answer-btn');
+      buttons[currentQuestion.correct].classList.add('correct');
+
+      streak = 0;
+      document.getElementById('streak').textContent = streak;
+      showResult(false, "Time's up! The boulder rolls back down...");
+    }
+
+    window.checkAnswer = function(index, btn) {
+      clearInterval(timer);
+      document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+
+      const isCorrect = index === currentQuestion.correct;
+      questionsAnswered++;
+
+      if (isCorrect) {
+        btn.classList.add('correct');
+        const timeBonus = timeLeft * 5;
+        const streakBonus = streak * 20;
+        const points = 100 + timeBonus + streakBonus;
+        score += points;
+        streak++;
+        bestStreak = Math.max(bestStreak, streak);
+
+        // Award wedge
+        if (!wedgesEarned[currentCategory]) {
+          wedgesEarned[currentCategory] = true;
+          document.querySelector(`.wedge.${currentCategory}`).classList.add('earned');
+        }
+
+        // Move boulder
+        const progress = Object.keys(wedgesEarned).length / 6;
+        document.getElementById('boulder').style.left = (5 + progress * 85) + '%';
+        document.getElementById('progressText').textContent = `${Math.round(progress * 100)}% to the summit!`;
+
+        showResult(true, `+${points} points! (Time: +${timeBonus}, Streak: +${streakBonus})`);
+      } else {
+        btn.classList.add('wrong');
+        document.querySelectorAll('.answer-btn')[currentQuestion.correct].classList.add('correct');
+        streak = 0;
+
+        // Boulder rolls back slightly
+        const progress = Math.max(0, Object.keys(wedgesEarned).length - 0.3) / 6;
+        document.getElementById('boulder').style.left = (5 + progress * 85) + '%';
+
+        showResult(false, "The boulder rolls back...");
+      }
+
+      document.getElementById('score').textContent = score;
+      document.getElementById('streak').textContent = streak;
+    };
+
+    function showResult(isCorrect, pointsText) {
+      const result = document.getElementById('result');
+      result.classList.remove('correct', 'wrong');
+      result.classList.add('show', isCorrect ? 'correct' : 'wrong');
+
+      document.getElementById('resultTitle').textContent = isCorrect ? '🎉 Correct!' : '💥 Wrong!';
+      document.getElementById('resultPoints').textContent = pointsText;
+      document.getElementById('explanation').innerHTML = `<strong>Explanation:</strong> ${currentQuestion.explanation}`;
+
+      document.getElementById('nextBtn').classList.remove('hidden');
+
+      // Check win
+      if (Object.keys(wedgesEarned).length === 6) {
+        setTimeout(showWin, 1500);
+      }
+    }
+
+    window.nextQuestion = function() {
+      if (Object.keys(wedgesEarned).length === 6) {
+        showWin();
+        return;
+      }
+
+      // Disable earned categories
+      if (wedgesEarned[currentCategory]) {
+        document.querySelector(`.category-btn.${currentCategory}`).classList.add('disabled');
+      }
+
+      document.querySelectorAll('.wedge').forEach(w => w.classList.remove('current'));
+      document.getElementById('categorySelect').classList.remove('hidden');
+      document.getElementById('questionView').classList.add('hidden');
+    };
+
+    function showWin() {
+      document.getElementById('questionView').classList.add('hidden');
+      document.getElementById('categorySelect').classList.add('hidden');
+      document.getElementById('winScreen').classList.remove('hidden');
+
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalStreak').textContent = bestStreak;
+      document.getElementById('finalQuestions').textContent = questionsAnswered;
+
+      document.getElementById('boulder').style.left = '90%';
+      document.getElementById('progressText').textContent = '🏆 Summit reached!';
+    }
+
+    window.newGame = function() {
+      score = 0;
+      streak = 0;
+      bestStreak = 0;
+      questionsAnswered = 0;
+      wedgesEarned = {};
+
+      document.getElementById('score').textContent = '0';
+      document.getElementById('streak').textContent = '0';
+      document.getElementById('boulder').style.left = '5%';
+      document.getElementById('progressText').textContent = 'Push the boulder to the summit!';
+
+      document.querySelectorAll('.wedge').forEach(w => w.classList.remove('earned', 'current'));
+      document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('disabled'));
+
+      document.getElementById('winScreen').classList.add('hidden');
+      document.getElementById('questionView').classList.add('hidden');
+      document.getElementById('categorySelect').classList.remove('hidden');
+    };
+
+    // Start
+    initLLM();
+  </script>
+</body>
+</html>
