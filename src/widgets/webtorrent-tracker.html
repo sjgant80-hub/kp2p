@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<!--
+@file webtorrent-tracker.html
+@desc WebTorrent Tracker Widget - P2P signaling via WebTorrent trackers
+@api  window.WTTracker - tracker signaling controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WebTorrent Tracker Widget</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:12px/1.4 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;padding:16px}
+    .card{background:var(--b2);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:16px;margin-bottom:12px}
+    .title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .title i{font-style:normal}
+    .title .badge{font-size:9px;padding:2px 6px;background:var(--a2);border-radius:10px;font-weight:500}
+
+    .form{display:flex;flex-direction:column;gap:10px}
+    .field{display:flex;flex-direction:column;gap:4px}
+    .field label{font-size:10px;color:#94a3b8;font-weight:500}
+    .field input,.field select{padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font-size:11px}
+    .field input:focus,.field select:focus{outline:none;border-color:var(--a)}
+    .row{display:flex;gap:8px}
+    .row .field{flex:1}
+
+    .btn{padding:10px 20px;border:0;border-radius:6px;font-weight:600;font-size:11px;cursor:pointer;transition:opacity .15s}
+    .btn:hover{opacity:.9}
+    .btn.primary{background:linear-gradient(135deg,var(--a),var(--a2));color:#fff}
+    .btn.secondary{background:rgba(255,255,255,.08);color:var(--f)}
+    .btn.danger{background:var(--r);color:#fff}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btns{display:flex;gap:8px;margin-top:8px}
+
+    .status{display:flex;align-items:center;gap:10px;padding:12px;background:rgba(0,0,0,.2);border-radius:8px;margin-bottom:12px}
+    .dot{width:10px;height:10px;border-radius:50%;background:#64748b;flex-shrink:0}
+    .dot.connected{background:var(--g);box-shadow:0 0 10px var(--g)}
+    .dot.connecting{background:var(--o);animation:pulse .8s infinite}
+    .dot.error{background:var(--r)}
+    @keyframes pulse{50%{opacity:.4}}
+    .status-text{flex:1}
+    .status-text .main{font-size:11px;font-weight:500}
+    .status-text .sub{font-size:9px;color:#64748b;margin-top:2px}
+
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+    .stat{text-align:center;padding:10px;background:rgba(0,0,0,.2);border-radius:6px}
+    .stat .val{font-size:18px;font-weight:600;color:var(--a)}
+    .stat .lbl{font-size:9px;color:#64748b;margin-top:2px}
+
+    .log{max-height:200px;overflow-y:auto;font-family:'SF Mono',monospace;font-size:9px;padding:10px;background:rgba(0,0,0,.3);border-radius:6px}
+    .log::-webkit-scrollbar{width:4px}
+    .log::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+    .log .l{margin-bottom:3px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+    .log .ts{color:#64748b;margin-right:8px}
+    .log .i{color:var(--a)}.log .s{color:var(--g)}.log .e{color:var(--r)}.log .w{color:var(--o)}.log .d{color:#64748b}
+
+    .peers{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto}
+    .peer{display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,.03);border-radius:6px}
+    .peer:hover{background:rgba(255,255,255,.05)}
+    .peer .id{flex:1;font-family:monospace;font-size:10px;word-break:break-all}
+    .peer .type{font-size:8px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,.1)}
+    .peer .type.offer{background:rgba(0,217,255,.15);color:var(--a)}
+    .peer .type.answer{background:rgba(16,185,129,.15);color:var(--g)}
+    .empty{text-align:center;padding:20px;color:#64748b;font-size:11px}
+
+    .info-box{padding:12px;background:rgba(0,217,255,.05);border:1px solid rgba(0,217,255,.15);border-radius:8px;font-size:10px;line-height:1.5}
+    .info-box code{background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;font-family:monospace}
+
+    .tabs{display:flex;gap:4px;margin-bottom:12px}
+    .tab{padding:8px 16px;background:rgba(255,255,255,.04);border-radius:6px 6px 0 0;cursor:pointer;font-size:10px;font-weight:500}
+    .tab.active{background:var(--b2);border:1px solid rgba(255,255,255,.08);border-bottom:1px solid var(--b2);margin-bottom:-1px}
+    .panel{display:none}.panel.active{display:block}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title"><i>🌐</i> WebTorrent Tracker <span class="badge">Signaling</span></div>
+
+    <div class="status" id="status">
+      <span class="dot" id="dot"></span>
+      <div class="status-text">
+        <div class="main" id="status-main">Disconnected</div>
+        <div class="sub" id="status-sub">Not connected to any tracker</div>
+      </div>
+    </div>
+
+    <div class="form">
+      <div class="row">
+        <div class="field">
+          <label>Tracker URL</label>
+          <select id="tracker">
+            <option value="wss://tracker.openwebtorrent.com">tracker.openwebtorrent.com</option>
+            <option value="wss://tracker.btorrent.xyz">tracker.btorrent.xyz</option>
+            <option value="wss://tracker.fastcast.nz">tracker.fastcast.nz</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Info Hash / Room</label>
+          <input id="infohash" value="konomi-global" placeholder="Room name or info_hash">
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn primary" id="connect">Connect</button>
+        <button class="btn secondary" id="announce">Announce</button>
+        <button class="btn danger" id="disconnect" disabled>Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><div class="val" id="offers-out">0</div><div class="lbl">Offers Sent</div></div>
+      <div class="stat"><div class="val" id="offers-in">0</div><div class="lbl">Offers Recv</div></div>
+      <div class="stat"><div class="val" id="answers">0</div><div class="lbl">Answers</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" data-panel="log-panel">Log</div>
+      <div class="tab" data-panel="peers-panel">Signaled Peers</div>
+      <div class="tab" data-panel="api-panel">API</div>
+    </div>
+
+    <div class="panel active" id="log-panel">
+      <div class="log" id="log"></div>
+    </div>
+
+    <div class="panel" id="peers-panel">
+      <div class="peers" id="peers">
+        <div class="empty">No peers signaled yet</div>
+      </div>
+    </div>
+
+    <div class="panel" id="api-panel">
+      <div class="info-box">
+        <strong>Usage:</strong><br>
+        <code>const tracker = window.WTTracker;</code><br><br>
+        <code>tracker.connect('wss://tracker.openwebtorrent.com', 'room');</code><br>
+        <code>tracker.announce(offers);</code><br>
+        <code>tracker.on('offer', (offer, peerId) => ...);</code><br>
+        <code>tracker.on('answer', (answer, offerId) => ...);</code><br>
+        <code>tracker.sendAnswer(peerId, offerId, answer);</code>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    /**
+     * WebTorrent Tracker Widget
+     * Low-level signaling layer for P2P WebRTC connections
+     *
+     * @usage
+     *   const tracker = window.WTTracker;
+     *   tracker.connect(url, room);
+     *   tracker.announce(offers);  // offers = [{ offer_id, offer: { type, sdp } }]
+     *   tracker.on('offer', (offer, peerId, offerId) => { ... handle incoming offer ... });
+     *   tracker.on('answer', (answer, offerId) => { ... handle incoming answer ... });
+     *   tracker.sendAnswer(toPeerId, offerId, answer);  // answer = { type, sdp }
+     */
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class WTTracker {
+      constructor() {
+        this.ws = null;
+        this.url = null;
+        this.room = null;
+        this.hash = null;
+        this.peerId = this.generatePeerId();
+
+        this.state = 'disconnected';
+        this.stats = {
+          offersSent: 0,
+          offersReceived: 0,
+          answers: 0
+        };
+
+        this.signaledPeers = new Map();  // peerId -> { type, time }
+
+        this.handlers = {
+          open: [],
+          close: [],
+          error: [],
+          offer: [],
+          answer: [],
+          interval: [],
+          log: [],
+          'state:change': []
+        };
+      }
+
+      generatePeerId() {
+        const bytes = crypto.getRandomValues(new Uint8Array(10));
+        return '-WT0001-' + [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      async hashRoom(name) {
+        // If it looks like a hash already, use it
+        if (/^[a-f0-9]{40}$/i.test(name)) return name.toLowerCase();
+
+        // Otherwise, hash the name
+        const data = new TextEncoder().encode('konomi:' + name);
+        const hash = await crypto.subtle.digest('SHA-1', data);
+        return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      // Event system
+      on(event, handler) {
+        if (this.handlers[event]) this.handlers[event].push(handler);
+        return () => this.off(event, handler);
+      }
+
+      off(event, handler) {
+        if (this.handlers[event]) {
+          this.handlers[event] = this.handlers[event].filter(h => h !== handler);
+        }
+      }
+
+      emit(event, ...args) {
+        if (this.handlers[event]) {
+          this.handlers[event].forEach(h => h(...args));
+        }
+      }
+
+      log(msg, type = 'i') {
+        this.emit('log', msg, type);
+      }
+
+      setState(state) {
+        this.state = state;
+        this.emit('state:change', state);
+      }
+
+      // Connect to tracker
+      async connect(url, room) {
+        if (this.ws) {
+          this.ws.close();
+        }
+
+        this.url = url;
+        this.room = room;
+        this.hash = await this.hashRoom(room);
+        this.signaledPeers.clear();
+
+        this.setState('connecting');
+        this.log(`Connecting to ${url}...`, 'i');
+        this.log(`Room: ${room} -> ${this.hash.slice(0, 16)}...`, 'd');
+
+        this.ws = new WebSocket(url);
+
+        this.ws.onopen = () => {
+          this.setState('connected');
+          this.log('Connected!', 's');
+          this.emit('open');
+        };
+
+        this.ws.onclose = (e) => {
+          this.setState('disconnected');
+          this.log(`Disconnected: ${e.code} ${e.reason || ''}`, 'w');
+          this.emit('close', e);
+        };
+
+        this.ws.onerror = (e) => {
+          this.setState('error');
+          this.log('Connection error', 'e');
+          this.emit('error', e);
+        };
+
+        this.ws.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            this.handleMessage(msg);
+          } catch (err) {
+            this.log(`Parse error: ${err.message}`, 'e');
+          }
+        };
+      }
+
+      handleMessage(msg) {
+        // Incoming offer from another peer
+        if (msg.offer && msg.peer_id && msg.peer_id !== this.peerId) {
+          this.stats.offersReceived++;
+          this.signaledPeers.set(msg.peer_id, { type: 'offer', time: Date.now() });
+          this.log(`Offer from ${msg.peer_id.slice(0, 12)}...`, 'i');
+          this.emit('offer', msg.offer, msg.peer_id, msg.offer_id);
+        }
+
+        // Incoming answer to our offer
+        if (msg.answer && msg.offer_id) {
+          this.stats.answers++;
+          if (msg.peer_id) {
+            this.signaledPeers.set(msg.peer_id, { type: 'answer', time: Date.now() });
+          }
+          this.log(`Answer for offer ${msg.offer_id.slice(0, 8)}...`, 's');
+          this.emit('answer', msg.answer, msg.offer_id, msg.peer_id);
+        }
+
+        // Interval for re-announce
+        if (msg.interval) {
+          this.log(`Re-announce in ${msg.interval}s`, 'd');
+          this.emit('interval', msg.interval);
+        }
+
+        // Info hash match confirmation
+        if (msg.info_hash && msg.info_hash === this.hash) {
+          this.log('Info hash confirmed', 'd');
+        }
+
+        // Peer count
+        if (typeof msg.complete !== 'undefined' || typeof msg.incomplete !== 'undefined') {
+          this.log(`Swarm: ${msg.complete || 0} complete, ${msg.incomplete || 0} incomplete`, 'd');
+        }
+      }
+
+      // Announce with offers
+      announce(offers = []) {
+        if (this.ws?.readyState !== 1) {
+          this.log('Not connected', 'e');
+          return false;
+        }
+
+        this.stats.offersSent += offers.length;
+
+        const msg = {
+          action: 'announce',
+          info_hash: this.hash,
+          peer_id: this.peerId,
+          numwant: 10,
+          uploaded: 0,
+          downloaded: 0,
+          left: 1
+        };
+
+        if (offers.length > 0) {
+          msg.offers = offers;
+        }
+
+        this.ws.send(JSON.stringify(msg));
+        this.log(`Announced with ${offers.length} offers`, 'i');
+        return true;
+      }
+
+      // Send answer to a peer
+      sendAnswer(toPeerId, offerId, answer) {
+        if (this.ws?.readyState !== 1) {
+          this.log('Not connected', 'e');
+          return false;
+        }
+
+        this.ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: this.hash,
+          peer_id: this.peerId,
+          to_peer_id: toPeerId,
+          offer_id: offerId,
+          answer
+        }));
+
+        this.log(`Sent answer to ${toPeerId.slice(0, 12)}...`, 's');
+        return true;
+      }
+
+      // Disconnect
+      disconnect() {
+        if (this.ws) {
+          this.ws.close();
+          this.ws = null;
+        }
+        this.setState('disconnected');
+      }
+
+      // Get stats
+      getStats() {
+        return { ...this.stats };
+      }
+
+      // Get signaled peers
+      getSignaledPeers() {
+        return [...this.signaledPeers.entries()].map(([id, data]) => ({
+          id,
+          type: data.type,
+          time: data.time
+        }));
+      }
+    }
+
+    // Create global instance
+    const tracker = new WTTracker();
+    window.WTTracker = tracker;
+
+    // UI bindings
+    function updateStatus() {
+      const dot = $('dot');
+      const main = $('status-main');
+      const sub = $('status-sub');
+
+      dot.className = 'dot';
+
+      switch (tracker.state) {
+        case 'connected':
+          dot.classList.add('connected');
+          main.textContent = 'Connected';
+          sub.textContent = `${tracker.url} | ${tracker.room}`;
+          $('disconnect').disabled = false;
+          $('connect').disabled = true;
+          break;
+        case 'connecting':
+          dot.classList.add('connecting');
+          main.textContent = 'Connecting...';
+          sub.textContent = tracker.url || '';
+          break;
+        case 'error':
+          dot.classList.add('error');
+          main.textContent = 'Error';
+          sub.textContent = 'Connection failed';
+          break;
+        default:
+          main.textContent = 'Disconnected';
+          sub.textContent = 'Not connected to any tracker';
+          $('disconnect').disabled = true;
+          $('connect').disabled = false;
+      }
+    }
+
+    function updateStats() {
+      const stats = tracker.getStats();
+      $('offers-out').textContent = stats.offersSent;
+      $('offers-in').textContent = stats.offersReceived;
+      $('answers').textContent = stats.answers;
+    }
+
+    function updatePeers() {
+      const container = $('peers');
+      const peers = tracker.getSignaledPeers();
+
+      if (peers.length === 0) {
+        container.innerHTML = '<div class="empty">No peers signaled yet</div>';
+        return;
+      }
+
+      container.innerHTML = peers.map(p => `
+        <div class="peer">
+          <span class="id">${esc(p.id)}</span>
+          <span class="type ${p.type}">${p.type}</span>
+        </div>
+      `).join('');
+    }
+
+    function addLog(msg, type) {
+      const log = $('log');
+      const div = document.createElement('div');
+      div.className = 'l ' + type;
+      const ts = new Date().toLocaleTimeString();
+      div.innerHTML = `<span class="ts">${ts}</span>${esc(msg)}`;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+
+      // Keep log size reasonable
+      while (log.children.length > 100) {
+        log.removeChild(log.firstChild);
+      }
+    }
+
+    // Event handlers
+    tracker.on('state:change', updateStatus);
+    tracker.on('log', addLog);
+    tracker.on('offer', () => { updateStats(); updatePeers(); });
+    tracker.on('answer', () => { updateStats(); updatePeers(); });
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        $(tab.dataset.panel).classList.add('active');
+      };
+    });
+
+    // Button handlers
+    $('connect').onclick = async () => {
+      const url = $('tracker').value;
+      const room = $('infohash').value.trim();
+      if (url && room) {
+        await tracker.connect(url, room);
+      }
+    };
+
+    $('announce').onclick = async () => {
+      if (tracker.state !== 'connected') {
+        addLog('Connect first!', 'e');
+        return;
+      }
+
+      // Create some test offers
+      const offers = [];
+      for (let i = 0; i < 3; i++) {
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        pc.createDataChannel('test');
+
+        await new Promise(r => {
+          pc.onicecandidate = e => { if (!e.candidate) r(); };
+          pc.createOffer().then(o => pc.setLocalDescription(o));
+        });
+
+        offers.push({
+          offer_id: crypto.randomUUID(),
+          offer: { type: 'offer', sdp: pc.localDescription.sdp }
+        });
+
+        // Cleanup
+        setTimeout(() => pc.close(), 30000);
+      }
+
+      tracker.announce(offers);
+      updateStats();
+    };
+
+    $('disconnect').onclick = () => {
+      tracker.disconnect();
+    };
+
+    // Initialize
+    updateStatus();
+    updateStats();
+    addLog('WebTorrent Tracker Widget initialized', 'i');
+    addLog(`Peer ID: ${tracker.peerId}`, 'd');
+  </script>
+</body>
+</html>

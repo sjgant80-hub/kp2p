@@ -6,6 +6,8 @@
  * - phone.html - Basic phone UI
  * - phone-v2.html - FreeComm multi-transport phone
  * - ai-comm.html - AI-powered free communication (LLM + P2P + SMS)
+ * - p2p-mesh.html - WebRTC mesh network with data channels
+ * - webtorrent-tracker.html - WebTorrent tracker signaling layer
  */
 
 // Telephony UDTs
@@ -18,6 +20,8 @@ export const WIDGET_PATHS = {
   aiComm: './ai-comm.html',
   aiCommV2: './ai-comm-v2.html',
   aiCommV3: './ai-comm-v3.html',
+  p2pMesh: './p2p-mesh.html',
+  webtorrentTracker: './webtorrent-tracker.html',
 }
 
 /**

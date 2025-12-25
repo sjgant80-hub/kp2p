@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<!--
+@file p2p-mesh.html
+@desc P2P Mesh Widget - WebRTC data channel mesh network
+@api  window.P2PMesh - mesh network controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P Mesh Widget</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--g:#10b981;--r:#ef4444;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:12px/1.4 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;padding:16px}
+    .card{background:var(--b2);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:16px;margin-bottom:12px}
+    .title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .title i{font-style:normal}
+    .status{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+    .dot{width:8px;height:8px;border-radius:50%;background:#64748b}
+    .dot.on{background:var(--g);box-shadow:0 0 8px var(--g)}
+    .dot.con{background:var(--o);animation:pulse .8s infinite}
+    @keyframes pulse{50%{opacity:.4}}
+    .stat{font-size:10px;color:#94a3b8}
+    .peers{display:flex;flex-direction:column;gap:6px}
+    .peer{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:6px}
+    .peer.self{border:1px solid var(--a);background:rgba(0,217,255,.05)}
+    .peer .av{font-size:18px}
+    .peer .info{flex:1}
+    .peer .name{font-size:11px;font-weight:500}
+    .peer .id{font-size:9px;color:#64748b;font-family:monospace}
+    .peer .state{font-size:8px;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,.1)}
+    .peer .state.open{background:rgba(16,185,129,.2);color:var(--g)}
+    .empty{text-align:center;padding:20px;color:#64748b;font-size:11px}
+    .controls{display:flex;gap:8px;margin-bottom:12px}
+    .controls input{flex:1;padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font-size:11px}
+    .controls button{padding:8px 16px;background:var(--a);border:0;border-radius:6px;color:#000;font-weight:600;font-size:10px;cursor:pointer}
+    .controls button:hover{opacity:.9}
+    .log{max-height:150px;overflow-y:auto;font-family:monospace;font-size:9px;padding:8px;background:rgba(0,0,0,.3);border-radius:6px}
+    .log .l{margin-bottom:2px;padding:2px 0}
+    .log .i{color:var(--a)}.log .s{color:var(--g)}.log .e{color:var(--r)}.log .w{color:var(--o)}
+    .send{display:flex;gap:8px;margin-top:12px}
+    .send input{flex:1;padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--f);font-size:11px}
+    .send button{padding:8px 16px;background:linear-gradient(135deg,var(--a),#7c3aed);border:0;border-radius:6px;color:#fff;font-weight:600;font-size:10px;cursor:pointer}
+    .msgs{max-height:200px;overflow-y:auto;margin-top:12px;display:flex;flex-direction:column;gap:4px}
+    .msg{padding:6px 10px;background:rgba(255,255,255,.04);border-radius:8px;font-size:10px}
+    .msg.self{background:linear-gradient(135deg,var(--a),#7c3aed);align-self:flex-end}
+    .msg .meta{font-size:8px;color:#94a3b8;margin-bottom:2px}
+    .msg.self .meta{color:rgba(255,255,255,.7)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title"><i>🔗</i> P2P Mesh Network</div>
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span class="stat" id="stat">Disconnected</span>
+    </div>
+    <div class="controls">
+      <input id="room" value="konomi-mesh" placeholder="Room name...">
+      <button id="join">Join</button>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="card">
+    <div class="title"><i>👥</i> Peers (<span id="count">0</span>)</div>
+    <div class="peers" id="peers">
+      <div class="empty">No peers connected</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="title"><i>💬</i> Mesh Chat</div>
+    <div class="msgs" id="msgs"></div>
+    <div class="send">
+      <input id="msg" placeholder="Type a message...">
+      <button id="sendbtn">Send</button>
+    </div>
+  </div>
+
+  <script type="module">
+    /**
+     * P2P Mesh Widget
+     * Standalone WebRTC mesh network with data channels
+     *
+     * @usage
+     *   const mesh = window.P2PMesh;
+     *   mesh.join('room-name');
+     *   mesh.broadcast({ type: 'chat', text: 'Hello!' });
+     *   mesh.on('message', (msg, peerId) => console.log(msg));
+     *   mesh.on('peer:join', (peerId) => console.log('Joined:', peerId));
+     *   mesh.on('peer:leave', (peerId) => console.log('Left:', peerId));
+     */
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    // ICE configuration
+    const ICE_CONFIG = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+
+    // Default WebTorrent tracker
+    const DEFAULT_TRACKER = 'wss://tracker.openwebtorrent.com';
+
+    class P2PMesh {
+      constructor(options = {}) {
+        this.tracker = options.tracker || DEFAULT_TRACKER;
+        this.id = this.generateId();
+        this.emoji = this.randomEmoji();
+        this.name = options.name || this.id.slice(0, 10);
+
+        this.room = null;
+        this.hash = null;
+        this.ws = null;
+
+        this.peers = new Map();      // peerId -> { name, emoji, pc, dc, state }
+        this.pending = new Map();    // offerId -> { pc, dc }
+
+        this.handlers = {
+          message: [],
+          'peer:join': [],
+          'peer:leave': [],
+          'state:change': [],
+          log: []
+        };
+
+        this.state = 'disconnected';
+      }
+
+      generateId() {
+        const bytes = crypto.getRandomValues(new Uint8Array(6));
+        return '-KM0001-' + [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      randomEmoji() {
+        const emojis = '😀😎🤖👾🦊🐱🐶🦁🐼🐨🦋🌟🚀🎮💎🔥';
+        return [...emojis][Math.floor(Math.random() * 16)];
+      }
+
+      async hashRoom(name) {
+        const data = new TextEncoder().encode('konomi:' + name);
+        const hash = await crypto.subtle.digest('SHA-1', data);
+        return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      // Event system
+      on(event, handler) {
+        if (this.handlers[event]) this.handlers[event].push(handler);
+        return () => this.off(event, handler);
+      }
+
+      off(event, handler) {
+        if (this.handlers[event]) {
+          this.handlers[event] = this.handlers[event].filter(h => h !== handler);
+        }
+      }
+
+      emit(event, ...args) {
+        if (this.handlers[event]) {
+          this.handlers[event].forEach(h => h(...args));
+        }
+      }
+
+      log(msg, type = 'i') {
+        this.emit('log', msg, type);
+      }
+
+      setState(state) {
+        this.state = state;
+        this.emit('state:change', state);
+      }
+
+      // Create WebRTC offers
+      async createOffers(count = 5) {
+        const offers = [];
+
+        for (let i = 0; i < count; i++) {
+          const pc = new RTCPeerConnection(ICE_CONFIG);
+          const dc = pc.createDataChannel('mesh');
+          const offerId = crypto.randomUUID();
+
+          // Wait for ICE gathering
+          await new Promise(resolve => {
+            pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+            pc.createOffer().then(offer => pc.setLocalDescription(offer));
+          });
+
+          offers.push({
+            offer_id: offerId,
+            offer: { type: 'offer', sdp: pc.localDescription.sdp }
+          });
+
+          this.pending.set(offerId, { pc, dc });
+          this.setupPeerConnection(pc, dc, offerId);
+        }
+
+        return offers;
+      }
+
+      // Setup peer connection handlers
+      setupPeerConnection(pc, dc, id) {
+        dc.onopen = () => {
+          const peer = this.pending.get(id) || {};
+          this.peers.set(id, {
+            name: id.slice(0, 10),
+            emoji: '🌐',
+            pc,
+            dc,
+            state: 'open'
+          });
+          this.pending.delete(id);
+
+          // Announce ourselves
+          dc.send(JSON.stringify({
+            type: 'announce',
+            id: this.id,
+            name: this.name,
+            emoji: this.emoji
+          }));
+
+          this.emit('peer:join', id, this.peers.get(id));
+          this.log(`Peer connected: ${id.slice(0, 8)}`, 's');
+        };
+
+        dc.onclose = () => {
+          const peer = this.peers.get(id);
+          if (peer) {
+            this.emit('peer:leave', id, peer);
+            this.log(`Peer disconnected: ${peer.emoji} ${peer.name}`, 'w');
+            this.peers.delete(id);
+          }
+        };
+
+        dc.onerror = (e) => {
+          this.log(`Channel error: ${e.message || 'unknown'}`, 'e');
+        };
+
+        dc.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+
+            // Handle announce messages
+            if (msg.type === 'announce' && msg.id) {
+              const peer = this.peers.get(id);
+              if (peer) {
+                peer.name = msg.name || peer.name;
+                peer.emoji = msg.emoji || peer.emoji;
+                this.emit('peer:join', id, peer);
+              }
+              return;
+            }
+
+            // Emit other messages
+            this.emit('message', msg, id);
+          } catch (err) {
+            // Non-JSON message, emit as raw
+            this.emit('message', { type: 'raw', data: e.data }, id);
+          }
+        };
+      }
+
+      // Handle incoming offer
+      async handleOffer(msg) {
+        const pc = new RTCPeerConnection(ICE_CONFIG);
+
+        pc.ondatachannel = (e) => {
+          this.setupPeerConnection(pc, e.channel, msg.peer_id);
+        };
+
+        await pc.setRemoteDescription(msg.offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        // Wait for ICE gathering
+        await new Promise(resolve => {
+          if (pc.iceGatheringState === 'complete') resolve();
+          else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+        });
+
+        // Send answer back through tracker
+        this.ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: this.hash,
+          peer_id: this.id,
+          to_peer_id: msg.peer_id,
+          answer: { type: 'answer', sdp: pc.localDescription.sdp },
+          offer_id: msg.offer_id
+        }));
+      }
+
+      // Handle incoming answer
+      async handleAnswer(msg) {
+        const pending = this.pending.get(msg.offer_id);
+        if (pending) {
+          await pending.pc.setRemoteDescription(msg.answer);
+        }
+      }
+
+      // Join a room
+      async join(roomName) {
+        // Clean up existing connection
+        if (this.ws) {
+          this.ws.close();
+        }
+        this.peers.clear();
+        this.pending.clear();
+
+        this.room = roomName;
+        this.hash = await this.hashRoom(roomName);
+        this.setState('connecting');
+        this.log(`Joining room: ${roomName}`, 'i');
+
+        // Create initial offers
+        const offers = await this.createOffers(5);
+
+        // Connect to tracker
+        this.ws = new WebSocket(this.tracker);
+
+        this.ws.onopen = () => {
+          this.setState('connected');
+          this.log('Connected to tracker', 's');
+
+          // Announce to tracker
+          this.ws.send(JSON.stringify({
+            action: 'announce',
+            info_hash: this.hash,
+            peer_id: this.id,
+            numwant: 10,
+            uploaded: 0,
+            downloaded: 0,
+            left: 1,
+            offers
+          }));
+        };
+
+        this.ws.onmessage = async (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+
+            // Handle offer from another peer
+            if (msg.offer && msg.peer_id !== this.id) {
+              await this.handleOffer(msg);
+            }
+
+            // Handle answer to our offer
+            if (msg.answer && msg.offer_id) {
+              await this.handleAnswer(msg);
+            }
+
+            // Handle interval (re-announce)
+            if (msg.interval) {
+              setTimeout(async () => {
+                if (this.ws?.readyState === 1) {
+                  const newOffers = await this.createOffers(5);
+                  this.ws.send(JSON.stringify({
+                    action: 'announce',
+                    info_hash: this.hash,
+                    peer_id: this.id,
+                    numwant: 10,
+                    offers: newOffers
+                  }));
+                }
+              }, msg.interval * 1000);
+            }
+          } catch (err) {
+            this.log(`Message parse error: ${err.message}`, 'e');
+          }
+        };
+
+        this.ws.onerror = () => {
+          this.log('Tracker error', 'e');
+          this.setState('error');
+        };
+
+        this.ws.onclose = () => {
+          this.log('Disconnected, reconnecting...', 'w');
+          this.setState('reconnecting');
+          setTimeout(() => this.join(this.room), 5000);
+        };
+      }
+
+      // Leave room
+      leave() {
+        if (this.ws) {
+          this.ws.close();
+          this.ws = null;
+        }
+        for (const [id, peer] of this.peers) {
+          peer.dc?.close();
+          peer.pc?.close();
+        }
+        this.peers.clear();
+        this.pending.clear();
+        this.setState('disconnected');
+        this.log('Left room', 'i');
+      }
+
+      // Broadcast message to all peers
+      broadcast(msg) {
+        const data = JSON.stringify({ ...msg, senderId: this.id });
+        for (const [id, peer] of this.peers) {
+          if (peer.dc?.readyState === 'open') {
+            peer.dc.send(data);
+          }
+        }
+      }
+
+      // Send message to specific peer
+      send(peerId, msg) {
+        const peer = this.peers.get(peerId);
+        if (peer?.dc?.readyState === 'open') {
+          peer.dc.send(JSON.stringify({ ...msg, senderId: this.id }));
+        }
+      }
+
+      // Get peer list
+      getPeers() {
+        return [...this.peers.entries()].map(([id, peer]) => ({
+          id,
+          name: peer.name,
+          emoji: peer.emoji,
+          state: peer.state
+        }));
+      }
+    }
+
+    // Create global instance
+    const mesh = new P2PMesh();
+    window.P2PMesh = mesh;
+
+    // UI bindings
+    function updateStatus() {
+      const dot = $('dot');
+      const stat = $('stat');
+
+      dot.className = 'dot';
+      switch (mesh.state) {
+        case 'connected':
+          dot.classList.add('on');
+          stat.textContent = `Connected to ${mesh.room}`;
+          break;
+        case 'connecting':
+        case 'reconnecting':
+          dot.classList.add('con');
+          stat.textContent = mesh.state === 'connecting' ? 'Connecting...' : 'Reconnecting...';
+          break;
+        case 'error':
+          stat.textContent = 'Error';
+          break;
+        default:
+          stat.textContent = 'Disconnected';
+      }
+    }
+
+    function updatePeers() {
+      const container = $('peers');
+      const peers = mesh.getPeers();
+      $('count').textContent = peers.length + 1;
+
+      let html = `<div class="peer self">
+        <span class="av">${mesh.emoji}</span>
+        <div class="info">
+          <div class="name">${esc(mesh.name)} (you)</div>
+          <div class="id">${mesh.id.slice(0, 12)}...</div>
+        </div>
+      </div>`;
+
+      if (peers.length === 0) {
+        html += '<div class="empty">No other peers</div>';
+      } else {
+        for (const peer of peers) {
+          html += `<div class="peer">
+            <span class="av">${esc(peer.emoji)}</span>
+            <div class="info">
+              <div class="name">${esc(peer.name)}</div>
+              <div class="id">${peer.id.slice(0, 12)}...</div>
+            </div>
+            <span class="state ${peer.state}">${peer.state}</span>
+          </div>`;
+        }
+      }
+
+      container.innerHTML = html;
+    }
+
+    function addLog(msg, type) {
+      const log = $('log');
+      const div = document.createElement('div');
+      div.className = 'l ' + type;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function addMessage(text, emoji, name, self = false) {
+      const msgs = $('msgs');
+      const div = document.createElement('div');
+      div.className = 'msg' + (self ? ' self' : '');
+      div.innerHTML = `<div class="meta">${esc(emoji)} ${esc(name)}</div>${esc(text)}`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    // Event handlers
+    mesh.on('state:change', updateStatus);
+    mesh.on('peer:join', updatePeers);
+    mesh.on('peer:leave', updatePeers);
+    mesh.on('log', addLog);
+
+    mesh.on('message', (msg, peerId) => {
+      if (msg.type === 'chat') {
+        const peer = mesh.peers.get(peerId) || { emoji: '🌐', name: 'Unknown' };
+        addMessage(msg.text, peer.emoji, peer.name);
+      }
+    });
+
+    // UI event bindings
+    $('join').onclick = () => {
+      const room = $('room').value.trim();
+      if (room) mesh.join(room);
+    };
+
+    $('sendbtn').onclick = () => {
+      const input = $('msg');
+      const text = input.value.trim();
+      if (text) {
+        mesh.broadcast({ type: 'chat', text });
+        addMessage(text, mesh.emoji, mesh.name, true);
+        input.value = '';
+      }
+    };
+
+    $('msg').onkeydown = (e) => {
+      if (e.key === 'Enter') $('sendbtn').click();
+    };
+
+    $('room').onkeydown = (e) => {
+      if (e.key === 'Enter') $('join').click();
+    };
+
+    // Initialize
+    updateStatus();
+    updatePeers();
+    addLog('P2P Mesh Widget initialized', 'i');
+    addLog(`Your ID: ${mesh.id}`, 'i');
+  </script>
+</body>
+</html>
