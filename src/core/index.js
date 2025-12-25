@@ -12,3 +12,6 @@ export * from './sandbox.js'
 
 // UDTs
 export { CORE_UDTS } from './udts.js'
+
+// Paths - token-optimized path registry
+export { P, F, resolve, shorten, listPaths, listFiles, PATH_UDTS } from './paths.js'
