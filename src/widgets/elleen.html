@@ -654,15 +654,20 @@ No errors? Brief praise, slightly surprised.`;
                 let response;
 
                 if (llm) {
+                    // Match output tokens to input - proportional with min/max bounds
+                    const inputWords = text.split(/\s+/).length;
+                    const maxTokens = Math.min(600, Math.max(150, inputWords * 8));
+
                     const result = await llm.chat.completions.create({
                         messages: [
                             { role: 'system', content: elleenPersonality },
-                            { role: 'user', content: `Check this text for grammar errors:\n\n"${text}"` }
+                            { role: 'user', content: `TEXT: "${text}"` },
+                            { role: 'assistant', content: 'Oh dear. Let me check this.\n\n' }
                         ],
-                        temperature: 0.6,
-                        max_tokens: 800
+                        temperature: 0.5,
+                        max_tokens: maxTokens
                     });
-                    const rawResponse = result.choices[0].message.content;
+                    const rawResponse = 'Oh dear. Let me check this.\n\n' + result.choices[0].message.content;
 
                     // Sanitize to remove any prompt leakage
                     response = sanitizeResponse(rawResponse);
