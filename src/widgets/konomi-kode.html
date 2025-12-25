@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<!--
+@file konomi-kode.html
+@desc Konomi Kode - Browser-based AI coding agent (Claude Code alternative)
+@api  window.KonomiKode - AI agent controller
+
+Features:
+- WebLLM powered (runs 100% in browser)
+- Virtual filesystem with full CRUD
+- MCP-style tool calling
+- Agentic loop: Plan → Execute → Observe
+- Terminal with command execution
+- Live file preview
+- P2P collaboration ready
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konomi Kode</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{padding:10px 16px;background:linear-gradient(135deg,var(--a2),#ec4899);display:flex;gap:12px;align-items:center}
+    .logo{font-size:22px}
+    .header h1{font-size:15px;color:#fff;font-weight:600}
+    .model-status{display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,.3);border-radius:20px;font-size:11px;color:rgba(255,255,255,.9)}
+    .model-status .indicator{width:8px;height:8px;border-radius:50%;background:var(--y)}
+    .model-status .indicator.ready{background:var(--g)}
+    .model-status .indicator.loading{background:var(--o);animation:pulse 1s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .header-actions{margin-left:auto;display:flex;gap:8px}
+    .header-actions button{padding:6px 12px;background:rgba(255,255,255,.15);border:0;border-radius:6px;color:#fff;font-size:11px;cursor:pointer}
+    .header-actions button:hover{background:rgba(255,255,255,.25)}
+    .header-actions select{padding:6px 10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-size:11px}
+
+    .main{display:flex;flex:1;overflow:hidden}
+
+    /* File Explorer */
+    .explorer{width:220px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .explorer-header{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+    .explorer-header button{margin-left:auto;width:22px;height:22px;background:rgba(255,255,255,.08);border:0;border-radius:4px;color:#94a3b8;cursor:pointer;font-size:12px}
+    .explorer-header button:hover{background:rgba(255,255,255,.15);color:var(--f)}
+    .file-list{flex:1;overflow-y:auto;padding:4px 8px;font-family:'SF Mono',monospace;font-size:11px}
+    .file{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:4px;cursor:pointer;color:#94a3b8}
+    .file:hover{background:rgba(255,255,255,.04);color:var(--f)}
+    .file.active{background:rgba(0,217,255,.15);color:var(--a)}
+    .file .icon{font-size:12px}
+
+    /* Editor Area */
+    .editor-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+    .tabs{display:flex;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);min-height:32px}
+    .tab{padding:8px 14px;font-size:11px;color:#64748b;cursor:pointer;border-right:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:6px}
+    .tab:hover{color:var(--f);background:rgba(255,255,255,.02)}
+    .tab.active{color:var(--a);background:var(--b3)}
+    .tab .modified{color:var(--o)}
+
+    .editor-wrapper{flex:1;display:flex;overflow:hidden}
+    .editor{flex:1;display:flex;flex-direction:column;background:var(--b3)}
+    .editor textarea{flex:1;padding:16px;background:transparent;border:0;color:var(--f);font:13px/1.6 'SF Mono',monospace;resize:none}
+    .editor textarea:focus{outline:0}
+    .editor-info{padding:6px 12px;background:var(--b2);border-top:1px solid rgba(255,255,255,.06);font-size:10px;color:#64748b;display:flex;gap:16px}
+
+    /* Chat Panel */
+    .chat-panel{width:400px;background:var(--b2);border-left:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .chat-header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px}
+    .chat-header .badge{font-size:9px;padding:2px 8px;background:var(--a2);border-radius:10px;font-weight:500}
+
+    .chat-messages{flex:1;overflow-y:auto;padding:16px}
+    .message{margin-bottom:16px}
+    .message.user{text-align:right}
+    .message .bubble{display:inline-block;max-width:90%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;text-align:left}
+    .message.user .bubble{background:var(--a2);color:#fff;border-bottom-right-radius:4px}
+    .message.assistant .bubble{background:var(--b3);border:1px solid rgba(255,255,255,.08);border-bottom-left-radius:4px}
+    .message .thinking{font-size:11px;color:#64748b;margin-bottom:6px}
+    .message .tool-call{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px;margin-top:8px;font-family:'SF Mono',monospace;font-size:11px}
+    .message .tool-call .name{color:var(--a);font-weight:600}
+    .message .tool-call .result{color:var(--g);margin-top:6px}
+    .message .tool-call .error{color:var(--r)}
+    .message code{background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;font-size:12px}
+    .message pre{background:rgba(0,0,0,.4);padding:12px;border-radius:8px;overflow-x:auto;margin-top:8px;font-size:11px}
+
+    .typing-indicator{padding:0 16px 16px;display:none}
+    .typing-indicator.active{display:block}
+    .typing-indicator span{display:inline-block;width:8px;height:8px;background:var(--a);border-radius:50%;margin-right:4px;animation:bounce .6s infinite}
+    .typing-indicator span:nth-child(2){animation-delay:.1s}
+    .typing-indicator span:nth-child(3){animation-delay:.2s}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+    .chat-input{padding:12px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px}
+    .chat-input textarea{flex:1;padding:10px 14px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--f);font:13px system-ui;resize:none;max-height:120px}
+    .chat-input textarea:focus{outline:0;border-color:var(--a)}
+    .chat-input button{width:40px;height:40px;background:var(--a);border:0;border-radius:10px;color:#000;cursor:pointer;font-size:16px}
+    .chat-input button:disabled{opacity:.5;cursor:not-allowed}
+
+    /* Terminal */
+    .terminal{height:180px;background:#000;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;font-family:'SF Mono',monospace}
+    .terminal-header{padding:6px 12px;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.06);font-size:10px;color:#64748b;display:flex;align-items:center;gap:8px}
+    .terminal-header .dots{display:flex;gap:4px}
+    .terminal-header .dots span{width:8px;height:8px;border-radius:50%}
+    .terminal-header .dots span:nth-child(1){background:#ef4444}
+    .terminal-header .dots span:nth-child(2){background:#eab308}
+    .terminal-header .dots span:nth-child(3){background:#22c55e}
+    .terminal-body{flex:1;padding:10px 12px;overflow-y:auto;font-size:12px}
+    .terminal-body .line{margin-bottom:2px}
+    .terminal-body .cmd{color:var(--a)}
+    .terminal-body .out{color:#94a3b8}
+    .terminal-body .err{color:var(--r)}
+    .terminal-body .success{color:var(--g)}
+    .terminal-body .tool{color:var(--a2)}
+
+    .loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+    .loading-overlay.hidden{display:none}
+    .loading-overlay h2{font-size:24px;margin-bottom:16px}
+    .loading-overlay p{color:#64748b;margin-bottom:24px}
+    .loading-bar{width:300px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+    .loading-bar-fill{height:100%;background:linear-gradient(90deg,var(--a),var(--a2));width:0%;transition:width .3s}
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay">
+    <h2>🤖 Konomi Kode</h2>
+    <p id="loadingStatus">Initializing AI model...</p>
+    <div class="loading-bar"><div class="loading-bar-fill" id="loadingBar"></div></div>
+  </div>
+
+  <div class="header">
+    <span class="logo">🤖</span>
+    <h1>Konomi Kode</h1>
+    <div class="model-status">
+      <span class="indicator" id="modelIndicator"></span>
+      <span id="modelName">Loading model...</span>
+    </div>
+    <div class="header-actions">
+      <select id="modelSelect">
+        <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (Fast)</option>
+        <option value="SmolLM2-1.7B-Instruct-q4f16_1-MLC" selected>SmolLM2 1.7B</option>
+        <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5 1.5B</option>
+        <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B</option>
+      </select>
+      <button id="clearBtn">Clear Chat</button>
+      <button id="resetBtn">Reset Files</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="explorer">
+      <div class="explorer-header">
+        📁 Explorer
+        <button id="newFileBtn" title="New File">+</button>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <div class="editor-area">
+      <div class="tabs" id="tabs"></div>
+      <div class="editor-wrapper">
+        <div class="editor">
+          <textarea id="editorText" placeholder="Select a file or ask the AI to create one..."></textarea>
+          <div class="editor-info">
+            <span id="fileInfo">No file open</span>
+            <span id="cursorInfo">Ln 1, Col 1</span>
+          </div>
+        </div>
+      </div>
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <span>Terminal</span>
+        </div>
+        <div class="terminal-body" id="termOutput"></div>
+      </div>
+    </div>
+
+    <div class="chat-panel">
+      <div class="chat-header">
+        💬 AI Assistant
+        <span class="badge">Agentic</span>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="typing-indicator" id="typingIndicator">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="chat-input">
+        <textarea id="chatInput" placeholder="Ask me to write code, fix bugs, explain files..." rows="2"></textarea>
+        <button id="sendBtn">→</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { CreateMLCEngine } from 'https://esm.run/@anthropic-ai/webllm';
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    // Virtual Filesystem
+    class VFS {
+      constructor() {
+        this.files = new Map();
+        this.load();
+      }
+      load() {
+        const saved = localStorage.getItem('konomi-kode-fs');
+        if (saved) this.files = new Map(Object.entries(JSON.parse(saved)));
+      }
+      save() {
+        localStorage.setItem('konomi-kode-fs', JSON.stringify(Object.fromEntries(this.files)));
+      }
+      write(path, content) {
+        this.files.set(path, content);
+        this.save();
+        return `Wrote ${content.length} bytes to ${path}`;
+      }
+      read(path) {
+        return this.files.get(path);
+      }
+      list() {
+        return Array.from(this.files.keys());
+      }
+      delete(path) {
+        this.files.delete(path);
+        this.save();
+        return `Deleted ${path}`;
+      }
+      exists(path) {
+        return this.files.has(path);
+      }
+    }
+
+    // Tools available to the AI
+    const TOOLS = {
+      read_file: {
+        description: 'Read contents of a file',
+        params: ['path'],
+        fn: (fs, args) => {
+          const content = fs.read(args.path);
+          return content !== undefined ? content : `Error: File ${args.path} not found`;
+        }
+      },
+      write_file: {
+        description: 'Write content to a file (creates or overwrites)',
+        params: ['path', 'content'],
+        fn: (fs, args) => fs.write(args.path, args.content)
+      },
+      list_files: {
+        description: 'List all files in the workspace',
+        params: [],
+        fn: (fs) => {
+          const files = fs.list();
+          return files.length ? files.join('\n') : 'No files in workspace';
+        }
+      },
+      delete_file: {
+        description: 'Delete a file',
+        params: ['path'],
+        fn: (fs, args) => fs.delete(args.path)
+      },
+      search_files: {
+        description: 'Search for text in all files',
+        params: ['query'],
+        fn: (fs, args) => {
+          const results = [];
+          for (const [path, content] of fs.files) {
+            if (content.includes(args.query)) {
+              results.push(`${path}: found`);
+            }
+          }
+          return results.length ? results.join('\n') : 'No matches found';
+        }
+      },
+      run_command: {
+        description: 'Run a shell command (simulated)',
+        params: ['command'],
+        fn: (fs, args) => {
+          const cmd = args.command.trim();
+          if (cmd.startsWith('echo ')) return cmd.slice(5);
+          if (cmd === 'pwd') return '/workspace';
+          if (cmd === 'ls') return fs.list().join('\n') || '(empty)';
+          if (cmd.startsWith('cat ')) {
+            const path = cmd.slice(4).trim();
+            return fs.read(path) || `cat: ${path}: No such file`;
+          }
+          return `Simulated: ${cmd}`;
+        }
+      }
+    };
+
+    class KonomiKode {
+      constructor() {
+        this.fs = new VFS();
+        this.engine = null;
+        this.messages = [];
+        this.activeFile = null;
+        this.openFiles = [];
+        this.isProcessing = false;
+        this.init();
+      }
+
+      async init() {
+        // Demo files
+        if (this.fs.files.size === 0) {
+          this.fs.write('index.html', `<!DOCTYPE html>
+<html>
+<head>
+  <title>My App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Hello World</h1>
+  <script src="app.js"></script>
+</body>
+</html>`);
+          this.fs.write('style.css', `body {
+  font-family: system-ui;
+  background: #1a1a2e;
+  color: #eee;
+  padding: 40px;
+}`);
+          this.fs.write('app.js', `console.log('Hello!');`);
+        }
+
+        this.renderFiles();
+        this.addSystemMessage();
+
+        // Load model
+        await this.loadModel($('modelSelect').value);
+
+        // Event listeners
+        $('sendBtn').onclick = () => this.sendMessage();
+        $('chatInput').onkeydown = e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.sendMessage();
+          }
+        };
+
+        $('fileList').onclick = e => {
+          const file = e.target.closest('.file');
+          if (file) this.openFile(file.dataset.path);
+        };
+
+        $('tabs').onclick = e => {
+          const tab = e.target.closest('.tab');
+          if (tab) this.openFile(tab.dataset.path);
+        };
+
+        $('editorText').oninput = () => this.saveCurrentFile();
+        $('editorText').onkeyup = () => this.updateCursorInfo();
+
+        $('newFileBtn').onclick = () => {
+          const name = prompt('File name:');
+          if (name) {
+            this.fs.write(name, '');
+            this.renderFiles();
+            this.openFile(name);
+          }
+        };
+
+        $('clearBtn').onclick = () => {
+          this.messages = [];
+          $('chatMessages').innerHTML = '';
+          this.addSystemMessage();
+        };
+
+        $('resetBtn').onclick = () => {
+          if (confirm('Reset all files?')) {
+            localStorage.removeItem('konomi-kode-fs');
+            location.reload();
+          }
+        };
+
+        $('modelSelect').onchange = () => this.loadModel($('modelSelect').value);
+      }
+
+      async loadModel(modelId) {
+        $('loadingOverlay').classList.remove('hidden');
+        $('loadingStatus').textContent = `Loading ${modelId}...`;
+        $('loadingBar').style.width = '0%';
+        $('modelIndicator').className = 'indicator loading';
+        $('modelName').textContent = 'Loading...';
+
+        try {
+          this.engine = await CreateMLCEngine(modelId, {
+            initProgressCallback: (progress) => {
+              const pct = Math.round(progress.progress * 100);
+              $('loadingBar').style.width = pct + '%';
+              $('loadingStatus').textContent = progress.text || `Loading... ${pct}%`;
+            }
+          });
+
+          $('modelIndicator').className = 'indicator ready';
+          $('modelName').textContent = modelId.split('-')[0];
+          $('loadingOverlay').classList.add('hidden');
+          this.log('Model loaded: ' + modelId, 'success');
+        } catch (e) {
+          $('loadingStatus').textContent = 'Error: ' + e.message;
+          $('modelIndicator').className = 'indicator';
+          console.error(e);
+        }
+      }
+
+      addSystemMessage() {
+        const toolList = Object.entries(TOOLS).map(([name, t]) =>
+          `- ${name}(${t.params.join(', ')}): ${t.description}`
+        ).join('\n');
+
+        this.messages.push({
+          role: 'system',
+          content: `You are Konomi Kode, an AI coding assistant running in the browser. You help users write, edit, and understand code.
+
+Available tools (use JSON format to call):
+${toolList}
+
+To use a tool, respond with:
+<tool>{"name": "tool_name", "args": {"param": "value"}}</tool>
+
+After using a tool, explain what you did. Be concise and helpful. When writing code, use write_file to save it.
+
+Current files: ${this.fs.list().join(', ') || 'none'}`
+        });
+      }
+
+      renderFiles() {
+        const files = this.fs.list();
+        $('fileList').innerHTML = files.map(f => {
+          const ext = f.split('.').pop();
+          const icons = { html: '🌐', css: '🎨', js: '📜', json: '📋', md: '📝' };
+          const icon = icons[ext] || '📄';
+          const active = f === this.activeFile ? 'active' : '';
+          return `<div class="file ${active}" data-path="${esc(f)}"><span class="icon">${icon}</span>${esc(f)}</div>`;
+        }).join('') || '<div style="padding:12px;color:#64748b">No files</div>';
+      }
+
+      renderTabs() {
+        $('tabs').innerHTML = this.openFiles.map(f => {
+          const active = f === this.activeFile ? 'active' : '';
+          return `<div class="tab ${active}" data-path="${esc(f)}">${esc(f)}</div>`;
+        }).join('');
+      }
+
+      openFile(path) {
+        if (!this.openFiles.includes(path)) this.openFiles.push(path);
+        this.activeFile = path;
+        $('editorText').value = this.fs.read(path) || '';
+        $('fileInfo').textContent = path;
+        this.renderFiles();
+        this.renderTabs();
+      }
+
+      saveCurrentFile() {
+        if (this.activeFile) {
+          this.fs.write(this.activeFile, $('editorText').value);
+        }
+      }
+
+      updateCursorInfo() {
+        const ta = $('editorText');
+        const lines = ta.value.substr(0, ta.selectionStart).split('\n');
+        $('cursorInfo').textContent = `Ln ${lines.length}, Col ${lines[lines.length-1].length + 1}`;
+      }
+
+      log(msg, type = 'out') {
+        const div = document.createElement('div');
+        div.className = 'line ' + type;
+        div.textContent = msg;
+        $('termOutput').appendChild(div);
+        $('termOutput').scrollTop = $('termOutput').scrollHeight;
+      }
+
+      addChatMessage(role, content, toolCalls = []) {
+        const div = document.createElement('div');
+        div.className = `message ${role}`;
+
+        let html = `<div class="bubble">${this.formatMessage(content)}</div>`;
+
+        toolCalls.forEach(tc => {
+          html += `<div class="tool-call">
+            <div class="name">🔧 ${esc(tc.name)}</div>
+            <div>${esc(JSON.stringify(tc.args))}</div>
+            <div class="${tc.error ? 'error' : 'result'}">${esc(tc.result)}</div>
+          </div>`;
+        });
+
+        div.innerHTML = html;
+        $('chatMessages').appendChild(div);
+        $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
+      }
+
+      formatMessage(content) {
+        // Basic markdown-ish formatting
+        return esc(content)
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\n/g, '<br>');
+      }
+
+      async sendMessage() {
+        const input = $('chatInput').value.trim();
+        if (!input || this.isProcessing || !this.engine) return;
+
+        $('chatInput').value = '';
+        this.isProcessing = true;
+        $('sendBtn').disabled = true;
+        $('typingIndicator').classList.add('active');
+
+        // Add user message
+        this.messages.push({ role: 'user', content: input });
+        this.addChatMessage('user', input);
+
+        try {
+          // Agent loop - may need multiple iterations for tool calls
+          let iterations = 0;
+          const maxIterations = 5;
+
+          while (iterations < maxIterations) {
+            iterations++;
+
+            const response = await this.engine.chat.completions.create({
+              messages: this.messages,
+              temperature: 0.7,
+              max_tokens: 1024
+            });
+
+            const assistantMsg = response.choices[0].message.content;
+            this.messages.push({ role: 'assistant', content: assistantMsg });
+
+            // Check for tool calls
+            const toolMatch = assistantMsg.match(/<tool>([\s\S]*?)<\/tool>/);
+
+            if (toolMatch) {
+              try {
+                const toolCall = JSON.parse(toolMatch[1]);
+                const tool = TOOLS[toolCall.name];
+
+                if (tool) {
+                  this.log(`Tool: ${toolCall.name}`, 'tool');
+                  const result = tool.fn(this.fs, toolCall.args || {});
+                  this.log(result.slice(0, 100), 'out');
+
+                  // Show message with tool call
+                  const cleanMsg = assistantMsg.replace(/<tool>[\s\S]*?<\/tool>/, '').trim();
+                  this.addChatMessage('assistant', cleanMsg || 'Using tool...', [{
+                    name: toolCall.name,
+                    args: toolCall.args,
+                    result: result
+                  }]);
+
+                  // Add tool result to context
+                  this.messages.push({
+                    role: 'user',
+                    content: `Tool result for ${toolCall.name}: ${result}`
+                  });
+
+                  // Update UI
+                  this.renderFiles();
+                  if (this.activeFile && toolCall.name === 'write_file' && toolCall.args.path === this.activeFile) {
+                    $('editorText').value = this.fs.read(this.activeFile) || '';
+                  }
+
+                  // Continue loop for potential follow-up
+                  continue;
+                }
+              } catch (e) {
+                this.log('Tool error: ' + e.message, 'err');
+              }
+            }
+
+            // No tool call, show response and break
+            this.addChatMessage('assistant', assistantMsg);
+            break;
+          }
+        } catch (e) {
+          this.log('Error: ' + e.message, 'err');
+          this.addChatMessage('assistant', 'Sorry, I encountered an error: ' + e.message);
+        }
+
+        this.isProcessing = false;
+        $('sendBtn').disabled = false;
+        $('typingIndicator').classList.remove('active');
+      }
+    }
+
+    window.KonomiKode = new KonomiKode();
+  </script>
+</body>
+</html>

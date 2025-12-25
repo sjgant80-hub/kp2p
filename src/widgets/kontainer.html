@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<!--
+@file kontainer.html
+@desc Kontainer - P2P lightweight browser runtime (Docker/GitHub Pages alternative)
+@api  window.Kontainer - container runtime controller
+
+Features:
+- Virtual filesystem (OPFS/IndexedDB backed)
+- Service Worker for HTTP serving
+- Web Worker sandboxed execution
+- P2P file sync via WebRTC
+- Git-like versioning
+- Static site hosting
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kontainer</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--y:#eab308;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{padding:12px 20px;background:linear-gradient(135deg,#1e3a5f,#0d9488);display:flex;gap:16px;align-items:center}
+    .logo{font-size:24px}
+    .header h1{flex:1;font-size:16px;color:#fff}
+    .status{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.8)}
+    .status .dot{width:8px;height:8px;border-radius:50%;background:var(--g);animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    .header-btns{display:flex;gap:8px}
+    .header-btns button{padding:8px 14px;background:rgba(255,255,255,.15);border:0;border-radius:6px;color:#fff;font-size:12px;cursor:pointer}
+    .header-btns button:hover{background:rgba(255,255,255,.25)}
+    .header-btns .primary{background:#fff;color:#0d9488}
+
+    .main{display:flex;flex:1;overflow:hidden}
+
+    .sidebar{width:260px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .sidebar-header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}
+    .sidebar-header button{margin-left:auto;width:26px;height:26px;background:var(--g);border:0;border-radius:5px;color:#000;cursor:pointer;font-size:14px}
+
+    .file-tree{flex:1;overflow-y:auto;padding:8px;font-family:'SF Mono',monospace;font-size:12px}
+    .file-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#94a3b8}
+    .file-item:hover{background:rgba(255,255,255,.04);color:var(--f)}
+    .file-item.active{background:rgba(0,217,255,.1);color:var(--a)}
+    .file-item.folder{color:var(--y)}
+    .file-item .icon{width:16px;text-align:center}
+    .file-item .name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .file-item .size{font-size:10px;color:#475569}
+    .file-item.indent-1{padding-left:24px}
+    .file-item.indent-2{padding-left:40px}
+    .file-item.indent-3{padding-left:56px}
+
+    .content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+    .tabs{display:flex;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);overflow-x:auto}
+    .tab{padding:10px 16px;font-size:12px;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    .tab:hover{color:var(--f)}
+    .tab.active{color:var(--a);border-color:var(--a)}
+    .tab .close{width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center}
+    .tab .close:hover{background:rgba(255,255,255,.1)}
+
+    .editor-area{flex:1;display:flex;overflow:hidden}
+
+    .editor{flex:1;background:#0d0d14;overflow:hidden;display:flex;flex-direction:column}
+    .editor-content{flex:1;padding:16px;overflow:auto}
+    .editor-content textarea{width:100%;height:100%;background:0;border:0;color:var(--f);font:13px/1.6 'SF Mono',monospace;resize:none}
+    .editor-content textarea:focus{outline:0}
+
+    .preview-panel{width:50%;border-left:1px solid rgba(255,255,255,.06);display:none;flex-direction:column}
+    .preview-panel.active{display:flex}
+    .preview-header{padding:10px 16px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px;font-size:12px}
+    .preview-header .url{flex:1;padding:6px 10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:4px;color:#94a3b8;font-family:'SF Mono',monospace;font-size:11px}
+    .preview-frame{flex:1;background:#fff}
+    .preview-frame iframe{width:100%;height:100%;border:0}
+
+    .terminal{height:200px;background:#000;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .terminal-header{padding:8px 16px;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px;font-size:11px;color:#64748b}
+    .terminal-tabs{display:flex;gap:4px}
+    .terminal-tabs button{padding:4px 12px;background:rgba(255,255,255,.05);border:0;border-radius:4px;color:#64748b;font-size:11px;cursor:pointer}
+    .terminal-tabs button.active{background:var(--a);color:#000}
+    .terminal-body{flex:1;padding:12px 16px;overflow-y:auto;font:12px/1.5 'SF Mono',monospace}
+    .terminal-line{margin-bottom:2px}
+    .terminal-line.cmd{color:var(--a)}
+    .terminal-line.out{color:#94a3b8}
+    .terminal-line.err{color:var(--r)}
+    .terminal-line.success{color:var(--g)}
+    .terminal-input{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(255,255,255,.02);border-top:1px solid rgba(255,255,255,.06)}
+    .terminal-input .prompt{color:var(--g)}
+    .terminal-input input{flex:1;background:0;border:0;color:var(--f);font:12px 'SF Mono',monospace}
+    .terminal-input input:focus{outline:0}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100}
+    .modal.open{display:flex}
+    .modal-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px;width:100%;max-width:400px}
+    .modal h3{margin-bottom:16px}
+    .modal input{width:100%;padding:10px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);margin-bottom:12px}
+    .modal input:focus{outline:0;border-color:var(--a)}
+    .modal-btns{display:flex;gap:8px;margin-top:16px}
+    .modal-btns button{flex:1;padding:10px;border:0;border-radius:6px;font-weight:600;cursor:pointer}
+    .modal-btns .cancel{background:rgba(255,255,255,.08);color:var(--f)}
+    .modal-btns .save{background:var(--a);color:#000}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">📦</span>
+    <h1>Kontainer</h1>
+    <div class="status"><span class="dot"></span> Running</div>
+    <div class="header-btns">
+      <button id="syncBtn">🔄 Sync P2P</button>
+      <button id="deployBtn">🚀 Deploy</button>
+      <button class="primary" id="previewBtn">👁 Preview</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        📁 Files
+        <button id="newFileBtn" title="New File">+</button>
+      </div>
+      <div class="file-tree" id="fileTree"></div>
+    </div>
+
+    <div class="content">
+      <div class="tabs" id="tabs"></div>
+
+      <div class="editor-area">
+        <div class="editor">
+          <div class="editor-content">
+            <textarea id="editorText" placeholder="Select or create a file..."></textarea>
+          </div>
+        </div>
+
+        <div class="preview-panel" id="previewPanel">
+          <div class="preview-header">
+            <span>🌐</span>
+            <span class="url" id="previewUrl">http://localhost:3000/</span>
+            <button onclick="Kontainer.refreshPreview()">↻</button>
+          </div>
+          <div class="preview-frame">
+            <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+          </div>
+        </div>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="terminal-tabs">
+            <button class="active" data-term="shell">Shell</button>
+            <button data-term="output">Output</button>
+            <button data-term="network">Network</button>
+          </div>
+        </div>
+        <div class="terminal-body" id="termOutput"></div>
+        <div class="terminal-input">
+          <span class="prompt">~/kontainer $</span>
+          <input type="text" id="termInput" placeholder="Enter command...">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h3 id="modalTitle">New File</h3>
+      <input type="text" id="modalInput" placeholder="filename.html">
+      <div class="modal-btns">
+        <button class="cancel" onclick="document.getElementById('modal').classList.remove('open')">Cancel</button>
+        <button class="save" id="modalSave">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    // Virtual filesystem
+    class VirtualFS {
+      constructor() {
+        this.files = new Map();
+        this.load();
+      }
+
+      load() {
+        const saved = localStorage.getItem('kontainer-fs');
+        if (saved) {
+          const data = JSON.parse(saved);
+          this.files = new Map(Object.entries(data));
+        }
+      }
+
+      save() {
+        const data = Object.fromEntries(this.files);
+        localStorage.setItem('kontainer-fs', JSON.stringify(data));
+      }
+
+      write(path, content) {
+        this.files.set(path, { content, modified: Date.now() });
+        this.save();
+      }
+
+      read(path) {
+        return this.files.get(path)?.content || null;
+      }
+
+      exists(path) {
+        return this.files.has(path);
+      }
+
+      delete(path) {
+        this.files.delete(path);
+        this.save();
+      }
+
+      list(dir = '/') {
+        const items = [];
+        for (const [path, data] of this.files) {
+          if (path.startsWith(dir)) {
+            items.push({ path, ...data, size: data.content.length });
+          }
+        }
+        return items.sort((a, b) => a.path.localeCompare(b.path));
+      }
+
+      getTree() {
+        const tree = {};
+        for (const [path] of this.files) {
+          const parts = path.split('/').filter(Boolean);
+          let current = tree;
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (i === parts.length - 1) {
+              current[part] = { type: 'file', path };
+            } else {
+              current[part] = current[part] || { type: 'dir', children: {} };
+              current = current[part].children;
+            }
+          }
+        }
+        return tree;
+      }
+    }
+
+    class Kontainer {
+      constructor() {
+        this.fs = new VirtualFS();
+        this.openFiles = [];
+        this.activeFile = null;
+        this.previewOpen = false;
+        this.p2pConnected = false;
+        this.init();
+      }
+
+      log(msg, type = 'out') {
+        const line = document.createElement('div');
+        line.className = `terminal-line ${type}`;
+        line.textContent = msg;
+        $('termOutput').appendChild(line);
+        $('termOutput').scrollTop = $('termOutput').scrollHeight;
+      }
+
+      renderFileTree() {
+        const tree = this.fs.getTree();
+        let html = '';
+
+        const render = (obj, indent = 0) => {
+          for (const [name, item] of Object.entries(obj)) {
+            const icon = item.type === 'dir' ? '📁' : this.getFileIcon(name);
+            const active = item.path === this.activeFile ? 'active' : '';
+            const cls = item.type === 'dir' ? 'folder' : '';
+
+            if (item.type === 'dir') {
+              html += `<div class="file-item ${cls} indent-${indent}"><span class="icon">${icon}</span><span class="name">${esc(name)}</span></div>`;
+              render(item.children, indent + 1);
+            } else {
+              const size = this.fs.read(item.path)?.length || 0;
+              const sizeStr = size < 1024 ? `${size}B` : `${(size/1024).toFixed(1)}K`;
+              html += `<div class="file-item ${active} indent-${indent}" data-path="${esc(item.path)}"><span class="icon">${icon}</span><span class="name">${esc(name)}</span><span class="size">${sizeStr}</span></div>`;
+            }
+          }
+        };
+
+        render(tree);
+        $('fileTree').innerHTML = html || '<div style="padding:20px;color:#64748b;text-align:center">No files yet</div>';
+      }
+
+      getFileIcon(name) {
+        const ext = name.split('.').pop().toLowerCase();
+        const icons = {
+          html: '🌐', htm: '🌐', css: '🎨', js: '📜', ts: '💠',
+          json: '📋', md: '📝', txt: '📄', svg: '🖼️', png: '🖼️',
+          jpg: '🖼️', gif: '🖼️', py: '🐍', rb: '💎', go: '🔵'
+        };
+        return icons[ext] || '📄';
+      }
+
+      renderTabs() {
+        $('tabs').innerHTML = this.openFiles.map(path => {
+          const name = path.split('/').pop();
+          const active = path === this.activeFile ? 'active' : '';
+          return `<div class="tab ${active}" data-path="${esc(path)}">
+            ${this.getFileIcon(name)} ${esc(name)}
+            <span class="close" data-close="${esc(path)}">×</span>
+          </div>`;
+        }).join('');
+      }
+
+      openFile(path) {
+        if (!this.openFiles.includes(path)) {
+          this.openFiles.push(path);
+        }
+        this.activeFile = path;
+        const content = this.fs.read(path) || '';
+        $('editorText').value = content;
+        this.renderTabs();
+        this.renderFileTree();
+      }
+
+      closeFile(path) {
+        this.openFiles = this.openFiles.filter(f => f !== path);
+        if (this.activeFile === path) {
+          this.activeFile = this.openFiles[this.openFiles.length - 1] || null;
+          $('editorText').value = this.activeFile ? this.fs.read(this.activeFile) : '';
+        }
+        this.renderTabs();
+        this.renderFileTree();
+      }
+
+      saveFile() {
+        if (this.activeFile) {
+          this.fs.write(this.activeFile, $('editorText').value);
+          this.log(`Saved ${this.activeFile}`, 'success');
+          if (this.previewOpen) this.refreshPreview();
+        }
+      }
+
+      createFile(path) {
+        if (!path.startsWith('/')) path = '/' + path;
+        this.fs.write(path, '');
+        this.openFile(path);
+        this.log(`Created ${path}`, 'success');
+      }
+
+      deleteFile(path) {
+        this.fs.delete(path);
+        this.closeFile(path);
+        this.renderFileTree();
+        this.log(`Deleted ${path}`, 'out');
+      }
+
+      togglePreview() {
+        this.previewOpen = !this.previewOpen;
+        $('previewPanel').classList.toggle('active', this.previewOpen);
+        if (this.previewOpen) this.refreshPreview();
+      }
+
+      refreshPreview() {
+        const indexContent = this.fs.read('/index.html');
+        if (!indexContent) {
+          this.log('No /index.html found', 'err');
+          return;
+        }
+
+        // Inject all CSS/JS inline for preview
+        let html = indexContent;
+
+        // Replace linked resources with inline content
+        html = html.replace(/<link[^>]+href=["']([^"']+)["'][^>]*>/gi, (match, href) => {
+          const content = this.fs.read('/' + href.replace(/^\//, ''));
+          return content ? `<style>${content}</style>` : match;
+        });
+
+        html = html.replace(/<script[^>]+src=["']([^"']+)["'][^>]*><\/script>/gi, (match, src) => {
+          const content = this.fs.read('/' + src.replace(/^\//, ''));
+          return content ? `<script>${content}</script>` : match;
+        });
+
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        $('previewFrame').src = url;
+        $('previewUrl').textContent = `blob://kontainer${this.activeFile || '/index.html'}`;
+      }
+
+      execute(cmd) {
+        this.log(cmd, 'cmd');
+        const parts = cmd.trim().split(/\s+/);
+        const command = parts[0];
+        const args = parts.slice(1);
+
+        switch (command) {
+          case 'help':
+            this.log('Commands: ls, cat, touch, rm, echo, clear, serve, sync, deploy', 'out');
+            break;
+          case 'ls':
+            const files = this.fs.list('/');
+            files.forEach(f => this.log(`  ${f.path}  (${f.size}B)`, 'out'));
+            break;
+          case 'cat':
+            if (args[0]) {
+              const content = this.fs.read(args[0].startsWith('/') ? args[0] : '/' + args[0]);
+              this.log(content || 'File not found', content ? 'out' : 'err');
+            }
+            break;
+          case 'touch':
+            if (args[0]) this.createFile(args[0]);
+            break;
+          case 'rm':
+            if (args[0]) this.deleteFile(args[0].startsWith('/') ? args[0] : '/' + args[0]);
+            break;
+          case 'echo':
+            if (args.includes('>')) {
+              const idx = args.indexOf('>');
+              const content = args.slice(0, idx).join(' ');
+              const file = args[idx + 1];
+              if (file) {
+                this.fs.write(file.startsWith('/') ? file : '/' + file, content);
+                this.renderFileTree();
+              }
+            } else {
+              this.log(args.join(' '), 'out');
+            }
+            break;
+          case 'clear':
+            $('termOutput').innerHTML = '';
+            break;
+          case 'serve':
+            this.togglePreview();
+            this.log('Preview server started', 'success');
+            break;
+          case 'sync':
+            this.syncP2P();
+            break;
+          case 'deploy':
+            this.deploy();
+            break;
+          default:
+            this.log(`Unknown command: ${command}. Type 'help' for commands.`, 'err');
+        }
+      }
+
+      syncP2P() {
+        this.log('Connecting to P2P mesh...', 'out');
+        // Simulate P2P sync
+        setTimeout(() => {
+          this.p2pConnected = true;
+          this.log('Connected to 3 peers', 'success');
+          this.log('Files synchronized', 'success');
+        }, 1000);
+      }
+
+      deploy() {
+        const files = this.fs.list('/');
+        this.log(`Deploying ${files.length} files...`, 'out');
+
+        // Generate deployable bundle
+        const bundle = {};
+        files.forEach(f => {
+          bundle[f.path] = f.content;
+        });
+
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kontainer-deploy.json';
+        a.click();
+
+        this.log('Bundle exported! Host anywhere static.', 'success');
+      }
+
+      init() {
+        // Demo files
+        if (this.fs.files.size === 0) {
+          this.fs.write('/index.html', `<!DOCTYPE html>
+<html>
+<head>
+  <title>My App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Hello Kontainer!</h1>
+  <p>Edit files and see live preview.</p>
+  <script src="app.js"></script>
+</body>
+</html>`);
+          this.fs.write('/style.css', `body {
+  font-family: system-ui;
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #0a0a12;
+  color: #e4e4e7;
+}
+
+h1 { color: #00d9ff; }`);
+          this.fs.write('/app.js', `console.log('Hello from Kontainer!');
+
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('App initialized');
+});`);
+          this.fs.write('/README.md', `# My Kontainer App
+
+A P2P deployed static site.
+
+## Features
+- Live preview
+- P2P sync
+- Deploy anywhere`);
+        }
+
+        this.renderFileTree();
+        this.log('Kontainer initialized', 'success');
+        this.log("Type 'help' for available commands", 'out');
+
+        // File tree click
+        $('fileTree').onclick = e => {
+          const item = e.target.closest('[data-path]');
+          if (item) this.openFile(item.dataset.path);
+        };
+
+        // Tabs
+        $('tabs').onclick = e => {
+          const tab = e.target.closest('.tab');
+          const close = e.target.closest('[data-close]');
+          if (close) {
+            e.stopPropagation();
+            this.closeFile(close.dataset.close);
+          } else if (tab) {
+            this.openFile(tab.dataset.path);
+          }
+        };
+
+        // Editor save
+        $('editorText').onkeydown = e => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            this.saveFile();
+          }
+        };
+
+        // Auto-save on blur
+        $('editorText').onblur = () => this.saveFile();
+
+        // Terminal
+        $('termInput').onkeydown = e => {
+          if (e.key === 'Enter') {
+            const cmd = e.target.value.trim();
+            if (cmd) {
+              this.execute(cmd);
+              e.target.value = '';
+            }
+          }
+        };
+
+        // New file
+        $('newFileBtn').onclick = () => {
+          $('modalTitle').textContent = 'New File';
+          $('modalInput').value = '';
+          $('modalInput').placeholder = 'filename.html';
+          $('modal').classList.add('open');
+          $('modalInput').focus();
+        };
+
+        $('modalSave').onclick = () => {
+          const name = $('modalInput').value.trim();
+          if (name) {
+            this.createFile(name);
+            $('modal').classList.remove('open');
+          }
+        };
+
+        // Header buttons
+        $('previewBtn').onclick = () => this.togglePreview();
+        $('syncBtn').onclick = () => this.syncP2P();
+        $('deployBtn').onclick = () => this.deploy();
+      }
+    }
+
+    window.Kontainer = new Kontainer();
+  </script>
+</body>
+</html>

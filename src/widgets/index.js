@@ -47,6 +47,8 @@ export const WIDGET_PATHS = {
   snippets: './snippets.html',
   cli: './cli.html',
   mcp: './mcp.html',
+  kontainer: './kontainer.html',
+  konomiKode: './konomi-kode.html',
 }
 
 /**
