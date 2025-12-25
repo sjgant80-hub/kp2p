@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<!--
+@file xmas-fighter.html
+@desc Christmas Movie Fighter - Battle for the Best Christmas Movie!
+@info Die Hard is the final boss. Yippee Ki Yay!
+
+Characters:
+- Kevin (Home Alone) - Traps & Paint Cans
+- Buddy (Elf) - Sugar Rush & Singing
+- The Grinch - Heart Grow & Present Steal
+- Clark Griswold (Christmas Vacation) - Electric Shock
+- Ralphie (A Christmas Story) - BB Gun & Leg Lamp
+- FINAL BOSS: John McClane (Die Hard) - Yippee Ki Yay
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>🎄 Christmas Movie Fighter 🎄</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red: #dc2626;
+      --green: #16a34a;
+      --gold: #fbbf24;
+      --snow: #f0f9ff;
+      --dark: #1e1e2e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Press Start 2P', monospace;
+      background: linear-gradient(180deg, #0f172a 0%, #1e3a5f 50%, #1e1e2e 100%);
+      color: white;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Snowfall */
+    .snow-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .snowflake {
+      position: absolute;
+      color: #fff;
+      font-size: 1em;
+      top: -20px;
+      animation: fall linear infinite;
+      opacity: 0.8;
+    }
+    @keyframes fall {
+      to { transform: translateY(100vh) rotate(360deg); }
+    }
+
+    /* Game Container */
+    .game-container {
+      position: relative;
+      z-index: 10;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Title Screen */
+    .title-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .title-screen.hidden { display: none; }
+    .title-screen h1 {
+      font-size: 28px;
+      color: var(--gold);
+      text-shadow: 4px 4px 0 var(--red), 8px 8px 0 var(--green);
+      margin-bottom: 10px;
+      animation: titlePulse 2s infinite;
+    }
+    @keyframes titlePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .title-screen .subtitle {
+      font-size: 12px;
+      color: var(--snow);
+      margin-bottom: 40px;
+    }
+    .title-screen .press-start {
+      font-size: 14px;
+      color: var(--gold);
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .title-screen .credits {
+      position: absolute;
+      bottom: 20px;
+      font-size: 8px;
+      color: #666;
+    }
+
+    /* Character Select */
+    .char-select {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .char-select.active { display: flex; }
+    .char-select h2 {
+      text-align: center;
+      font-size: 16px;
+      color: var(--gold);
+      margin-bottom: 20px;
+    }
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .char-card {
+      background: linear-gradient(180deg, #2a2a4a, #1a1a2a);
+      border: 4px solid #444;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .char-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--gold);
+      box-shadow: 0 10px 30px rgba(251, 191, 36, 0.3);
+    }
+    .char-card.selected {
+      border-color: var(--green);
+      background: linear-gradient(180deg, #1a4a2a, #0a2a1a);
+    }
+    .char-card.locked {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .char-card .avatar {
+      font-size: 50px;
+      margin-bottom: 10px;
+    }
+    .char-card .name {
+      font-size: 10px;
+      color: var(--snow);
+      margin-bottom: 5px;
+    }
+    .char-card .movie {
+      font-size: 7px;
+      color: #888;
+    }
+    .start-fight-btn {
+      display: block;
+      margin: 30px auto 0;
+      padding: 15px 40px;
+      background: linear-gradient(180deg, var(--red), #991b1b);
+      border: 4px solid var(--gold);
+      color: white;
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .start-fight-btn:hover {
+      background: linear-gradient(180deg, #ef4444, #dc2626);
+      transform: scale(1.05);
+    }
+
+    /* Battle Arena */
+    .battle-arena {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      position: relative;
+    }
+    .battle-arena.active { display: flex; }
+
+    /* Health Bars */
+    .health-section {
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .health-bar-container {
+      flex: 1;
+    }
+    .health-bar-container.enemy { text-align: right; }
+    .health-bar-container.enemy .health-bar { flex-direction: row-reverse; }
+    .health-bar-container.enemy .health-fill { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .fighter-name {
+      font-size: 10px;
+      margin-bottom: 5px;
+      color: var(--gold);
+    }
+    .health-bar {
+      height: 25px;
+      background: #333;
+      border: 3px solid;
+      display: flex;
+      overflow: hidden;
+    }
+    .health-bar-container:first-child .health-bar { border-color: var(--green); }
+    .health-bar-container.enemy .health-bar { border-color: var(--red); }
+    .health-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      transition: width 0.3s;
+      position: relative;
+    }
+    .health-text {
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    /* Round indicator */
+    .round-indicator {
+      text-align: center;
+      font-size: 12px;
+      color: var(--gold);
+      padding: 5px;
+    }
+
+    /* Fight Stage */
+    .fight-stage {
+      flex: 1;
+      position: relative;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(0,50,0,0.3) 60%,
+        rgba(0,80,0,0.5) 100%
+      );
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0 50px 100px;
+    }
+    .fight-stage::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100px;
+      background: linear-gradient(180deg, #2d5a3d, #1a3d2a);
+      border-top: 4px solid #4a7c5a;
+    }
+    /* Christmas decorations */
+    .fight-stage::after {
+      content: '🎄';
+      position: absolute;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 80px;
+      opacity: 0.3;
+    }
+
+    /* Fighters */
+    .fighter {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      transition: transform 0.1s;
+    }
+    .fighter.player { transform-origin: bottom center; }
+    .fighter.enemy { transform-origin: bottom center; }
+    .fighter .sprite {
+      font-size: 100px;
+      display: block;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+    }
+    .fighter.enemy .sprite { transform: scaleX(-1); }
+    .fighter .label {
+      font-size: 8px;
+      color: var(--snow);
+      margin-top: 10px;
+      text-shadow: 2px 2px 0 #000;
+    }
+    .fighter.hit { animation: fighterHit 0.2s; }
+    .fighter.attack { animation: fighterAttack 0.3s; }
+    .fighter.block { opacity: 0.6; }
+    .fighter.special { animation: fighterSpecial 0.5s; }
+    .fighter.ko { animation: fighterKO 1s forwards; }
+    @keyframes fighterHit {
+      0%, 100% { transform: translateX(0); filter: brightness(1); }
+      25% { transform: translateX(-20px); filter: brightness(2); }
+      75% { transform: translateX(20px); filter: brightness(2); }
+    }
+    @keyframes fighterAttack {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(50px); }
+    }
+    @keyframes fighterSpecial {
+      0% { transform: scale(1); filter: brightness(1); }
+      50% { transform: scale(1.2); filter: brightness(2) hue-rotate(180deg); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+    @keyframes fighterKO {
+      0% { transform: rotate(0); opacity: 1; }
+      100% { transform: rotate(90deg) translateY(50px); opacity: 0; }
+    }
+    .fighter.enemy.attack { animation: fighterAttackEnemy 0.3s; }
+    @keyframes fighterAttackEnemy {
+      0%, 100% { transform: scaleX(-1) translateX(0); }
+      50% { transform: scaleX(-1) translateX(-50px); }
+    }
+
+    /* Move bubble */
+    .move-bubble {
+      position: absolute;
+      top: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      color: #000;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 10px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .move-bubble.show { opacity: 1; }
+
+    /* Controls */
+    .battle-controls {
+      background: linear-gradient(180deg, #1a1a2a, #0a0a1a);
+      padding: 15px;
+      border-top: 4px solid #333;
+    }
+    .move-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .move-btn {
+      padding: 12px;
+      background: linear-gradient(180deg, #444, #222);
+      border: 3px solid #555;
+      color: white;
+      font-family: inherit;
+      font-size: 9px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .move-btn:hover:not(:disabled) {
+      background: linear-gradient(180deg, #555, #333);
+      border-color: var(--gold);
+    }
+    .move-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .move-btn .emoji {
+      font-size: 20px;
+      display: block;
+      margin-bottom: 5px;
+    }
+    .move-btn.special-move {
+      background: linear-gradient(180deg, var(--red), #991b1b);
+      border-color: var(--gold);
+    }
+
+    /* Battle Log */
+    .battle-log {
+      position: absolute;
+      bottom: 120px;
+      left: 10px;
+      width: 250px;
+      max-height: 150px;
+      background: rgba(0,0,0,0.8);
+      border: 2px solid #333;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 8px;
+      line-height: 1.5;
+    }
+    .log-entry { margin-bottom: 3px; padding: 2px 5px; }
+    .log-entry.player { border-left: 3px solid var(--green); }
+    .log-entry.enemy { border-left: 3px solid var(--red); }
+    .log-entry.system { border-left: 3px solid var(--gold); color: var(--gold); }
+    .log-entry .damage { color: var(--red); }
+
+    /* Announcements */
+    .announcement {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      color: var(--gold);
+      text-shadow: 4px 4px 0 #000, 0 0 40px var(--gold);
+      opacity: 0;
+      z-index: 100;
+    }
+    .announcement.show {
+      animation: announceAnim 2s forwards;
+    }
+    @keyframes announceAnim {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(3); }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      80% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Win Screen */
+    .win-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      text-align: center;
+    }
+    .win-screen.show { display: flex; }
+    .win-screen h2 {
+      font-size: 24px;
+      color: var(--gold);
+      margin-bottom: 20px;
+      text-shadow: 4px 4px 0 var(--red);
+    }
+    .win-screen .winner-sprite {
+      font-size: 120px;
+      margin-bottom: 20px;
+    }
+    .win-screen p {
+      font-size: 12px;
+      color: var(--snow);
+      margin-bottom: 30px;
+    }
+    .win-screen button {
+      padding: 15px 40px;
+      background: var(--green);
+      border: 4px solid var(--gold);
+      color: white;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* Boss Warning */
+    .boss-warning {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+    }
+    .boss-warning.show { display: flex; animation: bossFlash 0.5s infinite; }
+    @keyframes bossFlash {
+      0%, 100% { background: rgba(0,0,0,0.95); }
+      50% { background: rgba(50,0,0,0.95); }
+    }
+    .boss-warning h2 {
+      font-size: 20px;
+      color: var(--red);
+      margin-bottom: 10px;
+      animation: bossText 0.3s infinite;
+    }
+    @keyframes bossText {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    .boss-warning .boss-sprite {
+      font-size: 100px;
+      margin: 20px 0;
+    }
+    .boss-warning .boss-name {
+      font-size: 28px;
+      color: var(--gold);
+      text-shadow: 4px 4px 0 #000;
+    }
+    .boss-warning .boss-quote {
+      font-size: 10px;
+      color: #888;
+      margin-top: 15px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="snow-container" id="snowContainer"></div>
+
+  <div class="game-container">
+    <!-- Title Screen -->
+    <div class="title-screen" id="titleScreen">
+      <h1>🎄 CHRISTMAS<br>MOVIE FIGHTER 🎄</h1>
+      <p class="subtitle">Battle for the Best Christmas Movie!</p>
+      <p class="press-start">🎮 PRESS SPACE OR CLICK TO START 🎮</p>
+      <p class="credits">© 2024 KP2P Games - "Yippee Ki Yay Edition"</p>
+    </div>
+
+    <!-- Character Select -->
+    <div class="char-select" id="charSelect">
+      <h2>🎅 SELECT YOUR FIGHTER 🎅</h2>
+      <div class="char-grid" id="charGrid"></div>
+      <button class="start-fight-btn" id="startFightBtn">⚔️ START BATTLE ⚔️</button>
+    </div>
+
+    <!-- Battle Arena -->
+    <div class="battle-arena" id="battleArena">
+      <div class="health-section">
+        <div class="health-bar-container player">
+          <div class="fighter-name" id="playerName">PLAYER</div>
+          <div class="health-bar">
+            <div class="health-fill" id="playerHealth" style="width:100%">
+              <span class="health-text" id="playerHealthText">100</span>
+            </div>
+          </div>
+        </div>
+        <div class="health-bar-container enemy">
+          <div class="fighter-name" id="enemyName">ENEMY</div>
+          <div class="health-bar">
+            <div class="health-fill" id="enemyHealth" style="width:100%">
+              <span class="health-text" id="enemyHealthText">100</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="round-indicator">
+        ROUND <span id="roundNum">1</span> / 5 - <span id="opponentMovie"></span>
+      </div>
+
+      <div class="fight-stage">
+        <div class="fighter player" id="playerFighter">
+          <div class="move-bubble" id="playerMove"></div>
+          <span class="sprite" id="playerSprite">🧒</span>
+          <div class="label" id="playerLabel">KEVIN</div>
+        </div>
+
+        <div class="fighter enemy" id="enemyFighter">
+          <div class="move-bubble" id="enemyMove"></div>
+          <span class="sprite" id="enemySprite">🧝</span>
+          <div class="label" id="enemyLabel">BUDDY</div>
+        </div>
+
+        <div class="battle-log" id="battleLog"></div>
+        <div class="announcement" id="announcement"></div>
+      </div>
+
+      <div class="battle-controls">
+        <div class="move-buttons" id="moveButtons"></div>
+      </div>
+    </div>
+
+    <!-- Boss Warning -->
+    <div class="boss-warning" id="bossWarning">
+      <h2>⚠️ WARNING ⚠️</h2>
+      <h2>FINAL BOSS APPROACHING</h2>
+      <div class="boss-sprite">👨‍💼</div>
+      <div class="boss-name">JOHN McCLANE</div>
+      <div class="boss-quote">"Yippee Ki Yay..."</div>
+    </div>
+
+    <!-- Win Screen -->
+    <div class="win-screen" id="winScreen">
+      <h2 id="winTitle">YOU WIN!</h2>
+      <div class="winner-sprite" id="winnerSprite">🏆</div>
+      <p id="winMessage">You are the Best Christmas Movie!</p>
+      <button id="playAgainBtn">🎄 PLAY AGAIN 🎄</button>
+    </div>
+  </div>
+
+  <script>
+    // Character definitions
+    const CHARACTERS = {
+      kevin: {
+        name: 'KEVIN',
+        movie: 'Home Alone',
+        sprite: '🧒',
+        moves: {
+          attack1: { name: 'Paint Can', emoji: '🪣', damage: 12, type: 'attack' },
+          attack2: { name: 'Blowtorch', emoji: '🔥', damage: 18, type: 'attack' },
+          block: { name: 'Trap Door', emoji: '🚪', type: 'block' },
+          special: { name: 'SCREAM!', emoji: '😱', damage: 30, type: 'special' }
+        },
+        color: '#ef4444'
+      },
+      buddy: {
+        name: 'BUDDY',
+        movie: 'Elf',
+        sprite: '🧝',
+        moves: {
+          attack1: { name: 'Snowball', emoji: '❄️', damage: 10, type: 'attack' },
+          attack2: { name: 'Sugar Rush', emoji: '🍭', damage: 15, type: 'attack' },
+          block: { name: 'Hug', emoji: '🤗', type: 'block' },
+          special: { name: 'SINGING!', emoji: '🎤', damage: 28, type: 'special' }
+        },
+        color: '#22c55e'
+      },
+      grinch: {
+        name: 'THE GRINCH',
+        movie: 'How The Grinch Stole Christmas',
+        sprite: '👹',
+        moves: {
+          attack1: { name: 'Present Steal', emoji: '🎁', damage: 14, type: 'attack' },
+          attack2: { name: 'Sleigh Crash', emoji: '🛷', damage: 20, type: 'attack' },
+          block: { name: 'Heart Grow', emoji: '💚', type: 'block' },
+          special: { name: 'MEAN ONE', emoji: '💀', damage: 32, type: 'special' }
+        },
+        color: '#16a34a'
+      },
+      clark: {
+        name: 'CLARK',
+        movie: 'Christmas Vacation',
+        sprite: '👨',
+        moves: {
+          attack1: { name: 'Eggnog Splash', emoji: '🥛', damage: 11, type: 'attack' },
+          attack2: { name: 'Electric Shock', emoji: '⚡', damage: 22, type: 'attack' },
+          block: { name: 'Tree Shield', emoji: '🎄', type: 'block' },
+          special: { name: 'MELTDOWN!', emoji: '🤯', damage: 35, type: 'special' }
+        },
+        color: '#eab308'
+      },
+      ralphie: {
+        name: 'RALPHIE',
+        movie: 'A Christmas Story',
+        sprite: '👦',
+        moves: {
+          attack1: { name: 'BB Gun', emoji: '🔫', damage: 13, type: 'attack' },
+          attack2: { name: 'Leg Lamp', emoji: '🦵', damage: 17, type: 'attack' },
+          block: { name: 'Bunny Suit', emoji: '🐰', type: 'block' },
+          special: { name: 'SHOOT EYE', emoji: '👁️', damage: 29, type: 'special' }
+        },
+        color: '#f97316'
+      },
+      // Final Boss
+      mcclane: {
+        name: 'JOHN McCLANE',
+        movie: 'Die Hard',
+        sprite: '👨‍💼',
+        isBoss: true,
+        moves: {
+          attack1: { name: 'Broken Glass', emoji: '🪟', damage: 20, type: 'attack' },
+          attack2: { name: 'Machine Gun', emoji: '🔫', damage: 25, type: 'attack' },
+          block: { name: 'Air Duct', emoji: '🕳️', type: 'block' },
+          special: { name: 'YIPPEE KI YAY', emoji: '💥', damage: 45, type: 'special' }
+        },
+        color: '#dc2626'
+      }
+    };
+
+    // Unlockable characters order (fighting order)
+    const FIGHT_ORDER = ['buddy', 'grinch', 'clark', 'ralphie', 'mcclane'];
+    const SELECTABLE = ['kevin', 'buddy', 'grinch', 'clark', 'ralphie'];
+
+    class ChristmasFighter {
+      constructor() {
+        this.state = 'title';
+        this.selectedChar = null;
+        this.currentRound = 0;
+        this.playerHP = 100;
+        this.enemyHP = 100;
+        this.isPlayerTurn = true;
+        this.gameOver = false;
+        this.specialCooldown = 0;
+
+        this.createSnow();
+        this.init();
+      }
+
+      createSnow() {
+        const container = document.getElementById('snowContainer');
+        for (let i = 0; i < 50; i++) {
+          const flake = document.createElement('div');
+          flake.className = 'snowflake';
+          flake.textContent = Math.random() > 0.5 ? '❄' : '❅';
+          flake.style.left = Math.random() * 100 + '%';
+          flake.style.fontSize = (Math.random() * 10 + 10) + 'px';
+          flake.style.animationDuration = (Math.random() * 3 + 5) + 's';
+          flake.style.animationDelay = Math.random() * 5 + 's';
+          container.appendChild(flake);
+        }
+      }
+
+      init() {
+        // Title screen
+        document.getElementById('titleScreen').onclick = () => this.showCharSelect();
+        document.onkeydown = (e) => {
+          if (e.code === 'Space' && this.state === 'title') {
+            this.showCharSelect();
+          }
+        };
+
+        // Character select
+        this.renderCharSelect();
+        document.getElementById('startFightBtn').onclick = () => this.startBattle();
+
+        // Win screen
+        document.getElementById('playAgainBtn').onclick = () => location.reload();
+      }
+
+      showCharSelect() {
+        this.state = 'select';
+        document.getElementById('titleScreen').classList.add('hidden');
+        document.getElementById('charSelect').classList.add('active');
+      }
+
+      renderCharSelect() {
+        const grid = document.getElementById('charGrid');
+        grid.innerHTML = '';
+
+        SELECTABLE.forEach(id => {
+          const char = CHARACTERS[id];
+          const card = document.createElement('div');
+          card.className = 'char-card';
+          card.dataset.id = id;
+          card.innerHTML = `
+            <div class="avatar">${char.sprite}</div>
+            <div class="name">${char.name}</div>
+            <div class="movie">${char.movie}</div>
+          `;
+          card.onclick = () => this.selectChar(id);
+          grid.appendChild(card);
+        });
+
+        // Boss card (locked)
+        const bossCard = document.createElement('div');
+        bossCard.className = 'char-card locked';
+        bossCard.innerHTML = `
+          <div class="avatar">❓</div>
+          <div class="name">???</div>
+          <div class="movie">FINAL BOSS</div>
+        `;
+        grid.appendChild(bossCard);
+      }
+
+      selectChar(id) {
+        this.selectedChar = id;
+        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+        document.querySelector(`[data-id="${id}"]`).classList.add('selected');
+      }
+
+      startBattle() {
+        if (!this.selectedChar) {
+          alert('Select a fighter!');
+          return;
+        }
+
+        this.state = 'battle';
+        this.currentRound = 0;
+        document.getElementById('charSelect').classList.remove('active');
+        document.getElementById('battleArena').classList.add('active');
+
+        this.startRound();
+      }
+
+      startRound() {
+        const player = CHARACTERS[this.selectedChar];
+        const enemyId = FIGHT_ORDER[this.currentRound];
+        const enemy = CHARACTERS[enemyId];
+
+        this.playerHP = 100;
+        this.enemyHP = enemy.isBoss ? 150 : 100;
+        this.specialCooldown = 0;
+        this.isPlayerTurn = true;
+        this.gameOver = false;
+
+        // Show boss warning for final round
+        if (enemy.isBoss) {
+          this.showBossWarning();
+          return;
+        }
+
+        this.setupBattle(player, enemy);
+      }
+
+      showBossWarning() {
+        const warning = document.getElementById('bossWarning');
+        warning.classList.add('show');
+
+        setTimeout(() => {
+          warning.classList.remove('show');
+          const player = CHARACTERS[this.selectedChar];
+          const enemy = CHARACTERS['mcclane'];
+          this.setupBattle(player, enemy);
+        }, 3000);
+      }
+
+      setupBattle(player, enemy) {
+        // Update UI
+        document.getElementById('playerName').textContent = player.name;
+        document.getElementById('playerSprite').textContent = player.sprite;
+        document.getElementById('playerLabel').textContent = player.movie;
+
+        document.getElementById('enemyName').textContent = enemy.name;
+        document.getElementById('enemySprite').textContent = enemy.sprite;
+        document.getElementById('enemyLabel').textContent = enemy.movie;
+
+        document.getElementById('roundNum').textContent = this.currentRound + 1;
+        document.getElementById('opponentMovie').textContent = enemy.movie;
+
+        this.updateHealth();
+        this.renderMoves(player);
+        this.clearLog();
+
+        // Announcement
+        this.announce(`ROUND ${this.currentRound + 1}!`);
+        setTimeout(() => this.announce('FIGHT!'), 1500);
+
+        this.log(`${player.name} vs ${enemy.name}!`, 'system');
+        if (enemy.isBoss) {
+          this.log('"Yippee Ki Yay!"', 'system');
+        }
+      }
+
+      renderMoves(player) {
+        const container = document.getElementById('moveButtons');
+        container.innerHTML = '';
+
+        Object.entries(player.moves).forEach(([key, move]) => {
+          const btn = document.createElement('button');
+          btn.className = 'move-btn' + (move.type === 'special' ? ' special-move' : '');
+          btn.innerHTML = `
+            <span class="emoji">${move.emoji}</span>
+            ${move.name}
+          `;
+          btn.onclick = () => this.playerMove(key, move);
+          btn.id = 'move-' + key;
+          container.appendChild(btn);
+        });
+      }
+
+      async playerMove(key, move) {
+        if (!this.isPlayerTurn || this.gameOver) return;
+
+        // Check special cooldown
+        if (move.type === 'special' && this.specialCooldown > 0) {
+          this.log(`Special recharging (${this.specialCooldown} turns)`, 'system');
+          return;
+        }
+
+        this.isPlayerTurn = false;
+        this.disableMoves(true);
+
+        // Show move
+        this.showMove('player', move);
+
+        // Apply player move
+        await this.applyMove('player', move);
+
+        // Check for win
+        if (this.enemyHP <= 0) {
+          this.roundWin();
+          return;
+        }
+
+        // Enemy turn
+        await this.delay(500);
+        await this.enemyTurn();
+
+        // Check for loss
+        if (this.playerHP <= 0) {
+          this.roundLose();
+          return;
+        }
+
+        // Reduce cooldown
+        if (this.specialCooldown > 0) this.specialCooldown--;
+        if (move.type === 'special') this.specialCooldown = 3;
+
+        this.isPlayerTurn = true;
+        this.disableMoves(false);
+      }
+
+      async enemyTurn() {
+        const enemyId = FIGHT_ORDER[this.currentRound];
+        const enemy = CHARACTERS[enemyId];
+        const moves = Object.values(enemy.moves);
+
+        // Simple AI: pick random move, slightly favor attacks
+        const weights = moves.map(m => m.type === 'special' ? 1 : m.type === 'attack' ? 3 : 2);
+        const total = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * total;
+        let move = moves[0];
+        for (let i = 0; i < moves.length; i++) {
+          r -= weights[i];
+          if (r <= 0) { move = moves[i]; break; }
+        }
+
+        this.showMove('enemy', move);
+        await this.applyMove('enemy', move);
+      }
+
+      async applyMove(who, move) {
+        const isPlayer = who === 'player';
+        const fighter = document.getElementById(isPlayer ? 'playerFighter' : 'enemyFighter');
+        const opponent = document.getElementById(isPlayer ? 'enemyFighter' : 'playerFighter');
+        const player = CHARACTERS[this.selectedChar];
+        const enemyId = FIGHT_ORDER[this.currentRound];
+        const enemy = CHARACTERS[enemyId];
+        const attacker = isPlayer ? player : enemy;
+
+        if (move.type === 'block') {
+          fighter.classList.add('block');
+          this.log(`${attacker.name} blocks!`, isPlayer ? 'player' : 'enemy');
+          await this.delay(500);
+          fighter.classList.remove('block');
+        } else if (move.type === 'special') {
+          fighter.classList.add('special');
+          opponent.classList.add('hit');
+          const damage = move.damage + Math.floor(Math.random() * 10);
+          if (isPlayer) {
+            this.enemyHP = Math.max(0, this.enemyHP - damage);
+          } else {
+            this.playerHP = Math.max(0, this.playerHP - damage);
+          }
+          this.log(`${attacker.name} uses ${move.name}! <span class="damage">${damage} DMG!</span>`, isPlayer ? 'player' : 'enemy');
+          this.updateHealth();
+          await this.delay(500);
+          fighter.classList.remove('special');
+          opponent.classList.remove('hit');
+        } else {
+          fighter.classList.add('attack');
+          await this.delay(150);
+          opponent.classList.add('hit');
+          const damage = move.damage + Math.floor(Math.random() * 5);
+          if (isPlayer) {
+            this.enemyHP = Math.max(0, this.enemyHP - damage);
+          } else {
+            this.playerHP = Math.max(0, this.playerHP - damage);
+          }
+          this.log(`${attacker.name} uses ${move.name}! <span class="damage">${damage} DMG!</span>`, isPlayer ? 'player' : 'enemy');
+          this.updateHealth();
+          await this.delay(300);
+          fighter.classList.remove('attack');
+          opponent.classList.remove('hit');
+        }
+      }
+
+      showMove(who, move) {
+        const bubble = document.getElementById(who === 'player' ? 'playerMove' : 'enemyMove');
+        bubble.textContent = `${move.emoji} ${move.name}`;
+        bubble.classList.add('show');
+        setTimeout(() => bubble.classList.remove('show'), 1000);
+      }
+
+      roundWin() {
+        this.gameOver = true;
+        document.getElementById('enemyFighter').classList.add('ko');
+        this.announce('K.O.!');
+        this.log('KNOCKOUT!', 'system');
+
+        setTimeout(() => {
+          this.currentRound++;
+          if (this.currentRound >= FIGHT_ORDER.length) {
+            this.gameWin();
+          } else {
+            document.getElementById('enemyFighter').classList.remove('ko');
+            this.announce('YOU WIN!');
+            setTimeout(() => this.startRound(), 2000);
+          }
+        }, 2000);
+      }
+
+      roundLose() {
+        this.gameOver = true;
+        document.getElementById('playerFighter').classList.add('ko');
+        this.announce('K.O.!');
+        this.log('YOU LOSE!', 'system');
+
+        setTimeout(() => {
+          const enemyId = FIGHT_ORDER[this.currentRound];
+          const enemy = CHARACTERS[enemyId];
+          this.showWinScreen(false, enemy);
+        }, 2000);
+      }
+
+      gameWin() {
+        const player = CHARACTERS[this.selectedChar];
+        this.showWinScreen(true, player);
+      }
+
+      showWinScreen(won, char) {
+        document.getElementById('winScreen').classList.add('show');
+        document.getElementById('winTitle').textContent = won ? '🏆 CHAMPION! 🏆' : '💀 GAME OVER 💀';
+        document.getElementById('winnerSprite').textContent = char.sprite;
+        document.getElementById('winMessage').textContent = won
+          ? `${char.movie} is the BEST Christmas Movie!`
+          : `${char.movie} defeated you! Die Hard wins!`;
+      }
+
+      announce(text) {
+        const el = document.getElementById('announcement');
+        el.textContent = text;
+        el.classList.remove('show');
+        void el.offsetWidth; // Reflow
+        el.classList.add('show');
+      }
+
+      log(msg, type = 'system') {
+        const log = document.getElementById('battleLog');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry ' + type;
+        entry.innerHTML = msg;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      clearLog() {
+        document.getElementById('battleLog').innerHTML = '';
+      }
+
+      updateHealth() {
+        document.getElementById('playerHealth').style.width = this.playerHP + '%';
+        document.getElementById('playerHealthText').textContent = Math.max(0, this.playerHP);
+        const enemyId = FIGHT_ORDER[this.currentRound];
+        const enemy = CHARACTERS[enemyId];
+        const maxEnemyHP = enemy?.isBoss ? 150 : 100;
+        document.getElementById('enemyHealth').style.width = (this.enemyHP / maxEnemyHP * 100) + '%';
+        document.getElementById('enemyHealthText').textContent = Math.max(0, this.enemyHP);
+      }
+
+      disableMoves(disabled) {
+        document.querySelectorAll('.move-btn').forEach(btn => btn.disabled = disabled);
+      }
+
+      delay(ms) {
+        return new Promise(r => setTimeout(r, ms));
+      }
+    }
+
+    // Start game
+    window.game = new ChristmasFighter();
+  </script>
+</body>
+</html>
