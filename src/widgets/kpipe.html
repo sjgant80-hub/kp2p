@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<!--
+KPIPE - AI-Enhanced Data Pipeline Builder
+Part of KISS MySaaS - Industry 4.0 Edition
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KPIPE - Data Pipeline Builder</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+
+    .header { background: #111; border-bottom: 1px solid #222; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+    .logo { font-size: 20px; font-weight: 700; color: #06b6d4; }
+    .logo span { color: #666; font-weight: 400; }
+    .pipeline-name { padding: 6px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 14px; min-width: 200px; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-primary { background: #06b6d4; color: #000; }
+    .btn-secondary { background: #222; color: #fff; border: 1px solid #333; }
+    .btn-ai { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+    .btn-success { background: #22c55e; color: #000; }
+
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    .sidebar { width: 260px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; }
+    .sidebar-section { padding: 12px; border-bottom: 1px solid #222; }
+    .sidebar-title { font-size: 11px; text-transform: uppercase; color: #666; margin-bottom: 10px; letter-spacing: 0.5px; }
+
+    .node-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .node-item { padding: 10px 8px; background: #1a1a1a; border: 1px solid #222; border-radius: 6px; text-align: center; cursor: grab; transition: all 0.2s; }
+    .node-item:hover { border-color: #06b6d4; }
+    .node-icon { font-size: 20px; margin-bottom: 4px; }
+    .node-label { font-size: 10px; color: #888; }
+
+    .canvas-area { flex: 1; position: relative; overflow: hidden; }
+    .canvas { position: absolute; width: 3000px; height: 3000px; background:
+      radial-gradient(circle, #1a1a1a 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .pipeline-node { position: absolute; min-width: 180px; background: #1a1a1a; border: 2px solid #333; border-radius: 10px; cursor: move; }
+    .pipeline-node.selected { border-color: #06b6d4; box-shadow: 0 0 20px rgba(6, 182, 212, 0.3); }
+    .pipeline-node.running { border-color: #22c55e; }
+    .node-head { padding: 10px 12px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px; }
+    .node-title { font-size: 12px; font-weight: 500; flex: 1; }
+    .node-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: #333; }
+    .node-content { padding: 10px 12px; font-size: 11px; color: #888; border-top: 1px solid #222; }
+    .node-stats { display: flex; gap: 12px; margin-top: 8px; }
+    .node-stat { font-size: 10px; }
+    .node-stat-value { color: #06b6d4; font-weight: 600; }
+    .node-ports { display: flex; justify-content: space-between; padding: 6px 0; }
+    .port { width: 10px; height: 10px; background: #444; border: 2px solid #666; border-radius: 50%; cursor: crosshair; margin: 0 -5px; }
+    .port:hover { background: #06b6d4; border-color: #06b6d4; }
+    .port.input { margin-left: -5px; }
+    .port.output { margin-right: -5px; }
+
+    svg.connections { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    svg.connections path { fill: none; stroke: #06b6d4; stroke-width: 2; }
+    svg.connections path.active { stroke: #22c55e; stroke-width: 3; stroke-dasharray: 8 4; animation: flow 0.5s linear infinite; }
+    @keyframes flow { to { stroke-dashoffset: -12; } }
+
+    .properties { width: 320px; background: #111; border-left: 1px solid #222; display: flex; flex-direction: column; }
+    .prop-header { padding: 16px; border-bottom: 1px solid #222; }
+    .prop-title { font-size: 16px; font-weight: 600; }
+    .prop-type { font-size: 12px; color: #666; margin-top: 4px; }
+    .prop-body { flex: 1; overflow-y: auto; padding: 16px; }
+    .prop-section { margin-bottom: 20px; }
+    .prop-label { font-size: 11px; color: #666; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .prop-input { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px; }
+    .prop-input:focus { outline: none; border-color: #06b6d4; }
+    .prop-select { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px; }
+    .prop-textarea { min-height: 100px; font-family: 'Monaco', monospace; resize: vertical; }
+
+    .ai-section { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #8b5cf6; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    .ai-title { font-size: 13px; font-weight: 600; color: #8b5cf6; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .ai-suggestion { background: #0a0a0a; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 12px; cursor: pointer; }
+    .ai-suggestion:hover { background: #111; }
+
+    .data-preview { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; overflow: hidden; }
+    .preview-header { padding: 10px 12px; background: #1a1a1a; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 8px; }
+    .preview-title { font-size: 12px; font-weight: 500; flex: 1; }
+    .preview-body { max-height: 200px; overflow: auto; }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .preview-table th, .preview-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #222; }
+    .preview-table th { background: #111; color: #888; font-weight: 500; position: sticky; top: 0; }
+    .preview-table td { color: #ccc; font-family: monospace; }
+
+    .run-panel { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111; border: 1px solid #333; border-radius: 12px; padding: 12px 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    .run-status { display: flex; align-items: center; gap: 8px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+    .status-dot.running { background: #22c55e; animation: pulse 1s infinite; }
+    .status-dot.error { background: #ef4444; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    .run-stats { display: flex; gap: 20px; font-size: 13px; }
+    .run-stat { display: flex; align-items: center; gap: 6px; }
+    .run-stat-label { color: #666; }
+    .run-stat-value { font-weight: 600; color: #06b6d4; }
+
+    .schema-tag { display: inline-block; padding: 2px 6px; background: #222; border-radius: 4px; font-size: 10px; margin: 2px; }
+    .schema-tag.string { background: #22c55e22; color: #22c55e; }
+    .schema-tag.number { background: #3b82f622; color: #3b82f6; }
+    .schema-tag.boolean { background: #f59e0b22; color: #f59e0b; }
+    .schema-tag.timestamp { background: #8b5cf622; color: #8b5cf6; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">KPIPE <span>Data Pipeline</span></div>
+    <input type="text" class="pipeline-name" value="Production Metrics ETL" id="pipelineName">
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="savePipeline()">Save</button>
+      <button class="btn btn-secondary" onclick="loadPipeline()">Load</button>
+      <button class="btn btn-ai" onclick="aiOptimize()">AI Optimize</button>
+      <button class="btn btn-success" onclick="runPipeline()">Run Pipeline</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Sources</div>
+        <div class="node-grid">
+          <div class="node-item" draggable="true" data-type="src-plc">
+            <div class="node-icon">🔧</div>
+            <div class="node-label">PLC</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="src-opcua">
+            <div class="node-icon">🔌</div>
+            <div class="node-label">OPC-UA</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="src-mqtt">
+            <div class="node-icon">📡</div>
+            <div class="node-label">MQTT</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="src-sql">
+            <div class="node-icon">🗄️</div>
+            <div class="node-label">SQL</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="src-csv">
+            <div class="node-icon">📄</div>
+            <div class="node-label">CSV</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="src-api">
+            <div class="node-icon">🌐</div>
+            <div class="node-label">REST API</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Transforms</div>
+        <div class="node-grid">
+          <div class="node-item" draggable="true" data-type="tf-filter">
+            <div class="node-icon">🔍</div>
+            <div class="node-label">Filter</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="tf-map">
+            <div class="node-icon">🔄</div>
+            <div class="node-label">Map</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="tf-aggregate">
+            <div class="node-icon">📊</div>
+            <div class="node-label">Aggregate</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="tf-join">
+            <div class="node-icon">🔗</div>
+            <div class="node-label">Join</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="tf-window">
+            <div class="node-icon">⏱️</div>
+            <div class="node-label">Window</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="tf-dedupe">
+            <div class="node-icon">🔢</div>
+            <div class="node-label">Dedupe</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">AI Nodes</div>
+        <div class="node-grid">
+          <div class="node-item" draggable="true" data-type="ai-anomaly">
+            <div class="node-icon">🤖</div>
+            <div class="node-label">Anomaly</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="ai-predict">
+            <div class="node-icon">🔮</div>
+            <div class="node-label">Predict</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="ai-classify">
+            <div class="node-icon">🏷️</div>
+            <div class="node-label">Classify</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="ai-enrich">
+            <div class="node-icon">✨</div>
+            <div class="node-label">Enrich</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Destinations</div>
+        <div class="node-grid">
+          <div class="node-item" draggable="true" data-type="dst-historian">
+            <div class="node-icon">📈</div>
+            <div class="node-label">Historian</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="dst-sql">
+            <div class="node-icon">🗄️</div>
+            <div class="node-label">SQL</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="dst-kafka">
+            <div class="node-icon">📨</div>
+            <div class="node-label">Kafka</div>
+          </div>
+          <div class="node-item" draggable="true" data-type="dst-webhook">
+            <div class="node-icon">🔔</div>
+            <div class="node-label">Webhook</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-area" id="canvasArea">
+      <div class="canvas" id="canvas">
+        <svg class="connections" id="connections"></svg>
+      </div>
+    </div>
+
+    <div class="properties" id="propsPanel">
+      <div class="prop-header">
+        <div class="prop-title" id="propTitle">Pipeline Settings</div>
+        <div class="prop-type" id="propType">Global Configuration</div>
+      </div>
+      <div class="prop-body">
+        <div class="ai-section">
+          <div class="ai-title">AI Assistant</div>
+          <div id="aiSuggestions">
+            <div class="ai-suggestion" onclick="aiSuggest('optimize')">Optimize pipeline performance</div>
+            <div class="ai-suggestion" onclick="aiSuggest('schema')">Infer schema from data</div>
+            <div class="ai-suggestion" onclick="aiSuggest('validate')">Validate data quality</div>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-label">Schedule</div>
+          <select class="prop-select" id="scheduleSelect">
+            <option value="realtime">Real-time (streaming)</option>
+            <option value="1m">Every 1 minute</option>
+            <option value="5m">Every 5 minutes</option>
+            <option value="1h">Every hour</option>
+            <option value="cron">Custom cron</option>
+          </select>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-label">Batch Size</div>
+          <input type="number" class="prop-input" value="1000" id="batchSize">
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-label">Data Preview</div>
+          <div class="data-preview">
+            <div class="preview-header">
+              <span class="preview-title">Sample Output</span>
+              <span style="font-size:11px;color:#666;">5 rows</span>
+            </div>
+            <div class="preview-body">
+              <table class="preview-table" id="previewTable">
+                <thead>
+                  <tr><th>timestamp</th><th>tag</th><th>value</th><th>quality</th></tr>
+                </thead>
+                <tbody id="previewBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="prop-section">
+          <div class="prop-label">Output Schema</div>
+          <div id="schemaDisplay">
+            <span class="schema-tag timestamp">timestamp</span>
+            <span class="schema-tag string">tag_name</span>
+            <span class="schema-tag number">value</span>
+            <span class="schema-tag number">quality</span>
+            <span class="schema-tag boolean">is_anomaly</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="run-panel" id="runPanel">
+    <div class="run-status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Ready</span>
+    </div>
+    <div class="run-stats">
+      <div class="run-stat">
+        <span class="run-stat-label">Records:</span>
+        <span class="run-stat-value" id="recordCount">0</span>
+      </div>
+      <div class="run-stat">
+        <span class="run-stat-label">Throughput:</span>
+        <span class="run-stat-value" id="throughput">0/s</span>
+      </div>
+      <div class="run-stat">
+        <span class="run-stat-label">Errors:</span>
+        <span class="run-stat-value" id="errorCount" style="color:#ef4444;">0</span>
+      </div>
+      <div class="run-stat">
+        <span class="run-stat-label">Latency:</span>
+        <span class="run-stat-value" id="latency">0ms</span>
+      </div>
+    </div>
+    <button class="btn btn-secondary" onclick="stopPipeline()" id="stopBtn" style="display:none;">Stop</button>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KPIPE - Data Pipeline Builder with AI
+    // =========================================================================
+
+    const nodeTypes = {
+      'src-plc': { icon: '🔧', title: 'PLC Source', color: '#22c55e', category: 'source' },
+      'src-opcua': { icon: '🔌', title: 'OPC-UA', color: '#22c55e', category: 'source' },
+      'src-mqtt': { icon: '📡', title: 'MQTT', color: '#22c55e', category: 'source' },
+      'src-sql': { icon: '🗄️', title: 'SQL Query', color: '#22c55e', category: 'source' },
+      'src-csv': { icon: '📄', title: 'CSV File', color: '#22c55e', category: 'source' },
+      'src-api': { icon: '🌐', title: 'REST API', color: '#22c55e', category: 'source' },
+      'tf-filter': { icon: '🔍', title: 'Filter', color: '#3b82f6', category: 'transform' },
+      'tf-map': { icon: '🔄', title: 'Map/Transform', color: '#3b82f6', category: 'transform' },
+      'tf-aggregate': { icon: '📊', title: 'Aggregate', color: '#3b82f6', category: 'transform' },
+      'tf-join': { icon: '🔗', title: 'Join', color: '#3b82f6', category: 'transform' },
+      'tf-window': { icon: '⏱️', title: 'Time Window', color: '#3b82f6', category: 'transform' },
+      'tf-dedupe': { icon: '🔢', title: 'Deduplicate', color: '#3b82f6', category: 'transform' },
+      'ai-anomaly': { icon: '🤖', title: 'Anomaly Detection', color: '#8b5cf6', category: 'ai' },
+      'ai-predict': { icon: '🔮', title: 'Prediction', color: '#8b5cf6', category: 'ai' },
+      'ai-classify': { icon: '🏷️', title: 'Classification', color: '#8b5cf6', category: 'ai' },
+      'ai-enrich': { icon: '✨', title: 'AI Enrichment', color: '#8b5cf6', category: 'ai' },
+      'dst-historian': { icon: '📈', title: 'Historian', color: '#f59e0b', category: 'destination' },
+      'dst-sql': { icon: '🗄️', title: 'SQL Insert', color: '#f59e0b', category: 'destination' },
+      'dst-kafka': { icon: '📨', title: 'Kafka', color: '#f59e0b', category: 'destination' },
+      'dst-webhook': { icon: '🔔', title: 'Webhook', color: '#f59e0b', category: 'destination' }
+    };
+
+    let nodes = [];
+    let connections = [];
+    let selectedNode = null;
+    let nextId = 1;
+    let isRunning = false;
+    let llm = null;
+
+    const canvas = document.getElementById('canvas');
+    const svg = document.getElementById('connections');
+
+    // Demo pipeline
+    function initDemo() {
+      createNode('src-opcua', 80, 120, { endpoint: 'opc.tcp://192.168.1.100:4840' });
+      createNode('tf-filter', 320, 80, { condition: 'quality >= 192' });
+      createNode('ai-anomaly', 320, 200, { model: 'isolation-forest', threshold: 0.05 });
+      createNode('tf-aggregate', 560, 140, { function: 'avg', window: '1m' });
+      createNode('dst-historian', 800, 140, { database: 'timescale', table: 'metrics' });
+
+      addConnection(0, 1);
+      addConnection(0, 2);
+      addConnection(1, 3);
+      addConnection(2, 3);
+      addConnection(3, 4);
+
+      updatePreview();
+    }
+
+    function createNode(type, x, y, config = {}) {
+      const info = nodeTypes[type];
+      const node = { id: nextId++, type, x, y, config: { name: info.title, ...config } };
+      nodes.push(node);
+      renderNode(node);
+      return node;
+    }
+
+    function renderNode(node) {
+      const info = nodeTypes[node.type];
+      const el = document.createElement('div');
+      el.className = 'pipeline-node';
+      el.id = `node-${node.id}`;
+      el.style.left = node.x + 'px';
+      el.style.top = node.y + 'px';
+      el.style.borderColor = info.color;
+
+      const stats = getNodeStats(node);
+
+      el.innerHTML = `
+        <div class="node-head" style="background:${info.color}22">
+          <span style="font-size:16px">${info.icon}</span>
+          <span class="node-title">${node.config.name || info.title}</span>
+          <span class="node-badge">${info.category}</span>
+        </div>
+        <div class="node-content">
+          ${getNodeDescription(node)}
+          <div class="node-stats">
+            <span class="node-stat"><span class="node-stat-value">${stats.records}</span> rec</span>
+            <span class="node-stat"><span class="node-stat-value">${stats.rate}</span>/s</span>
+          </div>
+        </div>
+        <div class="node-ports">
+          ${info.category !== 'source' ? '<div class="port input"></div>' : '<div style="width:10px"></div>'}
+          ${info.category !== 'destination' ? '<div class="port output"></div>' : '<div style="width:10px"></div>'}
+        </div>
+      `;
+
+      el.addEventListener('mousedown', (e) => startDrag(e, node));
+      el.addEventListener('click', (e) => selectNode(node, e));
+      canvas.appendChild(el);
+    }
+
+    function getNodeDescription(node) {
+      const c = node.config;
+      switch (node.type) {
+        case 'src-opcua': return c.endpoint || 'Configure endpoint...';
+        case 'src-plc': return c.address || 'Configure PLC...';
+        case 'src-mqtt': return c.topic || 'Configure topic...';
+        case 'tf-filter': return c.condition || 'Set filter...';
+        case 'tf-map': return c.expression || 'Set mapping...';
+        case 'tf-aggregate': return `${c.function || 'avg'}(${c.field || 'value'})`;
+        case 'ai-anomaly': return `Model: ${c.model || 'auto'}`;
+        case 'ai-predict': return `Target: ${c.target || 'value'}`;
+        case 'dst-historian': return c.table || 'Configure table...';
+        case 'dst-sql': return c.table || 'Configure table...';
+        default: return 'Configure...';
+      }
+    }
+
+    function getNodeStats(node) {
+      return {
+        records: Math.floor(Math.random() * 10000),
+        rate: Math.floor(Math.random() * 500)
+      };
+    }
+
+    function addConnection(fromId, toId) {
+      connections.push({ from: fromId, to: toId });
+      renderConnections();
+    }
+
+    function renderConnections() {
+      svg.innerHTML = '';
+      connections.forEach(conn => {
+        const fromNode = nodes.find(n => n.id === conn.from);
+        const toNode = nodes.find(n => n.id === conn.to);
+        if (!fromNode || !toNode) return;
+
+        const fromEl = document.getElementById(`node-${conn.from}`);
+        const toEl = document.getElementById(`node-${conn.to}`);
+        if (!fromEl || !toEl) return;
+
+        const x1 = fromNode.x + fromEl.offsetWidth;
+        const y1 = fromNode.y + fromEl.offsetHeight / 2;
+        const x2 = toNode.x;
+        const y2 = toNode.y + toEl.offsetHeight / 2;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const cx = (x1 + x2) / 2;
+        path.setAttribute('d', `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+        if (isRunning) path.classList.add('active');
+        svg.appendChild(path);
+      });
+    }
+
+    function startDrag(e, node) {
+      if (e.target.classList.contains('port')) return;
+      e.stopPropagation();
+
+      const el = document.getElementById(`node-${node.id}`);
+      const offsetX = e.clientX - node.x;
+      const offsetY = e.clientY - node.y;
+
+      const onMove = (e) => {
+        node.x = e.clientX - offsetX;
+        node.y = e.clientY - offsetY;
+        el.style.left = node.x + 'px';
+        el.style.top = node.y + 'px';
+        renderConnections();
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    function selectNode(node, e) {
+      e.stopPropagation();
+      document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('selected'));
+      document.getElementById(`node-${node.id}`).classList.add('selected');
+      selectedNode = node;
+      showNodeProps(node);
+    }
+
+    function showNodeProps(node) {
+      const info = nodeTypes[node.type];
+      document.getElementById('propTitle').textContent = node.config.name || info.title;
+      document.getElementById('propType').textContent = info.category;
+
+      // Update props panel based on node type
+    }
+
+    function updatePreview() {
+      const tbody = document.getElementById('previewBody');
+      const now = Date.now();
+      const rows = [];
+      for (let i = 0; i < 5; i++) {
+        const ts = new Date(now - i * 60000).toISOString();
+        rows.push(`
+          <tr>
+            <td>${ts.split('T')[1].split('.')[0]}</td>
+            <td>Motor_${Math.floor(Math.random() * 5) + 1}.Speed</td>
+            <td>${(Math.random() * 100).toFixed(2)}</td>
+            <td>192</td>
+          </tr>
+        `);
+      }
+      tbody.innerHTML = rows.join('');
+    }
+
+    // Drag and drop from palette
+    document.querySelectorAll('.node-item').forEach(el => {
+      el.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('nodeType', el.dataset.type);
+      });
+    });
+
+    canvas.addEventListener('dragover', (e) => e.preventDefault());
+    canvas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const type = e.dataTransfer.getData('nodeType');
+      if (type && nodeTypes[type]) {
+        const rect = canvas.getBoundingClientRect();
+        createNode(type, e.clientX - rect.left, e.clientY - rect.top);
+      }
+    });
+
+    canvas.addEventListener('click', (e) => {
+      if (e.target === canvas || e.target === svg) {
+        document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('selected'));
+        selectedNode = null;
+        document.getElementById('propTitle').textContent = 'Pipeline Settings';
+        document.getElementById('propType').textContent = 'Global Configuration';
+      }
+    });
+
+    // Pipeline execution
+    window.runPipeline = async () => {
+      if (isRunning) return;
+      isRunning = true;
+
+      document.getElementById('statusDot').classList.add('running');
+      document.getElementById('statusText').textContent = 'Running';
+      document.getElementById('stopBtn').style.display = 'block';
+      renderConnections();
+
+      let records = 0;
+      const startTime = Date.now();
+
+      while (isRunning) {
+        records += Math.floor(Math.random() * 100) + 50;
+        const elapsed = (Date.now() - startTime) / 1000;
+        const rate = Math.floor(records / elapsed);
+
+        document.getElementById('recordCount').textContent = records.toLocaleString();
+        document.getElementById('throughput').textContent = rate + '/s';
+        document.getElementById('latency').textContent = Math.floor(Math.random() * 50 + 10) + 'ms';
+
+        if (Math.random() < 0.02) {
+          const errors = parseInt(document.getElementById('errorCount').textContent) + 1;
+          document.getElementById('errorCount').textContent = errors;
+        }
+
+        updatePreview();
+        await new Promise(r => setTimeout(r, 500));
+      }
+    };
+
+    window.stopPipeline = () => {
+      isRunning = false;
+      document.getElementById('statusDot').classList.remove('running');
+      document.getElementById('statusText').textContent = 'Stopped';
+      document.getElementById('stopBtn').style.display = 'none';
+      renderConnections();
+    };
+
+    window.savePipeline = () => {
+      const data = {
+        name: document.getElementById('pipelineName').value,
+        nodes,
+        connections
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pipeline.json';
+      a.click();
+    };
+
+    window.loadPipeline = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        // Clear existing
+        document.querySelectorAll('.pipeline-node').forEach(el => el.remove());
+        nodes = [];
+        connections = [];
+        nextId = 1;
+
+        // Load nodes
+        data.nodes.forEach(n => {
+          const node = createNode(n.type, n.x, n.y, n.config);
+          node.id = n.id;
+          nextId = Math.max(nextId, n.id + 1);
+        });
+
+        connections = data.connections || [];
+        renderConnections();
+        document.getElementById('pipelineName').value = data.name || 'Pipeline';
+      };
+      input.click();
+    };
+
+    window.aiOptimize = async () => {
+      const suggestions = document.getElementById('aiSuggestions');
+      suggestions.innerHTML = '<div style="color:#8b5cf6;padding:12px;text-align:center;">Analyzing pipeline...</div>';
+
+      try {
+        const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+        if (!llm) {
+          suggestions.innerHTML = '<div style="color:#8b5cf6;padding:12px;text-align:center;">Loading AI model...</div>';
+          llm = await webllm.CreateMLCEngine('Qwen2.5-0.5B-Instruct-q4f16_1-MLC');
+        }
+
+        const pipelineDesc = nodes.map(n => nodeTypes[n.type].title).join(' -> ');
+
+        const response = await llm.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a data pipeline expert. Suggest 3 optimizations. Be brief.' },
+            { role: 'user', content: `Optimize this pipeline: ${pipelineDesc}` }
+          ],
+          max_tokens: 150
+        });
+
+        const text = response.choices[0].message.content;
+        suggestions.innerHTML = `
+          <div class="ai-suggestion">${text.split('.')[0] || 'Add caching layer'}</div>
+          <div class="ai-suggestion">${text.split('.')[1] || 'Parallelize transforms'}</div>
+          <div class="ai-suggestion">${text.split('.')[2] || 'Optimize batch size'}</div>
+        `;
+      } catch (err) {
+        suggestions.innerHTML = `
+          <div class="ai-suggestion" onclick="aiSuggest('cache')">Add caching layer for better performance</div>
+          <div class="ai-suggestion" onclick="aiSuggest('parallel')">Enable parallel processing</div>
+          <div class="ai-suggestion" onclick="aiSuggest('batch')">Optimize batch size to 5000</div>
+        `;
+      }
+    };
+
+    window.aiSuggest = (type) => {
+      if (type === 'cache') {
+        createNode('tf-dedupe', 450, 80, { name: 'Cache', ttl: '60s' });
+      } else if (type === 'batch') {
+        document.getElementById('batchSize').value = '5000';
+      }
+    };
+
+    // Initialize
+    initDemo();
+  </script>
+</body>
+</html>

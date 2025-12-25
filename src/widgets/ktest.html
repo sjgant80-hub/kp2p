@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<!--
+KTEST - AI-Powered Industrial Test Automation
+Part of KISS MySaaS - Industry 4.0 Edition
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KTEST - Industrial Test Automation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+
+    .header { background: #111; border-bottom: 1px solid #222; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+    .logo { font-size: 20px; font-weight: 700; color: #f59e0b; }
+    .logo span { color: #666; font-weight: 400; }
+    .tabs { display: flex; gap: 4px; margin-left: 32px; }
+    .tab { padding: 8px 16px; background: transparent; border: none; color: #666; font-size: 13px; cursor: pointer; border-radius: 6px; }
+    .tab:hover { color: #fff; background: #1a1a1a; }
+    .tab.active { color: #fff; background: #f59e0b22; border: 1px solid #f59e0b44; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-primary { background: #f59e0b; color: #000; }
+    .btn-secondary { background: #222; color: #fff; border: 1px solid #333; }
+    .btn-ai { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    .sidebar { width: 300px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid #222; }
+    .sidebar-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    .search-box { display: flex; gap: 8px; }
+    .search-box input { flex: 1; padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px; }
+
+    .test-tree { flex: 1; overflow-y: auto; padding: 8px; }
+    .tree-node { margin-bottom: 2px; }
+    .tree-header { padding: 8px 12px; background: #1a1a1a; border-radius: 6px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .tree-header:hover { background: #222; }
+    .tree-expand { color: #666; font-size: 10px; width: 16px; }
+    .tree-icon { font-size: 14px; }
+    .tree-name { font-size: 13px; flex: 1; }
+    .tree-count { font-size: 11px; color: #666; background: #222; padding: 2px 6px; border-radius: 4px; }
+    .tree-children { margin-left: 20px; display: none; }
+    .tree-node.expanded > .tree-children { display: block; }
+    .tree-item { padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 8px; border-radius: 4px; cursor: pointer; }
+    .tree-item:hover { background: #1a1a1a; }
+    .tree-item.selected { background: #f59e0b22; }
+    .tree-item .status { width: 8px; height: 8px; border-radius: 50%; }
+    .tree-item .status.pass { background: #22c55e; }
+    .tree-item .status.fail { background: #ef4444; }
+    .tree-item .status.skip { background: #666; }
+    .tree-item .status.running { background: #3b82f6; animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .run-bar { padding: 16px 20px; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 16px; }
+    .run-stats { display: flex; gap: 24px; }
+    .run-stat { display: flex; align-items: center; gap: 8px; }
+    .run-stat-value { font-size: 24px; font-weight: 700; }
+    .run-stat-value.pass { color: #22c55e; }
+    .run-stat-value.fail { color: #ef4444; }
+    .run-stat-value.skip { color: #666; }
+    .run-stat-label { font-size: 12px; color: #666; }
+    .run-progress { flex: 1; height: 8px; background: #222; border-radius: 4px; overflow: hidden; }
+    .run-progress-bar { height: 100%; background: linear-gradient(90deg, #22c55e, #22c55e); transition: width 0.3s; }
+    .run-time { font-size: 14px; color: #888; font-family: monospace; }
+
+    .content-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; gap: 20px; }
+
+    .test-panel { flex: 1; display: flex; flex-direction: column; }
+    .panel-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+    .test-editor { flex: 1; background: #111; border: 1px solid #222; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+    .editor-header { padding: 12px 16px; background: #1a1a1a; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
+    .editor-title { font-size: 14px; font-weight: 500; flex: 1; }
+    .editor-actions { display: flex; gap: 8px; }
+    .editor-body { flex: 1; overflow: hidden; display: flex; }
+    .line-numbers { padding: 16px 12px; background: #0a0a0a; border-right: 1px solid #222; text-align: right; font-family: monospace; font-size: 13px; color: #444; user-select: none; }
+    .code-area { flex: 1; padding: 16px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; overflow: auto; }
+    .code-area textarea { width: 100%; height: 100%; background: transparent; border: none; color: #fff; font-family: inherit; font-size: inherit; resize: none; outline: none; }
+
+    .ai-panel { width: 350px; display: flex; flex-direction: column; gap: 16px; }
+
+    .ai-card { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #8b5cf6; border-radius: 12px; padding: 16px; }
+    .ai-card-title { font-size: 14px; font-weight: 600; color: #8b5cf6; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .ai-generate-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #8b5cf6, #ec4899); border: none; border-radius: 8px; color: white; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 12px; }
+    .ai-suggestion { background: #0a0a0a; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 12px; cursor: pointer; }
+    .ai-suggestion:hover { background: #111; }
+    .ai-suggestion-title { font-weight: 500; margin-bottom: 4px; }
+    .ai-suggestion-desc { color: #888; }
+
+    .results-card { background: #111; border: 1px solid #222; border-radius: 12px; flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .results-header { padding: 12px 16px; background: #1a1a1a; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 8px; }
+    .results-title { font-size: 14px; font-weight: 500; flex: 1; }
+    .results-body { flex: 1; overflow-y: auto; padding: 12px; }
+    .result-item { padding: 10px 12px; background: #0a0a0a; border-radius: 6px; margin-bottom: 8px; }
+    .result-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .result-status { font-size: 14px; }
+    .result-name { font-size: 13px; flex: 1; }
+    .result-time { font-size: 11px; color: #666; }
+    .result-detail { font-size: 11px; color: #888; font-family: monospace; padding: 8px; background: #111; border-radius: 4px; }
+    .result-item.pass { border-left: 3px solid #22c55e; }
+    .result-item.fail { border-left: 3px solid #ef4444; }
+
+    .coverage-bar { height: 6px; background: #222; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+    .coverage-fill { height: 100%; background: #22c55e; }
+
+    .coverage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+    .coverage-item { text-align: center; }
+    .coverage-value { font-size: 18px; font-weight: 700; }
+    .coverage-value.good { color: #22c55e; }
+    .coverage-value.warn { color: #f59e0b; }
+    .coverage-value.bad { color: #ef4444; }
+    .coverage-label { font-size: 10px; color: #666; margin-top: 2px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">KTEST <span>Industrial Test Automation</span></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="unit">Unit Tests</button>
+      <button class="tab" data-tab="integration">Integration</button>
+      <button class="tab" data-tab="hil">Hardware-in-Loop</button>
+      <button class="tab" data-tab="coverage">Coverage</button>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ai" onclick="aiGenerateTests()">AI Generate</button>
+      <button class="btn btn-primary" onclick="runAllTests()">Run All Tests</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Test Suites</div>
+        <div class="search-box">
+          <input type="text" placeholder="Search tests..." id="testSearch">
+        </div>
+      </div>
+      <div class="test-tree" id="testTree"></div>
+    </div>
+
+    <div class="content">
+      <div class="run-bar">
+        <div class="run-stats">
+          <div class="run-stat">
+            <div class="run-stat-value pass" id="passCount">42</div>
+            <div class="run-stat-label">Passed</div>
+          </div>
+          <div class="run-stat">
+            <div class="run-stat-value fail" id="failCount">3</div>
+            <div class="run-stat-label">Failed</div>
+          </div>
+          <div class="run-stat">
+            <div class="run-stat-value skip" id="skipCount">5</div>
+            <div class="run-stat-label">Skipped</div>
+          </div>
+        </div>
+        <div class="run-progress">
+          <div class="run-progress-bar" id="progressBar" style="width: 84%"></div>
+        </div>
+        <div class="run-time" id="runTime">00:00:00</div>
+        <button class="btn btn-danger" onclick="stopTests()" id="stopBtn" style="display:none;">Stop</button>
+      </div>
+
+      <div class="content-body">
+        <div class="test-panel">
+          <div class="panel-title">Test Editor</div>
+          <div class="test-editor">
+            <div class="editor-header">
+              <span class="editor-title" id="editorTitle">FB_Motor_Test.st</span>
+              <div class="editor-actions">
+                <button class="btn btn-secondary" onclick="runCurrentTest()">Run Test</button>
+                <button class="btn btn-secondary" onclick="saveTest()">Save</button>
+              </div>
+            </div>
+            <div class="editor-body">
+              <div class="line-numbers" id="lineNumbers"></div>
+              <div class="code-area">
+                <textarea id="codeEditor" spellcheck="false"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-panel">
+          <div class="ai-card">
+            <div class="ai-card-title">AI Test Generator</div>
+            <button class="ai-generate-btn" onclick="aiGenerateTests()">Generate Tests with AI</button>
+            <div id="aiSuggestions">
+              <div class="ai-suggestion" onclick="applySuggestion('boundary')">
+                <div class="ai-suggestion-title">Boundary Tests</div>
+                <div class="ai-suggestion-desc">Test motor speed limits 0-100%</div>
+              </div>
+              <div class="ai-suggestion" onclick="applySuggestion('fault')">
+                <div class="ai-suggestion-title">Fault Injection</div>
+                <div class="ai-suggestion-desc">Simulate overload and thermal faults</div>
+              </div>
+              <div class="ai-suggestion" onclick="applySuggestion('timing')">
+                <div class="ai-suggestion-title">Timing Tests</div>
+                <div class="ai-suggestion-desc">Verify ramp-up/down timing</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="results-card">
+            <div class="results-header">
+              <span class="results-title">Test Results</span>
+            </div>
+            <div class="results-body" id="resultsBody"></div>
+          </div>
+
+          <div class="ai-card" style="background:#111;border-color:#333;">
+            <div class="ai-card-title" style="color:#22c55e;">Coverage</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:28px;font-weight:700;color:#22c55e;">84%</span>
+              <span style="font-size:12px;color:#666;">Target: 80%</span>
+            </div>
+            <div class="coverage-bar">
+              <div class="coverage-fill" style="width:84%"></div>
+            </div>
+            <div class="coverage-grid">
+              <div class="coverage-item">
+                <div class="coverage-value good">92%</div>
+                <div class="coverage-label">Lines</div>
+              </div>
+              <div class="coverage-item">
+                <div class="coverage-value good">87%</div>
+                <div class="coverage-label">Branches</div>
+              </div>
+              <div class="coverage-item">
+                <div class="coverage-value warn">76%</div>
+                <div class="coverage-label">Functions</div>
+              </div>
+              <div class="coverage-item">
+                <div class="coverage-value good">84%</div>
+                <div class="coverage-label">Statements</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KTEST - Industrial Test Automation with AI
+    // =========================================================================
+
+    const testSuites = [
+      {
+        name: 'Motor Control',
+        icon: '⚡',
+        tests: [
+          { name: 'test_motor_start', status: 'pass', time: '45ms' },
+          { name: 'test_motor_stop', status: 'pass', time: '32ms' },
+          { name: 'test_speed_control', status: 'pass', time: '78ms' },
+          { name: 'test_overload_protection', status: 'fail', time: '156ms' },
+          { name: 'test_thermal_shutdown', status: 'pass', time: '89ms' }
+        ]
+      },
+      {
+        name: 'Valve Control',
+        icon: '🔧',
+        tests: [
+          { name: 'test_valve_open', status: 'pass', time: '23ms' },
+          { name: 'test_valve_close', status: 'pass', time: '21ms' },
+          { name: 'test_position_feedback', status: 'pass', time: '67ms' },
+          { name: 'test_limit_switches', status: 'pass', time: '45ms' }
+        ]
+      },
+      {
+        name: 'PID Controller',
+        icon: '📈',
+        tests: [
+          { name: 'test_pid_setpoint', status: 'pass', time: '134ms' },
+          { name: 'test_pid_response', status: 'pass', time: '245ms' },
+          { name: 'test_pid_stability', status: 'fail', time: '567ms' },
+          { name: 'test_anti_windup', status: 'pass', time: '123ms' }
+        ]
+      },
+      {
+        name: 'Safety Systems',
+        icon: '🛡️',
+        tests: [
+          { name: 'test_estop_response', status: 'pass', time: '12ms' },
+          { name: 'test_safety_interlock', status: 'pass', time: '34ms' },
+          { name: 'test_failsafe_mode', status: 'pass', time: '56ms' },
+          { name: 'test_watchdog', status: 'pass', time: '28ms' }
+        ]
+      },
+      {
+        name: 'Communications',
+        icon: '📡',
+        tests: [
+          { name: 'test_modbus_read', status: 'pass', time: '89ms' },
+          { name: 'test_modbus_write', status: 'pass', time: '92ms' },
+          { name: 'test_profinet_io', status: 'skip', time: '--' },
+          { name: 'test_opc_ua_connect', status: 'fail', time: '234ms' },
+          { name: 'test_mqtt_publish', status: 'skip', time: '--' }
+        ]
+      }
+    ];
+
+    const testCode = `// FB_Motor_Test.st - Motor Control Unit Tests
+// IEC 61131-3 Structured Text
+
+FUNCTION_BLOCK FB_Motor_Test
+VAR
+    motor : FB_Motor;
+    testResult : BOOL;
+    testMessage : STRING;
+END_VAR
+
+// Test Case: Motor Start
+METHOD test_motor_start : BOOL
+VAR
+    startTime : TIME;
+END_VAR
+    // Arrange
+    motor.Enable := FALSE;
+    motor.Speed := 0;
+
+    // Act
+    motor.Enable := TRUE;
+    motor.Speed := 50;
+    startTime := TIME();
+
+    WHILE NOT motor.Running AND (TIME() - startTime) < T#1S DO
+        motor();
+    END_WHILE
+
+    // Assert
+    IF motor.Running THEN
+        test_motor_start := TRUE;
+        testMessage := 'Motor started successfully';
+    ELSE
+        test_motor_start := FALSE;
+        testMessage := 'Motor failed to start within timeout';
+    END_IF
+END_METHOD
+
+// Test Case: Overload Protection
+METHOD test_overload_protection : BOOL
+VAR
+    i : INT;
+END_VAR
+    // Arrange
+    motor.Enable := TRUE;
+    motor.Speed := 100;
+    motor();
+
+    // Act - Simulate overload
+    FOR i := 1 TO 10 DO
+        motor.Current := motor.RatedCurrent * 1.5;
+        motor();
+    END_FOR
+
+    // Assert
+    IF motor.Fault AND motor.FaultCode = 16#0002 THEN
+        test_overload_protection := TRUE;
+        testMessage := 'Overload protection triggered correctly';
+    ELSE
+        test_overload_protection := FALSE;
+        testMessage := 'Overload not detected - SAFETY ISSUE';
+    END_IF
+END_METHOD
+
+END_FUNCTION_BLOCK`;
+
+    let selectedTest = null;
+    let isRunning = false;
+    let llm = null;
+
+    function renderTestTree() {
+      const tree = document.getElementById('testTree');
+      tree.innerHTML = testSuites.map((suite, i) => `
+        <div class="tree-node ${i === 0 ? 'expanded' : ''}" data-suite="${i}">
+          <div class="tree-header" onclick="toggleSuite(${i})">
+            <span class="tree-expand">${i === 0 ? '▼' : '▶'}</span>
+            <span class="tree-icon">${suite.icon}</span>
+            <span class="tree-name">${suite.name}</span>
+            <span class="tree-count">${suite.tests.length}</span>
+          </div>
+          <div class="tree-children">
+            ${suite.tests.map((test, j) => `
+              <div class="tree-item" data-suite="${i}" data-test="${j}" onclick="selectTest(${i}, ${j})">
+                <span class="status ${test.status}"></span>
+                <span>${test.name}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderResults() {
+      const results = document.getElementById('resultsBody');
+      const allTests = testSuites.flatMap(s => s.tests);
+      const recent = allTests.filter(t => t.status !== 'skip').slice(0, 6);
+
+      results.innerHTML = recent.map(test => `
+        <div class="result-item ${test.status}">
+          <div class="result-header">
+            <span class="result-status">${test.status === 'pass' ? '✓' : '✗'}</span>
+            <span class="result-name">${test.name}</span>
+            <span class="result-time">${test.time}</span>
+          </div>
+          ${test.status === 'fail' ? `
+            <div class="result-detail">
+              AssertionError: Expected TRUE but got FALSE
+              at line 42 in FB_Motor_Test.st
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function updateStats() {
+      const allTests = testSuites.flatMap(s => s.tests);
+      const pass = allTests.filter(t => t.status === 'pass').length;
+      const fail = allTests.filter(t => t.status === 'fail').length;
+      const skip = allTests.filter(t => t.status === 'skip').length;
+      const total = allTests.length;
+
+      document.getElementById('passCount').textContent = pass;
+      document.getElementById('failCount').textContent = fail;
+      document.getElementById('skipCount').textContent = skip;
+      document.getElementById('progressBar').style.width = `${(pass / total) * 100}%`;
+    }
+
+    window.toggleSuite = (index) => {
+      const node = document.querySelector(`[data-suite="${index}"]`);
+      node.classList.toggle('expanded');
+      const expand = node.querySelector('.tree-expand');
+      expand.textContent = node.classList.contains('expanded') ? '▼' : '▶';
+    };
+
+    window.selectTest = (suiteIdx, testIdx) => {
+      document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+      const item = document.querySelector(`[data-suite="${suiteIdx}"][data-test="${testIdx}"]`);
+      item.classList.add('selected');
+
+      const test = testSuites[suiteIdx].tests[testIdx];
+      selectedTest = { suite: suiteIdx, test: testIdx };
+      document.getElementById('editorTitle').textContent = `${test.name}.st`;
+    };
+
+    function updateLineNumbers() {
+      const lines = document.getElementById('codeEditor').value.split('\\n').length;
+      document.getElementById('lineNumbers').innerHTML = Array.from(
+        { length: lines },
+        (_, i) => `<div>${i + 1}</div>`
+      ).join('');
+    }
+
+    window.runAllTests = async () => {
+      if (isRunning) return;
+      isRunning = true;
+      document.getElementById('stopBtn').style.display = 'block';
+
+      const startTime = Date.now();
+      const timer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        document.getElementById('runTime').textContent = `00:${mins}:${secs}`;
+      }, 1000);
+
+      for (const suite of testSuites) {
+        for (const test of suite.tests) {
+          if (!isRunning) break;
+          if (test.status === 'skip') continue;
+
+          test.status = 'running';
+          renderTestTree();
+          await new Promise(r => setTimeout(r, 100 + Math.random() * 200));
+
+          test.status = Math.random() > 0.1 ? 'pass' : 'fail';
+          test.time = `${Math.floor(Math.random() * 200)}ms`;
+          renderTestTree();
+          updateStats();
+          renderResults();
+        }
+      }
+
+      clearInterval(timer);
+      isRunning = false;
+      document.getElementById('stopBtn').style.display = 'none';
+    };
+
+    window.stopTests = () => {
+      isRunning = false;
+    };
+
+    window.runCurrentTest = async () => {
+      if (!selectedTest) return;
+      const test = testSuites[selectedTest.suite].tests[selectedTest.test];
+      test.status = 'running';
+      renderTestTree();
+
+      await new Promise(r => setTimeout(r, 500));
+
+      test.status = Math.random() > 0.2 ? 'pass' : 'fail';
+      test.time = `${Math.floor(Math.random() * 200)}ms`;
+      renderTestTree();
+      updateStats();
+      renderResults();
+    };
+
+    window.saveTest = () => {
+      alert('Test saved!');
+    };
+
+    window.aiGenerateTests = async () => {
+      const suggestions = document.getElementById('aiSuggestions');
+      suggestions.innerHTML = '<div style="color:#8b5cf6;padding:16px;text-align:center;">Generating tests with AI...</div>';
+
+      try {
+        const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+        if (!llm) {
+          suggestions.innerHTML = '<div style="color:#8b5cf6;padding:16px;text-align:center;">Loading AI model...</div>';
+          llm = await webllm.CreateMLCEngine('Qwen2.5-0.5B-Instruct-q4f16_1-MLC');
+        }
+
+        const response = await llm.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are an industrial automation test expert. Suggest 3 test cases for PLC code. Be brief: Title and one-line description.' },
+            { role: 'user', content: 'Suggest tests for a motor control function block with speed control, overload protection, and thermal monitoring.' }
+          ],
+          max_tokens: 200
+        });
+
+        const text = response.choices[0].message.content;
+        suggestions.innerHTML = `
+          <div class="ai-suggestion" onclick="applySuggestion('ai1')">
+            <div class="ai-suggestion-title">AI Generated Test 1</div>
+            <div class="ai-suggestion-desc">${text.split('.')[0] || 'Speed ramp test'}</div>
+          </div>
+          <div class="ai-suggestion" onclick="applySuggestion('ai2')">
+            <div class="ai-suggestion-title">AI Generated Test 2</div>
+            <div class="ai-suggestion-desc">${text.split('.')[1] || 'Thermal protection test'}</div>
+          </div>
+          <div class="ai-suggestion" onclick="applySuggestion('ai3')">
+            <div class="ai-suggestion-title">AI Generated Test 3</div>
+            <div class="ai-suggestion-desc">${text.split('.')[2] || 'Emergency stop response'}</div>
+          </div>
+        `;
+      } catch (err) {
+        suggestions.innerHTML = `
+          <div class="ai-suggestion" onclick="applySuggestion('boundary')">
+            <div class="ai-suggestion-title">Boundary Tests</div>
+            <div class="ai-suggestion-desc">Test motor speed limits 0-100%</div>
+          </div>
+          <div class="ai-suggestion" onclick="applySuggestion('fault')">
+            <div class="ai-suggestion-title">Fault Injection</div>
+            <div class="ai-suggestion-desc">Simulate overload and thermal faults</div>
+          </div>
+          <div class="ai-suggestion" onclick="applySuggestion('timing')">
+            <div class="ai-suggestion-title">Timing Tests</div>
+            <div class="ai-suggestion-desc">Verify ramp-up/down timing</div>
+          </div>
+        `;
+      }
+    };
+
+    window.applySuggestion = (type) => {
+      const newTest = {
+        name: `test_${type}_${Date.now() % 1000}`,
+        status: 'skip',
+        time: '--'
+      };
+      testSuites[0].tests.push(newTest);
+      renderTestTree();
+    };
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+
+    // Initialize
+    document.getElementById('codeEditor').value = testCode;
+    updateLineNumbers();
+    document.getElementById('codeEditor').addEventListener('input', updateLineNumbers);
+    renderTestTree();
+    renderResults();
+    updateStats();
+  </script>
+</body>
+</html>

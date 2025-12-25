@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<!--
+KFLOW - AI-Enhanced Industrial Workflow Builder
+Part of KISS MySaaS - Industry 4.0 Edition
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KFLOW - AI Workflow Builder</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+
+    .header { background: #111; border-bottom: 1px solid #222; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+    .logo { font-size: 20px; font-weight: 700; color: #8b5cf6; }
+    .logo span { color: #666; font-weight: 400; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #8b5cf6; color: white; }
+    .btn-primary:hover { background: #7c3aed; }
+    .btn-secondary { background: #222; color: #fff; border: 1px solid #333; }
+    .btn-secondary:hover { background: #333; }
+    .btn-ai { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+    .btn-ai:hover { opacity: 0.9; }
+
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    .sidebar { width: 240px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; }
+    .sidebar-section { padding: 16px; border-bottom: 1px solid #222; }
+    .sidebar-title { font-size: 11px; text-transform: uppercase; color: #666; margin-bottom: 12px; letter-spacing: 0.5px; }
+
+    .node-palette { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .palette-node { padding: 12px 8px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; text-align: center; cursor: grab; transition: all 0.2s; }
+    .palette-node:hover { border-color: #8b5cf6; background: #222; }
+    .palette-node.dragging { opacity: 0.5; }
+    .palette-icon { font-size: 24px; margin-bottom: 4px; }
+    .palette-label { font-size: 11px; color: #888; }
+
+    .canvas-container { flex: 1; position: relative; overflow: hidden; background: #0a0a0a; }
+    .canvas { position: absolute; width: 4000px; height: 4000px; background-image:
+      radial-gradient(circle, #222 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .workflow-node { position: absolute; min-width: 160px; background: #1a1a1a; border: 2px solid #333; border-radius: 12px; cursor: move; user-select: none; }
+    .workflow-node.selected { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
+    .workflow-node.running { border-color: #22c55e; animation: pulse 1s infinite; }
+    .workflow-node.error { border-color: #ef4444; }
+    .node-header { padding: 10px 12px; background: #222; border-radius: 10px 10px 0 0; display: flex; align-items: center; gap: 8px; }
+    .node-icon { font-size: 18px; }
+    .node-title { font-size: 13px; font-weight: 500; flex: 1; }
+    .node-status { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+    .node-status.active { background: #22c55e; }
+    .node-status.error { background: #ef4444; }
+    .node-body { padding: 12px; font-size: 12px; color: #888; }
+    .node-ports { display: flex; justify-content: space-between; padding: 8px 12px; }
+    .port { width: 12px; height: 12px; background: #444; border: 2px solid #666; border-radius: 50%; cursor: crosshair; transition: all 0.2s; }
+    .port:hover { background: #8b5cf6; border-color: #8b5cf6; transform: scale(1.3); }
+    .port.input { margin-left: -6px; }
+    .port.output { margin-right: -6px; }
+
+    .connection { position: absolute; pointer-events: none; }
+    .connection path { fill: none; stroke: #8b5cf6; stroke-width: 2; }
+    .connection.active path { stroke: #22c55e; stroke-width: 3; animation: flow 1s linear infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+
+    .properties { width: 300px; background: #111; border-left: 1px solid #222; display: flex; flex-direction: column; }
+    .prop-header { padding: 16px; border-bottom: 1px solid #222; }
+    .prop-title { font-size: 14px; font-weight: 600; }
+    .prop-subtitle { font-size: 12px; color: #666; margin-top: 4px; }
+    .prop-content { flex: 1; overflow-y: auto; padding: 16px; }
+    .prop-group { margin-bottom: 20px; }
+    .prop-label { font-size: 11px; color: #666; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .prop-input { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px; }
+    .prop-input:focus { outline: none; border-color: #8b5cf6; }
+    .prop-select { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px; }
+    .prop-textarea { min-height: 100px; resize: vertical; font-family: 'Monaco', 'Menlo', monospace; }
+
+    .ai-panel { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #8b5cf6; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .ai-panel-title { font-size: 13px; font-weight: 600; color: #8b5cf6; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .ai-suggestion { background: #0a0a0a; border-radius: 6px; padding: 12px; margin-bottom: 8px; font-size: 12px; color: #ccc; cursor: pointer; transition: all 0.2s; }
+    .ai-suggestion:hover { background: #111; border-left: 2px solid #8b5cf6; }
+
+    .toolbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111; border: 1px solid #333; border-radius: 12px; padding: 8px; display: flex; gap: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    .tool-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 8px; color: #888; font-size: 18px; cursor: pointer; transition: all 0.2s; }
+    .tool-btn:hover { background: #222; color: #fff; }
+    .tool-btn.active { background: #8b5cf6; color: #fff; }
+
+    .run-panel { position: absolute; bottom: 20px; right: 20px; background: #111; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 280px; }
+    .run-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .run-status { font-size: 14px; font-weight: 600; }
+    .run-status.idle { color: #666; }
+    .run-status.running { color: #22c55e; }
+    .run-status.error { color: #ef4444; }
+    .run-log { background: #0a0a0a; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; max-height: 150px; overflow-y: auto; }
+    .log-entry { margin-bottom: 4px; color: #888; }
+    .log-entry.success { color: #22c55e; }
+    .log-entry.error { color: #ef4444; }
+    .log-entry .time { color: #666; margin-right: 8px; }
+
+    .ai-loading { display: flex; align-items: center; gap: 8px; color: #8b5cf6; font-size: 12px; }
+    .ai-loading::before { content: ''; width: 16px; height: 16px; border: 2px solid #8b5cf6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .modal.active { opacity: 1; pointer-events: auto; }
+    .modal-content { background: #111; border: 1px solid #333; border-radius: 16px; width: 500px; max-height: 80vh; overflow: hidden; }
+    .modal-header { padding: 20px; border-bottom: 1px solid #222; display: flex; align-items: center; }
+    .modal-title { font-size: 18px; font-weight: 600; flex: 1; }
+    .modal-close { background: none; border: none; color: #666; font-size: 24px; cursor: pointer; }
+    .modal-body { padding: 20px; overflow-y: auto; max-height: 60vh; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">KFLOW <span>AI Workflow Builder</span></div>
+    <button class="btn btn-secondary" onclick="newWorkflow()">New</button>
+    <button class="btn btn-secondary" onclick="loadWorkflow()">Load</button>
+    <button class="btn btn-secondary" onclick="saveWorkflow()">Save</button>
+    <div class="header-actions">
+      <button class="btn btn-ai" onclick="aiOptimize()">AI Optimize</button>
+      <button class="btn btn-primary" onclick="runWorkflow()">Run Workflow</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Triggers</div>
+        <div class="node-palette">
+          <div class="palette-node" draggable="true" data-type="trigger-schedule">
+            <div class="palette-icon">🕐</div>
+            <div class="palette-label">Schedule</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="trigger-tag">
+            <div class="palette-icon">📊</div>
+            <div class="palette-label">Tag Change</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="trigger-event">
+            <div class="palette-icon">⚡</div>
+            <div class="palette-label">Event</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="trigger-alarm">
+            <div class="palette-icon">🚨</div>
+            <div class="palette-label">Alarm</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Logic</div>
+        <div class="node-palette">
+          <div class="palette-node" draggable="true" data-type="logic-condition">
+            <div class="palette-icon">🔀</div>
+            <div class="palette-label">Condition</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="logic-loop">
+            <div class="palette-icon">🔄</div>
+            <div class="palette-label">Loop</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="logic-delay">
+            <div class="palette-icon">⏳</div>
+            <div class="palette-label">Delay</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="logic-parallel">
+            <div class="palette-icon">⫘</div>
+            <div class="palette-label">Parallel</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Actions</div>
+        <div class="node-palette">
+          <div class="palette-node" draggable="true" data-type="action-write">
+            <div class="palette-icon">✏️</div>
+            <div class="palette-label">Write Tag</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="action-http">
+            <div class="palette-icon">🌐</div>
+            <div class="palette-label">HTTP Call</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="action-script">
+            <div class="palette-icon">📜</div>
+            <div class="palette-label">Script</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="action-notify">
+            <div class="palette-icon">📧</div>
+            <div class="palette-label">Notify</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">AI Nodes</div>
+        <div class="node-palette">
+          <div class="palette-node" draggable="true" data-type="ai-analyze">
+            <div class="palette-icon">🤖</div>
+            <div class="palette-label">AI Analyze</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="ai-predict">
+            <div class="palette-icon">🔮</div>
+            <div class="palette-label">AI Predict</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="ai-classify">
+            <div class="palette-icon">🏷️</div>
+            <div class="palette-label">AI Classify</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="ai-decide">
+            <div class="palette-icon">🧠</div>
+            <div class="palette-label">AI Decide</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Industrial</div>
+        <div class="node-palette">
+          <div class="palette-node" draggable="true" data-type="ind-plc">
+            <div class="palette-icon">🔧</div>
+            <div class="palette-label">PLC Read</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="ind-opcua">
+            <div class="palette-icon">🔌</div>
+            <div class="palette-label">OPC-UA</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="ind-mqtt">
+            <div class="palette-icon">📡</div>
+            <div class="palette-label">MQTT</div>
+          </div>
+          <div class="palette-node" draggable="true" data-type="ind-db">
+            <div class="palette-icon">🗄️</div>
+            <div class="palette-label">Database</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-container" id="canvasContainer">
+      <div class="canvas" id="canvas"></div>
+
+      <div class="toolbar">
+        <button class="tool-btn" onclick="zoomIn()" title="Zoom In">+</button>
+        <button class="tool-btn" onclick="zoomOut()" title="Zoom Out">−</button>
+        <button class="tool-btn" onclick="fitView()" title="Fit View">⊡</button>
+        <button class="tool-btn" onclick="autoLayout()" title="Auto Layout">⊞</button>
+        <button class="tool-btn" onclick="deleteSelected()" title="Delete">🗑</button>
+        <button class="tool-btn" onclick="duplicateSelected()" title="Duplicate">⎘</button>
+      </div>
+
+      <div class="run-panel" id="runPanel">
+        <div class="run-header">
+          <span class="run-status idle" id="runStatus">Idle</span>
+          <button class="btn btn-secondary" onclick="stopWorkflow()" style="margin-left:auto;padding:4px 12px;font-size:12px;">Stop</button>
+        </div>
+        <div class="run-log" id="runLog">
+          <div class="log-entry"><span class="time">--:--:--</span>Ready to run workflow</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="properties" id="propertiesPanel">
+      <div class="prop-header">
+        <div class="prop-title" id="propTitle">No Selection</div>
+        <div class="prop-subtitle" id="propSubtitle">Select a node to edit properties</div>
+      </div>
+      <div class="prop-content" id="propContent">
+        <div class="ai-panel">
+          <div class="ai-panel-title">🤖 AI Assistant</div>
+          <div id="aiSuggestions">
+            <div class="ai-suggestion" onclick="applySuggestion('optimize')">Analyze workflow for bottlenecks</div>
+            <div class="ai-suggestion" onclick="applySuggestion('error')">Add error handling nodes</div>
+            <div class="ai-suggestion" onclick="applySuggestion('parallel')">Suggest parallelization</div>
+          </div>
+        </div>
+
+        <div class="prop-group">
+          <div class="prop-label">Workflow Name</div>
+          <input type="text" class="prop-input" id="workflowName" value="Production Line Monitor" onchange="updateWorkflowName(this.value)">
+        </div>
+
+        <div class="prop-group">
+          <div class="prop-label">Description</div>
+          <textarea class="prop-input prop-textarea" id="workflowDesc" placeholder="Describe this workflow..."></textarea>
+        </div>
+
+        <div class="prop-group">
+          <div class="prop-label">Run Mode</div>
+          <select class="prop-select" id="runMode">
+            <option value="sequential">Sequential</option>
+            <option value="parallel">Parallel Branches</option>
+            <option value="event">Event-Driven</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="aiModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">AI Workflow Optimization</div>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="aiModalBody">
+        <div class="ai-loading">Analyzing workflow with AI...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KFLOW - AI-Enhanced Industrial Workflow Builder
+    // =========================================================================
+
+    const nodeTypes = {
+      'trigger-schedule': { icon: '🕐', title: 'Schedule Trigger', color: '#22c55e' },
+      'trigger-tag': { icon: '📊', title: 'Tag Change', color: '#22c55e' },
+      'trigger-event': { icon: '⚡', title: 'Event Trigger', color: '#22c55e' },
+      'trigger-alarm': { icon: '🚨', title: 'Alarm Trigger', color: '#22c55e' },
+      'logic-condition': { icon: '🔀', title: 'Condition', color: '#3b82f6' },
+      'logic-loop': { icon: '🔄', title: 'Loop', color: '#3b82f6' },
+      'logic-delay': { icon: '⏳', title: 'Delay', color: '#3b82f6' },
+      'logic-parallel': { icon: '⫘', title: 'Parallel', color: '#3b82f6' },
+      'action-write': { icon: '✏️', title: 'Write Tag', color: '#f59e0b' },
+      'action-http': { icon: '🌐', title: 'HTTP Request', color: '#f59e0b' },
+      'action-script': { icon: '📜', title: 'Script', color: '#f59e0b' },
+      'action-notify': { icon: '📧', title: 'Notification', color: '#f59e0b' },
+      'ai-analyze': { icon: '🤖', title: 'AI Analyze', color: '#8b5cf6' },
+      'ai-predict': { icon: '🔮', title: 'AI Predict', color: '#8b5cf6' },
+      'ai-classify': { icon: '🏷️', title: 'AI Classify', color: '#8b5cf6' },
+      'ai-decide': { icon: '🧠', title: 'AI Decision', color: '#8b5cf6' },
+      'ind-plc': { icon: '🔧', title: 'PLC Read', color: '#ec4899' },
+      'ind-opcua': { icon: '🔌', title: 'OPC-UA', color: '#ec4899' },
+      'ind-mqtt': { icon: '📡', title: 'MQTT', color: '#ec4899' },
+      'ind-db': { icon: '🗄️', title: 'Database', color: '#ec4899' }
+    };
+
+    let nodes = [];
+    let connections = [];
+    let selectedNode = null;
+    let nextNodeId = 1;
+    let dragOffset = { x: 0, y: 0 };
+    let canvasOffset = { x: 0, y: 0 };
+    let zoom = 1;
+    let llm = null;
+
+    const canvas = document.getElementById('canvas');
+    const container = document.getElementById('canvasContainer');
+
+    // Initialize with demo nodes
+    function initDemo() {
+      createNode('trigger-schedule', 100, 100, { cron: '*/5 * * * *', description: 'Every 5 minutes' });
+      createNode('ind-plc', 100, 250, { address: 'DB1.DBW0', plc: 'S7-1500' });
+      createNode('ai-analyze', 320, 250, { model: 'quality-check', threshold: 0.95 });
+      createNode('logic-condition', 540, 250, { condition: 'result.score < 0.9' });
+      createNode('action-notify', 760, 150, { channel: 'slack', message: 'Quality alert!' });
+      createNode('action-write', 760, 350, { tag: 'QualityOK', value: 'true' });
+
+      // Demo connections
+      addConnection(0, 1);
+      addConnection(1, 2);
+      addConnection(2, 3);
+      addConnection(3, 4);
+      addConnection(3, 5);
+    }
+
+    function createNode(type, x, y, config = {}) {
+      const id = nextNodeId++;
+      const info = nodeTypes[type];
+      const node = { id, type, x, y, config: { ...config, name: info.title } };
+      nodes.push(node);
+      renderNode(node);
+      return node;
+    }
+
+    function renderNode(node) {
+      const info = nodeTypes[node.type];
+      const el = document.createElement('div');
+      el.className = 'workflow-node';
+      el.id = `node-${node.id}`;
+      el.style.left = node.x + 'px';
+      el.style.top = node.y + 'px';
+      el.style.borderColor = info.color;
+
+      el.innerHTML = `
+        <div class="node-header" style="background:${info.color}22">
+          <span class="node-icon">${info.icon}</span>
+          <span class="node-title">${node.config.name || info.title}</span>
+          <span class="node-status"></span>
+        </div>
+        <div class="node-body">${getNodeDescription(node)}</div>
+        <div class="node-ports">
+          <div class="port input" data-node="${node.id}" data-port="in"></div>
+          <div class="port output" data-node="${node.id}" data-port="out"></div>
+        </div>
+      `;
+
+      el.addEventListener('mousedown', (e) => startDrag(e, node));
+      el.addEventListener('click', (e) => selectNode(node, e));
+
+      canvas.appendChild(el);
+    }
+
+    function getNodeDescription(node) {
+      const c = node.config;
+      switch (node.type) {
+        case 'trigger-schedule': return c.cron || 'Configure schedule...';
+        case 'trigger-tag': return c.tag || 'Select tag...';
+        case 'ai-analyze': return `Model: ${c.model || 'default'}`;
+        case 'ai-predict': return `Predict: ${c.target || 'value'}`;
+        case 'logic-condition': return c.condition || 'Set condition...';
+        case 'action-write': return `${c.tag || 'tag'} = ${c.value || 'value'}`;
+        case 'action-notify': return c.channel || 'Configure...';
+        case 'ind-plc': return c.address || 'PLC address...';
+        case 'ind-opcua': return c.nodeId || 'Node ID...';
+        default: return 'Configure...';
+      }
+    }
+
+    function addConnection(fromId, toId) {
+      connections.push({ from: fromId, to: toId });
+      renderConnections();
+    }
+
+    function renderConnections() {
+      document.querySelectorAll('.connection').forEach(el => el.remove());
+
+      connections.forEach(conn => {
+        const fromNode = nodes.find(n => n.id === conn.from);
+        const toNode = nodes.find(n => n.id === conn.to);
+        if (!fromNode || !toNode) return;
+
+        const fromEl = document.getElementById(`node-${conn.from}`);
+        const toEl = document.getElementById(`node-${conn.to}`);
+        if (!fromEl || !toEl) return;
+
+        const x1 = fromNode.x + fromEl.offsetWidth;
+        const y1 = fromNode.y + fromEl.offsetHeight / 2;
+        const x2 = toNode.x;
+        const y2 = toNode.y + toEl.offsetHeight / 2;
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('connection');
+        svg.style.left = '0';
+        svg.style.top = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.position = 'absolute';
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const cx = (x1 + x2) / 2;
+        path.setAttribute('d', `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+        path.setAttribute('stroke', '#8b5cf6');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('fill', 'none');
+
+        svg.appendChild(path);
+        canvas.insertBefore(svg, canvas.firstChild);
+      });
+    }
+
+    function startDrag(e, node) {
+      if (e.target.classList.contains('port')) return;
+      e.stopPropagation();
+
+      const el = document.getElementById(`node-${node.id}`);
+      dragOffset.x = e.clientX - node.x;
+      dragOffset.y = e.clientY - node.y;
+
+      const onMove = (e) => {
+        node.x = e.clientX - dragOffset.x;
+        node.y = e.clientY - dragOffset.y;
+        el.style.left = node.x + 'px';
+        el.style.top = node.y + 'px';
+        renderConnections();
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    function selectNode(node, e) {
+      e.stopPropagation();
+      document.querySelectorAll('.workflow-node').forEach(el => el.classList.remove('selected'));
+
+      const el = document.getElementById(`node-${node.id}`);
+      el.classList.add('selected');
+      selectedNode = node;
+
+      showNodeProperties(node);
+    }
+
+    function showNodeProperties(node) {
+      const info = nodeTypes[node.type];
+      document.getElementById('propTitle').textContent = node.config.name || info.title;
+      document.getElementById('propSubtitle').textContent = node.type;
+
+      const content = document.getElementById('propContent');
+      content.innerHTML = `
+        <div class="ai-panel">
+          <div class="ai-panel-title">🤖 AI Suggestions for ${info.title}</div>
+          <div id="aiNodeSuggestions">
+            <div class="ai-suggestion" onclick="getAiHelp('configure')">Help me configure this node</div>
+            <div class="ai-suggestion" onclick="getAiHelp('optimize')">Optimize node settings</div>
+          </div>
+        </div>
+
+        <div class="prop-group">
+          <div class="prop-label">Name</div>
+          <input type="text" class="prop-input" value="${node.config.name || ''}" onchange="updateNodeConfig('name', this.value)">
+        </div>
+
+        ${getNodeConfigFields(node)}
+
+        <div class="prop-group">
+          <div class="prop-label">Notes</div>
+          <textarea class="prop-input prop-textarea" onchange="updateNodeConfig('notes', this.value)">${node.config.notes || ''}</textarea>
+        </div>
+      `;
+    }
+
+    function getNodeConfigFields(node) {
+      const c = node.config;
+      switch (node.type) {
+        case 'trigger-schedule':
+          return `
+            <div class="prop-group">
+              <div class="prop-label">Cron Expression</div>
+              <input type="text" class="prop-input" value="${c.cron || ''}" onchange="updateNodeConfig('cron', this.value)" placeholder="*/5 * * * *">
+            </div>`;
+        case 'trigger-tag':
+          return `
+            <div class="prop-group">
+              <div class="prop-label">Tag Path</div>
+              <input type="text" class="prop-input" value="${c.tag || ''}" onchange="updateNodeConfig('tag', this.value)" placeholder="Plant/Area1/Temperature">
+            </div>
+            <div class="prop-group">
+              <div class="prop-label">Trigger On</div>
+              <select class="prop-select" onchange="updateNodeConfig('trigger', this.value)">
+                <option value="change" ${c.trigger === 'change' ? 'selected' : ''}>Any Change</option>
+                <option value="rising" ${c.trigger === 'rising' ? 'selected' : ''}>Rising Edge</option>
+                <option value="falling" ${c.trigger === 'falling' ? 'selected' : ''}>Falling Edge</option>
+              </select>
+            </div>`;
+        case 'ai-analyze':
+          return `
+            <div class="prop-group">
+              <div class="prop-label">AI Model</div>
+              <select class="prop-select" onchange="updateNodeConfig('model', this.value)">
+                <option value="quality-check" ${c.model === 'quality-check' ? 'selected' : ''}>Quality Check</option>
+                <option value="anomaly-detect" ${c.model === 'anomaly-detect' ? 'selected' : ''}>Anomaly Detection</option>
+                <option value="predictive" ${c.model === 'predictive' ? 'selected' : ''}>Predictive Analysis</option>
+              </select>
+            </div>
+            <div class="prop-group">
+              <div class="prop-label">Confidence Threshold</div>
+              <input type="number" class="prop-input" value="${c.threshold || 0.9}" onchange="updateNodeConfig('threshold', parseFloat(this.value))" min="0" max="1" step="0.05">
+            </div>`;
+        case 'logic-condition':
+          return `
+            <div class="prop-group">
+              <div class="prop-label">Condition Expression</div>
+              <input type="text" class="prop-input" value="${c.condition || ''}" onchange="updateNodeConfig('condition', this.value)" placeholder="value > 100">
+            </div>`;
+        case 'action-write':
+          return `
+            <div class="prop-group">
+              <div class="prop-label">Tag Path</div>
+              <input type="text" class="prop-input" value="${c.tag || ''}" onchange="updateNodeConfig('tag', this.value)">
+            </div>
+            <div class="prop-group">
+              <div class="prop-label">Value</div>
+              <input type="text" class="prop-input" value="${c.value || ''}" onchange="updateNodeConfig('value', this.value)">
+            </div>`;
+        case 'action-notify':
+          return `
+            <div class="prop-group">
+              <div class="prop-label">Channel</div>
+              <select class="prop-select" onchange="updateNodeConfig('channel', this.value)">
+                <option value="email" ${c.channel === 'email' ? 'selected' : ''}>Email</option>
+                <option value="slack" ${c.channel === 'slack' ? 'selected' : ''}>Slack</option>
+                <option value="sms" ${c.channel === 'sms' ? 'selected' : ''}>SMS</option>
+                <option value="teams" ${c.channel === 'teams' ? 'selected' : ''}>Teams</option>
+              </select>
+            </div>
+            <div class="prop-group">
+              <div class="prop-label">Message</div>
+              <textarea class="prop-input prop-textarea" onchange="updateNodeConfig('message', this.value)">${c.message || ''}</textarea>
+            </div>`;
+        case 'ind-plc':
+          return `
+            <div class="prop-group">
+              <div class="prop-label">PLC Type</div>
+              <select class="prop-select" onchange="updateNodeConfig('plc', this.value)">
+                <option value="S7-1500" ${c.plc === 'S7-1500' ? 'selected' : ''}>Siemens S7-1500</option>
+                <option value="S7-1200" ${c.plc === 'S7-1200' ? 'selected' : ''}>Siemens S7-1200</option>
+                <option value="AB-CLX" ${c.plc === 'AB-CLX' ? 'selected' : ''}>Allen-Bradley CLX</option>
+                <option value="Modbus" ${c.plc === 'Modbus' ? 'selected' : ''}>Modbus TCP</option>
+              </select>
+            </div>
+            <div class="prop-group">
+              <div class="prop-label">Address</div>
+              <input type="text" class="prop-input" value="${c.address || ''}" onchange="updateNodeConfig('address', this.value)" placeholder="DB1.DBW0">
+            </div>`;
+        default:
+          return '';
+      }
+    }
+
+    window.updateNodeConfig = (key, value) => {
+      if (selectedNode) {
+        selectedNode.config[key] = value;
+        const el = document.getElementById(`node-${selectedNode.id}`);
+        el.querySelector('.node-body').textContent = getNodeDescription(selectedNode);
+        if (key === 'name') {
+          el.querySelector('.node-title').textContent = value;
+        }
+      }
+    };
+
+    // Canvas drag for panning
+    let isPanning = false;
+    let panStart = { x: 0, y: 0 };
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.target === container || e.target === canvas) {
+        isPanning = true;
+        panStart.x = e.clientX - canvasOffset.x;
+        panStart.y = e.clientY - canvasOffset.y;
+      }
+    });
+
+    container.addEventListener('mousemove', (e) => {
+      if (isPanning) {
+        canvasOffset.x = e.clientX - panStart.x;
+        canvasOffset.y = e.clientY - panStart.y;
+        canvas.style.transform = `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${zoom})`;
+      }
+    });
+
+    container.addEventListener('mouseup', () => isPanning = false);
+    container.addEventListener('mouseleave', () => isPanning = false);
+
+    // Deselect on canvas click
+    canvas.addEventListener('click', (e) => {
+      if (e.target === canvas) {
+        document.querySelectorAll('.workflow-node').forEach(el => el.classList.remove('selected'));
+        selectedNode = null;
+        document.getElementById('propTitle').textContent = 'No Selection';
+        document.getElementById('propSubtitle').textContent = 'Select a node to edit properties';
+      }
+    });
+
+    // Drag and drop from palette
+    document.querySelectorAll('.palette-node').forEach(el => {
+      el.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('nodeType', el.dataset.type);
+        el.classList.add('dragging');
+      });
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
+    });
+
+    canvas.addEventListener('dragover', (e) => e.preventDefault());
+    canvas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const type = e.dataTransfer.getData('nodeType');
+      if (type) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left - canvasOffset.x) / zoom;
+        const y = (e.clientY - rect.top - canvasOffset.y) / zoom;
+        createNode(type, x, y);
+      }
+    });
+
+    // Toolbar functions
+    window.zoomIn = () => {
+      zoom = Math.min(2, zoom + 0.1);
+      canvas.style.transform = `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${zoom})`;
+    };
+
+    window.zoomOut = () => {
+      zoom = Math.max(0.3, zoom - 0.1);
+      canvas.style.transform = `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${zoom})`;
+    };
+
+    window.fitView = () => {
+      zoom = 1;
+      canvasOffset = { x: 0, y: 0 };
+      canvas.style.transform = 'translate(0, 0) scale(1)';
+    };
+
+    window.autoLayout = () => {
+      // Simple auto-layout: arrange by connections
+      let x = 100, y = 100;
+      nodes.forEach((node, i) => {
+        node.x = x;
+        node.y = y;
+        const el = document.getElementById(`node-${node.id}`);
+        el.style.left = node.x + 'px';
+        el.style.top = node.y + 'px';
+        x += 220;
+        if (x > 800) { x = 100; y += 180; }
+      });
+      renderConnections();
+    };
+
+    window.deleteSelected = () => {
+      if (selectedNode) {
+        document.getElementById(`node-${selectedNode.id}`)?.remove();
+        nodes = nodes.filter(n => n.id !== selectedNode.id);
+        connections = connections.filter(c => c.from !== selectedNode.id && c.to !== selectedNode.id);
+        selectedNode = null;
+        renderConnections();
+      }
+    };
+
+    window.duplicateSelected = () => {
+      if (selectedNode) {
+        createNode(selectedNode.type, selectedNode.x + 40, selectedNode.y + 40, { ...selectedNode.config });
+      }
+    };
+
+    // Workflow execution simulation
+    let isRunning = false;
+
+    window.runWorkflow = async () => {
+      if (isRunning) return;
+      isRunning = true;
+
+      const statusEl = document.getElementById('runStatus');
+      const logEl = document.getElementById('runLog');
+
+      statusEl.className = 'run-status running';
+      statusEl.textContent = 'Running...';
+      logEl.innerHTML = '';
+
+      const log = (msg, type = '') => {
+        const time = new Date().toLocaleTimeString();
+        logEl.innerHTML += `<div class="log-entry ${type}"><span class="time">${time}</span>${msg}</div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+      };
+
+      log('Workflow started');
+
+      // Simulate running through nodes
+      for (const node of nodes) {
+        const el = document.getElementById(`node-${node.id}`);
+        el.classList.add('running');
+        el.querySelector('.node-status').classList.add('active');
+
+        log(`Executing: ${node.config.name || nodeTypes[node.type].title}`);
+
+        await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
+
+        el.classList.remove('running');
+
+        // Simulate occasional AI processing
+        if (node.type.startsWith('ai-')) {
+          log('AI model processing...', 'success');
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+
+      log('Workflow completed successfully', 'success');
+      statusEl.className = 'run-status idle';
+      statusEl.textContent = 'Completed';
+      isRunning = false;
+    };
+
+    window.stopWorkflow = () => {
+      isRunning = false;
+      document.querySelectorAll('.workflow-node').forEach(el => {
+        el.classList.remove('running');
+        el.querySelector('.node-status').classList.remove('active');
+      });
+      document.getElementById('runStatus').className = 'run-status idle';
+      document.getElementById('runStatus').textContent = 'Stopped';
+    };
+
+    // AI Functions
+    window.aiOptimize = async () => {
+      const modal = document.getElementById('aiModal');
+      const body = document.getElementById('aiModalBody');
+      modal.classList.add('active');
+      body.innerHTML = '<div class="ai-loading">Analyzing workflow with AI...</div>';
+
+      try {
+        const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+        if (!llm) {
+          body.innerHTML = '<div class="ai-loading">Loading AI model (first time may take a minute)...</div>';
+          llm = await webllm.CreateMLCEngine('Qwen2.5-0.5B-Instruct-q4f16_1-MLC');
+        }
+
+        const workflowDesc = nodes.map(n => `${nodeTypes[n.type].title}: ${getNodeDescription(n)}`).join('\\n');
+
+        const response = await llm.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are an industrial automation expert. Analyze workflows and suggest optimizations. Be brief and practical.' },
+            { role: 'user', content: `Analyze this industrial workflow and suggest 3 improvements:\\n${workflowDesc}` }
+          ],
+          max_tokens: 300
+        });
+
+        const suggestions = response.choices[0].message.content;
+        body.innerHTML = `
+          <div style="margin-bottom:16px;color:#22c55e;">Analysis complete!</div>
+          <div style="background:#0a0a0a;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:13px;line-height:1.6;">${suggestions}</div>
+          <button class="btn btn-primary" style="margin-top:16px;width:100%;" onclick="closeModal()">Apply Suggestions</button>
+        `;
+      } catch (err) {
+        body.innerHTML = `
+          <div style="color:#ef4444;margin-bottom:16px;">AI analysis requires WebLLM</div>
+          <div style="color:#888;font-size:13px;">Demo suggestions:</div>
+          <ul style="color:#ccc;margin:12px 0;padding-left:20px;font-size:13px;">
+            <li>Add error handling after PLC read nodes</li>
+            <li>Consider parallelizing independent branches</li>
+            <li>Add retry logic for HTTP actions</li>
+            <li>Cache AI model results to reduce latency</li>
+          </ul>
+          <button class="btn btn-secondary" style="margin-top:16px;width:100%;" onclick="closeModal()">Close</button>
+        `;
+      }
+    };
+
+    window.closeModal = () => document.getElementById('aiModal').classList.remove('active');
+
+    window.getAiHelp = async (type) => {
+      const suggestions = document.getElementById('aiNodeSuggestions');
+      suggestions.innerHTML = '<div class="ai-loading">Getting AI suggestions...</div>';
+
+      setTimeout(() => {
+        if (type === 'configure') {
+          suggestions.innerHTML = `
+            <div class="ai-suggestion">Recommended: Set polling interval to 5 seconds for real-time monitoring</div>
+            <div class="ai-suggestion">Add timeout of 30s to prevent hanging</div>
+            <div class="ai-suggestion">Enable buffering for high-frequency tags</div>
+          `;
+        } else {
+          suggestions.innerHTML = `
+            <div class="ai-suggestion">Current settings are optimal for typical use</div>
+            <div class="ai-suggestion">Consider batch mode for higher throughput</div>
+          `;
+        }
+      }, 500);
+    };
+
+    window.applySuggestion = (type) => {
+      if (type === 'error') {
+        // Add error handling nodes
+        const lastNode = nodes[nodes.length - 1];
+        if (lastNode) {
+          createNode('logic-condition', lastNode.x + 220, lastNode.y, {
+            name: 'Error Check',
+            condition: 'error !== null'
+          });
+          createNode('action-notify', lastNode.x + 220, lastNode.y + 150, {
+            name: 'Error Alert',
+            channel: 'email',
+            message: 'Workflow error detected'
+          });
+        }
+      }
+    };
+
+    // Save/Load
+    window.saveWorkflow = () => {
+      const data = { nodes, connections, name: document.getElementById('workflowName').value };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'workflow.json';
+      a.click();
+    };
+
+    window.loadWorkflow = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        canvas.innerHTML = '';
+        nodes = [];
+        connections = [];
+        nextNodeId = 1;
+
+        data.nodes.forEach(n => {
+          const node = createNode(n.type, n.x, n.y, n.config);
+          node.id = n.id;
+          nextNodeId = Math.max(nextNodeId, n.id + 1);
+        });
+
+        connections = data.connections || [];
+        renderConnections();
+
+        if (data.name) document.getElementById('workflowName').value = data.name;
+      };
+      input.click();
+    };
+
+    window.newWorkflow = () => {
+      if (confirm('Clear current workflow?')) {
+        canvas.innerHTML = '';
+        nodes = [];
+        connections = [];
+        nextNodeId = 1;
+        selectedNode = null;
+      }
+    };
+
+    window.updateWorkflowName = (name) => {};
+
+    // Initialize
+    initDemo();
+  </script>
+</body>
+</html>

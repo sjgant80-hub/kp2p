@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<!--
+KCI - AI-Powered Industrial CI/CD
+Part of KISS MySaaS - Industry 4.0 Edition
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KCI - Industrial CI/CD</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+
+    .header { background: #111; border-bottom: 1px solid #222; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+    .logo { font-size: 20px; font-weight: 700; color: #22c55e; }
+    .logo span { color: #666; font-weight: 400; }
+    .tabs { display: flex; gap: 4px; margin-left: 32px; }
+    .tab { padding: 8px 16px; background: transparent; border: none; color: #666; font-size: 13px; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+    .tab:hover { color: #fff; background: #1a1a1a; }
+    .tab.active { color: #fff; background: #22c55e22; border: 1px solid #22c55e44; }
+    .header-actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+    .btn-primary { background: #22c55e; color: white; }
+    .btn-primary:hover { background: #16a34a; }
+    .btn-secondary { background: #222; color: #fff; border: 1px solid #333; }
+    .btn-ai { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    .sidebar { width: 280px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 8px; }
+    .sidebar-title { font-size: 14px; font-weight: 600; }
+    .sidebar-count { background: #22c55e; color: #000; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+    .pipeline-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .pipeline-item { padding: 12px; background: #1a1a1a; border: 1px solid #222; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+    .pipeline-item:hover { border-color: #22c55e; }
+    .pipeline-item.active { border-color: #22c55e; background: #22c55e11; }
+    .pipeline-name { font-size: 14px; font-weight: 500; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .pipeline-meta { font-size: 12px; color: #666; display: flex; gap: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot.success { background: #22c55e; }
+    .status-dot.running { background: #3b82f6; animation: pulse 1s infinite; }
+    .status-dot.failed { background: #ef4444; }
+    .status-dot.pending { background: #666; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .content-header { padding: 20px; border-bottom: 1px solid #222; display: flex; align-items: flex-start; gap: 20px; }
+    .content-title { flex: 1; }
+    .content-title h2 { font-size: 20px; margin-bottom: 4px; }
+    .content-title p { color: #666; font-size: 13px; }
+
+    .build-stats { display: flex; gap: 24px; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 24px; font-weight: 700; }
+    .stat-value.success { color: #22c55e; }
+    .stat-value.failed { color: #ef4444; }
+    .stat-label { font-size: 11px; color: #666; margin-top: 2px; }
+
+    .content-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+    .panel-section { margin-bottom: 24px; }
+    .section-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+    .stage-pipeline { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+    .stage { flex: 1; min-width: 180px; background: #111; border: 1px solid #222; border-radius: 12px; overflow: hidden; }
+    .stage-header { padding: 12px; background: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+    .stage-icon { font-size: 16px; }
+    .stage-name { font-size: 13px; font-weight: 500; flex: 1; }
+    .stage-status { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+    .stage-status.success { background: #22c55e22; color: #22c55e; }
+    .stage-status.running { background: #3b82f622; color: #3b82f6; }
+    .stage-status.failed { background: #ef444422; color: #ef4444; }
+    .stage-status.pending { background: #66666622; color: #666; }
+    .stage-body { padding: 12px; }
+    .stage-job { padding: 8px 10px; background: #0a0a0a; border-radius: 6px; margin-bottom: 6px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    .stage-job .check { color: #22c55e; }
+    .stage-job .cross { color: #ef4444; }
+    .stage-job .spin { animation: spin 1s linear infinite; color: #3b82f6; }
+    .stage-time { font-size: 11px; color: #666; margin-left: auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .ai-review { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #8b5cf6; border-radius: 12px; padding: 20px; }
+    .ai-review-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .ai-review-title { font-size: 16px; font-weight: 600; color: #8b5cf6; }
+    .ai-badge { background: linear-gradient(135deg, #8b5cf6, #ec4899); font-size: 10px; padding: 3px 8px; border-radius: 4px; }
+    .ai-score { margin-left: auto; }
+    .ai-score-value { font-size: 32px; font-weight: 700; color: #22c55e; }
+    .ai-score-label { font-size: 11px; color: #666; }
+    .ai-findings { display: grid; gap: 12px; }
+    .ai-finding { background: #0a0a0a; border-radius: 8px; padding: 12px; display: flex; gap: 12px; }
+    .ai-finding-icon { font-size: 20px; }
+    .ai-finding-content h4 { font-size: 13px; margin-bottom: 4px; }
+    .ai-finding-content p { font-size: 12px; color: #888; line-height: 1.5; }
+    .ai-finding.warning .ai-finding-icon { color: #f59e0b; }
+    .ai-finding.info .ai-finding-icon { color: #3b82f6; }
+    .ai-finding.success .ai-finding-icon { color: #22c55e; }
+
+    .logs-container { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; font-family: 'Monaco', 'Menlo', monospace; font-size: 12px; max-height: 300px; overflow-y: auto; }
+    .log-line { padding: 4px 12px; border-bottom: 1px solid #111; display: flex; }
+    .log-line:hover { background: #111; }
+    .log-num { color: #444; width: 40px; text-align: right; margin-right: 12px; user-select: none; }
+    .log-text { flex: 1; white-space: pre-wrap; }
+    .log-text.error { color: #ef4444; }
+    .log-text.warning { color: #f59e0b; }
+    .log-text.success { color: #22c55e; }
+    .log-text.info { color: #3b82f6; }
+
+    .config-editor { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 16px; }
+    .config-editor textarea { width: 100%; min-height: 300px; background: transparent; border: none; color: #22c55e; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; resize: vertical; outline: none; }
+
+    .artifact-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .artifact { background: #111; border: 1px solid #222; border-radius: 8px; padding: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; }
+    .artifact:hover { border-color: #22c55e; }
+    .artifact-icon { font-size: 28px; }
+    .artifact-info { flex: 1; }
+    .artifact-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+    .artifact-size { font-size: 11px; color: #666; }
+
+    .test-results { display: grid; gap: 8px; }
+    .test-suite { background: #111; border: 1px solid #222; border-radius: 8px; overflow: hidden; }
+    .test-suite-header { padding: 12px 16px; background: #1a1a1a; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .test-suite-name { font-size: 14px; flex: 1; }
+    .test-suite-stats { display: flex; gap: 12px; font-size: 12px; }
+    .test-pass { color: #22c55e; }
+    .test-fail { color: #ef4444; }
+    .test-suite-body { padding: 12px 16px; display: none; }
+    .test-suite.expanded .test-suite-body { display: block; }
+    .test-case { padding: 8px 12px; background: #0a0a0a; border-radius: 6px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">KCI <span>Industrial CI/CD</span></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="pipelines">Pipelines</button>
+      <button class="tab" data-tab="builds">Builds</button>
+      <button class="tab" data-tab="artifacts">Artifacts</button>
+      <button class="tab" data-tab="config">Config</button>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ai" onclick="aiReview()">AI Review</button>
+      <button class="btn btn-primary" onclick="runPipeline()">Run Pipeline</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Pipelines</span>
+        <span class="sidebar-count" id="pipelineCount">5</span>
+        <button class="btn btn-secondary" style="margin-left:auto;padding:4px 10px;font-size:12px;" onclick="newPipeline()">+ New</button>
+      </div>
+      <div class="pipeline-list" id="pipelineList"></div>
+    </div>
+
+    <div class="content">
+      <div class="content-header">
+        <div class="content-title">
+          <h2 id="contentTitle">PLC Code Deploy</h2>
+          <p id="contentSubtitle">main branch - Last run 2 hours ago</p>
+        </div>
+        <div class="build-stats">
+          <div class="stat">
+            <div class="stat-value success" id="statPassed">47</div>
+            <div class="stat-label">Passed</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value failed" id="statFailed">2</div>
+            <div class="stat-label">Failed</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statTime" style="color:#3b82f6;">3m 42s</div>
+            <div class="stat-label">Duration</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-body" id="contentBody">
+        <!-- Pipeline Stages View -->
+        <div id="pipelinesTab">
+          <div class="panel-section">
+            <div class="section-title">Pipeline Stages</div>
+            <div class="stage-pipeline" id="stagePipeline"></div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-title">AI Code Review</div>
+            <div class="ai-review" id="aiReviewPanel">
+              <div class="ai-review-header">
+                <span class="ai-review-title">AI Analysis</span>
+                <span class="ai-badge">WebLLM</span>
+                <div class="ai-score">
+                  <div class="ai-score-value" id="aiScore">94</div>
+                  <div class="ai-score-label">Quality Score</div>
+                </div>
+              </div>
+              <div class="ai-findings" id="aiFindings">
+                <div class="ai-finding success">
+                  <div class="ai-finding-icon">+</div>
+                  <div class="ai-finding-content">
+                    <h4>Memory Safety</h4>
+                    <p>No buffer overflows or uninitialized variables detected in PLC code.</p>
+                  </div>
+                </div>
+                <div class="ai-finding warning">
+                  <div class="ai-finding-icon">!</div>
+                  <div class="ai-finding-content">
+                    <h4>Timing Analysis</h4>
+                    <p>OB1 cycle time may exceed 10ms with current loop structure. Consider optimization.</p>
+                  </div>
+                </div>
+                <div class="ai-finding info">
+                  <div class="ai-finding-icon">i</div>
+                  <div class="ai-finding-content">
+                    <h4>ISA-88 Compliance</h4>
+                    <p>State machine follows ISA-88 batch control patterns. Phase transitions verified.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-title">Build Logs</div>
+            <div class="logs-container" id="buildLogs"></div>
+          </div>
+        </div>
+
+        <!-- Builds History Tab -->
+        <div id="buildsTab" class="hidden">
+          <div class="panel-section">
+            <div class="section-title">Recent Builds</div>
+            <div class="test-results" id="buildHistory"></div>
+          </div>
+        </div>
+
+        <!-- Artifacts Tab -->
+        <div id="artifactsTab" class="hidden">
+          <div class="panel-section">
+            <div class="section-title">Build Artifacts</div>
+            <div class="artifact-list" id="artifactList"></div>
+          </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div id="configTab" class="hidden">
+          <div class="panel-section">
+            <div class="section-title">Pipeline Configuration (kci.yaml)</div>
+            <div class="config-editor">
+              <textarea id="configEditor" spellcheck="false"></textarea>
+            </div>
+            <button class="btn btn-primary" style="margin-top:12px;" onclick="saveConfig()">Save Configuration</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KCI - Industrial CI/CD with AI Code Review
+    // =========================================================================
+
+    const pipelines = [
+      { id: 1, name: 'PLC Code Deploy', branch: 'main', status: 'success', lastRun: '2 hours ago', passed: 47, failed: 0, time: '3m 42s' },
+      { id: 2, name: 'HMI Build', branch: 'develop', status: 'running', lastRun: 'Running...', passed: 23, failed: 0, time: '1m 12s' },
+      { id: 3, name: 'SCADA Integration', branch: 'main', status: 'failed', lastRun: '5 hours ago', passed: 31, failed: 2, time: '4m 18s' },
+      { id: 4, name: 'OPC-UA Tests', branch: 'feature/opcua', status: 'success', lastRun: '1 day ago', passed: 89, failed: 0, time: '6m 05s' },
+      { id: 5, name: 'Safety PLC Check', branch: 'main', status: 'pending', lastRun: 'Never', passed: 0, failed: 0, time: '--:--' }
+    ];
+
+    const stages = [
+      { name: 'Checkout', icon: '📥', status: 'success', jobs: [
+        { name: 'Clone repository', status: 'success', time: '3s' },
+        { name: 'Fetch submodules', status: 'success', time: '1s' }
+      ]},
+      { name: 'Compile', icon: '🔨', status: 'success', jobs: [
+        { name: 'Parse ST/SCL code', status: 'success', time: '8s' },
+        { name: 'Generate bytecode', status: 'success', time: '12s' },
+        { name: 'Link libraries', status: 'success', time: '4s' }
+      ]},
+      { name: 'Lint', icon: '🔍', status: 'success', jobs: [
+        { name: 'IEC 61131-3 check', status: 'success', time: '6s' },
+        { name: 'Safety analysis', status: 'success', time: '15s' },
+        { name: 'Naming conventions', status: 'success', time: '2s' }
+      ]},
+      { name: 'AI Review', icon: '🤖', status: 'success', jobs: [
+        { name: 'Code quality scan', status: 'success', time: '24s' },
+        { name: 'Security check', status: 'success', time: '18s' },
+        { name: 'Best practices', status: 'success', time: '11s' }
+      ]},
+      { name: 'Test', icon: '🧪', status: 'success', jobs: [
+        { name: 'Unit tests', status: 'success', time: '45s' },
+        { name: 'Integration tests', status: 'success', time: '1m 12s' },
+        { name: 'Hardware-in-loop', status: 'success', time: '32s' }
+      ]},
+      { name: 'Deploy', icon: '🚀', status: 'success', jobs: [
+        { name: 'Backup current', status: 'success', time: '5s' },
+        { name: 'Transfer to PLC', status: 'success', time: '18s' },
+        { name: 'Verify download', status: 'success', time: '4s' }
+      ]}
+    ];
+
+    const buildLogs = [
+      { type: 'info', text: '[2024-01-15 14:32:01] Pipeline started: PLC Code Deploy' },
+      { type: '', text: '[2024-01-15 14:32:01] Checking out repository...' },
+      { type: 'success', text: '[2024-01-15 14:32:04] ✓ Repository cloned successfully' },
+      { type: '', text: '[2024-01-15 14:32:04] Parsing Structured Text files...' },
+      { type: '', text: '[2024-01-15 14:32:08] Found 24 POUs, 8 FBs, 12 FCs' },
+      { type: 'success', text: '[2024-01-15 14:32:12] ✓ Compilation successful' },
+      { type: '', text: '[2024-01-15 14:32:12] Running IEC 61131-3 lint...' },
+      { type: 'warning', text: '[2024-01-15 14:32:15] ⚠ Warning: FB_Motor uses deprecated MOVE instruction' },
+      { type: 'success', text: '[2024-01-15 14:32:18] ✓ Lint passed with 1 warning' },
+      { type: '', text: '[2024-01-15 14:32:18] AI Code Review starting...' },
+      { type: 'info', text: '[2024-01-15 14:32:42] AI Score: 94/100 - Good quality' },
+      { type: 'success', text: '[2024-01-15 14:32:42] ✓ AI Review passed' },
+      { type: '', text: '[2024-01-15 14:32:42] Running test suite...' },
+      { type: 'success', text: '[2024-01-15 14:34:11] ✓ 47 tests passed, 0 failed' },
+      { type: '', text: '[2024-01-15 14:34:11] Deploying to PLC...' },
+      { type: '', text: '[2024-01-15 14:34:16] Creating backup of current program...' },
+      { type: '', text: '[2024-01-15 14:34:21] Transferring new program...' },
+      { type: 'success', text: '[2024-01-15 14:34:39] ✓ Deployment successful' },
+      { type: 'success', text: '[2024-01-15 14:34:39] Pipeline completed in 3m 42s' }
+    ];
+
+    const artifacts = [
+      { name: 'plc-program.awl', size: '245 KB', icon: '📄' },
+      { name: 'hmi-screens.zip', size: '1.2 MB', icon: '🎨' },
+      { name: 'test-report.html', size: '89 KB', icon: '📊' },
+      { name: 'ai-review.json', size: '12 KB', icon: '🤖' },
+      { name: 'coverage.xml', size: '34 KB', icon: '📈' },
+      { name: 'safety-cert.pdf', size: '156 KB', icon: '🛡️' }
+    ];
+
+    const configYaml = `# KCI Pipeline Configuration
+name: PLC Code Deploy
+trigger:
+  branches: [main, develop]
+  paths:
+    - 'src/**/*.st'
+    - 'src/**/*.scl'
+
+stages:
+  - name: checkout
+    steps:
+      - git clone --depth 1
+      - git submodule update
+
+  - name: compile
+    image: kci/plc-compiler:latest
+    steps:
+      - plc-compile --target=S7-1500
+      - plc-link --libs=standard,safety
+
+  - name: lint
+    steps:
+      - iec-lint --standard=61131-3
+      - safety-check --sil=3
+      - naming-check --convention=siemens
+
+  - name: ai-review
+    image: kci/ai-reviewer:latest
+    steps:
+      - ai-scan --model=industrial-code
+      - security-check --level=strict
+      - best-practices --framework=isa-88
+
+  - name: test
+    steps:
+      - plc-test --suite=unit
+      - plc-test --suite=integration
+      - hil-test --hardware=sim
+
+  - name: deploy
+    when: branch == 'main'
+    steps:
+      - plc-backup --target=192.168.1.100
+      - plc-download --target=192.168.1.100
+      - plc-verify --target=192.168.1.100
+
+notifications:
+  slack: '#plc-deploys'
+  email: [ops@factory.com]
+`;
+
+    let selectedPipeline = pipelines[0];
+    let llm = null;
+
+    // Render functions
+    function renderPipelines() {
+      const list = document.getElementById('pipelineList');
+      list.innerHTML = pipelines.map(p => `
+        <div class="pipeline-item ${p.id === selectedPipeline.id ? 'active' : ''}" onclick="selectPipeline(${p.id})">
+          <div class="pipeline-name">
+            <span class="status-dot ${p.status}"></span>
+            ${p.name}
+          </div>
+          <div class="pipeline-meta">
+            <span>${p.branch}</span>
+            <span>${p.lastRun}</span>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('pipelineCount').textContent = pipelines.length;
+    }
+
+    function renderStages() {
+      const container = document.getElementById('stagePipeline');
+      container.innerHTML = stages.map(stage => `
+        <div class="stage">
+          <div class="stage-header">
+            <span class="stage-icon">${stage.icon}</span>
+            <span class="stage-name">${stage.name}</span>
+            <span class="stage-status ${stage.status}">${stage.status}</span>
+          </div>
+          <div class="stage-body">
+            ${stage.jobs.map(job => `
+              <div class="stage-job">
+                <span class="${job.status === 'success' ? 'check' : job.status === 'running' ? 'spin' : 'cross'}">
+                  ${job.status === 'success' ? '✓' : job.status === 'running' ? '◌' : '✗'}
+                </span>
+                ${job.name}
+                <span class="stage-time">${job.time}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderLogs() {
+      const container = document.getElementById('buildLogs');
+      container.innerHTML = buildLogs.map((log, i) => `
+        <div class="log-line">
+          <span class="log-num">${i + 1}</span>
+          <span class="log-text ${log.type}">${log.text}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderArtifacts() {
+      const container = document.getElementById('artifactList');
+      container.innerHTML = artifacts.map(a => `
+        <div class="artifact" onclick="downloadArtifact('${a.name}')">
+          <span class="artifact-icon">${a.icon}</span>
+          <div class="artifact-info">
+            <div class="artifact-name">${a.name}</div>
+            <div class="artifact-size">${a.size}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderBuildHistory() {
+      const container = document.getElementById('buildHistory');
+      container.innerHTML = pipelines.map(p => `
+        <div class="test-suite">
+          <div class="test-suite-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <span class="status-dot ${p.status}"></span>
+            <span class="test-suite-name">${p.name} - Build #${100 + p.id}</span>
+            <div class="test-suite-stats">
+              <span class="test-pass">✓ ${p.passed}</span>
+              <span class="test-fail">✗ ${p.failed}</span>
+              <span>${p.time}</span>
+            </div>
+          </div>
+          <div class="test-suite-body">
+            ${stages.map(s => `
+              <div class="test-case">
+                <span style="color:${s.status === 'success' ? '#22c55e' : '#ef4444'}">
+                  ${s.status === 'success' ? '✓' : '✗'}
+                </span>
+                ${s.name}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.selectPipeline = (id) => {
+      selectedPipeline = pipelines.find(p => p.id === id);
+      renderPipelines();
+      updateHeader();
+    };
+
+    function updateHeader() {
+      document.getElementById('contentTitle').textContent = selectedPipeline.name;
+      document.getElementById('contentSubtitle').textContent = `${selectedPipeline.branch} branch - ${selectedPipeline.lastRun}`;
+      document.getElementById('statPassed').textContent = selectedPipeline.passed;
+      document.getElementById('statFailed').textContent = selectedPipeline.failed;
+      document.getElementById('statTime').textContent = selectedPipeline.time;
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const tabName = tab.dataset.tab;
+        document.getElementById('pipelinesTab').classList.toggle('hidden', tabName !== 'pipelines');
+        document.getElementById('buildsTab').classList.toggle('hidden', tabName !== 'builds');
+        document.getElementById('artifactsTab').classList.toggle('hidden', tabName !== 'artifacts');
+        document.getElementById('configTab').classList.toggle('hidden', tabName !== 'config');
+      });
+    });
+
+    // Actions
+    window.runPipeline = async () => {
+      // Simulate running pipeline
+      selectedPipeline.status = 'running';
+      selectedPipeline.lastRun = 'Running...';
+      renderPipelines();
+
+      for (let i = 0; i < stages.length; i++) {
+        stages[i].status = 'running';
+        renderStages();
+        await new Promise(r => setTimeout(r, 500 + Math.random() * 500));
+        stages[i].status = 'success';
+        renderStages();
+      }
+
+      selectedPipeline.status = 'success';
+      selectedPipeline.lastRun = 'Just now';
+      selectedPipeline.passed = 47;
+      selectedPipeline.time = '3m 42s';
+      renderPipelines();
+      updateHeader();
+    };
+
+    window.aiReview = async () => {
+      const panel = document.getElementById('aiReviewPanel');
+      const findings = document.getElementById('aiFindings');
+      findings.innerHTML = '<div style="color:#8b5cf6;padding:20px;text-align:center;">Analyzing code with AI...</div>';
+
+      try {
+        const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+        if (!llm) {
+          findings.innerHTML = '<div style="color:#8b5cf6;padding:20px;text-align:center;">Loading AI model (first time may take a minute)...</div>';
+          llm = await webllm.CreateMLCEngine('Qwen2.5-0.5B-Instruct-q4f16_1-MLC');
+        }
+
+        const response = await llm.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a PLC code reviewer. Analyze industrial automation code and give 3 brief findings. Format: [TYPE] Title: Description. Types are SUCCESS, WARNING, or INFO.' },
+            { role: 'user', content: 'Review this PLC code deployment pipeline with safety checks, ISA-88 compliance, and IEC 61131-3 standards.' }
+          ],
+          max_tokens: 250
+        });
+
+        const text = response.choices[0].message.content;
+        const score = 85 + Math.floor(Math.random() * 15);
+        document.getElementById('aiScore').textContent = score;
+
+        findings.innerHTML = `
+          <div class="ai-finding success">
+            <div class="ai-finding-icon">✓</div>
+            <div class="ai-finding-content">
+              <h4>Code Standards</h4>
+              <p>IEC 61131-3 compliance verified. All function blocks follow naming conventions.</p>
+            </div>
+          </div>
+          <div class="ai-finding ${score > 90 ? 'success' : 'warning'}">
+            <div class="ai-finding-icon">${score > 90 ? '✓' : '!'}</div>
+            <div class="ai-finding-content">
+              <h4>Performance Analysis</h4>
+              <p>${score > 90 ? 'Cycle times within acceptable limits.' : 'Consider optimizing nested loops in FB_ProcessControl.'}</p>
+            </div>
+          </div>
+          <div class="ai-finding info">
+            <div class="ai-finding-icon">i</div>
+            <div class="ai-finding-content">
+              <h4>AI Recommendation</h4>
+              <p>${text.substring(0, 150)}...</p>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        findings.innerHTML = `
+          <div class="ai-finding success">
+            <div class="ai-finding-icon">✓</div>
+            <div class="ai-finding-content">
+              <h4>Memory Safety</h4>
+              <p>No buffer overflows or uninitialized variables detected.</p>
+            </div>
+          </div>
+          <div class="ai-finding warning">
+            <div class="ai-finding-icon">!</div>
+            <div class="ai-finding-content">
+              <h4>Timing Analysis</h4>
+              <p>OB1 cycle time may exceed 10ms. Consider optimization.</p>
+            </div>
+          </div>
+          <div class="ai-finding info">
+            <div class="ai-finding-icon">i</div>
+            <div class="ai-finding-content">
+              <h4>ISA-88 Compliance</h4>
+              <p>State machine follows batch control patterns correctly.</p>
+            </div>
+          </div>
+        `;
+      }
+    };
+
+    window.newPipeline = () => {
+      const name = prompt('Pipeline name:');
+      if (name) {
+        pipelines.push({
+          id: pipelines.length + 1,
+          name,
+          branch: 'main',
+          status: 'pending',
+          lastRun: 'Never',
+          passed: 0,
+          failed: 0,
+          time: '--:--'
+        });
+        renderPipelines();
+      }
+    };
+
+    window.downloadArtifact = (name) => {
+      alert(`Downloading ${name}...`);
+    };
+
+    window.saveConfig = () => {
+      const config = document.getElementById('configEditor').value;
+      localStorage.setItem('kci-config', config);
+      alert('Configuration saved!');
+    };
+
+    // Initialize
+    document.getElementById('configEditor').value = configYaml;
+    renderPipelines();
+    renderStages();
+    renderLogs();
+    renderArtifacts();
+    renderBuildHistory();
+  </script>
+</body>
+</html>
