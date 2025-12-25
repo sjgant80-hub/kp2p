@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elleen - Grammar Guardian</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #2c1810 0%, #4a2c2a 50%, #1a0f0a 100%);
+            min-height: 100vh;
+            color: #f5e6d3;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #8b4513 0%, #654321 100%);
+            border-radius: 20px;
+            margin-bottom: 30px;
+            border: 3px solid #d4a574;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #d4a574, #c49a6c);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            border: 4px solid #f5e6d3;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #f5e6d3;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-style: italic;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #d4a574;
+            font-style: italic;
+        }
+
+        .motto {
+            background: #1a0f0a;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #d4a574;
+            font-style: italic;
+            color: #e8d5c4;
+        }
+
+        .motto::before {
+            content: '"';
+            font-size: 2rem;
+            color: #d4a574;
+            margin-right: 5px;
+        }
+
+        .motto::after {
+            content: '"';
+            font-size: 2rem;
+            color: #d4a574;
+            margin-left: 5px;
+        }
+
+        .status-bar {
+            background: linear-gradient(135deg, #654321, #4a2c2a);
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 2px solid #8b4513;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            animation: none;
+        }
+
+        .status-indicator.loading {
+            background: #f4a460;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-indicator.ready {
+            background: #90EE90;
+        }
+
+        .status-indicator.error {
+            background: #ff6b6b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+        }
+
+        .status-text {
+            flex: 1;
+            font-size: 0.95rem;
+        }
+
+        .input-section {
+            background: linear-gradient(135deg, #3d2317, #2c1810);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 2px solid #654321;
+        }
+
+        .input-section h2 {
+            color: #d4a574;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 20px;
+            border: 2px solid #654321;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-family: 'Georgia', serif;
+            background: #1a0f0a;
+            color: #f5e6d3;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #d4a574;
+            box-shadow: 0 0 15px rgba(212, 165, 116, 0.3);
+        }
+
+        textarea::placeholder {
+            color: #8b7355;
+            font-style: italic;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d4a574, #c49a6c);
+            color: #1a0f0a;
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(212, 165, 116, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #654321;
+            color: #f5e6d3;
+            border: 2px solid #8b4513;
+        }
+
+        .btn-secondary:hover {
+            background: #8b4513;
+        }
+
+        .response-section {
+            background: linear-gradient(135deg, #3d2317, #2c1810);
+            border-radius: 16px;
+            padding: 25px;
+            border: 2px solid #654321;
+            display: none;
+        }
+
+        .response-section.visible {
+            display: block;
+        }
+
+        .response-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #654321;
+        }
+
+        .response-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #d4a574, #c49a6c);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
+        }
+
+        .response-name {
+            font-size: 1.2rem;
+            color: #d4a574;
+            font-weight: bold;
+        }
+
+        .response-mood {
+            font-size: 0.9rem;
+            color: #a08060;
+            font-style: italic;
+        }
+
+        .response-content {
+            line-height: 1.8;
+            font-size: 1.05rem;
+        }
+
+        .correction {
+            background: #2a1a10;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #d4a574;
+        }
+
+        .correction-label {
+            font-size: 0.85rem;
+            color: #d4a574;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .original {
+            color: #ff8a80;
+            text-decoration: line-through;
+            opacity: 0.8;
+        }
+
+        .corrected {
+            color: #90EE90;
+            font-weight: bold;
+        }
+
+        .elleen-comment {
+            margin-top: 15px;
+            padding: 15px;
+            background: #1a0f0a;
+            border-radius: 8px;
+            font-style: italic;
+            color: #e8d5c4;
+            border: 1px solid #654321;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .severity-mild {
+            background: #4a6741;
+            color: #90EE90;
+        }
+
+        .severity-moderate {
+            background: #6b5a2a;
+            color: #ffd700;
+        }
+
+        .severity-severe {
+            background: #6b2a2a;
+            color: #ff8a80;
+        }
+
+        .tips-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #654321;
+        }
+
+        .tips-section h3 {
+            color: #d4a574;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .tip-card {
+            background: #2a1a10;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .tip-icon {
+            font-size: 1.3rem;
+        }
+
+        .tip-text {
+            flex: 1;
+            line-height: 1.5;
+        }
+
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .example-btn {
+            background: #2a1a10;
+            border: 2px solid #654321;
+            color: #d4a574;
+            padding: 15px;
+            text-align: left;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .example-btn:hover {
+            background: #3d2317;
+            border-color: #d4a574;
+        }
+
+        .loading-animation {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 30px;
+            color: #d4a574;
+        }
+
+        .quill {
+            animation: write 1s infinite;
+        }
+
+        @keyframes write {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #8b7355;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .btn-row {
+                flex-direction: column;
+            }
+
+            .examples {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="avatar">📚</div>
+            <h1>Elleen</h1>
+            <p class="subtitle">Your Relentlessly Devoted Grammar Guardian</p>
+            <div class="motto">There is never a vacation from good grammar</div>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span class="status-text" id="statusText">Initializing Elleen's grammatical vigilance...</span>
+        </div>
+
+        <div class="input-section">
+            <h2>📝 Submit Your Text for Review</h2>
+            <textarea
+                id="inputText"
+                placeholder="Enter your text here, dear. Don't be shy—I've seen it all. Every misplaced comma, every dangling modifier, every 'your' that should have been 'you're'. Paste your text and let me guide you toward grammatical excellence..."
+            ></textarea>
+            <div class="btn-row">
+                <button class="btn-primary" id="reviewBtn" disabled>
+                    ✨ Request Elleen's Review
+                </button>
+                <button class="btn-secondary" id="clearBtn">
+                    🗑️ Clear
+                </button>
+            </div>
+
+            <div class="examples">
+                <button class="example-btn" onclick="loadExample(0)">
+                    "Me and him went to the store yesterday and we seen alot of stuff their."
+                </button>
+                <button class="example-btn" onclick="loadExample(1)">
+                    "Your the best person I know, irregardless of what anyone says about you."
+                </button>
+                <button class="example-btn" onclick="loadExample(2)">
+                    "The data shows that less people are using proper grammer then before."
+                </button>
+            </div>
+        </div>
+
+        <div class="response-section" id="responseSection">
+            <div class="response-header">
+                <div class="response-avatar">📚</div>
+                <div>
+                    <div class="response-name">Elleen</div>
+                    <div class="response-mood" id="responseMood">Reviewing with utmost scrutiny...</div>
+                </div>
+            </div>
+            <div class="response-content" id="responseContent">
+                <!-- Response will be inserted here -->
+            </div>
+        </div>
+
+        <footer>
+            <p>Elleen - Because grammar matters. Always. No exceptions. No vacations.</p>
+            <p style="margin-top: 10px;">Powered by WebLLM 🧠</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        const examples = [
+            "Me and him went to the store yesterday and we seen alot of stuff their.",
+            "Your the best person I know, irregardless of what anyone says about you.",
+            "The data shows that less people are using proper grammer then before."
+        ];
+
+        const elleenPersonality = `You are Elleen, a passionate and relentlessly devoted grammar guardian. You firmly believe that "there is never a vacation from good grammar" and you make this clear in every interaction.
+
+Your personality traits:
+- Pushy but caring about grammar - you genuinely want to help people improve
+- You use phrases like "Oh dear," "Honestly," "I simply cannot let this slide," and "This pains me greatly"
+- You're dramatic about grammar mistakes but always educational
+- You pepper in grammar puns and wordplay
+- You remind people that grammar rules apply ALWAYS - weekends, holidays, texts, everywhere
+- You're slightly exasperated but never cruel
+- You celebrate correct grammar with genuine enthusiasm
+- You have a stern but affectionate "grammar teacher" vibe
+- You sometimes reference famous grammar rules and style guides
+
+When reviewing text:
+1. Identify ALL grammar, spelling, and punctuation errors
+2. For each error, explain what's wrong and provide the correction
+3. Rate the severity (mild, moderate, severe)
+4. Include your signature pushy commentary
+5. End with encouragement and a reminder about the importance of constant grammatical vigilance
+6. Always include your motto somewhere: "There is never a vacation from good grammar"`;
+
+        const moods = [
+            "Examining with scholarly dedication...",
+            "Scrutinizing every comma and clause...",
+            "No grammatical error escapes my notice...",
+            "Applying the highest standards...",
+            "Channeling the spirit of Strunk & White..."
+        ];
+
+        let llm = null;
+        let isLoading = false;
+
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const reviewBtn = document.getElementById('reviewBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const inputText = document.getElementById('inputText');
+        const responseSection = document.getElementById('responseSection');
+        const responseContent = document.getElementById('responseContent');
+        const responseMood = document.getElementById('responseMood');
+
+        window.loadExample = function(index) {
+            inputText.value = examples[index];
+            inputText.focus();
+        };
+
+        async function initLLM() {
+            statusIndicator.className = 'status-indicator loading';
+            statusText.textContent = 'Elleen is preparing her red pen... Loading AI model...';
+
+            try {
+                const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+                llm = await webllm.CreateMLCEngine('Qwen2.5-0.5B-Instruct-q4f16_1-MLC', {
+                    initProgressCallback: (progress) => {
+                        const percent = Math.round(progress.progress * 100);
+                        statusText.textContent = `Elleen is sharpening her grammatical skills... ${percent}% (${progress.text})`;
+                    }
+                });
+
+                statusIndicator.className = 'status-indicator ready';
+                statusText.textContent = 'Elleen is ready to review your text. Remember: there is NEVER a vacation from good grammar!';
+                reviewBtn.disabled = false;
+
+            } catch (error) {
+                console.error('LLM init error:', error);
+                statusIndicator.className = 'status-indicator error';
+                statusText.textContent = 'Elleen is using her backup grammar expertise (offline mode). Submit your text!';
+                reviewBtn.disabled = false;
+            }
+        }
+
+        async function reviewGrammar() {
+            const text = inputText.value.trim();
+            if (!text) {
+                alert('Please enter some text for Elleen to review. Even a single sentence deserves grammatical attention!');
+                return;
+            }
+
+            isLoading = true;
+            reviewBtn.disabled = true;
+            responseSection.classList.add('visible');
+            responseMood.textContent = moods[Math.floor(Math.random() * moods.length)];
+
+            responseContent.innerHTML = `
+                <div class="loading-animation">
+                    <span class="quill">🪶</span>
+                    <span>Elleen is meticulously reviewing your text...</span>
+                </div>
+            `;
+
+            try {
+                let response;
+
+                if (llm) {
+                    const result = await llm.chat.completions.create({
+                        messages: [
+                            { role: 'system', content: elleenPersonality },
+                            { role: 'user', content: `Please review the following text for grammar, spelling, and punctuation errors. Be thorough and stay in character as Elleen:\n\n"${text}"` }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 1000
+                    });
+                    response = result.choices[0].message.content;
+                } else {
+                    response = generateOfflineResponse(text);
+                }
+
+                displayResponse(response, text);
+
+            } catch (error) {
+                console.error('Review error:', error);
+                responseContent.innerHTML = `
+                    <div class="elleen-comment">
+                        Oh dear, I seem to have encountered a technical difficulty. But let me assure you—my dedication to grammar never wavers!
+                        Please try again, because remember: <strong>there is never a vacation from good grammar!</strong>
+                    </div>
+                `;
+            }
+
+            isLoading = false;
+            reviewBtn.disabled = false;
+        }
+
+        function generateOfflineResponse(text) {
+            const errors = [];
+
+            // Common error patterns
+            if (text.match(/\b(me and|him and|her and)\b/i)) {
+                errors.push({
+                    issue: "Subject pronoun order",
+                    original: text.match(/\b(me and|him and|her and)\s+\w+/i)?.[0] || "me and...",
+                    corrected: "The other person should come first, and use 'I' as subject: 'He and I' or 'She and I'",
+                    severity: "moderate"
+                });
+            }
+
+            if (text.match(/\byour\b/i) && text.match(/\b(the best|amazing|great|wonderful)\b/i)) {
+                if (!text.match(/\byou're\b/i)) {
+                    errors.push({
+                        issue: "Your vs. You're confusion",
+                        original: "your",
+                        corrected: "you're (you are)",
+                        severity: "severe"
+                    });
+                }
+            }
+
+            if (text.match(/\birregardless\b/i)) {
+                errors.push({
+                    issue: "Non-standard word",
+                    original: "irregardless",
+                    corrected: "regardless",
+                    severity: "moderate"
+                });
+            }
+
+            if (text.match(/\balot\b/i)) {
+                errors.push({
+                    issue: "Spacing error",
+                    original: "alot",
+                    corrected: "a lot (two words)",
+                    severity: "moderate"
+                });
+            }
+
+            if (text.match(/\btheir\b/i) && text.match(/\b(store|place|there)\b/i)) {
+                errors.push({
+                    issue: "There/Their/They're confusion",
+                    original: "their (possessive)",
+                    corrected: "there (location)",
+                    severity: "severe"
+                });
+            }
+
+            if (text.match(/\bseen\b/i) && text.match(/\b(we|I|he|she|they)\s+seen\b/i)) {
+                errors.push({
+                    issue: "Past tense verb error",
+                    original: "seen (without helper verb)",
+                    corrected: "saw (simple past) or 'have seen' (present perfect)",
+                    severity: "moderate"
+                });
+            }
+
+            if (text.match(/\bless\s+\w+s\b/i) || text.match(/\bless people\b/i)) {
+                errors.push({
+                    issue: "Less vs. Fewer",
+                    original: "less (for uncountable)",
+                    corrected: "fewer (for countable nouns like 'people')",
+                    severity: "moderate"
+                });
+            }
+
+            if (text.match(/\bgrammer\b/i)) {
+                errors.push({
+                    issue: "Ironic spelling error",
+                    original: "grammer",
+                    corrected: "grammar",
+                    severity: "severe"
+                });
+            }
+
+            if (text.match(/\bthen\b/i) && text.match(/\b(more|less|better|worse)\s+.*\s+then\b/i)) {
+                errors.push({
+                    issue: "Then vs. Than confusion",
+                    original: "then (time sequence)",
+                    corrected: "than (comparison)",
+                    severity: "moderate"
+                });
+            }
+
+            return formatOfflineResponse(errors, text);
+        }
+
+        function formatOfflineResponse(errors, originalText) {
+            if (errors.length === 0) {
+                return `Oh my! *adjusts reading glasses*\n\nI must say, I'm rather impressed. Your text appears to be grammatically sound! This is a rare and beautiful moment. You've clearly internalized what I always say: "There is never a vacation from good grammar."\n\nHowever, I'll be watching. Always watching. Because good grammar requires eternal vigilance!\n\n✨ Keep up the excellent work, dear. You've made this old grammar guardian proud today.`;
+            }
+
+            let response = `*sighs deeply and uncaps red pen*\n\nOh dear. Oh dear, oh dear. We have some work to do here. Let me be perfectly clear: I say this with love, but honestly, ${errors.length > 3 ? "this text is giving me heart palpitations" : "we can do better than this"}.\n\n`;
+
+            errors.forEach((error, index) => {
+                response += `**Issue ${index + 1}: ${error.issue}**\n`;
+                response += `❌ Problem: "${error.original}"\n`;
+                response += `✅ Correction: ${error.corrected}\n`;
+                response += `Severity: ${error.severity.toUpperCase()}\n\n`;
+            });
+
+            response += `---\n\n*sets down red pen with a flourish*\n\n`;
+            response += `Listen to me carefully: These aren't just "mistakes." They're opportunities for growth! And remember what I always say—**"There is never a vacation from good grammar."** Not on weekends, not on holidays, not in text messages. NEVER.\n\n`;
+            response += `Now, take a deep breath, make these corrections, and come back to me. I believe in you! 📚✨`;
+
+            return response;
+        }
+
+        function displayResponse(response, originalText) {
+            // Convert markdown-style formatting to HTML
+            let formattedResponse = response
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/❌/g, '<span style="color: #ff8a80;">❌</span>')
+                .replace(/✅/g, '<span style="color: #90EE90;">✅</span>')
+                .replace(/✨/g, '✨')
+                .replace(/📚/g, '📚')
+                .replace(/---/g, '<hr style="border-color: #654321; margin: 20px 0;">')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+
+            responseContent.innerHTML = `<p>${formattedResponse}</p>`;
+            responseMood.textContent = "Review complete. Your grammatical education continues.";
+        }
+
+        clearBtn.addEventListener('click', () => {
+            inputText.value = '';
+            responseSection.classList.remove('visible');
+            inputText.focus();
+        });
+
+        reviewBtn.addEventListener('click', reviewGrammar);
+
+        inputText.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                reviewGrammar();
+            }
+        });
+
+        // Initialize
+        initLLM();
+    </script>
+</body>
+</html>
