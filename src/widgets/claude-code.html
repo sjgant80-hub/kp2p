@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <!--
 @file claude-code.html
-@desc Claude Code Widget - Embed Claude Code via K-Frame
+@desc Claude Code Widget - Agentic coding assistant powered by Claude API
 @api  window.ClaudeCode - Claude Code controller
 
-Since claude.ai blocks iframe embedding, this uses:
-- Popup bridge mode for full Claude Code access
-- Message passing for coordination
-- Local workspace sync
+Features:
+- Uses Anthropic Claude API directly
+- Native tool calling (not text-based)
+- Agentic loop with multi-step execution
+- Virtual filesystem with full CRUD
+- API key stored locally (never sent to third parties)
+- Same ContextDB as Konomi Kode for memory
 -->
 <html lang="en">
 <head>
@@ -22,171 +25,168 @@ Since claude.ai blocks iframe embedding, this uses:
     .header{padding:12px 20px;background:linear-gradient(135deg,var(--claude),#ea580c);display:flex;align-items:center;gap:16px}
     .logo{font-size:28px}
     .header h1{font-size:18px;color:#fff}
-    .header p{font-size:12px;color:rgba(255,255,255,.7);margin-left:8px}
-    .status{margin-left:auto;display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,0,0,.2);border-radius:20px;font-size:12px}
-    .status .dot{width:10px;height:10px;border-radius:50%;background:var(--y)}
-    .status .dot.connected{background:var(--g)}
+    .model-badge{padding:6px 12px;background:rgba(0,0,0,.2);border-radius:20px;font-size:11px;color:rgba(255,255,255,.9)}
+    .header-stats{margin-left:auto;display:flex;gap:12px}
+    .header-stats .stat{padding:6px 12px;background:rgba(0,0,0,.2);border-radius:16px;font-size:11px;color:rgba(255,255,255,.8)}
     .header-btns{display:flex;gap:8px}
-    .header-btns button{padding:10px 18px;background:rgba(255,255,255,.2);border:0;border-radius:8px;color:#fff;font-weight:600;cursor:pointer}
-    .header-btns button:hover{background:rgba(255,255,255,.3)}
-    .header-btns .primary{background:#fff;color:var(--claude)}
+    .header-btns button{padding:8px 14px;background:rgba(255,255,255,.15);border:0;border-radius:6px;color:#fff;font-size:11px;cursor:pointer}
+    .header-btns button:hover{background:rgba(255,255,255,.25)}
 
     .main{flex:1;display:flex;overflow:hidden}
 
-    .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px}
-    .welcome .icon{font-size:80px;margin-bottom:24px}
-    .welcome h2{font-size:28px;margin-bottom:12px}
-    .welcome p{color:#64748b;max-width:500px;margin-bottom:32px;line-height:1.7}
-    .welcome .actions{display:flex;gap:16px}
-    .welcome button{padding:16px 32px;border:0;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer}
-    .welcome .primary{background:linear-gradient(135deg,var(--claude),#ea580c);color:#fff}
-    .welcome .secondary{background:var(--b2);color:var(--f);border:1px solid rgba(255,255,255,.1)}
+    /* Setup Screen */
+    .setup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px}
+    .setup.hidden{display:none}
+    .setup-card{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:40px;max-width:500px;width:100%}
+    .setup-card .icon{font-size:60px;text-align:center;margin-bottom:20px}
+    .setup-card h2{text-align:center;margin-bottom:8px}
+    .setup-card .subtitle{text-align:center;color:#64748b;margin-bottom:24px}
+    .setup-card label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+    .setup-card input{width:100%;padding:12px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:14px monospace;margin-bottom:16px}
+    .setup-card input:focus{outline:none;border-color:var(--claude)}
+    .setup-card button{width:100%;padding:14px;background:linear-gradient(135deg,var(--claude),#ea580c);border:0;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+    .setup-card button:hover{opacity:.9}
+    .setup-card .hint{font-size:11px;color:#64748b;margin-top:16px;text-align:center;line-height:1.6}
+    .setup-card .hint a{color:var(--claude)}
 
+    /* Workspace */
     .workspace{flex:1;display:none;overflow:hidden}
     .workspace.active{display:flex}
 
-    .sidebar{width:280px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
-    .sidebar-header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-weight:600;font-size:13px}
-    .sidebar-section{padding:12px;border-bottom:1px solid rgba(255,255,255,.06)}
-    .sidebar-section h4{font-size:11px;color:#64748b;text-transform:uppercase;margin-bottom:10px}
+    .explorer{width:220px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .explorer-header{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;font-weight:600;color:#64748b;display:flex;align-items:center;gap:8px}
+    .explorer-header button{margin-left:auto;width:22px;height:22px;background:rgba(255,255,255,.08);border:0;border-radius:4px;color:#94a3b8;cursor:pointer;font-size:12px}
+    .file-list{flex:1;overflow-y:auto;padding:6px 10px;font-family:'SF Mono',monospace;font-size:11px}
+    .file{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:4px;cursor:pointer;color:#94a3b8}
+    .file:hover{background:rgba(255,255,255,.04);color:var(--f)}
+    .file.active{background:rgba(217,119,6,.15);color:var(--claude)}
 
-    .file-list{display:flex;flex-direction:column;gap:4px}
-    .file-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:12px;color:#94a3b8}
-    .file-item:hover{background:rgba(255,255,255,.04);color:var(--f)}
-    .file-item.active{background:rgba(217,119,6,.15);color:var(--claude)}
-
-    .task-list{display:flex;flex-direction:column;gap:8px}
-    .task{padding:10px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:8px;font-size:12px}
-    .task .status{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-    .task .status .dot{width:8px;height:8px;border-radius:50%}
-    .task .status .dot.pending{background:var(--y)}
-    .task .status .dot.running{background:var(--a);animation:pulse 1s infinite}
-    .task .status .dot.done{background:var(--g)}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
-    .editor-area{flex:1;display:flex;flex-direction:column}
-    .editor-tabs{display:flex;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06)}
-    .tab{padding:10px 16px;font-size:12px;color:#64748b;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:2px solid transparent}
+    .editor-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .tabs{display:flex;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);min-height:34px}
+    .tab{padding:9px 14px;font-size:11px;color:#64748b;cursor:pointer;border-right:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:6px}
     .tab:hover{color:var(--f)}
-    .tab.active{color:var(--claude);border-color:var(--claude)}
-
-    .editor{flex:1;background:var(--b3)}
-    .editor textarea{width:100%;height:100%;padding:20px;background:0;border:0;color:var(--f);font:13px/1.6 'SF Mono',monospace;resize:none}
+    .tab.active{color:var(--claude);background:var(--b3)}
+    .editor{flex:1;display:flex;flex-direction:column;background:var(--b3)}
+    .editor textarea{flex:1;padding:16px;background:0;border:0;color:var(--f);font:13px/1.6 'SF Mono',monospace;resize:none}
     .editor textarea:focus{outline:0}
+    .editor-info{padding:6px 12px;background:var(--b2);border-top:1px solid rgba(255,255,255,.06);font-size:10px;color:#64748b;display:flex;gap:16px}
 
-    .chat-panel{width:380px;background:var(--b2);border-left:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
-    .chat-header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-weight:600;display:flex;align-items:center;gap:10px}
-    .chat-header .badge{font-size:10px;padding:4px 10px;background:var(--claude);border-radius:10px;color:#fff}
+    /* Terminal */
+    .terminal{height:160px;background:#000;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;font-family:'SF Mono',monospace}
+    .terminal-header{padding:6px 12px;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.06);font-size:10px;color:#64748b}
+    .terminal-body{flex:1;padding:10px 12px;overflow-y:auto;font-size:11px}
+    .terminal-body .line{margin-bottom:2px}
+    .terminal-body .cmd{color:var(--a)}
+    .terminal-body .out{color:#94a3b8}
+    .terminal-body .err{color:var(--r)}
+    .terminal-body .success{color:var(--g)}
+    .terminal-body .tool{color:var(--claude)}
 
+    /* Chat Panel */
+    .chat-panel{width:420px;background:var(--b2);border-left:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column}
+    .chat-header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px}
+    .chat-header .model{font-size:10px;padding:4px 10px;background:var(--claude);border-radius:10px;color:#fff;font-weight:500}
     .chat-messages{flex:1;overflow-y:auto;padding:16px}
     .message{margin-bottom:16px}
-    .message.user .bubble{background:var(--claude);color:#fff;margin-left:auto}
-    .message .bubble{max-width:90%;padding:12px 16px;border-radius:12px;font-size:13px;background:var(--b3)}
-    .message.assistant .bubble{border-bottom-left-radius:4px}
-    .message.user .bubble{border-bottom-right-radius:4px}
-    .message .time{font-size:10px;color:#475569;margin-top:6px}
+    .message.user{text-align:right}
+    .message .bubble{display:inline-block;max-width:90%;padding:12px 16px;border-radius:12px;font-size:13px;line-height:1.5;text-align:left}
+    .message.user .bubble{background:var(--claude);color:#fff;border-bottom-right-radius:4px}
+    .message.assistant .bubble{background:var(--b3);border:1px solid rgba(255,255,255,.08);border-bottom-left-radius:4px}
+    .message .tool-use{background:rgba(0,0,0,.3);border:1px solid rgba(217,119,6,.3);border-radius:8px;padding:10px;margin-top:8px;font-family:'SF Mono',monospace;font-size:11px}
+    .message .tool-use .name{color:var(--claude);font-weight:600}
+    .message .tool-use .result{color:var(--g);margin-top:6px}
+    .message .tool-use .error{color:var(--r)}
+    .message code{background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;font-size:12px}
+    .message pre{background:rgba(0,0,0,.4);padding:12px;border-radius:8px;overflow-x:auto;margin-top:8px;font-size:11px}
 
-    .chat-input{padding:16px;border-top:1px solid rgba(255,255,255,.06)}
-    .chat-input textarea{width:100%;padding:12px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--f);font:13px system-ui;resize:none}
+    .typing{padding:0 16px 16px;display:none}
+    .typing.active{display:flex;align-items:center;gap:8px;color:#64748b;font-size:12px}
+    .typing .dots span{display:inline-block;width:6px;height:6px;background:var(--claude);border-radius:50%;margin-right:3px;animation:bounce .6s infinite}
+    .typing .dots span:nth-child(2){animation-delay:.1s}
+    .typing .dots span:nth-child(3){animation-delay:.2s}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+    .chat-input{padding:12px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px}
+    .chat-input textarea{flex:1;padding:10px 14px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--f);font:13px system-ui;resize:none;max-height:120px}
     .chat-input textarea:focus{outline:0;border-color:var(--claude)}
-    .chat-input .hint{font-size:11px;color:#475569;margin-top:8px;text-align:center}
-
-    .popup-modal{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
-    .popup-modal.open{display:flex}
-    .popup-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;max-width:500px;text-align:center}
-    .popup-content .icon{font-size:48px;margin-bottom:16px}
-    .popup-content h3{margin-bottom:12px}
-    .popup-content p{color:#64748b;margin-bottom:24px;line-height:1.6}
-    .popup-content .btn-group{display:flex;gap:12px;justify-content:center}
-    .popup-content button{padding:12px 24px;border:0;border-radius:8px;font-weight:600;cursor:pointer}
-    .popup-content .primary{background:var(--claude);color:#fff}
-    .popup-content .secondary{background:rgba(255,255,255,.08);color:var(--f)}
+    .chat-input button{width:42px;height:42px;background:var(--claude);border:0;border-radius:10px;color:#fff;cursor:pointer;font-size:16px}
+    .chat-input button:disabled{opacity:.5;cursor:not-allowed}
   </style>
 </head>
 <body>
   <div class="header">
     <span class="logo">🤖</span>
     <h1>Claude Code</h1>
-    <p>via K-Frame Bridge</p>
-    <div class="status">
-      <span class="dot" id="statusDot"></span>
-      <span id="statusText">Not Connected</span>
+    <span class="model-badge" id="modelBadge">claude-sonnet-4-20250514</span>
+    <div class="header-stats">
+      <span class="stat" id="tokenStats">Tokens: 0</span>
+      <span class="stat" id="costStats">Cost: $0.00</span>
     </div>
     <div class="header-btns">
-      <button id="syncBtn">🔄 Sync Files</button>
-      <button class="primary" id="launchBtn">🚀 Launch Claude</button>
+      <select id="modelSelect" style="padding:6px 10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;font-size:11px">
+        <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+        <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+      </select>
+      <button id="clearBtn">Clear Chat</button>
+      <button id="settingsBtn">⚙️ API Key</button>
     </div>
   </div>
 
   <div class="main">
-    <div class="welcome" id="welcome">
-      <div class="icon">🤖</div>
-      <h2>Claude Code Widget</h2>
-      <p>
-        Connect to Claude Code (claude.ai) through a popup bridge.
-        Since Claude blocks iframe embedding, we use a popup window
-        with message passing to coordinate between your workspace and Claude.
-      </p>
-      <div class="actions">
-        <button class="primary" id="startBtn">Launch Claude Code</button>
-        <button class="secondary" id="localBtn">Use Local AI (Konomi Kode)</button>
+    <div class="setup" id="setup">
+      <div class="setup-card">
+        <div class="icon">🔑</div>
+        <h2>Enter Your API Key</h2>
+        <p class="subtitle">Your key is stored locally and never sent anywhere except Anthropic's API</p>
+        <label>Anthropic API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
+        <button id="saveKeyBtn">Start Coding with Claude</button>
+        <p class="hint">
+          Get your API key from <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a><br>
+          Or use <a href="konomi-kode.html">Konomi Kode</a> for free local AI
+        </p>
       </div>
     </div>
 
     <div class="workspace" id="workspace">
-      <div class="sidebar">
-        <div class="sidebar-header">📁 Workspace</div>
-        <div class="sidebar-section">
-          <h4>Files</h4>
-          <div class="file-list" id="fileList"></div>
+      <div class="explorer">
+        <div class="explorer-header">
+          📁 Explorer
+          <button id="newFileBtn" title="New File">+</button>
         </div>
-        <div class="sidebar-section">
-          <h4>Tasks</h4>
-          <div class="task-list" id="taskList">
-            <div class="task">
-              <div class="status"><span class="dot pending"></span> Waiting</div>
-              <div>No active tasks</div>
-            </div>
-          </div>
-        </div>
+        <div class="file-list" id="fileList"></div>
       </div>
 
       <div class="editor-area">
-        <div class="editor-tabs" id="tabs"></div>
+        <div class="tabs" id="tabs"></div>
         <div class="editor">
-          <textarea id="editorText" placeholder="Select a file or create one..."></textarea>
+          <textarea id="editorText" placeholder="Select a file or ask Claude to create one..."></textarea>
+          <div class="editor-info">
+            <span id="fileInfo">No file open</span>
+            <span id="cursorInfo">Ln 1, Col 1</span>
+          </div>
+        </div>
+        <div class="terminal">
+          <div class="terminal-header">Terminal</div>
+          <div class="terminal-body" id="termOutput"></div>
         </div>
       </div>
 
       <div class="chat-panel">
         <div class="chat-header">
-          💬 Claude Assistant
-          <span class="badge" id="connectionBadge">Disconnected</span>
+          💬 Claude
+          <span class="model" id="activeModel">Sonnet</span>
         </div>
-        <div class="chat-messages" id="chatMessages">
-          <div class="message assistant">
-            <div class="bubble">
-              👋 Connect to Claude Code to start coding with AI assistance.
-              Click "Launch Claude" to open the popup bridge.
-            </div>
-          </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="typing" id="typing">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <span>Claude is thinking...</span>
         </div>
         <div class="chat-input">
-          <textarea id="chatInput" placeholder="Send a message to Claude..." rows="3"></textarea>
-          <div class="hint">Messages sync with Claude Code popup</div>
+          <textarea id="chatInput" placeholder="Ask Claude to write code, fix bugs, explain files..." rows="2"></textarea>
+          <button id="sendBtn">→</button>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="popup-modal" id="popupModal">
-    <div class="popup-content">
-      <div class="icon">🔗</div>
-      <h3>Popup Bridge Active</h3>
-      <p id="popupStatus">Claude Code is running in a popup window. You can work here while Claude processes your requests.</p>
-      <div class="btn-group">
-        <button class="primary" id="focusPopupBtn">Focus Popup</button>
-        <button class="secondary" id="closePopupBtn">Close Bridge</button>
       </div>
     </div>
   </div>
@@ -195,208 +195,475 @@ Since claude.ai blocks iframe embedding, this uses:
     const $ = id => document.getElementById(id);
     const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
+    // Tool definitions for Claude
+    const TOOLS = [
+      {
+        name: 'read_file',
+        description: 'Read the contents of a file from the workspace',
+        input_schema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path to read' }
+          },
+          required: ['path']
+        }
+      },
+      {
+        name: 'write_file',
+        description: 'Write content to a file (creates or overwrites)',
+        input_schema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path to write' },
+            content: { type: 'string', description: 'Content to write' }
+          },
+          required: ['path', 'content']
+        }
+      },
+      {
+        name: 'list_files',
+        description: 'List all files in the workspace',
+        input_schema: {
+          type: 'object',
+          properties: {},
+          required: []
+        }
+      },
+      {
+        name: 'delete_file',
+        description: 'Delete a file from the workspace',
+        input_schema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path to delete' }
+          },
+          required: ['path']
+        }
+      },
+      {
+        name: 'search_files',
+        description: 'Search for text across all files',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Text to search for' }
+          },
+          required: ['query']
+        }
+      },
+      {
+        name: 'run_command',
+        description: 'Run a shell command (simulated environment)',
+        input_schema: {
+          type: 'object',
+          properties: {
+            command: { type: 'string', description: 'Command to run' }
+          },
+          required: ['command']
+        }
+      }
+    ];
+
+    // Virtual Filesystem
+    class VFS {
+      constructor() {
+        this.files = new Map();
+        this.load();
+      }
+      load() {
+        const saved = localStorage.getItem('claude-code-fs');
+        if (saved) this.files = new Map(Object.entries(JSON.parse(saved)));
+      }
+      save() {
+        localStorage.setItem('claude-code-fs', JSON.stringify(Object.fromEntries(this.files)));
+      }
+      write(path, content) {
+        this.files.set(path, content);
+        this.save();
+        return `Wrote ${content.length} bytes to ${path}`;
+      }
+      read(path) {
+        return this.files.get(path);
+      }
+      list() {
+        return Array.from(this.files.keys());
+      }
+      delete(path) {
+        this.files.delete(path);
+        this.save();
+        return `Deleted ${path}`;
+      }
+    }
+
     class ClaudeCode {
       constructor() {
-        this.popup = null;
-        this.files = new Map();
-        this.activeFile = null;
+        this.apiKey = localStorage.getItem('claude-api-key') || '';
+        this.model = localStorage.getItem('claude-model') || 'claude-sonnet-4-20250514';
+        this.fs = new VFS();
         this.messages = [];
-        this.connected = false;
-        this.load();
+        this.activeFile = null;
+        this.openFiles = [];
+        this.isProcessing = false;
+        this.totalTokens = 0;
+        this.totalCost = 0;
         this.init();
       }
 
-      load() {
-        const saved = localStorage.getItem('claude-code-files');
-        if (saved) {
-          this.files = new Map(Object.entries(JSON.parse(saved)));
-        } else {
-          // Demo files
-          this.files.set('index.js', `// My Project
-console.log('Hello from Claude Code!');
-
-function main() {
-  // TODO: Add your code here
-}
-
-main();`);
-          this.files.set('README.md', `# My Project
-
-Built with Claude Code assistance.`);
+      init() {
+        // Demo files
+        if (this.fs.files.size === 0) {
+          this.fs.write('index.html', `<!DOCTYPE html>
+<html>
+<head>
+  <title>My App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Hello World</h1>
+  <script src="app.js"><\/script>
+</body>
+</html>`);
+          this.fs.write('style.css', `body {
+  font-family: system-ui;
+  background: #1a1a2e;
+  color: #eee;
+  padding: 40px;
+}`);
+          this.fs.write('app.js', `console.log('Hello!');`);
         }
-      }
 
-      save() {
-        localStorage.setItem('claude-code-files', JSON.stringify(Object.fromEntries(this.files)));
-      }
-
-      setStatus(text, connected = false) {
-        $('statusText').textContent = text;
-        $('statusDot').className = 'dot' + (connected ? ' connected' : '');
-        $('connectionBadge').textContent = connected ? 'Connected' : 'Disconnected';
-        $('connectionBadge').style.background = connected ? 'var(--g)' : 'var(--y)';
-        this.connected = connected;
-      }
-
-      launch() {
-        // Open Claude Code in popup
-        const url = 'https://claude.ai/code';
-        this.popup = window.open(url, 'claude_code', 'width=1200,height=800,menubar=no,toolbar=no');
-
-        if (this.popup) {
-          this.setStatus('Connecting...', false);
-          $('welcome').style.display = 'none';
-          $('workspace').classList.add('active');
-          $('popupModal').classList.add('open');
-
-          // Check popup status
-          const checkInterval = setInterval(() => {
-            if (this.popup.closed) {
-              clearInterval(checkInterval);
-              this.setStatus('Disconnected', false);
-              $('popupModal').classList.remove('open');
-              this.addMessage('system', 'Claude Code popup was closed.');
-            }
-          }, 1000);
-
-          // Simulate connection (real bridge would use postMessage)
-          setTimeout(() => {
-            this.setStatus('Connected', true);
-            $('popupStatus').textContent = 'Claude Code is ready. Messages will sync between windows.';
-            this.addMessage('assistant', 'Connected to Claude Code! How can I help you today?');
-          }, 2000);
-        } else {
-          alert('Popup blocked! Please allow popups for this site.');
+        // Check API key
+        if (this.apiKey) {
+          this.showWorkspace();
         }
 
         this.renderFiles();
+        this.setupEventListeners();
+        this.updateModelDisplay();
       }
 
-      openFile(name) {
-        this.activeFile = name;
-        $('editorText').value = this.files.get(name) || '';
+      setupEventListeners() {
+        $('saveKeyBtn').onclick = () => {
+          const key = $('apiKeyInput').value.trim();
+          if (key) {
+            this.apiKey = key;
+            localStorage.setItem('claude-api-key', key);
+            this.showWorkspace();
+            this.addMessage('assistant', 'API key saved! How can I help you today?');
+          }
+        };
+
+        $('settingsBtn').onclick = () => {
+          $('setup').classList.remove('hidden');
+          $('workspace').classList.remove('active');
+          $('apiKeyInput').value = this.apiKey;
+        };
+
+        $('modelSelect').onchange = (e) => {
+          this.model = e.target.value;
+          localStorage.setItem('claude-model', this.model);
+          this.updateModelDisplay();
+        };
+
+        $('sendBtn').onclick = () => this.sendMessage();
+        $('chatInput').onkeydown = e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.sendMessage();
+          }
+        };
+
+        $('clearBtn').onclick = () => {
+          this.messages = [];
+          $('chatMessages').innerHTML = '';
+          this.addMessage('assistant', 'Chat cleared. How can I help you?');
+        };
+
+        $('fileList').onclick = e => {
+          const file = e.target.closest('.file');
+          if (file) this.openFile(file.dataset.path);
+        };
+
+        $('tabs').onclick = e => {
+          const tab = e.target.closest('.tab');
+          if (tab) this.openFile(tab.dataset.path);
+        };
+
+        $('editorText').oninput = () => this.saveCurrentFile();
+        $('editorText').onkeyup = () => this.updateCursorInfo();
+
+        $('newFileBtn').onclick = () => {
+          const name = prompt('File name:');
+          if (name) {
+            this.fs.write(name, '');
+            this.renderFiles();
+            this.openFile(name);
+          }
+        };
+
+        // Set initial model
+        $('modelSelect').value = this.model;
+      }
+
+      showWorkspace() {
+        $('setup').classList.add('hidden');
+        $('workspace').classList.add('active');
+      }
+
+      updateModelDisplay() {
+        const name = this.model.includes('haiku') ? 'Haiku' :
+                     this.model.includes('sonnet') ? 'Sonnet' : 'Claude';
+        $('modelBadge').textContent = this.model;
+        $('activeModel').textContent = name;
+      }
+
+      executeTool(name, input) {
+        switch (name) {
+          case 'read_file': {
+            const content = this.fs.read(input.path);
+            return content !== undefined ? content : `Error: File ${input.path} not found`;
+          }
+          case 'write_file': {
+            const result = this.fs.write(input.path, input.content);
+            this.renderFiles();
+            if (this.activeFile === input.path) {
+              $('editorText').value = input.content;
+            }
+            return result;
+          }
+          case 'list_files': {
+            const files = this.fs.list();
+            return files.length ? files.join('\n') : 'No files in workspace';
+          }
+          case 'delete_file': {
+            return this.fs.delete(input.path);
+          }
+          case 'search_files': {
+            const results = [];
+            for (const [path, content] of this.fs.files) {
+              if (content.includes(input.query)) {
+                const lines = content.split('\n');
+                const matches = lines.filter(l => l.includes(input.query));
+                results.push(`${path}: ${matches.length} match(es)`);
+              }
+            }
+            return results.length ? results.join('\n') : 'No matches found';
+          }
+          case 'run_command': {
+            const cmd = input.command.trim();
+            if (cmd.startsWith('echo ')) return cmd.slice(5);
+            if (cmd === 'pwd') return '/workspace';
+            if (cmd === 'ls') return this.fs.list().join('\n') || '(empty)';
+            if (cmd.startsWith('cat ')) {
+              const path = cmd.slice(4).trim();
+              return this.fs.read(path) || `cat: ${path}: No such file`;
+            }
+            return `Simulated: ${cmd}`;
+          }
+          default:
+            return `Unknown tool: ${name}`;
+        }
+      }
+
+      async callClaudeAPI(messages) {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: this.model,
+            max_tokens: 4096,
+            tools: TOOLS,
+            messages: messages
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || `API error: ${response.status}`);
+        }
+
+        return response.json();
+      }
+
+      async sendMessage() {
+        const input = $('chatInput').value.trim();
+        if (!input || this.isProcessing || !this.apiKey) return;
+
+        $('chatInput').value = '';
+        this.isProcessing = true;
+        $('sendBtn').disabled = true;
+        $('typing').classList.add('active');
+
+        // Add user message
+        this.messages.push({ role: 'user', content: input });
+        this.addChatMessage('user', input);
+
+        try {
+          // Agentic loop
+          let iterations = 0;
+          const maxIterations = 10;
+
+          while (iterations < maxIterations) {
+            iterations++;
+
+            const response = await this.callClaudeAPI(this.messages);
+
+            // Track usage
+            if (response.usage) {
+              this.totalTokens += (response.usage.input_tokens || 0) + (response.usage.output_tokens || 0);
+              // Approximate cost (Sonnet pricing)
+              const inputCost = (response.usage.input_tokens || 0) * 0.003 / 1000;
+              const outputCost = (response.usage.output_tokens || 0) * 0.015 / 1000;
+              this.totalCost += inputCost + outputCost;
+              this.updateStats();
+            }
+
+            // Process response content
+            const assistantContent = response.content;
+            this.messages.push({ role: 'assistant', content: assistantContent });
+
+            // Check for tool use
+            const toolUses = assistantContent.filter(b => b.type === 'tool_use');
+
+            if (toolUses.length > 0) {
+              // Execute tools and collect results
+              const toolResults = [];
+
+              for (const toolUse of toolUses) {
+                this.log(`Tool: ${toolUse.name}`, 'tool');
+                const result = this.executeTool(toolUse.name, toolUse.input);
+                this.log(result.slice(0, 100), 'out');
+
+                toolResults.push({
+                  type: 'tool_result',
+                  tool_use_id: toolUse.id,
+                  content: result
+                });
+              }
+
+              // Get text content if any
+              const textBlocks = assistantContent.filter(b => b.type === 'text');
+              const text = textBlocks.map(b => b.text).join('\n');
+
+              // Show message with tool calls
+              this.addChatMessage('assistant', text || 'Using tools...', toolUses.map((tu, i) => ({
+                name: tu.name,
+                input: tu.input,
+                result: toolResults[i].content
+              })));
+
+              // Add tool results to conversation
+              this.messages.push({ role: 'user', content: toolResults });
+
+              // Continue if stop_reason is tool_use
+              if (response.stop_reason === 'tool_use') {
+                continue;
+              }
+            }
+
+            // No tool use or end_turn - show final response
+            const textBlocks = assistantContent.filter(b => b.type === 'text');
+            const finalText = textBlocks.map(b => b.text).join('\n');
+            if (finalText && toolUses.length === 0) {
+              this.addChatMessage('assistant', finalText);
+            }
+            break;
+          }
+        } catch (e) {
+          this.log('Error: ' + e.message, 'err');
+          this.addChatMessage('assistant', 'Error: ' + e.message);
+        }
+
+        this.isProcessing = false;
+        $('sendBtn').disabled = false;
+        $('typing').classList.remove('active');
+      }
+
+      updateStats() {
+        $('tokenStats').textContent = `Tokens: ${this.totalTokens.toLocaleString()}`;
+        $('costStats').textContent = `Cost: $${this.totalCost.toFixed(4)}`;
+      }
+
+      renderFiles() {
+        const files = this.fs.list();
+        $('fileList').innerHTML = files.map(f => {
+          const ext = f.split('.').pop();
+          const icons = { html: '🌐', css: '🎨', js: '📜', json: '📋', md: '📝', py: '🐍', ts: '💠' };
+          const icon = icons[ext] || '📄';
+          const active = f === this.activeFile ? 'active' : '';
+          return `<div class="file ${active}" data-path="${esc(f)}"><span>${icon}</span>${esc(f)}</div>`;
+        }).join('') || '<div style="padding:12px;color:#64748b">No files</div>';
+      }
+
+      renderTabs() {
+        $('tabs').innerHTML = this.openFiles.map(f => {
+          const active = f === this.activeFile ? 'active' : '';
+          return `<div class="tab ${active}" data-path="${esc(f)}">${esc(f)}</div>`;
+        }).join('');
+      }
+
+      openFile(path) {
+        if (!this.openFiles.includes(path)) this.openFiles.push(path);
+        this.activeFile = path;
+        $('editorText').value = this.fs.read(path) || '';
+        $('fileInfo').textContent = path;
         this.renderFiles();
         this.renderTabs();
       }
 
-      saveFile() {
+      saveCurrentFile() {
         if (this.activeFile) {
-          this.files.set(this.activeFile, $('editorText').value);
-          this.save();
+          this.fs.write(this.activeFile, $('editorText').value);
         }
       }
 
-      renderFiles() {
-        const files = Array.from(this.files.keys());
-        $('fileList').innerHTML = files.map(f => {
-          const icon = f.endsWith('.js') ? '📜' : f.endsWith('.md') ? '📝' : '📄';
-          const active = f === this.activeFile ? 'active' : '';
-          return `<div class="file-item ${active}" data-file="${esc(f)}">${icon} ${esc(f)}</div>`;
-        }).join('');
+      updateCursorInfo() {
+        const ta = $('editorText');
+        const lines = ta.value.substr(0, ta.selectionStart).split('\n');
+        $('cursorInfo').textContent = `Ln ${lines.length}, Col ${lines[lines.length-1].length + 1}`;
       }
 
-      renderTabs() {
-        if (!this.activeFile) {
-          $('tabs').innerHTML = '';
-          return;
-        }
-        $('tabs').innerHTML = `<div class="tab active">${esc(this.activeFile)}</div>`;
+      log(msg, type = 'out') {
+        const div = document.createElement('div');
+        div.className = 'line ' + type;
+        div.textContent = msg;
+        $('termOutput').appendChild(div);
+        $('termOutput').scrollTop = $('termOutput').scrollHeight;
       }
 
-      addMessage(role, content) {
-        this.messages.push({ role, content, time: new Date().toLocaleTimeString() });
-        this.renderMessages();
-      }
+      addChatMessage(role, content, toolCalls = []) {
+        const div = document.createElement('div');
+        div.className = `message ${role}`;
 
-      renderMessages() {
-        $('chatMessages').innerHTML = this.messages.map(m => `
-          <div class="message ${m.role}">
-            <div class="bubble">${esc(m.content)}</div>
-            <div class="time">${m.time}</div>
-          </div>
-        `).join('');
+        let html = `<div class="bubble">${this.formatMessage(content)}</div>`;
+
+        toolCalls.forEach(tc => {
+          html += `<div class="tool-use">
+            <div class="name">🔧 ${esc(tc.name)}</div>
+            <div style="color:#64748b;font-size:10px;margin-top:4px">${esc(JSON.stringify(tc.input).slice(0, 100))}...</div>
+            <div class="${tc.result?.startsWith('Error') ? 'error' : 'result'}">${esc((tc.result || '').slice(0, 200))}</div>
+          </div>`;
+        });
+
+        div.innerHTML = html;
+        $('chatMessages').appendChild(div);
         $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
       }
 
-      sendMessage(text) {
-        if (!text.trim()) return;
-
-        this.addMessage('user', text);
-
-        // In a real implementation, this would use postMessage to the popup
-        if (this.popup && !this.popup.closed) {
-          // Simulate sending to Claude
-          setTimeout(() => {
-            this.addMessage('assistant', `I received your message: "${text.slice(0, 50)}..."\n\nNote: Full Claude integration requires the popup bridge to be connected. This is a demo response.`);
-          }, 1000);
-        } else {
-          this.addMessage('assistant', 'Please launch Claude Code to send messages.');
-        }
+      formatMessage(content) {
+        return esc(content)
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre>$2</pre>')
+          .replace(/\n/g, '<br>');
       }
 
-      syncFiles() {
-        if (this.popup && !this.popup.closed) {
-          // Simulate file sync
-          this.addMessage('system', `Syncing ${this.files.size} files with Claude Code...`);
-          setTimeout(() => {
-            this.addMessage('system', 'Files synced successfully!');
-          }, 500);
-        }
-      }
-
-      init() {
-        // Launch buttons
-        $('startBtn').onclick = () => this.launch();
-        $('launchBtn').onclick = () => this.launch();
-
-        // Local AI redirect
-        $('localBtn').onclick = () => {
-          window.location.href = 'konomi-kode.html';
-        };
-
-        // Popup controls
-        $('focusPopupBtn').onclick = () => {
-          if (this.popup && !this.popup.closed) {
-            this.popup.focus();
-          }
-        };
-
-        $('closePopupBtn').onclick = () => {
-          if (this.popup) {
-            this.popup.close();
-          }
-          $('popupModal').classList.remove('open');
-        };
-
-        // File list
-        $('fileList').onclick = e => {
-          const item = e.target.closest('.file-item');
-          if (item) this.openFile(item.dataset.file);
-        };
-
-        // Editor auto-save
-        $('editorText').onblur = () => this.saveFile();
-        $('editorText').onkeydown = e => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            this.saveFile();
-          }
-        };
-
-        // Sync button
-        $('syncBtn').onclick = () => this.syncFiles();
-
-        // Chat input
-        $('chatInput').onkeydown = e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            this.sendMessage($('chatInput').value);
-            $('chatInput').value = '';
-          }
-        };
-
-        // Initial render
-        this.renderFiles();
+      addMessage(role, content) {
+        this.addChatMessage(role, content);
       }
     }
 
