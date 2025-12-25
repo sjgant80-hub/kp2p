@@ -6,7 +6,6 @@
     <title>K-Stone Circuits - Koxels</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script type="module" src="https://esm.run/@anthropic-ai/claude-lite"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -349,9 +348,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { createWebLLMEngine } from 'https://esm.run/@anthropic-ai/claude-lite';
-
+    <script>
         // K-Stone component definitions
         const COMPONENTS = [
             { id: 'wire', name: 'K-Wire', color: 0xf59e0b, desc: 'Conducts power from sources to components. Place in lines to create circuits.' },
@@ -467,12 +464,12 @@
             statusText.textContent = 'Loading AI model...';
 
             try {
-                engine = await createWebLLMEngine({
-                    model: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
-                    onProgress: (progress) => {
-                        if (progress.text) {
-                            statusText.textContent = progress.text;
-                        }
+                // Dynamically import WebLLM
+                const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+
+                engine = await webllm.CreateMLCEngine('Qwen2.5-1.5B-Instruct-q4f16_1-MLC', {
+                    initProgressCallback: (progress) => {
+                        statusText.textContent = progress.text || 'Loading...';
                     }
                 });
 
