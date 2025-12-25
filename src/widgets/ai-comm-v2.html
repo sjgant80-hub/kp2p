@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI FreeComm v2 - Next-Gen Communication</title>
+  <meta name="widget-id" content="ai-freecomm-v2">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --s1: #12121a; --s2: #1a1a2e; --border: #252535;
+      --text: #e0e0e0; --muted: #666; --accent: #00d4aa;
+      --purple: #9b59b6; --blue: #3498db; --orange: #e67e22;
+      --green: #2ecc71; --red: #e74c3c; --yellow: #f1c40f; --pink: #e91e63;
+    }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .app { display: grid; grid-template-columns: 280px 1fr 320px; grid-template-rows: auto 1fr; height: 100vh; }
+    @media (max-width: 1100px) { .app { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; } }
+
+    /* Header */
+    .header { grid-column: 1 / -1; background: var(--s1); border-bottom: 1px solid var(--border); padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1rem; }
+    .logo { font-size: 1.25rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .mode-tabs { display: flex; gap: 0.25rem; margin-left: 1rem; }
+    .mode-tab { padding: 0.5rem 1rem; background: transparent; border: none; color: var(--muted); cursor: pointer; border-radius: 0.5rem; font-size: 0.8rem; transition: all 0.2s; }
+    .mode-tab.active { background: var(--s2); color: var(--accent); }
+    .mode-tab:hover { color: var(--text); }
+    .header-status { margin-left: auto; display: flex; align-items: center; gap: 1rem; font-size: 0.75rem; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Left Panel */
+    .left-panel { background: var(--s1); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+    .panel-section { padding: 1rem; border-bottom: 1px solid var(--border); }
+    .panel-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* Mesh Visualization */
+    .mesh-viz { height: 180px; background: var(--bg); border-radius: 0.5rem; position: relative; overflow: hidden; }
+    .mesh-canvas { width: 100%; height: 100%; }
+    .mesh-stats { position: absolute; bottom: 0.5rem; left: 0.5rem; right: 0.5rem; display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--muted); }
+
+    /* Transport Cards */
+    .transport-card { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--bg); border-radius: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s; }
+    .transport-card:hover { background: var(--s2); }
+    .transport-card.active { border: 1px solid var(--accent); }
+    .transport-icon { width: 28px; height: 28px; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+    .transport-info { flex: 1; min-width: 0; }
+    .transport-name { font-size: 0.75rem; font-weight: 600; }
+    .transport-meta { font-size: 0.6rem; color: var(--muted); display: flex; gap: 0.5rem; }
+    .transport-toggle { width: 32px; height: 18px; background: var(--border); border-radius: 9px; position: relative; cursor: pointer; }
+    .transport-toggle.on { background: var(--accent); }
+    .transport-toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: 0.2s; }
+    .transport-toggle.on::after { left: 16px; }
+
+    /* AI Brain Section */
+    .ai-brain { background: linear-gradient(135deg, var(--s2), #1a1030); border-radius: 0.5rem; padding: 0.75rem; }
+    .ai-brain-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .ai-brain-icon { font-size: 1.25rem; }
+    .ai-brain-status { flex: 1; }
+    .ai-brain-model { font-size: 0.75rem; font-weight: 600; }
+    .ai-brain-state { font-size: 0.6rem; color: var(--purple); }
+    .ai-features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem; }
+    .ai-feat { padding: 0.35rem; background: var(--bg); border-radius: 0.25rem; text-align: center; font-size: 0.6rem; cursor: pointer; transition: all 0.2s; }
+    .ai-feat:hover { background: var(--purple); color: white; }
+    .ai-feat.active { background: var(--purple); color: white; }
+
+    /* Center - Chat Area */
+    .chat-area { display: flex; flex-direction: column; background: var(--bg); }
+
+    /* Conversation Header */
+    .conv-header { padding: 0.75rem 1rem; background: var(--s1); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.75rem; }
+    .conv-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--purple)); display: flex; align-items: center; justify-content: center; font-weight: 600; }
+    .conv-info { flex: 1; }
+    .conv-name { font-weight: 600; font-size: 0.9rem; }
+    .conv-status { font-size: 0.7rem; color: var(--muted); display: flex; align-items: center; gap: 0.5rem; }
+    .conv-status .typing { color: var(--accent); }
+    .conv-actions { display: flex; gap: 0.5rem; }
+    .conv-action { width: 36px; height: 36px; border-radius: 50%; background: var(--s2); border: none; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+    .conv-action:hover { background: var(--accent); color: black; }
+    .conv-action.emergency { background: var(--red); }
+
+    /* Messages */
+    .messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .msg { max-width: 75%; display: flex; flex-direction: column; }
+    .msg.sent { align-self: flex-end; }
+    .msg.received { align-self: flex-start; }
+    .msg-bubble { padding: 0.6rem 0.9rem; border-radius: 1rem; position: relative; }
+    .msg.sent .msg-bubble { background: var(--accent); color: black; border-bottom-right-radius: 0.25rem; }
+    .msg.received .msg-bubble { background: var(--s2); border-bottom-left-radius: 0.25rem; }
+    .msg.ai-enhanced .msg-bubble { border: 1px dashed var(--purple); }
+    .msg-text { font-size: 0.875rem; line-height: 1.4; }
+    .msg-meta { font-size: 0.6rem; margin-top: 0.25rem; opacity: 0.7; display: flex; gap: 0.5rem; padding: 0 0.25rem; }
+    .msg.sent .msg-meta { justify-content: flex-end; }
+    .msg-transport { padding: 0.1rem 0.3rem; background: rgba(0,0,0,0.15); border-radius: 0.2rem; }
+    .msg-sentiment { display: inline-flex; align-items: center; gap: 0.2rem; }
+
+    /* Voice Message */
+    .voice-msg { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; }
+    .voice-wave { flex: 1; height: 24px; background: rgba(0,0,0,0.1); border-radius: 0.25rem; display: flex; align-items: center; justify-content: center; gap: 1px; }
+    .voice-bar { width: 2px; background: currentColor; border-radius: 1px; animation: wave 0.5s ease-in-out infinite; }
+    @keyframes wave { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+    .voice-duration { font-size: 0.7rem; opacity: 0.7; }
+
+    /* AI Summary Card */
+    .ai-summary { background: linear-gradient(135deg, var(--s2), #201030); border: 1px solid var(--purple); border-radius: 0.75rem; padding: 0.75rem; margin: 0.5rem 0; }
+    .ai-summary-header { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--purple); margin-bottom: 0.5rem; }
+    .ai-summary-text { font-size: 0.8rem; line-height: 1.5; }
+
+    /* Input Area */
+    .input-area { padding: 0.75rem 1rem; background: var(--s1); border-top: 1px solid var(--border); }
+    .ai-suggestions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; }
+    .ai-suggestion { padding: 0.35rem 0.75rem; background: var(--s2); border: 1px solid var(--border); border-radius: 1rem; font-size: 0.7rem; white-space: nowrap; cursor: pointer; transition: all 0.2s; }
+    .ai-suggestion:hover { border-color: var(--purple); color: var(--purple); }
+    .input-row { display: flex; gap: 0.5rem; align-items: flex-end; }
+    .input-wrapper { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 0.75rem; display: flex; align-items: flex-end; padding: 0.5rem; }
+    .input-wrapper:focus-within { border-color: var(--accent); }
+    .chat-input { flex: 1; background: transparent; border: none; color: var(--text); font-size: 0.875rem; resize: none; max-height: 100px; outline: none; }
+    .input-actions { display: flex; gap: 0.25rem; }
+    .input-action { width: 32px; height: 32px; border-radius: 50%; background: transparent; border: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .input-action:hover { color: var(--text); background: var(--s2); }
+    .input-action.voice-active { background: var(--red); color: white; animation: pulse 1s infinite; }
+    .send-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); border: none; color: black; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .send-btn:hover { transform: scale(1.05); }
+
+    /* Right Panel */
+    .right-panel { background: var(--s1); border-left: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+
+    /* Intelligence Panel */
+    .intel-card { background: var(--bg); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.5rem; }
+    .intel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+    .intel-title { font-size: 0.75rem; font-weight: 600; }
+    .intel-badge { font-size: 0.6rem; padding: 0.15rem 0.4rem; background: var(--accent); color: black; border-radius: 0.25rem; }
+
+    /* Sentiment Meter */
+    .sentiment-meter { display: flex; gap: 0.25rem; align-items: center; }
+    .sentiment-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .sentiment-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .sentiment-positive .sentiment-fill { background: var(--green); }
+    .sentiment-neutral .sentiment-fill { background: var(--yellow); }
+    .sentiment-negative .sentiment-fill { background: var(--red); }
+    .sentiment-emoji { font-size: 1rem; }
+
+    /* Network Health */
+    .health-ring { width: 80px; height: 80px; margin: 0 auto; position: relative; }
+    .health-ring svg { transform: rotate(-90deg); }
+    .health-ring circle { fill: none; stroke-width: 8; }
+    .health-ring .bg { stroke: var(--border); }
+    .health-ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 0.5s; }
+    .health-score { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.25rem; font-weight: 700; }
+
+    /* Queued Messages */
+    .queue-list { display: flex; flex-direction: column; gap: 0.25rem; }
+    .queue-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--s2); border-radius: 0.375rem; font-size: 0.7rem; }
+    .queue-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; }
+    .queue-info { flex: 1; min-width: 0; }
+    .queue-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .queue-meta { font-size: 0.6rem; color: var(--muted); }
+    .queue-retry { font-size: 0.6rem; color: var(--yellow); }
+
+    /* Contact Intelligence */
+    .contact-intel { display: flex; flex-direction: column; gap: 0.5rem; }
+    .contact-stat { display: flex; justify-content: space-between; font-size: 0.7rem; }
+    .contact-stat-label { color: var(--muted); }
+    .contact-stat-value { font-weight: 600; }
+    .contact-pattern { font-size: 0.65rem; color: var(--purple); margin-top: 0.25rem; }
+
+    /* Emergency Mode */
+    .emergency-panel { background: linear-gradient(135deg, var(--red), #8b0000); border-radius: 0.5rem; padding: 0.75rem; }
+    .emergency-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .emergency-desc { font-size: 0.65rem; opacity: 0.9; margin-bottom: 0.5rem; }
+    .emergency-btn { width: 100%; padding: 0.5rem; background: white; color: var(--red); border: none; border-radius: 0.375rem; font-weight: 700; cursor: pointer; }
+
+    /* Location Sharing */
+    .location-card { background: var(--bg); border-radius: 0.5rem; overflow: hidden; }
+    .location-map { height: 100px; background: linear-gradient(135deg, #1a2a3a, #0a1a2a); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+    .location-info { padding: 0.5rem; font-size: 0.7rem; }
+    .location-coords { font-family: monospace; color: var(--muted); }
+
+    /* Disappearing Timer */
+    .disappear-timer { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--s2); border-radius: 0.5rem; }
+    .timer-ring { width: 24px; height: 24px; }
+    .timer-ring circle { fill: none; stroke-width: 3; }
+    .timer-ring .bg { stroke: var(--border); }
+    .timer-ring .fg { stroke: var(--orange); stroke-linecap: round; }
+    .timer-info { flex: 1; font-size: 0.7rem; }
+    .timer-select { background: var(--bg); border: 1px solid var(--border); border-radius: 0.25rem; color: var(--text); font-size: 0.65rem; padding: 0.25rem; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <span class="logo">AI FreeComm v2</span>
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="chat">Chat</button>
+        <button class="mode-tab" data-mode="voice">Voice</button>
+        <button class="mode-tab" data-mode="group">Group</button>
+        <button class="mode-tab" data-mode="broadcast">Broadcast</button>
+      </div>
+      <div class="header-status">
+        <span class="status-dot"></span>
+        <span>Mesh Active</span>
+        <span style="color:var(--muted)">|</span>
+        <span>12 Peers</span>
+        <span style="color:var(--muted)">|</span>
+        <span style="color:var(--green)">E2E Encrypted</span>
+      </div>
+    </header>
+
+    <!-- Left Panel -->
+    <aside class="left-panel">
+      <!-- Mesh Visualization -->
+      <div class="panel-section">
+        <div class="panel-title">Mesh Network</div>
+        <div class="mesh-viz">
+          <canvas class="mesh-canvas" id="meshCanvas"></canvas>
+          <div class="mesh-stats">
+            <span>Nodes: 12</span>
+            <span>Hops: 2.3 avg</span>
+            <span>Latency: 45ms</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transports -->
+      <div class="panel-section">
+        <div class="panel-title">Transports (AI Auto-Select)</div>
+        <div class="transport-card active" data-transport="webrtc">
+          <div class="transport-icon" style="background:var(--accent);">P2P</div>
+          <div class="transport-info">
+            <div class="transport-name">WebRTC Mesh</div>
+            <div class="transport-meta"><span>12 peers</span><span>45ms</span></div>
+          </div>
+          <div class="transport-toggle on"></div>
+        </div>
+        <div class="transport-card" data-transport="sms">
+          <div class="transport-icon" style="background:var(--blue);">SMS</div>
+          <div class="transport-info">
+            <div class="transport-name">KonoTel Gateway</div>
+            <div class="transport-meta"><span>$0.002/msg</span><span>Fallback</span></div>
+          </div>
+          <div class="transport-toggle on"></div>
+        </div>
+        <div class="transport-card" data-transport="lora">
+          <div class="transport-icon" style="background:var(--yellow);color:black;">LoRa</div>
+          <div class="transport-info">
+            <div class="transport-name">LoRa Radio</div>
+            <div class="transport-meta"><span>10km range</span><span>Low BW</span></div>
+          </div>
+          <div class="transport-toggle"></div>
+        </div>
+        <div class="transport-card" data-transport="audio">
+          <div class="transport-icon" style="background:var(--pink);">~</div>
+          <div class="transport-info">
+            <div class="transport-name">Audio Modem</div>
+            <div class="transport-meta"><span>Ultrasonic</span><span>Airgap</span></div>
+          </div>
+          <div class="transport-toggle"></div>
+        </div>
+      </div>
+
+      <!-- AI Brain -->
+      <div class="panel-section">
+        <div class="panel-title">AI Brain</div>
+        <div class="ai-brain">
+          <div class="ai-brain-header">
+            <span class="ai-brain-icon">🧠</span>
+            <div class="ai-brain-status">
+              <div class="ai-brain-model">SmolLM2-1.7B</div>
+              <div class="ai-brain-state">WebGPU Active</div>
+            </div>
+          </div>
+          <div class="ai-features-grid">
+            <div class="ai-feat active" data-feat="predict">Predict</div>
+            <div class="ai-feat active" data-feat="translate">Translate</div>
+            <div class="ai-feat" data-feat="summarize">Summarize</div>
+            <div class="ai-feat" data-feat="sentiment">Sentiment</div>
+            <div class="ai-feat" data-feat="compress">Compress</div>
+            <div class="ai-feat active" data-feat="voice">Voice</div>
+            <div class="ai-feat" data-feat="clone">Clone</div>
+            <div class="ai-feat" data-feat="semantic">Search</div>
+            <div class="ai-feat" data-feat="persona">Persona</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disappearing Messages -->
+      <div class="panel-section">
+        <div class="panel-title">Message Timer</div>
+        <div class="disappear-timer">
+          <svg class="timer-ring" viewBox="0 0 24 24">
+            <circle class="bg" cx="12" cy="12" r="10"/>
+            <circle class="fg" cx="12" cy="12" r="10" stroke-dasharray="63" stroke-dashoffset="15"/>
+          </svg>
+          <div class="timer-info">Messages disappear after:</div>
+          <select class="timer-select" id="timerSelect">
+            <option value="0">Never</option>
+            <option value="60">1 min</option>
+            <option value="300">5 min</option>
+            <option value="3600">1 hour</option>
+            <option value="86400">24 hours</option>
+          </select>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Chat Area -->
+    <main class="chat-area">
+      <div class="conv-header">
+        <div class="conv-avatar">A</div>
+        <div class="conv-info">
+          <div class="conv-name">Alice Chen</div>
+          <div class="conv-status">
+            <span class="status-dot" style="width:6px;height:6px;"></span>
+            <span>Online via WebRTC</span>
+            <span class="typing" style="display:none;">typing...</span>
+          </div>
+        </div>
+        <div class="conv-actions">
+          <button class="conv-action" title="Voice Call">📞</button>
+          <button class="conv-action" title="Video Call">📹</button>
+          <button class="conv-action" title="Share Location">📍</button>
+          <button class="conv-action" title="Share Files">📎</button>
+          <button class="conv-action emergency" title="Emergency Broadcast">🚨</button>
+        </div>
+      </div>
+
+      <div class="messages" id="messages">
+        <!-- AI Summary of missed messages -->
+        <div class="ai-summary">
+          <div class="ai-summary-header">
+            <span>🤖</span>
+            <span>AI Summary - 23 messages while you were away</span>
+          </div>
+          <div class="ai-summary-text">
+            Alice shared project updates and asked about the weekend. Bob confirmed the meeting time.
+            Key action: Reply to Alice about Saturday plans.
+          </div>
+        </div>
+
+        <div class="msg received">
+          <div class="msg-bubble">
+            <div class="msg-text">Hey! Did you see the mesh network is working globally now? 🌍</div>
+          </div>
+          <div class="msg-meta">
+            <span>10:32 AM</span>
+            <span class="msg-transport">WebRTC</span>
+            <span class="msg-sentiment">😊 +0.8</span>
+          </div>
+        </div>
+
+        <div class="msg sent ai-enhanced">
+          <div class="msg-bubble">
+            <div class="msg-text">Yes! The AI auto-routing is incredible. It picked LoRa for my rural friend and WebRTC for you automatically.</div>
+          </div>
+          <div class="msg-meta">
+            <span>10:33 AM</span>
+            <span class="msg-transport">WebRTC</span>
+            <span style="color:var(--purple);">AI Enhanced</span>
+          </div>
+        </div>
+
+        <div class="msg received">
+          <div class="msg-bubble">
+            <div class="voice-msg">
+              <button style="background:none;border:none;color:inherit;cursor:pointer;font-size:1rem;">▶</button>
+              <div class="voice-wave">
+                <div class="voice-bar" style="height:8px;animation-delay:0s;"></div>
+                <div class="voice-bar" style="height:14px;animation-delay:0.1s;"></div>
+                <div class="voice-bar" style="height:6px;animation-delay:0.2s;"></div>
+                <div class="voice-bar" style="height:18px;animation-delay:0.3s;"></div>
+                <div class="voice-bar" style="height:10px;animation-delay:0.4s;"></div>
+                <div class="voice-bar" style="height:16px;animation-delay:0.5s;"></div>
+                <div class="voice-bar" style="height:8px;animation-delay:0.6s;"></div>
+              </div>
+              <span class="voice-duration">0:12</span>
+            </div>
+            <div class="msg-text" style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem;font-style:italic;">
+              "The voice cloning is wild - sounds exactly like me even over LoRa compression"
+            </div>
+          </div>
+          <div class="msg-meta">
+            <span>10:35 AM</span>
+            <span class="msg-transport">LoRa</span>
+            <span style="color:var(--purple);">Transcribed</span>
+          </div>
+        </div>
+
+        <div class="msg sent">
+          <div class="msg-bubble">
+            <div class="msg-text">And the real-time translation? 🔥</div>
+          </div>
+          <div class="msg-meta">
+            <span>10:36 AM</span>
+            <span class="msg-transport">WebRTC</span>
+          </div>
+        </div>
+
+        <div class="msg received">
+          <div class="msg-bubble">
+            <div class="msg-text">
+              <div style="margin-bottom:0.25rem;">这个翻译功能太棒了！</div>
+              <div style="font-size:0.75rem;color:var(--muted);font-style:italic;">→ "This translation feature is amazing!"</div>
+            </div>
+          </div>
+          <div class="msg-meta">
+            <span>10:37 AM</span>
+            <span class="msg-transport">WebRTC</span>
+            <span style="color:var(--purple);">Auto-translated</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="ai-suggestions" id="suggestions">
+          <div class="ai-suggestion">That's great!</div>
+          <div class="ai-suggestion">Tell me more about the translation</div>
+          <div class="ai-suggestion">How does the voice cloning work?</div>
+          <div class="ai-suggestion">🔥 Amazing!</div>
+        </div>
+        <div class="input-row">
+          <div class="input-wrapper">
+            <textarea class="chat-input" id="msgInput" placeholder="Type or speak..." rows="1"></textarea>
+            <div class="input-actions">
+              <button class="input-action" id="voiceBtn" title="Voice Input">🎤</button>
+              <button class="input-action" title="AI Compose">✨</button>
+              <button class="input-action" title="Attach">📎</button>
+              <button class="input-action" title="Schedule">⏰</button>
+            </div>
+          </div>
+          <button class="send-btn" id="sendBtn">→</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Panel -->
+    <aside class="right-panel">
+      <!-- Network Health -->
+      <div class="panel-section">
+        <div class="panel-title">Network Health</div>
+        <div class="intel-card">
+          <div class="health-ring">
+            <svg viewBox="0 0 100 100" width="80" height="80">
+              <circle class="bg" cx="50" cy="50" r="40"/>
+              <circle class="fg" cx="50" cy="50" r="40" stroke-dasharray="251" stroke-dashoffset="25"/>
+            </svg>
+            <div class="health-score">90%</div>
+          </div>
+          <div style="text-align:center;font-size:0.7rem;color:var(--muted);margin-top:0.5rem;">
+            Excellent - 3 redundant paths
+          </div>
+        </div>
+      </div>
+
+      <!-- Sentiment Analysis -->
+      <div class="panel-section">
+        <div class="panel-title">Conversation Sentiment</div>
+        <div class="intel-card">
+          <div class="intel-header">
+            <span class="intel-title">Current Mood</span>
+            <span class="intel-badge">Live</span>
+          </div>
+          <div class="sentiment-meter sentiment-positive">
+            <span style="font-size:0.65rem;color:var(--muted);">-</span>
+            <div class="sentiment-bar">
+              <div class="sentiment-fill" style="width:85%;"></div>
+            </div>
+            <span style="font-size:0.65rem;color:var(--muted);">+</span>
+            <span class="sentiment-emoji">😊</span>
+          </div>
+          <div style="font-size:0.65rem;color:var(--muted);margin-top:0.5rem;">
+            Positive (+0.85) • Excited about features
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Intelligence -->
+      <div class="panel-section">
+        <div class="panel-title">Contact Intelligence</div>
+        <div class="intel-card">
+          <div class="contact-intel">
+            <div class="contact-stat">
+              <span class="contact-stat-label">Preferred Transport</span>
+              <span class="contact-stat-value">WebRTC</span>
+            </div>
+            <div class="contact-stat">
+              <span class="contact-stat-label">Response Time</span>
+              <span class="contact-stat-value">~2 min</span>
+            </div>
+            <div class="contact-stat">
+              <span class="contact-stat-label">Best Hours</span>
+              <span class="contact-stat-value">10am - 6pm</span>
+            </div>
+            <div class="contact-stat">
+              <span class="contact-stat-label">Language</span>
+              <span class="contact-stat-value">EN, ZH</span>
+            </div>
+            <div class="contact-pattern">
+              💡 Pattern: Usually responds quickly during workdays
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message Queue -->
+      <div class="panel-section">
+        <div class="panel-title">Offline Queue (DTN)</div>
+        <div class="intel-card">
+          <div class="queue-list">
+            <div class="queue-item">
+              <div class="queue-icon" style="background:var(--yellow);">⏳</div>
+              <div class="queue-info">
+                <div class="queue-text">Message to Bob</div>
+                <div class="queue-meta">Waiting for LoRa contact</div>
+              </div>
+              <div class="queue-retry">Retry in 5m</div>
+            </div>
+            <div class="queue-item">
+              <div class="queue-icon" style="background:var(--blue);">📁</div>
+              <div class="queue-info">
+                <div class="queue-text">Photo to Carol</div>
+                <div class="queue-meta">2.3MB • Compressed to 400KB</div>
+              </div>
+              <div class="queue-retry">Retry in 2m</div>
+            </div>
+          </div>
+          <div style="font-size:0.65rem;color:var(--muted);margin-top:0.5rem;text-align:center;">
+            Store & Forward active • 2 queued
+          </div>
+        </div>
+      </div>
+
+      <!-- Location Share -->
+      <div class="panel-section">
+        <div class="panel-title">Location (P2P Only)</div>
+        <div class="location-card">
+          <div class="location-map">🗺️</div>
+          <div class="location-info">
+            <div>Alice Chen shared location</div>
+            <div class="location-coords">37.7749°N, 122.4194°W</div>
+            <div style="font-size:0.6rem;color:var(--green);">No Google • No Tracking</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Emergency -->
+      <div class="panel-section">
+        <div class="emergency-panel">
+          <div class="emergency-title">
+            <span>🚨</span>
+            <span>Emergency Broadcast</span>
+          </div>
+          <div class="emergency-desc">
+            Send high-priority alert to all nearby devices (15 reachable)
+          </div>
+          <button class="emergency-btn">BROADCAST EMERGENCY</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module">
+    // ============================================
+    // AI FreeComm v2 - Next-Gen Communication
+    // ============================================
+
+    import { LocalLLM } from '../../llm/local.js';
+    import { KonoTel } from '../../network/konotel.js';
+
+    // ============================================
+    // State
+    // ============================================
+    const state = {
+      llm: null,
+      konotel: null,
+      mode: 'chat',
+      voiceActive: false,
+      recognition: null,
+      synthesis: window.speechSynthesis,
+      transports: { webrtc: true, sms: true, lora: false, audio: false },
+      aiFeatures: { predict: true, translate: true, voice: true },
+      meshNodes: [],
+      messageQueue: [],
+      contacts: new Map(),
+      disappearTimer: 0
+    };
+
+    // ============================================
+    // Mesh Visualization
+    // ============================================
+    function initMeshViz() {
+      const canvas = document.getElementById('meshCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth * 2;
+      canvas.height = canvas.offsetHeight * 2;
+      ctx.scale(2, 2);
+
+      // Generate random mesh nodes
+      const nodes = [];
+      const centerX = canvas.offsetWidth / 2;
+      const centerY = canvas.offsetHeight / 2;
+
+      // Center node (you)
+      nodes.push({ x: centerX, y: centerY, size: 8, color: '#00d4aa', label: 'You' });
+
+      // Connected peers
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const distance = 40 + Math.random() * 30;
+        nodes.push({
+          x: centerX + Math.cos(angle) * distance,
+          y: centerY + Math.sin(angle) * distance,
+          size: 4 + Math.random() * 3,
+          color: ['#3498db', '#9b59b6', '#e67e22', '#2ecc71'][Math.floor(Math.random() * 4)],
+          connected: Math.random() > 0.3
+        });
+      }
+
+      state.meshNodes = nodes;
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+
+        // Draw connections
+        ctx.strokeStyle = 'rgba(0, 212, 170, 0.2)';
+        ctx.lineWidth = 1;
+        nodes.forEach((node, i) => {
+          if (i === 0) return;
+          if (node.connected) {
+            ctx.beginPath();
+            ctx.moveTo(nodes[0].x, nodes[0].y);
+            ctx.lineTo(node.x, node.y);
+            ctx.stroke();
+
+            // Animate packet
+            const t = (Date.now() / 1000 + i * 0.2) % 1;
+            const px = nodes[0].x + (node.x - nodes[0].x) * t;
+            const py = nodes[0].y + (node.y - nodes[0].y) * t;
+            ctx.fillStyle = '#00d4aa';
+            ctx.beginPath();
+            ctx.arc(px, py, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+
+        // Draw nodes
+        nodes.forEach(node => {
+          ctx.fillStyle = node.color;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        requestAnimationFrame(draw);
+      }
+
+      draw();
+    }
+
+    // ============================================
+    // Voice Recognition & Synthesis
+    // ============================================
+    function initVoice() {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        state.recognition = new SpeechRecognition();
+        state.recognition.continuous = true;
+        state.recognition.interimResults = true;
+
+        state.recognition.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(r => r[0].transcript)
+            .join('');
+          document.getElementById('msgInput').value = transcript;
+        };
+      }
+    }
+
+    function toggleVoice() {
+      const btn = document.getElementById('voiceBtn');
+      if (state.voiceActive) {
+        state.recognition?.stop();
+        btn.classList.remove('voice-active');
+        state.voiceActive = false;
+      } else {
+        state.recognition?.start();
+        btn.classList.add('voice-active');
+        state.voiceActive = true;
+      }
+    }
+
+    function speak(text) {
+      if (state.synthesis) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        state.synthesis.speak(utterance);
+      }
+    }
+
+    // ============================================
+    // AI Features
+    // ============================================
+    async function initAI() {
+      try {
+        state.llm = new LocalLLM();
+        await state.llm.loadModel('smollm2-1.7b');
+        console.log('AI initialized');
+      } catch (err) {
+        console.warn('AI init failed:', err);
+      }
+    }
+
+    async function predictReply(context) {
+      if (!state.llm || !state.aiFeatures.predict) return [];
+      // Generate smart reply suggestions
+      return ['That sounds great!', 'Tell me more', 'Interesting!', '👍'];
+    }
+
+    async function analyzeSentiment(text) {
+      // Simplified sentiment analysis
+      const positive = ['great', 'amazing', 'love', 'awesome', 'excellent', '!', '😊', '🔥', '❤️'];
+      const negative = ['bad', 'hate', 'terrible', 'awful', 'sad', '😢', '😠'];
+
+      let score = 0;
+      positive.forEach(w => { if (text.toLowerCase().includes(w)) score += 0.2; });
+      negative.forEach(w => { if (text.toLowerCase().includes(w)) score -= 0.2; });
+
+      return Math.max(-1, Math.min(1, score));
+    }
+
+    async function autoSelectTransport(message, priority = 'normal') {
+      // AI-powered transport selection
+      const msgSize = new Blob([message]).size;
+
+      if (priority === 'emergency') {
+        return ['webrtc', 'sms', 'lora', 'audio']; // All transports
+      }
+
+      if (state.transports.webrtc && state.meshNodes.some(n => n.connected)) {
+        return 'webrtc';
+      }
+
+      if (msgSize < 160 && state.transports.sms) {
+        return 'sms';
+      }
+
+      if (state.transports.lora) {
+        return 'lora';
+      }
+
+      return 'queue'; // Store for later
+    }
+
+    // ============================================
+    // Message Handling
+    // ============================================
+    function addMessage(text, sent = true, options = {}) {
+      const messages = document.getElementById('messages');
+      const msg = document.createElement('div');
+      msg.className = `msg ${sent ? 'sent' : 'received'}${options.aiEnhanced ? ' ai-enhanced' : ''}`;
+
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const sentiment = analyzeSentiment(text);
+      const sentimentEmoji = sentiment > 0.3 ? '😊' : sentiment < -0.3 ? '😔' : '😐';
+
+      msg.innerHTML = `
+        <div class="msg-bubble">
+          <div class="msg-text">${text}</div>
+        </div>
+        <div class="msg-meta">
+          <span>${time}</span>
+          <span class="msg-transport">${options.transport || 'WebRTC'}</span>
+          ${options.aiEnhanced ? '<span style="color:var(--purple);">AI Enhanced</span>' : ''}
+          <span class="msg-sentiment">${sentimentEmoji} ${sentiment > 0 ? '+' : ''}${sentiment.toFixed(1)}</span>
+        </div>
+      `;
+
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+
+      // Update suggestions
+      updateSuggestions(text);
+    }
+
+    async function updateSuggestions(lastMessage) {
+      const suggestions = await predictReply(lastMessage);
+      const container = document.getElementById('suggestions');
+      container.innerHTML = suggestions.map(s =>
+        `<div class="ai-suggestion">${s}</div>`
+      ).join('');
+
+      container.querySelectorAll('.ai-suggestion').forEach(el => {
+        el.addEventListener('click', () => {
+          document.getElementById('msgInput').value = el.textContent;
+        });
+      });
+    }
+
+    // ============================================
+    // UI Event Handlers
+    // ============================================
+    function initUI() {
+      // Mode tabs
+      document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          state.mode = tab.dataset.mode;
+        });
+      });
+
+      // Transport toggles
+      document.querySelectorAll('.transport-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+          toggle.classList.toggle('on');
+          const transport = toggle.closest('.transport-card').dataset.transport;
+          state.transports[transport] = toggle.classList.contains('on');
+        });
+      });
+
+      // AI feature toggles
+      document.querySelectorAll('.ai-feat').forEach(feat => {
+        feat.addEventListener('click', () => {
+          feat.classList.toggle('active');
+          state.aiFeatures[feat.dataset.feat] = feat.classList.contains('active');
+        });
+      });
+
+      // Voice button
+      document.getElementById('voiceBtn').addEventListener('click', toggleVoice);
+
+      // Send button
+      document.getElementById('sendBtn').addEventListener('click', sendMessage);
+      document.getElementById('msgInput').addEventListener('keypress', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      // Timer select
+      document.getElementById('timerSelect').addEventListener('change', e => {
+        state.disappearTimer = parseInt(e.target.value);
+      });
+
+      // Emergency broadcast
+      document.querySelector('.emergency-btn').addEventListener('click', () => {
+        if (confirm('Send emergency broadcast to 15 nearby devices?')) {
+          alert('Emergency broadcast sent to all connected peers!');
+        }
+      });
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const transport = await autoSelectTransport(text);
+      addMessage(text, true, { transport: transport.toUpperCase() });
+      input.value = '';
+
+      // Simulate response
+      setTimeout(() => {
+        const responses = [
+          "The mesh routing is so smart!",
+          "Voice cloning demo was wild",
+          "Love the sentiment analysis",
+          "Emergency broadcast is a killer feature"
+        ];
+        addMessage(responses[Math.floor(Math.random() * responses.length)], false, { transport: 'WebRTC' });
+      }, 1000 + Math.random() * 1500);
+    }
+
+    // ============================================
+    // Initialize
+    // ============================================
+    async function init() {
+      console.log('AI FreeComm v2 initializing...');
+      initMeshViz();
+      initVoice();
+      initUI();
+      setTimeout(initAI, 500);
+    }
+
+    init();
+  </script>
+</body>
+</html>
