@@ -53,6 +53,7 @@ export const WIDGET_PATHS = {
   kframe: './kframe.html',
   claudeCode: './claude-code.html',
   widgetAgent: './widget-agent.html',
+  aiFighter: './ai-fighter.html',
 }
 
 /**

@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<!--
+@file ai-fighter.html
+@desc AI Fighter - Street Fighter style game with WebLLM vs WebLLM
+@api  window.AIFighter - Game controller
+
+Features:
+- Two WebLLM models fight each other
+- Classic fighting game mechanics
+- Each AI decides moves based on game state
+- Health bars, combos, special moves
+- Battle commentary and move history
+- Multiple model options for each fighter
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Fighter</title>
+  <style>
+    :root{--b:#0a0a0a;--b2:#1a1a1a;--b3:#252525;--f:#fff;--p1:#ef4444;--p2:#3b82f6;--g:#22c55e;--y:#eab308;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Press Start 2P',system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;overflow:hidden}
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    .game-container{height:100vh;display:flex;flex-direction:column}
+
+    /* Header */
+    .header{padding:10px 20px;background:linear-gradient(180deg,#333,#111);display:flex;align-items:center;justify-content:center;gap:20px;border-bottom:4px solid #444}
+    .header h1{font-size:24px;text-transform:uppercase;background:linear-gradient(180deg,#ff6b6b,#ee5a24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:2px 2px 0 #000}
+    .header-btn{padding:8px 16px;background:#333;border:2px solid #555;color:#fff;font-family:inherit;font-size:10px;cursor:pointer}
+    .header-btn:hover{background:#444}
+
+    /* Arena */
+    .arena{flex:1;position:relative;background:linear-gradient(180deg,#1a0a2e 0%,#16213e 50%,#0f3460 100%);overflow:hidden}
+    .arena::before{content:'';position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.8))}
+
+    /* Ground */
+    .ground{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(180deg,#2d2d2d,#1a1a1a);border-top:4px solid #444}
+    .ground::before{content:'';position:absolute;top:4px;left:0;right:0;height:20px;background:repeating-linear-gradient(90deg,#333 0,#333 40px,#2a2a2a 40px,#2a2a2a 80px)}
+
+    /* Health Bars */
+    .health-bars{position:absolute;top:20px;left:20px;right:20px;display:flex;gap:20px}
+    .health-container{flex:1;display:flex;flex-direction:column;gap:6px}
+    .health-container.p2{align-items:flex-end}
+    .health-container.p2 .health-bar{flex-direction:row-reverse}
+    .health-container.p2 .health-fill{transform-origin:right}
+
+    .player-name{font-size:10px;text-shadow:2px 2px 0 #000;display:flex;align-items:center;gap:8px}
+    .player-name .model{font-size:8px;opacity:.7}
+
+    .health-bar{height:30px;background:#222;border:3px solid;display:flex;overflow:hidden;box-shadow:0 4px 0 rgba(0,0,0,.5)}
+    .health-container:first-child .health-bar{border-color:var(--p1)}
+    .health-container.p2 .health-bar{border-color:var(--p2)}
+
+    .health-fill{height:100%;transition:width .3s;position:relative}
+    .health-container:first-child .health-fill{background:linear-gradient(180deg,#ff6b6b,#ee5a24)}
+    .health-container.p2 .health-fill{background:linear-gradient(180deg,#60a5fa,#3b82f6)}
+
+    .health-text{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px;text-shadow:1px 1px 0 #000}
+    .health-container.p2 .health-text{right:auto;left:10px}
+
+    /* Timer */
+    .timer{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:80px;height:60px;background:#111;border:3px solid #f59e0b;display:flex;align-items:center;justify-content:center;font-size:28px;color:#f59e0b;text-shadow:0 0 10px #f59e0b;z-index:10}
+
+    /* Fighters */
+    .fighters{position:absolute;bottom:80px;left:0;right:0;height:300px;display:flex;justify-content:space-between;padding:0 60px}
+
+    .fighter{width:180px;height:280px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;transition:transform .1s}
+    .fighter.hit{animation:hit .2s}
+    .fighter.attack{animation:attack .3s}
+    .fighter.block{opacity:.7}
+    .fighter.ko{animation:ko 1s forwards}
+    @keyframes hit{0%,100%{transform:translateX(0)}25%{transform:translateX(-20px)}75%{transform:translateX(20px)}}
+    @keyframes attack{0%{transform:translateX(0)}50%{transform:translateX(40px)}100%{transform:translateX(0)}}
+    @keyframes ko{0%{transform:rotate(0)}100%{transform:rotate(90deg) translateY(100px);opacity:0}}
+
+    .fighter.p2{transform:scaleX(-1)}
+    .fighter.p2.attack{animation:attack-p2 .3s}
+    @keyframes attack-p2{0%{transform:scaleX(-1) translateX(0)}50%{transform:scaleX(-1) translateX(40px)}100%{transform:scaleX(-1) translateX(0)}}
+
+    .fighter-body{width:120px;height:200px;position:relative}
+    .fighter-head{width:80px;height:80px;background:linear-gradient(180deg,#fcd34d,#f59e0b);border-radius:50%;position:absolute;top:0;left:50%;transform:translateX(-50%);border:4px solid #111}
+    .fighter-eye{width:12px;height:16px;background:#111;border-radius:50%;position:absolute;top:25px}
+    .fighter-eye.left{left:18px}
+    .fighter-eye.right{right:18px}
+    .fighter-torso{width:100px;height:100px;background:linear-gradient(180deg,#ef4444,#dc2626);position:absolute;top:70px;left:50%;transform:translateX(-50%);border-radius:10px;border:4px solid #111}
+    .fighter.p2 .fighter-torso{background:linear-gradient(180deg,#3b82f6,#2563eb)}
+    .fighter-arm{width:30px;height:80px;background:linear-gradient(180deg,#fcd34d,#f59e0b);position:absolute;top:80px;border-radius:15px;border:3px solid #111}
+    .fighter-arm.left{left:-10px;transform:rotate(-20deg)}
+    .fighter-arm.right{right:-10px;transform:rotate(20deg)}
+    .fighter-leg{width:35px;height:90px;background:linear-gradient(180deg,#1e40af,#1e3a8a);position:absolute;bottom:-80px;border-radius:10px;border:3px solid #111}
+    .fighter-leg.left{left:15px}
+    .fighter-leg.right{right:15px}
+
+    .fighter-label{position:absolute;bottom:-30px;font-size:10px;text-shadow:2px 2px 0 #000;white-space:nowrap}
+    .fighter.p2 .fighter-label{transform:scaleX(-1)}
+
+    /* Move indicator */
+    .move-bubble{position:absolute;top:-60px;left:50%;transform:translateX(-50%);background:#fff;color:#000;padding:8px 16px;border-radius:20px;font-size:10px;white-space:nowrap;opacity:0;transition:opacity .3s}
+    .move-bubble.show{opacity:1}
+    .move-bubble::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);border:8px solid transparent;border-top-color:#fff}
+
+    /* VS splash */
+    .vs-splash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:60px;color:#f59e0b;text-shadow:4px 4px 0 #000,0 0 40px #f59e0b;opacity:0;z-index:20}
+    .vs-splash.show{animation:vs-anim 1s forwards}
+    @keyframes vs-anim{0%{opacity:0;transform:translate(-50%,-50%) scale(3)}50%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+
+    /* Round/Win text */
+    .round-text{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:36px;text-shadow:4px 4px 0 #000;opacity:0;z-index:20}
+    .round-text.show{animation:round-anim 2s forwards}
+    @keyframes round-anim{0%{opacity:0;transform:translate(-50%,-50%) scale(2)}20%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+
+    /* Controls */
+    .controls{background:#111;border-top:4px solid #333;padding:15px 20px}
+    .controls-row{display:flex;gap:20px;align-items:center;justify-content:center}
+
+    .model-select{display:flex;align-items:center;gap:10px}
+    .model-select label{font-size:10px}
+    .model-select select{padding:8px;background:#222;border:2px solid #444;color:#fff;font-family:inherit;font-size:8px;min-width:180px}
+
+    .fight-btn{padding:15px 40px;background:linear-gradient(180deg,#ef4444,#b91c1c);border:4px solid #fca5a5;color:#fff;font-family:inherit;font-size:14px;cursor:pointer;text-transform:uppercase;text-shadow:2px 2px 0 #000}
+    .fight-btn:hover{background:linear-gradient(180deg,#f87171,#dc2626)}
+    .fight-btn:disabled{opacity:.5;cursor:not-allowed}
+    .fight-btn.loading{animation:pulse-btn 1s infinite}
+    @keyframes pulse-btn{0%,100%{opacity:1}50%{opacity:.6}}
+
+    /* Battle Log */
+    .battle-log{position:absolute;bottom:100px;left:20px;width:300px;max-height:200px;background:rgba(0,0,0,.8);border:2px solid #333;padding:10px;overflow-y:auto;font-size:9px;line-height:1.6}
+    .log-entry{margin-bottom:4px;padding:4px;border-radius:4px}
+    .log-entry.p1{border-left:3px solid var(--p1)}
+    .log-entry.p2{border-left:3px solid var(--p2)}
+    .log-entry.system{border-left:3px solid var(--y);color:var(--y)}
+    .log-entry .damage{color:var(--p1)}
+    .log-entry .heal{color:var(--g)}
+
+    /* Stats panel */
+    .stats-panel{position:absolute;bottom:100px;right:20px;width:250px;background:rgba(0,0,0,.8);border:2px solid #333;padding:10px;font-size:9px}
+    .stats-panel h3{font-size:10px;margin-bottom:8px;color:var(--y)}
+    .stat-row{display:flex;justify-content:space-between;margin-bottom:4px}
+    .stat-row .p1{color:var(--p1)}
+    .stat-row .p2{color:var(--p2)}
+
+    /* Loading overlay */
+    .loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+    .loading-overlay.hidden{display:none}
+    .loading-overlay h2{font-size:20px;margin-bottom:20px;color:var(--y)}
+    .loading-overlay p{font-size:10px;margin-bottom:10px;color:#888}
+    .loading-bar{width:300px;height:20px;background:#222;border:2px solid #444;overflow:hidden}
+    .loading-bar-fill{height:100%;background:linear-gradient(90deg,var(--p1),var(--p2));width:0%;transition:width .3s}
+    .loading-status{margin-top:15px;font-size:8px;color:#666}
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay">
+    <h2>🎮 AI FIGHTER</h2>
+    <p id="loadingText">Loading fighters...</p>
+    <div class="loading-bar"><div class="loading-bar-fill" id="loadingBar"></div></div>
+    <p class="loading-status" id="loadingStatus"></p>
+  </div>
+
+  <div class="game-container">
+    <div class="header">
+      <button class="header-btn" id="resetBtn">Reset</button>
+      <h1>🥊 AI Fighter 🥊</h1>
+      <button class="header-btn" id="speedBtn">Speed: 1x</button>
+    </div>
+
+    <div class="arena">
+      <div class="ground"></div>
+
+      <div class="health-bars">
+        <div class="health-container">
+          <div class="player-name">
+            <span id="p1Name">PLAYER 1</span>
+            <span class="model" id="p1Model"></span>
+          </div>
+          <div class="health-bar">
+            <div class="health-fill" id="p1Health" style="width:100%">
+              <span class="health-text" id="p1HealthText">100</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="timer" id="timer">99</div>
+
+        <div class="health-container p2">
+          <div class="player-name">
+            <span id="p2Name">PLAYER 2</span>
+            <span class="model" id="p2Model"></span>
+          </div>
+          <div class="health-bar">
+            <div class="health-fill" id="p2Health" style="width:100%">
+              <span class="health-text" id="p2HealthText">100</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fighters">
+        <div class="fighter" id="fighter1">
+          <div class="move-bubble" id="move1"></div>
+          <div class="fighter-body">
+            <div class="fighter-head">
+              <div class="fighter-eye left"></div>
+              <div class="fighter-eye right"></div>
+            </div>
+            <div class="fighter-torso"></div>
+            <div class="fighter-arm left"></div>
+            <div class="fighter-arm right"></div>
+            <div class="fighter-leg left"></div>
+            <div class="fighter-leg right"></div>
+          </div>
+          <div class="fighter-label" id="f1Label">P1</div>
+        </div>
+
+        <div class="fighter p2" id="fighter2">
+          <div class="move-bubble" id="move2"></div>
+          <div class="fighter-body">
+            <div class="fighter-head">
+              <div class="fighter-eye left"></div>
+              <div class="fighter-eye right"></div>
+            </div>
+            <div class="fighter-torso"></div>
+            <div class="fighter-arm left"></div>
+            <div class="fighter-arm right"></div>
+            <div class="fighter-leg left"></div>
+            <div class="fighter-leg right"></div>
+          </div>
+          <div class="fighter-label" id="f2Label">P2</div>
+        </div>
+      </div>
+
+      <div class="vs-splash" id="vsSplash">VS</div>
+      <div class="round-text" id="roundText"></div>
+
+      <div class="battle-log" id="battleLog"></div>
+      <div class="stats-panel">
+        <h3>📊 STATS</h3>
+        <div class="stat-row"><span>Hits:</span><span class="p1" id="p1Hits">0</span> / <span class="p2" id="p2Hits">0</span></div>
+        <div class="stat-row"><span>Damage:</span><span class="p1" id="p1Damage">0</span> / <span class="p2" id="p2Damage">0</span></div>
+        <div class="stat-row"><span>Blocks:</span><span class="p1" id="p1Blocks">0</span> / <span class="p2" id="p2Blocks">0</span></div>
+        <div class="stat-row"><span>Specials:</span><span class="p1" id="p1Specials">0</span> / <span class="p2" id="p2Specials">0</span></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <div class="model-select">
+          <label style="color:var(--p1)">P1:</label>
+          <select id="model1Select">
+            <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M</option>
+            <option value="SmolLM2-1.7B-Instruct-q4f16_1-MLC" selected>SmolLM2 1.7B</option>
+            <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5 1.5B</option>
+          </select>
+        </div>
+
+        <button class="fight-btn" id="fightBtn">⚔️ FIGHT! ⚔️</button>
+
+        <div class="model-select">
+          <label style="color:var(--p2)">P2:</label>
+          <select id="model2Select">
+            <option value="SmolLM2-360M-Instruct-q4f16_1-MLC" selected>SmolLM2 360M</option>
+            <option value="SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 1.7B</option>
+            <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5 1.5B</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as webllm from 'https://esm.run/@mlc-ai/web-llm';
+
+    const $ = id => document.getElementById(id);
+
+    // Move definitions
+    const MOVES = {
+      punch: { name: 'Punch', damage: 10, emoji: '👊', type: 'attack', speed: 'fast' },
+      kick: { name: 'Kick', damage: 15, emoji: '🦶', type: 'attack', speed: 'medium' },
+      block: { name: 'Block', damage: 0, emoji: '🛡️', type: 'defense', speed: 'fast' },
+      special: { name: 'Special', damage: 25, emoji: '⚡', type: 'attack', speed: 'slow' },
+      grab: { name: 'Grab', damage: 12, emoji: '🤜', type: 'attack', speed: 'medium' },
+      dodge: { name: 'Dodge', damage: 0, emoji: '💨', type: 'defense', speed: 'fast' }
+    };
+
+    const MOVE_NAMES = Object.keys(MOVES);
+
+    // Fight prompt for the AI
+    const FIGHT_PROMPT = `You are a fighter in a battle game. Choose your next move based on the situation.
+
+AVAILABLE MOVES:
+- punch: Fast attack, 10 damage
+- kick: Medium attack, 15 damage
+- block: Blocks attacks, no damage
+- special: Slow but powerful, 25 damage
+- grab: Medium attack, 12 damage, beats block
+- dodge: Evade attacks, no damage
+
+GAME STATE:
+Your HP: {myHp}/100
+Enemy HP: {enemyHp}/100
+Last enemy move: {lastEnemyMove}
+Round: {round}
+
+STRATEGY TIPS:
+- Block beats punch/kick
+- Grab beats block
+- Dodge beats special/grab
+- Special deals most damage but is slow
+- If enemy blocks often, use grab
+- If enemy uses special often, dodge
+
+Respond with ONLY the move name (punch, kick, block, special, grab, or dodge). Nothing else.`;
+
+    class AIFighter {
+      constructor() {
+        this.engine1 = null;
+        this.engine2 = null;
+        this.model1 = '';
+        this.model2 = '';
+        this.isLoading = false;
+        this.isFighting = false;
+        this.gameSpeed = 1;
+
+        // Game state
+        this.p1 = { hp: 100, hits: 0, damage: 0, blocks: 0, specials: 0, lastMove: null };
+        this.p2 = { hp: 100, hits: 0, damage: 0, blocks: 0, specials: 0, lastMove: null };
+        this.round = 0;
+        this.timer = 99;
+        this.timerInterval = null;
+
+        this.init();
+      }
+
+      init() {
+        $('fightBtn').onclick = () => this.startFight();
+        $('resetBtn').onclick = () => this.resetGame();
+        $('speedBtn').onclick = () => this.toggleSpeed();
+
+        $('loadingOverlay').classList.add('hidden');
+      }
+
+      toggleSpeed() {
+        const speeds = [1, 2, 4];
+        const idx = speeds.indexOf(this.gameSpeed);
+        this.gameSpeed = speeds[(idx + 1) % speeds.length];
+        $('speedBtn').textContent = `Speed: ${this.gameSpeed}x`;
+      }
+
+      async loadModels() {
+        const model1Id = $('model1Select').value;
+        const model2Id = $('model2Select').value;
+
+        // Check if we need to reload
+        if (this.engine1 && this.model1 === model1Id && this.engine2 && this.model2 === model2Id) {
+          return true;
+        }
+
+        $('loadingOverlay').classList.remove('hidden');
+        this.isLoading = true;
+
+        try {
+          // Load Player 1
+          if (!this.engine1 || this.model1 !== model1Id) {
+            $('loadingText').textContent = 'Loading P1: ' + model1Id.split('-')[0];
+            this.engine1 = await webllm.CreateMLCEngine(model1Id, {
+              initProgressCallback: (p) => {
+                $('loadingBar').style.width = (p.progress * 50) + '%';
+                $('loadingStatus').textContent = p.text || '';
+              }
+            });
+            this.model1 = model1Id;
+          }
+
+          // Load Player 2
+          if (!this.engine2 || this.model2 !== model2Id) {
+            $('loadingText').textContent = 'Loading P2: ' + model2Id.split('-')[0];
+            this.engine2 = await webllm.CreateMLCEngine(model2Id, {
+              initProgressCallback: (p) => {
+                $('loadingBar').style.width = 50 + (p.progress * 50) + '%';
+                $('loadingStatus').textContent = p.text || '';
+              }
+            });
+            this.model2 = model2Id;
+          }
+
+          $('loadingOverlay').classList.add('hidden');
+          this.isLoading = false;
+
+          // Update UI
+          $('p1Model').textContent = model1Id.split('-')[0];
+          $('p2Model').textContent = model2Id.split('-')[0];
+          $('f1Label').textContent = model1Id.split('-')[0];
+          $('f2Label').textContent = model2Id.split('-')[0];
+
+          return true;
+        } catch (e) {
+          console.error('Model load error:', e);
+          $('loadingText').textContent = 'Error: ' + e.message;
+          this.isLoading = false;
+          return false;
+        }
+      }
+
+      async startFight() {
+        if (this.isFighting || this.isLoading) return;
+
+        $('fightBtn').disabled = true;
+        $('fightBtn').classList.add('loading');
+
+        // Load models
+        const loaded = await this.loadModels();
+        if (!loaded) {
+          $('fightBtn').disabled = false;
+          $('fightBtn').classList.remove('loading');
+          return;
+        }
+
+        // Reset game state
+        this.resetGame();
+        this.isFighting = true;
+
+        // Show VS splash
+        $('vsSplash').classList.add('show');
+        await this.delay(1000);
+        $('vsSplash').classList.remove('show');
+
+        // Show round
+        this.showRoundText('ROUND 1 - FIGHT!');
+        await this.delay(2000);
+
+        // Start timer
+        this.startTimer();
+
+        // Fight loop
+        while (this.isFighting && this.p1.hp > 0 && this.p2.hp > 0 && this.timer > 0) {
+          await this.fightRound();
+          await this.delay(1500 / this.gameSpeed);
+        }
+
+        // End fight
+        this.endFight();
+      }
+
+      async fightRound() {
+        this.round++;
+
+        // Get moves from both AIs simultaneously
+        const [move1, move2] = await Promise.all([
+          this.getAIMove(this.engine1, this.p1.hp, this.p2.hp, this.p2.lastMove, 1),
+          this.getAIMove(this.engine2, this.p2.hp, this.p1.hp, this.p1.lastMove, 2)
+        ]);
+
+        // Show moves
+        this.showMove(1, move1);
+        this.showMove(2, move2);
+        await this.delay(500 / this.gameSpeed);
+
+        // Resolve combat
+        this.resolveCombat(move1, move2);
+
+        // Store moves
+        this.p1.lastMove = move1;
+        this.p2.lastMove = move2;
+
+        // Update UI
+        this.updateHealthBars();
+        this.updateStats();
+      }
+
+      async getAIMove(engine, myHp, enemyHp, lastEnemyMove, player) {
+        const prompt = FIGHT_PROMPT
+          .replace('{myHp}', myHp)
+          .replace('{enemyHp}', enemyHp)
+          .replace('{lastEnemyMove}', lastEnemyMove || 'none')
+          .replace('{round}', this.round);
+
+        try {
+          const response = await engine.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.8,
+            max_tokens: 10
+          });
+
+          const text = response.choices[0].message.content.toLowerCase().trim();
+
+          // Extract move from response
+          for (const move of MOVE_NAMES) {
+            if (text.includes(move)) return move;
+          }
+
+          // Random fallback
+          return MOVE_NAMES[Math.floor(Math.random() * MOVE_NAMES.length)];
+        } catch (e) {
+          console.error('AI move error:', e);
+          return MOVE_NAMES[Math.floor(Math.random() * MOVE_NAMES.length)];
+        }
+      }
+
+      resolveCombat(move1, move2) {
+        const m1 = MOVES[move1];
+        const m2 = MOVES[move2];
+
+        let p1Damage = 0;
+        let p2Damage = 0;
+        let p1Blocked = false;
+        let p2Blocked = false;
+
+        // Check if moves are blocked/dodged
+        if (m1.type === 'attack') {
+          if (move2 === 'block' && move1 !== 'grab') {
+            p1Blocked = true;
+            this.p2.blocks++;
+          } else if (move2 === 'dodge' && (move1 === 'special' || move1 === 'grab')) {
+            p1Blocked = true;
+          } else {
+            p2Damage = m1.damage;
+            this.p1.hits++;
+            this.p1.damage += m1.damage;
+            if (move1 === 'special') this.p1.specials++;
+          }
+        }
+
+        if (m2.type === 'attack') {
+          if (move1 === 'block' && move2 !== 'grab') {
+            p2Blocked = true;
+            this.p1.blocks++;
+          } else if (move1 === 'dodge' && (move2 === 'special' || move2 === 'grab')) {
+            p2Blocked = true;
+          } else {
+            p1Damage = m2.damage;
+            this.p2.hits++;
+            this.p2.damage += m2.damage;
+            if (move2 === 'special') this.p2.specials++;
+          }
+        }
+
+        // Apply damage
+        this.p1.hp = Math.max(0, this.p1.hp - p1Damage);
+        this.p2.hp = Math.max(0, this.p2.hp - p2Damage);
+
+        // Animations
+        if (m1.type === 'attack' && !p1Blocked) {
+          $('fighter1').classList.add('attack');
+          setTimeout(() => $('fighter1').classList.remove('attack'), 300);
+          if (p2Damage > 0) {
+            $('fighter2').classList.add('hit');
+            setTimeout(() => $('fighter2').classList.remove('hit'), 200);
+          }
+        }
+
+        if (m2.type === 'attack' && !p2Blocked) {
+          $('fighter2').classList.add('attack');
+          setTimeout(() => $('fighter2').classList.remove('attack'), 300);
+          if (p1Damage > 0) {
+            $('fighter1').classList.add('hit');
+            setTimeout(() => $('fighter1').classList.remove('hit'), 200);
+          }
+        }
+
+        if (move1 === 'block') {
+          $('fighter1').classList.add('block');
+          setTimeout(() => $('fighter1').classList.remove('block'), 500);
+        }
+        if (move2 === 'block') {
+          $('fighter2').classList.add('block');
+          setTimeout(() => $('fighter2').classList.remove('block'), 500);
+        }
+
+        // Log
+        this.log(`P1 uses ${m1.emoji} ${m1.name}${p1Blocked ? ' (BLOCKED!)' : p2Damage > 0 ? ` → ${p2Damage} damage!` : ''}`, 'p1');
+        this.log(`P2 uses ${m2.emoji} ${m2.name}${p2Blocked ? ' (BLOCKED!)' : p1Damage > 0 ? ` → ${p1Damage} damage!` : ''}`, 'p2');
+      }
+
+      showMove(player, move) {
+        const m = MOVES[move];
+        const el = $(`move${player}`);
+        el.textContent = `${m.emoji} ${m.name}`;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 1000);
+      }
+
+      updateHealthBars() {
+        $('p1Health').style.width = this.p1.hp + '%';
+        $('p1HealthText').textContent = this.p1.hp;
+        $('p2Health').style.width = this.p2.hp + '%';
+        $('p2HealthText').textContent = this.p2.hp;
+      }
+
+      updateStats() {
+        $('p1Hits').textContent = this.p1.hits;
+        $('p2Hits').textContent = this.p2.hits;
+        $('p1Damage').textContent = this.p1.damage;
+        $('p2Damage').textContent = this.p2.damage;
+        $('p1Blocks').textContent = this.p1.blocks;
+        $('p2Blocks').textContent = this.p2.blocks;
+        $('p1Specials').textContent = this.p1.specials;
+        $('p2Specials').textContent = this.p2.specials;
+      }
+
+      startTimer() {
+        this.timerInterval = setInterval(() => {
+          this.timer--;
+          $('timer').textContent = this.timer;
+          if (this.timer <= 0) {
+            clearInterval(this.timerInterval);
+          }
+        }, 1000 / this.gameSpeed);
+      }
+
+      endFight() {
+        this.isFighting = false;
+        clearInterval(this.timerInterval);
+
+        let winner = '';
+        if (this.p1.hp <= 0) {
+          winner = 'P2 WINS!';
+          $('fighter1').classList.add('ko');
+        } else if (this.p2.hp <= 0) {
+          winner = 'P1 WINS!';
+          $('fighter2').classList.add('ko');
+        } else if (this.timer <= 0) {
+          winner = this.p1.hp > this.p2.hp ? 'P1 WINS!' : this.p2.hp > this.p1.hp ? 'P2 WINS!' : 'DRAW!';
+        }
+
+        this.showRoundText(winner);
+        this.log(`🏆 ${winner}`, 'system');
+
+        $('fightBtn').disabled = false;
+        $('fightBtn').classList.remove('loading');
+      }
+
+      showRoundText(text) {
+        $('roundText').textContent = text;
+        $('roundText').classList.add('show');
+        setTimeout(() => $('roundText').classList.remove('show'), 2000);
+      }
+
+      log(msg, type) {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry ' + type;
+        entry.innerHTML = msg;
+        $('battleLog').appendChild(entry);
+        $('battleLog').scrollTop = $('battleLog').scrollHeight;
+      }
+
+      resetGame() {
+        this.p1 = { hp: 100, hits: 0, damage: 0, blocks: 0, specials: 0, lastMove: null };
+        this.p2 = { hp: 100, hits: 0, damage: 0, blocks: 0, specials: 0, lastMove: null };
+        this.round = 0;
+        this.timer = 99;
+        this.isFighting = false;
+
+        clearInterval(this.timerInterval);
+
+        $('timer').textContent = '99';
+        $('battleLog').innerHTML = '';
+        $('fighter1').className = 'fighter';
+        $('fighter2').className = 'fighter p2';
+
+        this.updateHealthBars();
+        this.updateStats();
+
+        $('fightBtn').disabled = false;
+        $('fightBtn').classList.remove('loading');
+      }
+
+      delay(ms) {
+        return new Promise(r => setTimeout(r, ms));
+      }
+    }
+
+    window.AIFighter = new AIFighter();
+  </script>
+</body>
+</html>
