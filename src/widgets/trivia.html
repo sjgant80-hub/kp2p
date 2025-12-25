@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<!--
+Trivial Pursuit - Classic Trivia Game
+Part of KISS MySaaS
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Trivial Pursuit</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #fff; min-height: 100vh; }
+
+    .header { background: rgba(0,0,0,0.3); padding: 16px 24px; display: flex; align-items: center; gap: 20px; backdrop-filter: blur(10px); }
+    .logo { font-size: 28px; font-weight: 700; background: linear-gradient(90deg, #f59e0b, #ec4899, #8b5cf6, #3b82f6, #22c55e, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .score-display { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+    .score { font-size: 24px; font-weight: 700; }
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #8b5cf6; color: white; }
+    .btn-primary:hover { background: #7c3aed; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+
+    .game-container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+
+    /* Pie wedges display */
+    .wedges { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; }
+    .wedge { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.3s; }
+    .wedge.earned { border-color: #fff; box-shadow: 0 0 20px currentColor; transform: scale(1.1); }
+    .wedge.geography { background: #3b82f6; }
+    .wedge.entertainment { background: #ec4899; }
+    .wedge.history { background: #f59e0b; }
+    .wedge.arts { background: #a855f7; }
+    .wedge.science { background: #22c55e; }
+    .wedge.sports { background: #f97316; }
+
+    /* Category wheel */
+    .wheel-container { display: flex; justify-content: center; margin-bottom: 32px; }
+    .wheel { width: 280px; height: 280px; border-radius: 50%; position: relative; transition: transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99); }
+    .wheel-segment { position: absolute; width: 50%; height: 50%; transform-origin: 100% 100%; clip-path: polygon(0 0, 100% 0, 100% 100%); display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; transition: filter 0.2s; }
+    .wheel-segment:hover { filter: brightness(1.2); }
+    .wheel-segment:nth-child(1) { background: #3b82f6; transform: rotate(0deg) skewY(30deg); }
+    .wheel-segment:nth-child(2) { background: #ec4899; transform: rotate(60deg) skewY(30deg); }
+    .wheel-segment:nth-child(3) { background: #f59e0b; transform: rotate(120deg) skewY(30deg); }
+    .wheel-segment:nth-child(4) { background: #a855f7; transform: rotate(180deg) skewY(30deg); }
+    .wheel-segment:nth-child(5) { background: #22c55e; transform: rotate(240deg) skewY(30deg); }
+    .wheel-segment:nth-child(6) { background: #f97316; transform: rotate(300deg) skewY(30deg); }
+    .wheel-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; background: #1e1b4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; z-index: 10; border: 4px solid #fff; }
+    .wheel-center:hover { background: #312e81; }
+    .wheel-pointer { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid #fff; z-index: 20; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+
+    /* Category buttons (alternative to wheel) */
+    .categories { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
+    .category-btn { padding: 20px; border-radius: 12px; border: none; color: white; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.2s; }
+    .category-btn:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+    .category-btn.disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .category-btn .icon { font-size: 32px; }
+    .category-btn.geography { background: #3b82f6; }
+    .category-btn.entertainment { background: #ec4899; }
+    .category-btn.history { background: #f59e0b; }
+    .category-btn.arts { background: #a855f7; }
+    .category-btn.science { background: #22c55e; }
+    .category-btn.sports { background: #f97316; }
+
+    /* Question card */
+    .question-card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 40px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.2); }
+    .question-category { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .question-category .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .question-text { font-size: 24px; line-height: 1.5; margin-bottom: 32px; }
+    .question-number { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+
+    .answers { display: grid; gap: 12px; }
+    .answer-btn { padding: 16px 24px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-size: 16px; text-align: left; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+    .answer-btn:hover:not(:disabled) { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); transform: translateX(8px); }
+    .answer-btn .letter { width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+    .answer-btn.correct { background: #22c55e33; border-color: #22c55e; }
+    .answer-btn.correct .letter { background: #22c55e; }
+    .answer-btn.wrong { background: #ef444433; border-color: #ef4444; }
+    .answer-btn.wrong .letter { background: #ef4444; }
+    .answer-btn:disabled { cursor: not-allowed; opacity: 0.7; }
+
+    /* Result message */
+    .result { text-align: center; padding: 24px; margin-bottom: 24px; border-radius: 12px; font-size: 20px; font-weight: 600; display: none; }
+    .result.show { display: block; animation: pop 0.3s ease-out; }
+    .result.correct { background: #22c55e33; color: #22c55e; }
+    .result.wrong { background: #ef444433; color: #ef4444; }
+    @keyframes pop { from { transform: scale(0.8); opacity: 0; } }
+
+    .explanation { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 16px; margin-top: 16px; font-size: 14px; color: rgba(255,255,255,0.8); line-height: 1.6; }
+
+    /* Timer */
+    .timer { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; }
+    .timer-bar { width: 200px; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; }
+    .timer-fill { height: 100%; background: #22c55e; transition: width 0.1s, background 0.3s; }
+    .timer-fill.warning { background: #f59e0b; }
+    .timer-fill.danger { background: #ef4444; }
+    .timer-text { font-size: 18px; font-weight: 700; min-width: 40px; }
+
+    /* Win screen */
+    .win-screen { text-align: center; padding: 60px 40px; }
+    .win-screen h1 { font-size: 48px; margin-bottom: 16px; background: linear-gradient(90deg, #f59e0b, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .win-screen p { font-size: 20px; color: rgba(255,255,255,0.7); margin-bottom: 32px; }
+    .win-stats { display: flex; justify-content: center; gap: 40px; margin-bottom: 40px; }
+    .win-stat { text-align: center; }
+    .win-stat-value { font-size: 48px; font-weight: 700; color: #22c55e; }
+    .win-stat-label { font-size: 14px; color: rgba(255,255,255,0.5); }
+
+    .hidden { display: none !important; }
+
+    /* Confetti */
+    .confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
+    .confetti-piece { position: absolute; width: 10px; height: 10px; animation: confetti-fall 3s ease-out forwards; }
+    @keyframes confetti-fall {
+      0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Trivial Pursuit</div>
+    <div class="score-display">
+      <span>Score: <span class="score" id="score">0</span></span>
+      <span>Q: <span id="questionNum">1</span>/20</span>
+    </div>
+    <button class="btn btn-secondary" onclick="newGame()">New Game</button>
+  </div>
+
+  <div class="game-container">
+    <!-- Wedges collected -->
+    <div class="wedges" id="wedges">
+      <div class="wedge geography" title="Geography">🌍</div>
+      <div class="wedge entertainment" title="Entertainment">🎬</div>
+      <div class="wedge history" title="History">📜</div>
+      <div class="wedge arts" title="Arts & Literature">🎨</div>
+      <div class="wedge science" title="Science & Nature">🔬</div>
+      <div class="wedge sports" title="Sports & Leisure">⚽</div>
+    </div>
+
+    <!-- Category selection -->
+    <div id="categorySelect">
+      <h2 style="text-align:center;margin-bottom:24px;font-size:24px;">Choose a Category</h2>
+      <div class="categories" id="categories">
+        <button class="category-btn geography" data-category="geography">
+          <span class="icon">🌍</span>
+          Geography
+        </button>
+        <button class="category-btn entertainment" data-category="entertainment">
+          <span class="icon">🎬</span>
+          Entertainment
+        </button>
+        <button class="category-btn history" data-category="history">
+          <span class="icon">📜</span>
+          History
+        </button>
+        <button class="category-btn arts" data-category="arts">
+          <span class="icon">🎨</span>
+          Arts & Literature
+        </button>
+        <button class="category-btn science" data-category="science">
+          <span class="icon">🔬</span>
+          Science & Nature
+        </button>
+        <button class="category-btn sports" data-category="sports">
+          <span class="icon">⚽</span>
+          Sports & Leisure
+        </button>
+      </div>
+    </div>
+
+    <!-- Question view -->
+    <div id="questionView" class="hidden">
+      <div class="timer">
+        <div class="timer-bar">
+          <div class="timer-fill" id="timerFill"></div>
+        </div>
+        <span class="timer-text" id="timerText">30</span>
+      </div>
+
+      <div class="question-card">
+        <div class="question-number" id="questionNumDisplay">Question 1 of 20</div>
+        <div class="question-category" id="questionCategory">
+          <span class="dot"></span>
+          <span id="categoryName">Geography</span>
+        </div>
+        <div class="question-text" id="questionText">
+          What is the capital city of Australia?
+        </div>
+        <div class="answers" id="answers"></div>
+      </div>
+
+      <div class="result" id="result">
+        <span id="resultText">Correct!</span>
+        <div class="explanation" id="explanation"></div>
+      </div>
+
+      <div style="text-align:center;">
+        <button class="btn btn-primary hidden" id="nextBtn" onclick="nextQuestion()">Next Question</button>
+      </div>
+    </div>
+
+    <!-- Win screen -->
+    <div id="winScreen" class="hidden">
+      <div class="win-screen">
+        <h1>🎉 Congratulations!</h1>
+        <p>You've collected all six wedges!</p>
+        <div class="wedges" style="margin-bottom:32px;">
+          <div class="wedge geography earned">🌍</div>
+          <div class="wedge entertainment earned">🎬</div>
+          <div class="wedge history earned">📜</div>
+          <div class="wedge arts earned">🎨</div>
+          <div class="wedge science earned">🔬</div>
+          <div class="wedge sports earned">⚽</div>
+        </div>
+        <div class="win-stats">
+          <div class="win-stat">
+            <div class="win-stat-value" id="finalScore">0</div>
+            <div class="win-stat-label">Final Score</div>
+          </div>
+          <div class="win-stat">
+            <div class="win-stat-value" id="finalCorrect">0</div>
+            <div class="win-stat-label">Correct Answers</div>
+          </div>
+          <div class="win-stat">
+            <div class="win-stat-value" id="finalTime">0:00</div>
+            <div class="win-stat-label">Total Time</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="newGame()">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    // =========================================================================
+    // Trivial Pursuit - Trivia Game
+    // =========================================================================
+
+    const CATEGORIES = {
+      geography: { name: 'Geography', icon: '🌍', color: '#3b82f6' },
+      entertainment: { name: 'Entertainment', icon: '🎬', color: '#ec4899' },
+      history: { name: 'History', icon: '📜', color: '#f59e0b' },
+      arts: { name: 'Arts & Literature', icon: '🎨', color: '#a855f7' },
+      science: { name: 'Science & Nature', icon: '🔬', color: '#22c55e' },
+      sports: { name: 'Sports & Leisure', icon: '⚽', color: '#f97316' }
+    };
+
+    const QUESTIONS = {
+      geography: [
+        { q: "What is the capital city of Australia?", answers: ["Sydney", "Melbourne", "Canberra", "Perth"], correct: 2, explanation: "Canberra was chosen as the capital in 1908 as a compromise between Sydney and Melbourne." },
+        { q: "Which is the longest river in the world?", answers: ["Amazon", "Nile", "Yangtze", "Mississippi"], correct: 1, explanation: "The Nile is approximately 6,650 km long, though some argue the Amazon may be longer." },
+        { q: "What country has the most islands?", answers: ["Indonesia", "Philippines", "Sweden", "Finland"], correct: 2, explanation: "Sweden has approximately 267,570 islands, more than any other country." },
+        { q: "What is the smallest country in the world?", answers: ["Monaco", "Vatican City", "San Marino", "Liechtenstein"], correct: 1, explanation: "Vatican City is only 0.44 square kilometers (0.17 sq mi)." },
+        { q: "Which desert is the largest in the world?", answers: ["Sahara", "Arabian", "Gobi", "Antarctic"], correct: 3, explanation: "Antarctica is technically a cold desert and is larger than the Sahara." },
+        { q: "What is the deepest ocean?", answers: ["Atlantic", "Indian", "Pacific", "Arctic"], correct: 2, explanation: "The Pacific Ocean contains the Mariana Trench, the deepest point on Earth." },
+      ],
+      entertainment: [
+        { q: "Who directed the movie 'Pulp Fiction'?", answers: ["Martin Scorsese", "Quentin Tarantino", "Steven Spielberg", "Christopher Nolan"], correct: 1, explanation: "Quentin Tarantino wrote and directed Pulp Fiction in 1994." },
+        { q: "What was the first feature-length animated movie?", answers: ["Snow White", "Fantasia", "Pinocchio", "Bambi"], correct: 0, explanation: "Snow White and the Seven Dwarfs was released by Disney in 1937." },
+        { q: "Which band released 'Bohemian Rhapsody'?", answers: ["The Beatles", "Led Zeppelin", "Queen", "Pink Floyd"], correct: 2, explanation: "Queen released Bohemian Rhapsody in 1975 on their album 'A Night at the Opera'." },
+        { q: "What is the highest-grossing film of all time?", answers: ["Titanic", "Avatar", "Avengers: Endgame", "Star Wars: The Force Awakens"], correct: 1, explanation: "Avatar (2009) has grossed over $2.9 billion worldwide." },
+        { q: "Who played Jack in Titanic?", answers: ["Brad Pitt", "Tom Cruise", "Leonardo DiCaprio", "Johnny Depp"], correct: 2, explanation: "Leonardo DiCaprio played Jack Dawson in the 1997 film." },
+        { q: "What TV show features dragons and the Iron Throne?", answers: ["The Witcher", "Game of Thrones", "Vikings", "Lord of the Rings"], correct: 1, explanation: "Game of Thrones aired on HBO from 2011 to 2019." },
+      ],
+      history: [
+        { q: "In what year did World War II end?", answers: ["1943", "1944", "1945", "1946"], correct: 2, explanation: "WWII ended in 1945 with Germany surrendering in May and Japan in September." },
+        { q: "Who was the first person to walk on the moon?", answers: ["Buzz Aldrin", "Neil Armstrong", "Yuri Gagarin", "John Glenn"], correct: 1, explanation: "Neil Armstrong took his famous 'small step' on July 20, 1969." },
+        { q: "What ancient wonder was located in Alexandria?", answers: ["Hanging Gardens", "Colossus", "Lighthouse", "Temple of Artemis"], correct: 2, explanation: "The Lighthouse of Alexandria was one of the Seven Wonders of the Ancient World." },
+        { q: "Who painted the ceiling of the Sistine Chapel?", answers: ["Leonardo da Vinci", "Raphael", "Michelangelo", "Donatello"], correct: 2, explanation: "Michelangelo painted the Sistine Chapel ceiling between 1508 and 1512." },
+        { q: "What year did the Berlin Wall fall?", answers: ["1987", "1988", "1989", "1990"], correct: 2, explanation: "The Berlin Wall fell on November 9, 1989." },
+        { q: "Who was the first Emperor of Rome?", answers: ["Julius Caesar", "Augustus", "Nero", "Caligula"], correct: 1, explanation: "Augustus (Octavian) became the first Roman Emperor in 27 BC." },
+      ],
+      arts: [
+        { q: "Who wrote 'Romeo and Juliet'?", answers: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"], correct: 1, explanation: "Shakespeare wrote Romeo and Juliet around 1594-1596." },
+        { q: "What artist painted 'The Starry Night'?", answers: ["Claude Monet", "Pablo Picasso", "Vincent van Gogh", "Salvador Dalí"], correct: 2, explanation: "Van Gogh painted The Starry Night in 1889 while in an asylum." },
+        { q: "Who wrote '1984'?", answers: ["Aldous Huxley", "George Orwell", "Ray Bradbury", "H.G. Wells"], correct: 1, explanation: "George Orwell published 1984 in 1949." },
+        { q: "What is the Mona Lisa's other name?", answers: ["La Bella", "La Gioconda", "La Donna", "La Prima"], correct: 1, explanation: "The painting is also known as La Gioconda, meaning 'the joyful one'." },
+        { q: "Who composed 'The Four Seasons'?", answers: ["Mozart", "Beethoven", "Vivaldi", "Bach"], correct: 2, explanation: "Antonio Vivaldi composed The Four Seasons in 1723." },
+        { q: "What novel features the character Atticus Finch?", answers: ["The Great Gatsby", "To Kill a Mockingbird", "Of Mice and Men", "Catcher in the Rye"], correct: 1, explanation: "Harper Lee's To Kill a Mockingbird was published in 1960." },
+      ],
+      science: [
+        { q: "What is the chemical symbol for gold?", answers: ["Go", "Gd", "Au", "Ag"], correct: 2, explanation: "Au comes from the Latin word 'aurum' meaning gold." },
+        { q: "What planet is known as the Red Planet?", answers: ["Venus", "Mars", "Jupiter", "Saturn"], correct: 1, explanation: "Mars appears red due to iron oxide (rust) on its surface." },
+        { q: "What is the hardest natural substance?", answers: ["Titanium", "Platinum", "Diamond", "Quartz"], correct: 2, explanation: "Diamond is the hardest natural material, rating 10 on the Mohs scale." },
+        { q: "How many bones are in the adult human body?", answers: ["186", "206", "226", "256"], correct: 1, explanation: "Adults have 206 bones; babies are born with about 270 that fuse together." },
+        { q: "What gas do plants absorb from the atmosphere?", answers: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"], correct: 2, explanation: "Plants use CO2 for photosynthesis, releasing oxygen." },
+        { q: "What is the speed of light?", answers: ["300,000 km/s", "150,000 km/s", "500,000 km/s", "1,000,000 km/s"], correct: 0, explanation: "Light travels at approximately 299,792 km/s in a vacuum." },
+      ],
+      sports: [
+        { q: "How many players are on a soccer team?", answers: ["9", "10", "11", "12"], correct: 2, explanation: "A soccer team has 11 players on the field including the goalkeeper." },
+        { q: "What country has won the most World Cups?", answers: ["Germany", "Argentina", "Italy", "Brazil"], correct: 3, explanation: "Brazil has won 5 FIFA World Cups (1958, 1962, 1970, 1994, 2002)." },
+        { q: "What sport uses the term 'love' for zero?", answers: ["Golf", "Tennis", "Badminton", "Squash"], correct: 1, explanation: "In tennis, 'love' means zero points, possibly from French 'l'oeuf' (egg)." },
+        { q: "How long is a marathon?", answers: ["26.2 miles", "24.5 miles", "30 miles", "20 miles"], correct: 0, explanation: "A marathon is 26.2 miles or 42.195 kilometers." },
+        { q: "What sport is played at Wimbledon?", answers: ["Golf", "Cricket", "Tennis", "Rugby"], correct: 2, explanation: "Wimbledon is the oldest tennis tournament, established in 1877." },
+        { q: "How many rings are on the Olympic flag?", answers: ["4", "5", "6", "7"], correct: 1, explanation: "The five rings represent the five inhabited continents of the world." },
+      ]
+    };
+
+    let score = 0;
+    let questionNum = 0;
+    let correctAnswers = 0;
+    let currentCategory = null;
+    let currentQuestion = null;
+    let wedgesEarned = {};
+    let usedQuestions = {};
+    let timer = null;
+    let timeLeft = 30;
+    let gameStartTime = Date.now();
+
+    // Initialize category buttons
+    document.querySelectorAll('.category-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!btn.classList.contains('disabled')) {
+          selectCategory(btn.dataset.category);
+        }
+      });
+    });
+
+    function newGame() {
+      score = 0;
+      questionNum = 0;
+      correctAnswers = 0;
+      wedgesEarned = {};
+      usedQuestions = {};
+      gameStartTime = Date.now();
+
+      document.getElementById('score').textContent = '0';
+      document.getElementById('questionNum').textContent = '1';
+
+      // Reset wedges
+      document.querySelectorAll('.wedge').forEach(w => w.classList.remove('earned'));
+
+      // Reset category buttons
+      document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('disabled'));
+
+      // Show category select
+      document.getElementById('categorySelect').classList.remove('hidden');
+      document.getElementById('questionView').classList.add('hidden');
+      document.getElementById('winScreen').classList.add('hidden');
+    }
+
+    function selectCategory(category) {
+      currentCategory = category;
+      questionNum++;
+
+      // Get unused question
+      if (!usedQuestions[category]) usedQuestions[category] = [];
+      const available = QUESTIONS[category].filter((_, i) => !usedQuestions[category].includes(i));
+
+      if (available.length === 0) {
+        // All questions used, reset
+        usedQuestions[category] = [];
+      }
+
+      const questionIndex = QUESTIONS[category].findIndex((q, i) =>
+        !usedQuestions[category].includes(i)
+      );
+      usedQuestions[category].push(questionIndex);
+      currentQuestion = QUESTIONS[category][questionIndex];
+
+      showQuestion();
+    }
+
+    function showQuestion() {
+      const cat = CATEGORIES[currentCategory];
+
+      document.getElementById('categorySelect').classList.add('hidden');
+      document.getElementById('questionView').classList.remove('hidden');
+
+      document.getElementById('questionNumDisplay').textContent = `Question ${questionNum}`;
+      document.getElementById('categoryName').textContent = cat.name;
+      document.getElementById('questionCategory').querySelector('.dot').style.background = cat.color;
+      document.getElementById('questionText').textContent = currentQuestion.q;
+
+      // Shuffle answers
+      const answers = currentQuestion.answers.map((a, i) => ({ text: a, index: i }));
+      for (let i = answers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [answers[i], answers[j]] = [answers[j], answers[i]];
+      }
+
+      const answersEl = document.getElementById('answers');
+      answersEl.innerHTML = answers.map((a, i) => `
+        <button class="answer-btn" onclick="checkAnswer(${a.index}, this)">
+          <span class="letter">${String.fromCharCode(65 + i)}</span>
+          <span>${a.text}</span>
+        </button>
+      `).join('');
+
+      document.getElementById('result').classList.remove('show', 'correct', 'wrong');
+      document.getElementById('nextBtn').classList.add('hidden');
+      document.getElementById('questionNum').textContent = questionNum;
+
+      // Start timer
+      startTimer();
+    }
+
+    function startTimer() {
+      timeLeft = 30;
+      updateTimer();
+
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        updateTimer();
+
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          timeUp();
+        }
+      }, 1000);
+    }
+
+    function updateTimer() {
+      document.getElementById('timerText').textContent = timeLeft;
+      const fill = document.getElementById('timerFill');
+      fill.style.width = (timeLeft / 30 * 100) + '%';
+      fill.classList.remove('warning', 'danger');
+      if (timeLeft <= 10) fill.classList.add('danger');
+      else if (timeLeft <= 20) fill.classList.add('warning');
+    }
+
+    function timeUp() {
+      // Disable all answers
+      document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+
+      // Show correct answer
+      const buttons = document.querySelectorAll('.answer-btn');
+      buttons.forEach(btn => {
+        const answerIndex = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
+        if (answerIndex === currentQuestion.correct) {
+          btn.classList.add('correct');
+        }
+      });
+
+      showResult(false, "Time's up!");
+    }
+
+    function checkAnswer(answerIndex, btn) {
+      clearInterval(timer);
+
+      // Disable all answers
+      document.querySelectorAll('.answer-btn').forEach(b => b.disabled = true);
+
+      const isCorrect = answerIndex === currentQuestion.correct;
+
+      if (isCorrect) {
+        btn.classList.add('correct');
+        const timeBonus = timeLeft * 10;
+        const points = 100 + timeBonus;
+        score += points;
+        correctAnswers++;
+
+        // Award wedge if not already earned
+        if (!wedgesEarned[currentCategory]) {
+          wedgesEarned[currentCategory] = true;
+          document.querySelector(`.wedge.${currentCategory}`).classList.add('earned');
+        }
+
+        showResult(true, `+${points} points!`);
+      } else {
+        btn.classList.add('wrong');
+        // Show correct answer
+        document.querySelectorAll('.answer-btn').forEach(b => {
+          const idx = parseInt(b.getAttribute('onclick').match(/\d+/)[0]);
+          if (idx === currentQuestion.correct) b.classList.add('correct');
+        });
+        showResult(false, 'Wrong answer!');
+      }
+
+      document.getElementById('score').textContent = score;
+    }
+
+    function showResult(isCorrect, text) {
+      const result = document.getElementById('result');
+      result.classList.remove('correct', 'wrong');
+      result.classList.add('show', isCorrect ? 'correct' : 'wrong');
+      document.getElementById('resultText').textContent = text;
+      document.getElementById('explanation').textContent = currentQuestion.explanation;
+      document.getElementById('nextBtn').classList.remove('hidden');
+
+      // Check for win
+      if (Object.keys(wedgesEarned).length === 6) {
+        setTimeout(showWin, 1000);
+      }
+    }
+
+    function nextQuestion() {
+      // Mark current category as disabled if wedge earned
+      if (wedgesEarned[currentCategory]) {
+        document.querySelector(`.category-btn.${currentCategory}`).classList.add('disabled');
+      }
+
+      // Check if all wedges earned
+      if (Object.keys(wedgesEarned).length === 6) {
+        showWin();
+        return;
+      }
+
+      // Back to category select
+      document.getElementById('categorySelect').classList.remove('hidden');
+      document.getElementById('questionView').classList.add('hidden');
+    }
+
+    function showWin() {
+      document.getElementById('questionView').classList.add('hidden');
+      document.getElementById('categorySelect').classList.add('hidden');
+      document.getElementById('winScreen').classList.remove('hidden');
+
+      const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalCorrect').textContent = correctAnswers;
+      document.getElementById('finalTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+      // Confetti!
+      showConfetti();
+    }
+
+    function showConfetti() {
+      const container = document.getElementById('confetti');
+      container.innerHTML = '';
+
+      const colors = ['#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#22c55e', '#f97316'];
+
+      for (let i = 0; i < 100; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDelay = Math.random() * 2 + 's';
+        piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+        container.appendChild(piece);
+      }
+
+      setTimeout(() => container.innerHTML = '', 5000);
+    }
+
+    // Start game
+    newGame();
+  </script>
+</body>
+</html>
