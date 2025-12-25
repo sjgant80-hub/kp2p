@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<!--
+@file timer.html
+@desc Timer Widget - Time tracking (Toggl/Clockify killer)
+@api  window.Timer - timer controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Time Tracker</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .timer-bar{background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06);padding:20px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .timer-input{flex:1;min-width:200px;padding:14px 18px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:var(--f);font-size:15px}
+    .timer-input:focus{outline:0;border-color:var(--a)}
+
+    .timer-display{font-size:32px;font-weight:700;font-family:'SF Mono',monospace;min-width:140px;text-align:center}
+    .timer-display.running{color:var(--g)}
+
+    .timer-btns{display:flex;gap:8px}
+    .timer-btns button{width:48px;height:48px;border:0;border-radius:12px;font-size:18px;cursor:pointer;transition:transform .1s}
+    .timer-btns button:hover{transform:scale(1.05)}
+    .btn-start{background:var(--g);color:#000}
+    .btn-stop{background:var(--r);color:#fff}
+    .btn-pause{background:var(--o);color:#000}
+
+    .project-select{padding:14px 18px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:var(--f);font-size:13px;min-width:150px}
+
+    .container{max-width:900px;margin:0 auto;padding:24px}
+
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+    @media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}}
+    .stat{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px;text-align:center}
+    .stat .value{font-size:24px;font-weight:700;color:var(--a)}
+    .stat .label{font-size:11px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+    .section{margin-bottom:32px}
+    .section h2{font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .section h2 .badge{font-size:11px;padding:2px 8px;background:var(--a2);border-radius:10px;font-weight:500}
+
+    .entry{display:flex;align-items:center;gap:16px;padding:16px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;margin-bottom:8px}
+    .entry:hover{border-color:rgba(255,255,255,.1)}
+
+    .entry-color{width:4px;height:40px;border-radius:2px;flex-shrink:0}
+    .entry-info{flex:1;min-width:0}
+    .entry-desc{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .entry-meta{font-size:12px;color:#64748b;display:flex;gap:12px;margin-top:4px}
+    .entry-duration{font-size:18px;font-weight:600;font-family:'SF Mono',monospace;color:var(--a)}
+    .entry-actions{display:flex;gap:6px}
+    .entry-actions button{width:32px;height:32px;background:rgba(255,255,255,.05);border:0;border-radius:6px;color:#94a3b8;cursor:pointer}
+    .entry-actions button:hover{background:rgba(255,255,255,.1);color:var(--f)}
+
+    .project{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:10px;margin-bottom:8px;cursor:pointer}
+    .project:hover{border-color:rgba(255,255,255,.1)}
+    .project-color{width:12px;height:12px;border-radius:50%}
+    .project-name{flex:1;font-weight:500}
+    .project-time{font-size:14px;font-family:'SF Mono',monospace;color:#64748b}
+
+    .week-chart{display:flex;gap:8px;align-items:flex-end;height:120px;padding:16px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px}
+    .day-bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .day-bar .bar{width:100%;background:linear-gradient(to top,var(--a2),var(--a));border-radius:4px;min-height:4px}
+    .day-bar .label{font-size:10px;color:#64748b}
+    .day-bar .hours{font-size:10px;color:#94a3b8}
+
+    .empty{text-align:center;padding:40px;color:#64748b}
+  </style>
+</head>
+<body>
+  <div class="timer-bar">
+    <input type="text" class="timer-input" id="taskInput" placeholder="What are you working on?">
+    <select class="project-select" id="projectSelect">
+      <option value="">No Project</option>
+      <option value="work" data-color="#7c3aed">💼 Work</option>
+      <option value="personal" data-color="#10b981">🏠 Personal</option>
+      <option value="learning" data-color="#00d9ff">📚 Learning</option>
+      <option value="health" data-color="#ef4444">❤️ Health</option>
+    </select>
+    <div class="timer-display" id="display">00:00:00</div>
+    <div class="timer-btns">
+      <button class="btn-start" id="startBtn">▶</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stats">
+      <div class="stat"><div class="value" id="todayTime">0:00</div><div class="label">Today</div></div>
+      <div class="stat"><div class="value" id="weekTime">0:00</div><div class="label">This Week</div></div>
+      <div class="stat"><div class="value" id="monthTime">0:00</div><div class="label">This Month</div></div>
+      <div class="stat"><div class="value" id="entries">0</div><div class="label">Entries</div></div>
+    </div>
+
+    <div class="section">
+      <h2>📊 This Week</h2>
+      <div class="week-chart" id="weekChart"></div>
+    </div>
+
+    <div class="section">
+      <h2>📁 Projects</h2>
+      <div id="projects"></div>
+    </div>
+
+    <div class="section">
+      <h2>📝 Recent Entries <span class="badge" id="entryCount">0</span></h2>
+      <div id="entriesList"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class Timer {
+      constructor() {
+        this.entries = JSON.parse(localStorage.getItem('timer-entries') || '[]');
+        this.running = null;
+        this.startTime = null;
+        this.elapsed = 0;
+        this.interval = null;
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('timer-entries', JSON.stringify(this.entries));
+      }
+
+      formatTime(ms) {
+        const s = Math.floor(ms / 1000);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      }
+
+      formatHours(ms) {
+        const h = ms / 3600000;
+        if (h < 1) return Math.round(h * 60) + 'm';
+        return h.toFixed(1) + 'h';
+      }
+
+      start() {
+        const desc = $('taskInput').value.trim() || 'Untitled';
+        const project = $('projectSelect').value;
+
+        this.running = { desc, project };
+        this.startTime = Date.now();
+        this.elapsed = 0;
+
+        $('startBtn').className = 'btn-stop';
+        $('startBtn').textContent = '⏹';
+        $('display').classList.add('running');
+
+        this.interval = setInterval(() => this.tick(), 1000);
+      }
+
+      stop() {
+        if (!this.running) return;
+
+        const duration = Date.now() - this.startTime + this.elapsed;
+
+        this.entries.unshift({
+          id: Date.now().toString(36),
+          desc: this.running.desc,
+          project: this.running.project,
+          start: this.startTime,
+          duration,
+          date: new Date().toDateString()
+        });
+
+        this.save();
+        this.running = null;
+        this.startTime = null;
+        this.elapsed = 0;
+        clearInterval(this.interval);
+
+        $('startBtn').className = 'btn-start';
+        $('startBtn').textContent = '▶';
+        $('display').classList.remove('running');
+        $('display').textContent = '00:00:00';
+        $('taskInput').value = '';
+
+        this.render();
+      }
+
+      tick() {
+        const elapsed = Date.now() - this.startTime + this.elapsed;
+        $('display').textContent = this.formatTime(elapsed);
+      }
+
+      delete(id) {
+        this.entries = this.entries.filter(e => e.id !== id);
+        this.save();
+        this.render();
+      }
+
+      resume(entry) {
+        $('taskInput').value = entry.desc;
+        $('projectSelect').value = entry.project || '';
+        this.start();
+      }
+
+      getStats() {
+        const now = new Date();
+        const today = now.toDateString();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        let todayTime = 0, weekTime = 0, monthTime = 0;
+
+        this.entries.forEach(e => {
+          const entryDate = new Date(e.start);
+          if (e.date === today) todayTime += e.duration;
+          if (entryDate >= weekStart) weekTime += e.duration;
+          if (entryDate >= monthStart) monthTime += e.duration;
+        });
+
+        return { todayTime, weekTime, monthTime, total: this.entries.length };
+      }
+
+      getWeekData() {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const now = new Date();
+        const data = [];
+
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(now);
+          d.setDate(now.getDate() - now.getDay() + i);
+          const dateStr = d.toDateString();
+          const total = this.entries.filter(e => e.date === dateStr).reduce((a, b) => a + b.duration, 0);
+          data.push({ day: days[i], total });
+        }
+
+        return data;
+      }
+
+      getProjects() {
+        const projects = {};
+        const colors = { work: '#7c3aed', personal: '#10b981', learning: '#00d9ff', health: '#ef4444', '': '#64748b' };
+        const names = { work: '💼 Work', personal: '🏠 Personal', learning: '📚 Learning', health: '❤️ Health', '': '📋 No Project' };
+
+        this.entries.forEach(e => {
+          const p = e.project || '';
+          if (!projects[p]) projects[p] = { time: 0, color: colors[p], name: names[p] };
+          projects[p].time += e.duration;
+        });
+
+        return Object.entries(projects).sort((a, b) => b[1].time - a[1].time);
+      }
+
+      render() {
+        const stats = this.getStats();
+        $('todayTime').textContent = this.formatHours(stats.todayTime);
+        $('weekTime').textContent = this.formatHours(stats.weekTime);
+        $('monthTime').textContent = this.formatHours(stats.monthTime);
+        $('entries').textContent = stats.total;
+        $('entryCount').textContent = stats.total;
+
+        // Week chart
+        const weekData = this.getWeekData();
+        const maxTime = Math.max(...weekData.map(d => d.total), 1);
+        $('weekChart').innerHTML = weekData.map(d => {
+          const height = Math.max((d.total / maxTime) * 80, 4);
+          return `
+            <div class="day-bar">
+              <div class="bar" style="height:${height}px"></div>
+              <div class="hours">${d.total > 0 ? this.formatHours(d.total) : '-'}</div>
+              <div class="label">${d.day}</div>
+            </div>
+          `;
+        }).join('');
+
+        // Projects
+        const projects = this.getProjects();
+        $('projects').innerHTML = projects.length ? projects.map(([key, p]) => `
+          <div class="project">
+            <div class="project-color" style="background:${p.color}"></div>
+            <div class="project-name">${p.name}</div>
+            <div class="project-time">${this.formatHours(p.time)}</div>
+          </div>
+        `).join('') : '<div class="empty">No projects yet</div>';
+
+        // Entries
+        const colors = { work: '#7c3aed', personal: '#10b981', learning: '#00d9ff', health: '#ef4444', '': '#64748b' };
+        $('entriesList').innerHTML = this.entries.slice(0, 20).map(e => `
+          <div class="entry">
+            <div class="entry-color" style="background:${colors[e.project || '']}"></div>
+            <div class="entry-info">
+              <div class="entry-desc">${esc(e.desc)}</div>
+              <div class="entry-meta">
+                <span>${new Date(e.start).toLocaleDateString()}</span>
+                <span>${new Date(e.start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              </div>
+            </div>
+            <div class="entry-duration">${this.formatHours(e.duration)}</div>
+            <div class="entry-actions">
+              <button onclick="Timer.resume(Timer.entries.find(x=>x.id==='${e.id}'))" title="Resume">▶</button>
+              <button onclick="Timer.delete('${e.id}')" title="Delete">🗑</button>
+            </div>
+          </div>
+        `).join('') || '<div class="empty">No entries yet. Start tracking!</div>';
+      }
+
+      init() {
+        $('startBtn').onclick = () => {
+          if (this.running) this.stop();
+          else this.start();
+        };
+
+        $('taskInput').onkeydown = e => {
+          if (e.key === 'Enter' && !this.running) this.start();
+        };
+
+        this.render();
+      }
+    }
+
+    const timer = new Timer();
+    window.Timer = timer;
+  </script>
+</body>
+</html>

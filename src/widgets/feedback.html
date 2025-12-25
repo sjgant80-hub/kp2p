@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<!--
+@file feedback.html
+@desc Feedback Widget - Feature requests & voting (Canny killer)
+@api  window.Feedback - feedback controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Feedback</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:20px 24px;background:linear-gradient(135deg,var(--a2),#ec4899);text-align:center}
+    .header h1{font-size:24px;margin-bottom:4px}
+    .header p{opacity:.8;font-size:13px}
+
+    .container{max-width:800px;margin:0 auto;padding:24px}
+
+    .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:4px}
+    .tab{padding:10px 20px;background:0;border:0;color:#64748b;font-size:13px;cursor:pointer;border-radius:6px 6px 0 0;transition:all .15s}
+    .tab:hover{color:var(--f)}
+    .tab.active{background:var(--b2);color:var(--a)}
+
+    .new-btn{padding:12px 24px;background:linear-gradient(135deg,var(--a2),#ec4899);border:0;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:20px}
+    .new-btn:hover{opacity:.9}
+
+    .card{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;gap:16px}
+    .card:hover{border-color:rgba(255,255,255,.1)}
+
+    .vote{display:flex;flex-direction:column;align-items:center;gap:4px}
+    .vote button{width:36px;height:36px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font-size:16px;cursor:pointer;transition:all .15s}
+    .vote button:hover{background:rgba(124,58,237,.2);border-color:var(--a2)}
+    .vote button.voted{background:var(--a2);border-color:var(--a2)}
+    .vote .count{font-size:14px;font-weight:600;color:var(--a2)}
+
+    .content{flex:1;min-width:0}
+    .content h3{font-size:15px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+    .content p{color:#94a3b8;font-size:13px;line-height:1.5}
+    .meta{display:flex;gap:12px;margin-top:10px;font-size:11px;color:#64748b}
+    .meta span{display:flex;align-items:center;gap:4px}
+
+    .status{font-size:10px;padding:3px 8px;border-radius:10px;font-weight:500}
+    .status.open{background:rgba(16,185,129,.15);color:var(--g)}
+    .status.planned{background:rgba(0,217,255,.15);color:var(--a)}
+    .status.progress{background:rgba(249,115,22,.15);color:var(--o)}
+    .status.done{background:rgba(124,58,237,.15);color:var(--a2)}
+
+    .category{font-size:10px;padding:3px 8px;background:rgba(255,255,255,.05);border-radius:10px}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+    .modal.open{display:flex}
+    .modal-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:24px;width:100%;max-width:500px}
+    .modal h2{margin-bottom:20px;font-size:18px}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:inherit;font-size:13px}
+    .form-group textarea{min-height:100px;resize:vertical}
+    .form-group input:focus,.form-group textarea:focus{outline:0;border-color:var(--a2)}
+    .modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .modal-btns button{padding:10px 20px;border:0;border-radius:8px;font-weight:500;cursor:pointer}
+    .modal-btns .cancel{background:rgba(255,255,255,.1);color:var(--f)}
+    .modal-btns .submit{background:linear-gradient(135deg,var(--a2),#ec4899);color:#fff}
+
+    .empty{text-align:center;padding:60px 20px;color:#64748b}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+
+    .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .filters select{padding:8px 12px;background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:12px}
+    .search{flex:1;min-width:200px;padding:10px 14px;background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font-size:13px}
+    .search:focus{outline:0;border-color:var(--a2)}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>💡 Feature Requests</h1>
+    <p>Vote on features you want to see built</p>
+  </div>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab active" data-filter="all">All</button>
+      <button class="tab" data-filter="open">Open</button>
+      <button class="tab" data-filter="planned">Planned</button>
+      <button class="tab" data-filter="progress">In Progress</button>
+      <button class="tab" data-filter="done">Complete</button>
+    </div>
+
+    <div class="filters">
+      <input type="text" class="search" id="search" placeholder="Search requests...">
+      <select id="category">
+        <option value="">All Categories</option>
+        <option value="feature">Feature</option>
+        <option value="bug">Bug</option>
+        <option value="improvement">Improvement</option>
+        <option value="integration">Integration</option>
+      </select>
+      <select id="sort">
+        <option value="votes">Most Votes</option>
+        <option value="recent">Most Recent</option>
+        <option value="comments">Most Comments</option>
+      </select>
+    </div>
+
+    <button class="new-btn" id="newBtn">➕ Submit Request</button>
+
+    <div id="list"></div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>Submit Feature Request</h2>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="title" placeholder="Short, descriptive title">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="desc" placeholder="Describe the feature or problem in detail..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="cat">
+          <option value="feature">Feature Request</option>
+          <option value="bug">Bug Report</option>
+          <option value="improvement">Improvement</option>
+          <option value="integration">Integration</option>
+        </select>
+      </div>
+      <div class="modal-btns">
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="submit" id="submitBtn">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class Feedback {
+      constructor() {
+        this.items = JSON.parse(localStorage.getItem('feedback-items') || '[]');
+        this.votes = JSON.parse(localStorage.getItem('feedback-votes') || '{}');
+        this.filter = 'all';
+        this.category = '';
+        this.sort = 'votes';
+        this.search = '';
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('feedback-items', JSON.stringify(this.items));
+        localStorage.setItem('feedback-votes', JSON.stringify(this.votes));
+      }
+
+      add(title, desc, cat) {
+        const item = {
+          id: Date.now().toString(36),
+          title,
+          desc,
+          category: cat,
+          status: 'open',
+          votes: 0,
+          comments: 0,
+          created: Date.now(),
+          author: 'Anonymous'
+        };
+        this.items.unshift(item);
+        this.save();
+        this.render();
+      }
+
+      vote(id) {
+        const item = this.items.find(i => i.id === id);
+        if (!item) return;
+
+        if (this.votes[id]) {
+          item.votes--;
+          delete this.votes[id];
+        } else {
+          item.votes++;
+          this.votes[id] = true;
+        }
+        this.save();
+        this.render();
+      }
+
+      getFiltered() {
+        let items = [...this.items];
+
+        if (this.filter !== 'all') {
+          items = items.filter(i => i.status === this.filter);
+        }
+        if (this.category) {
+          items = items.filter(i => i.category === this.category);
+        }
+        if (this.search) {
+          const s = this.search.toLowerCase();
+          items = items.filter(i => i.title.toLowerCase().includes(s) || i.desc.toLowerCase().includes(s));
+        }
+
+        if (this.sort === 'votes') items.sort((a, b) => b.votes - a.votes);
+        else if (this.sort === 'recent') items.sort((a, b) => b.created - a.created);
+        else if (this.sort === 'comments') items.sort((a, b) => b.comments - a.comments);
+
+        return items;
+      }
+
+      render() {
+        const list = $('list');
+        const items = this.getFiltered();
+
+        if (items.length === 0) {
+          list.innerHTML = `<div class="empty"><div class="icon">💡</div><div>No requests yet. Be the first to submit one!</div></div>`;
+          return;
+        }
+
+        list.innerHTML = items.map(item => `
+          <div class="card">
+            <div class="vote">
+              <button class="${this.votes[item.id] ? 'voted' : ''}" data-vote="${item.id}">▲</button>
+              <span class="count">${item.votes}</span>
+            </div>
+            <div class="content">
+              <h3>
+                ${esc(item.title)}
+                <span class="status ${item.status}">${item.status === 'progress' ? 'In Progress' : item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
+              </h3>
+              <p>${esc(item.desc)}</p>
+              <div class="meta">
+                <span class="category">${item.category}</span>
+                <span>💬 ${item.comments}</span>
+                <span>📅 ${new Date(item.created).toLocaleDateString()}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      init() {
+        // Demo data
+        if (this.items.length === 0) {
+          this.items = [
+            { id: '1', title: 'Dark mode support', desc: 'Add a dark theme option for better night-time usage', category: 'feature', status: 'done', votes: 42, comments: 8, created: Date.now() - 86400000 * 5 },
+            { id: '2', title: 'Mobile app', desc: 'Native iOS and Android apps for better mobile experience', category: 'feature', status: 'planned', votes: 38, comments: 12, created: Date.now() - 86400000 * 3 },
+            { id: '3', title: 'Slack integration', desc: 'Send notifications to Slack channels', category: 'integration', status: 'progress', votes: 27, comments: 5, created: Date.now() - 86400000 * 2 },
+            { id: '4', title: 'Export to CSV', desc: 'Allow exporting data to CSV format', category: 'feature', status: 'open', votes: 19, comments: 3, created: Date.now() - 86400000 },
+            { id: '5', title: 'Keyboard shortcuts', desc: 'Add keyboard shortcuts for power users', category: 'improvement', status: 'open', votes: 15, comments: 2, created: Date.now() }
+          ];
+          this.save();
+        }
+
+        this.render();
+
+        // Event listeners
+        $('newBtn').onclick = () => $('modal').classList.add('open');
+        $('cancelBtn').onclick = () => $('modal').classList.remove('open');
+        $('submitBtn').onclick = () => {
+          const title = $('title').value.trim();
+          const desc = $('desc').value.trim();
+          const cat = $('cat').value;
+          if (title && desc) {
+            this.add(title, desc, cat);
+            $('title').value = '';
+            $('desc').value = '';
+            $('modal').classList.remove('open');
+          }
+        };
+
+        $('list').onclick = e => {
+          const voteBtn = e.target.closest('[data-vote]');
+          if (voteBtn) this.vote(voteBtn.dataset.vote);
+        };
+
+        document.querySelectorAll('.tab').forEach(tab => {
+          tab.onclick = () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            this.filter = tab.dataset.filter;
+            this.render();
+          };
+        });
+
+        $('category').onchange = e => { this.category = e.target.value; this.render(); };
+        $('sort').onchange = e => { this.sort = e.target.value; this.render(); };
+        $('search').oninput = e => { this.search = e.target.value; this.render(); };
+      }
+    }
+
+    window.Feedback = new Feedback();
+  </script>
+</body>
+</html>

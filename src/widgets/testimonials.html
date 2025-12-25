@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<!--
+@file testimonials.html
+@desc Testimonials Widget - Review collector & display (Testimonial.to killer)
+@api  window.Testimonials - testimonials controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Testimonials</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:40px 24px;background:linear-gradient(135deg,var(--y),var(--o,#f97316));text-align:center}
+    .header h1{font-size:28px;margin-bottom:8px;color:#000}
+    .header p{color:rgba(0,0,0,.7);font-size:14px}
+
+    .container{max-width:1000px;margin:0 auto;padding:40px 24px}
+
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+    .stat{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px;text-align:center}
+    .stat .value{font-size:32px;font-weight:700;color:var(--y)}
+    .stat .label{font-size:12px;color:#64748b;margin-top:4px}
+
+    .masonry{columns:2;column-gap:20px}
+    @media(max-width:600px){.masonry{columns:1}}
+
+    .testimonial{break-inside:avoid;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:24px;margin-bottom:20px;transition:transform .15s,border-color .15s}
+    .testimonial:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.12)}
+    .testimonial.featured{border-color:var(--y);background:linear-gradient(135deg,var(--b2),rgba(234,179,8,.05))}
+
+    .stars{display:flex;gap:2px;margin-bottom:12px}
+    .stars span{color:var(--y);font-size:16px}
+    .stars span.empty{opacity:.3}
+
+    .quote{font-size:15px;line-height:1.7;margin-bottom:16px;position:relative}
+    .quote::before{content:'"';position:absolute;left:-8px;top:-10px;font-size:40px;color:var(--y);opacity:.3}
+
+    .author{display:flex;align-items:center;gap:12px}
+    .avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--a2));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:#fff}
+    .avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .author-info{flex:1}
+    .author-name{font-weight:600;font-size:14px}
+    .author-title{font-size:12px;color:#64748b}
+
+    .tags{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+    .tag{font-size:10px;padding:4px 8px;background:rgba(255,255,255,.05);border-radius:6px;color:#94a3b8}
+
+    .collect-btn{position:fixed;bottom:24px;right:24px;padding:16px 24px;background:linear-gradient(135deg,var(--y),var(--o,#f97316));border:0;border-radius:50px;color:#000;font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 4px 20px rgba(234,179,8,.3);display:flex;align-items:center;gap:8px;z-index:50}
+    .collect-btn:hover{transform:scale(1.05)}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+    .modal.open{display:flex}
+    .modal-content{background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:32px;width:100%;max-width:480px}
+    .modal h2{text-align:center;margin-bottom:8px;font-size:22px}
+    .modal .subtitle{text-align:center;color:#64748b;margin-bottom:24px;font-size:13px}
+
+    .form-group{margin-bottom:20px}
+    .form-group label{display:block;font-size:12px;color:#94a3b8;margin-bottom:8px;font-weight:500}
+    .form-group input,.form-group textarea{width:100%;padding:14px 16px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--f);font:inherit}
+    .form-group textarea{min-height:120px;resize:vertical}
+    .form-group input:focus,.form-group textarea:focus{outline:0;border-color:var(--y)}
+
+    .star-rating{display:flex;gap:8px;font-size:28px;cursor:pointer}
+    .star-rating span{color:rgba(255,255,255,.2);transition:color .15s}
+    .star-rating span:hover,.star-rating span.active{color:var(--y)}
+
+    .modal-btns{display:flex;gap:12px;margin-top:24px}
+    .modal-btns button{flex:1;padding:14px;border:0;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer}
+    .modal-btns .cancel{background:rgba(255,255,255,.08);color:var(--f)}
+    .modal-btns .submit{background:linear-gradient(135deg,var(--y),var(--o,#f97316));color:#000}
+
+    .filters{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+    .filter{padding:8px 16px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:20px;color:#94a3b8;font-size:12px;cursor:pointer}
+    .filter:hover{border-color:rgba(255,255,255,.15)}
+    .filter.active{background:var(--y);border-color:var(--y);color:#000}
+
+    .empty{text-align:center;padding:60px;color:#64748b}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⭐ What People Say</h1>
+    <p>Real feedback from real customers</p>
+  </div>
+
+  <div class="container">
+    <div class="stats">
+      <div class="stat"><div class="value" id="totalCount">0</div><div class="label">Total Reviews</div></div>
+      <div class="stat"><div class="value" id="avgRating">0.0</div><div class="label">Average Rating</div></div>
+      <div class="stat"><div class="value" id="fiveStars">0%</div><div class="label">5-Star Reviews</div></div>
+    </div>
+
+    <div class="filters">
+      <div class="filter active" data-stars="0">All Reviews</div>
+      <div class="filter" data-stars="5">⭐⭐⭐⭐⭐</div>
+      <div class="filter" data-stars="4">⭐⭐⭐⭐</div>
+      <div class="filter" data-stars="3">⭐⭐⭐</div>
+    </div>
+
+    <div class="masonry" id="testimonials"></div>
+  </div>
+
+  <button class="collect-btn" id="collectBtn">✍️ Leave a Review</button>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>Share Your Experience</h2>
+      <p class="subtitle">We'd love to hear your feedback!</p>
+
+      <div class="form-group">
+        <label>Your Rating</label>
+        <div class="star-rating" id="starRating">
+          <span data-value="1">★</span>
+          <span data-value="2">★</span>
+          <span data-value="3">★</span>
+          <span data-value="4">★</span>
+          <span data-value="5">★</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Your Review</label>
+        <textarea id="review" placeholder="Tell us about your experience..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Your Name</label>
+        <input type="text" id="name" placeholder="John Doe">
+      </div>
+
+      <div class="form-group">
+        <label>Title / Company (optional)</label>
+        <input type="text" id="title" placeholder="CEO at Acme Inc.">
+      </div>
+
+      <div class="modal-btns">
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="submit" id="submitBtn">Submit Review</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class Testimonials {
+      constructor() {
+        this.items = JSON.parse(localStorage.getItem('testimonials') || '[]');
+        this.filterStars = 0;
+        this.selectedRating = 5;
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('testimonials', JSON.stringify(this.items));
+      }
+
+      add(review, name, title, stars) {
+        this.items.unshift({
+          id: Date.now().toString(36),
+          review,
+          name,
+          title,
+          stars,
+          date: Date.now(),
+          featured: false
+        });
+        this.save();
+        this.render();
+        this.updateStats();
+      }
+
+      updateStats() {
+        const total = this.items.length;
+        const avgRating = total ? (this.items.reduce((a, b) => a + b.stars, 0) / total).toFixed(1) : '0.0';
+        const fiveStars = total ? Math.round((this.items.filter(t => t.stars === 5).length / total) * 100) : 0;
+
+        $('totalCount').textContent = total;
+        $('avgRating').textContent = avgRating;
+        $('fiveStars').textContent = fiveStars + '%';
+      }
+
+      getFiltered() {
+        if (this.filterStars === 0) return this.items;
+        return this.items.filter(t => t.stars === this.filterStars);
+      }
+
+      getInitials(name) {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      }
+
+      render() {
+        const container = $('testimonials');
+        const items = this.getFiltered();
+
+        if (items.length === 0) {
+          container.innerHTML = `<div class="empty"><div class="icon">⭐</div><div>No reviews yet. Be the first!</div></div>`;
+          return;
+        }
+
+        container.innerHTML = items.map(t => {
+          const stars = Array(5).fill(0).map((_, i) => `<span class="${i < t.stars ? '' : 'empty'}">★</span>`).join('');
+          return `
+            <div class="testimonial ${t.featured ? 'featured' : ''}">
+              <div class="stars">${stars}</div>
+              <div class="quote">${esc(t.review)}</div>
+              <div class="author">
+                <div class="avatar">${this.getInitials(t.name)}</div>
+                <div class="author-info">
+                  <div class="author-name">${esc(t.name)}</div>
+                  ${t.title ? `<div class="author-title">${esc(t.title)}</div>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      init() {
+        // Demo data
+        if (this.items.length === 0) {
+          this.items = [
+            { id: '1', review: 'Absolutely incredible product! It has completely transformed how our team works. The P2P features are a game-changer.', name: 'Sarah Chen', title: 'CTO at TechFlow', stars: 5, featured: true },
+            { id: '2', review: 'Simple, elegant, and powerful. Exactly what we needed without the bloat of enterprise solutions.', name: 'Marcus Johnson', title: 'Founder, StartupLab', stars: 5 },
+            { id: '3', review: 'The fact that this is free is unbelievable. We were paying $500/month for something worse.', name: 'Emily Rodriguez', title: 'Product Manager', stars: 5, featured: true },
+            { id: '4', review: 'Good product overall. Could use a few more integrations but the core functionality is solid.', name: 'David Kim', title: 'Developer', stars: 4 },
+            { id: '5', review: 'Our entire team switched within a week. The zero-config setup is amazing.', name: 'Lisa Thompson', title: 'Operations Lead', stars: 5 },
+            { id: '6', review: 'Privacy-first approach is exactly what our industry needs. Highly recommend.', name: 'Alex Petrov', title: 'Security Consultant', stars: 5 }
+          ];
+          this.save();
+        }
+
+        this.render();
+        this.updateStats();
+
+        // Modal controls
+        $('collectBtn').onclick = () => $('modal').classList.add('open');
+        $('cancelBtn').onclick = () => $('modal').classList.remove('open');
+
+        // Star rating
+        const starRating = $('starRating');
+        starRating.onclick = e => {
+          if (e.target.dataset.value) {
+            this.selectedRating = parseInt(e.target.dataset.value);
+            starRating.querySelectorAll('span').forEach((s, i) => {
+              s.classList.toggle('active', i < this.selectedRating);
+            });
+          }
+        };
+
+        // Submit
+        $('submitBtn').onclick = () => {
+          const review = $('review').value.trim();
+          const name = $('name').value.trim();
+          const title = $('title').value.trim();
+
+          if (review && name) {
+            this.add(review, name, title, this.selectedRating);
+            $('review').value = '';
+            $('name').value = '';
+            $('title').value = '';
+            $('modal').classList.remove('open');
+          }
+        };
+
+        // Filters
+        document.querySelectorAll('.filter').forEach(f => {
+          f.onclick = () => {
+            document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
+            f.classList.add('active');
+            this.filterStars = parseInt(f.dataset.stars);
+            this.render();
+          };
+        });
+      }
+    }
+
+    window.Testimonials = new Testimonials();
+  </script>
+</body>
+</html>

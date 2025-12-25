@@ -12,6 +12,11 @@
  * - terminal.html - P2P shared terminal
  * - ai-chat.html - WebLLM browser AI chat
  * - presence.html - Who's online widget
+ * - feedback.html - Feature requests & voting (Canny killer)
+ * - changelog.html - Product updates feed (Beamer killer)
+ * - testimonials.html - Review collector (Testimonial.to killer)
+ * - timer.html - Time tracking (Toggl killer)
+ * - docs.html - Rich text document editor (Google Docs killer)
  */
 
 // Telephony UDTs
@@ -30,6 +35,11 @@ export const WIDGET_PATHS = {
   terminal: './terminal.html',
   aiChat: './ai-chat.html',
   presence: './presence.html',
+  feedback: './feedback.html',
+  changelog: './changelog.html',
+  testimonials: './testimonials.html',
+  timer: './timer.html',
+  docs: './docs.html',
 }
 
 /**

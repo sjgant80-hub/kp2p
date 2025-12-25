@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<!--
+@file changelog.html
+@desc Changelog Widget - Product updates feed (Beamer killer)
+@api  window.Changelog - changelog controller
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Changelog</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--f:#e4e4e7;--a:#00d9ff;--a2:#7c3aed;--g:#10b981;--r:#ef4444;--o:#f97316}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:14px/1.6 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh}
+
+    .header{padding:40px 24px;background:linear-gradient(135deg,#1a1a2e,#16213e);text-align:center}
+    .header h1{font-size:28px;margin-bottom:8px}
+    .header p{color:#94a3b8;font-size:14px}
+    .header .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(16,185,129,.15);border-radius:20px;font-size:12px;color:var(--g);margin-top:16px}
+    .header .badge .dot{width:8px;height:8px;background:var(--g);border-radius:50%;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+    .container{max-width:700px;margin:0 auto;padding:40px 24px}
+
+    .filters{display:flex;gap:8px;margin-bottom:32px;flex-wrap:wrap}
+    .filter{padding:8px 16px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:20px;color:#94a3b8;font-size:12px;cursor:pointer;transition:all .15s}
+    .filter:hover{border-color:rgba(255,255,255,.15)}
+    .filter.active{background:var(--a2);border-color:var(--a2);color:#fff}
+
+    .timeline{position:relative;padding-left:24px}
+    .timeline::before{content:'';position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.06)}
+
+    .entry{position:relative;margin-bottom:32px}
+    .entry::before{content:'';position:absolute;left:-17px;top:8px;width:12px;height:12px;background:var(--b2);border:2px solid var(--a2);border-radius:50%;z-index:1}
+    .entry.new::before{background:var(--a2);box-shadow:0 0 12px var(--a2)}
+
+    .date{font-size:12px;color:#64748b;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+    .date .new-badge{padding:2px 8px;background:var(--g);color:#000;border-radius:10px;font-size:10px;font-weight:600}
+
+    .card{background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px;transition:border-color .15s}
+    .card:hover{border-color:rgba(255,255,255,.1)}
+
+    .card h3{font-size:18px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+    .version{font-size:12px;padding:4px 10px;background:rgba(124,58,237,.15);color:var(--a2);border-radius:6px;font-weight:500}
+
+    .card p{color:#94a3b8;margin-bottom:16px}
+
+    .tags{display:flex;gap:6px;flex-wrap:wrap}
+    .tag{font-size:11px;padding:4px 10px;border-radius:6px;font-weight:500}
+    .tag.feature{background:rgba(16,185,129,.15);color:var(--g)}
+    .tag.fix{background:rgba(239,68,68,.15);color:var(--r)}
+    .tag.improvement{background:rgba(0,217,255,.15);color:var(--a)}
+    .tag.breaking{background:rgba(249,115,22,.15);color:var(--o)}
+
+    .details{margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06)}
+    .details ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+    .details li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#cbd5e1}
+    .details li::before{content:'•';color:var(--a2)}
+
+    .reactions{display:flex;gap:8px;margin-top:16px}
+    .reaction{padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:20px;font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+    .reaction:hover{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.06)}
+    .reaction.active{background:rgba(124,58,237,.15);border-color:var(--a2)}
+    .reaction .count{color:#94a3b8}
+
+    .subscribe{margin-top:40px;padding:24px;background:var(--b2);border:1px solid rgba(255,255,255,.06);border-radius:12px;text-align:center}
+    .subscribe h4{margin-bottom:8px}
+    .subscribe p{color:#64748b;font-size:13px;margin-bottom:16px}
+    .subscribe-form{display:flex;gap:8px;max-width:400px;margin:0 auto}
+    .subscribe-form input{flex:1;padding:12px 16px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font-size:13px}
+    .subscribe-form button{padding:12px 24px;background:linear-gradient(135deg,var(--a2),#ec4899);border:0;border-radius:8px;color:#fff;font-weight:600;cursor:pointer}
+
+    .admin-bar{position:fixed;bottom:0;left:0;right:0;padding:12px 20px;background:var(--b2);border-top:1px solid rgba(255,255,255,.1);display:none;gap:10px;align-items:center}
+    .admin-bar.show{display:flex}
+    .admin-bar button{padding:10px 20px;background:var(--a2);border:0;border-radius:6px;color:#fff;font-weight:500;cursor:pointer}
+    .admin-bar span{flex:1;color:#64748b;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 Changelog</h1>
+    <p>Stay up to date with the latest updates and improvements</p>
+    <div class="badge"><span class="dot"></span> Live Updates</div>
+  </div>
+
+  <div class="container">
+    <div class="filters">
+      <div class="filter active" data-filter="all">All Updates</div>
+      <div class="filter" data-filter="feature">✨ Features</div>
+      <div class="filter" data-filter="fix">🐛 Fixes</div>
+      <div class="filter" data-filter="improvement">⚡ Improvements</div>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+
+    <div class="subscribe">
+      <h4>📬 Get Updates</h4>
+      <p>Subscribe to get notified about new features and updates</p>
+      <div class="subscribe-form">
+        <input type="email" id="email" placeholder="your@email.com">
+        <button id="subBtn">Subscribe</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-bar" id="adminBar">
+    <span>Admin Mode</span>
+    <button id="addEntry">+ Add Entry</button>
+  </div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    class Changelog {
+      constructor() {
+        this.entries = JSON.parse(localStorage.getItem('changelog-entries') || '[]');
+        this.reactions = JSON.parse(localStorage.getItem('changelog-reactions') || '{}');
+        this.filter = 'all';
+        this.isAdmin = new URLSearchParams(location.search).has('admin');
+        this.init();
+      }
+
+      save() {
+        localStorage.setItem('changelog-entries', JSON.stringify(this.entries));
+        localStorage.setItem('changelog-reactions', JSON.stringify(this.reactions));
+      }
+
+      react(id, emoji) {
+        const key = `${id}-${emoji}`;
+        const entry = this.entries.find(e => e.id === id);
+        if (!entry) return;
+
+        if (!entry.reactions) entry.reactions = {};
+        if (!entry.reactions[emoji]) entry.reactions[emoji] = 0;
+
+        if (this.reactions[key]) {
+          entry.reactions[emoji]--;
+          delete this.reactions[key];
+        } else {
+          entry.reactions[emoji]++;
+          this.reactions[key] = true;
+        }
+        this.save();
+        this.render();
+      }
+
+      getFiltered() {
+        if (this.filter === 'all') return this.entries;
+        return this.entries.filter(e => e.tags.includes(this.filter));
+      }
+
+      isNew(date) {
+        const week = 7 * 24 * 60 * 60 * 1000;
+        return Date.now() - date < week;
+      }
+
+      render() {
+        const timeline = $('timeline');
+        const entries = this.getFiltered();
+
+        timeline.innerHTML = entries.map(entry => {
+          const isNew = this.isNew(entry.date);
+          const emojis = ['🎉', '👍', '❤️', '🚀'];
+
+          return `
+            <div class="entry ${isNew ? 'new' : ''}">
+              <div class="date">
+                ${new Date(entry.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                ${isNew ? '<span class="new-badge">NEW</span>' : ''}
+              </div>
+              <div class="card">
+                <h3>${esc(entry.title)} <span class="version">${esc(entry.version)}</span></h3>
+                <p>${esc(entry.summary)}</p>
+                <div class="tags">
+                  ${entry.tags.map(t => `<span class="tag ${t}">${t === 'feature' ? '✨ Feature' : t === 'fix' ? '🐛 Fix' : t === 'improvement' ? '⚡ Improvement' : '⚠️ Breaking'}</span>`).join('')}
+                </div>
+                ${entry.details ? `
+                  <div class="details">
+                    <ul>${entry.details.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+                  </div>
+                ` : ''}
+                <div class="reactions">
+                  ${emojis.map(emoji => {
+                    const count = entry.reactions?.[emoji] || 0;
+                    const active = this.reactions[`${entry.id}-${emoji}`] ? 'active' : '';
+                    return `<div class="reaction ${active}" data-id="${entry.id}" data-emoji="${emoji}">${emoji} <span class="count">${count || ''}</span></div>`;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      init() {
+        // Demo data
+        if (this.entries.length === 0) {
+          this.entries = [
+            {
+              id: '1',
+              version: 'v2.4.0',
+              title: 'Real-time Collaboration',
+              summary: 'Work together with your team in real-time. See changes as they happen.',
+              date: Date.now() - 86400000 * 2,
+              tags: ['feature'],
+              details: ['Live cursors showing where teammates are', 'Instant sync across all devices', 'Conflict-free editing with CRDTs'],
+              reactions: { '🎉': 24, '🚀': 18 }
+            },
+            {
+              id: '2',
+              version: 'v2.3.2',
+              title: 'Performance Improvements',
+              summary: 'Major speed improvements across the board. Everything feels snappier.',
+              date: Date.now() - 86400000 * 8,
+              tags: ['improvement'],
+              details: ['50% faster page loads', 'Reduced memory usage', 'Optimized database queries'],
+              reactions: { '👍': 15, '❤️': 8 }
+            },
+            {
+              id: '3',
+              version: 'v2.3.1',
+              title: 'Bug Fixes',
+              summary: 'Fixed several issues reported by the community.',
+              date: Date.now() - 86400000 * 15,
+              tags: ['fix'],
+              details: ['Fixed login issues on Safari', 'Resolved notification delays', 'Fixed export formatting'],
+              reactions: { '👍': 12 }
+            },
+            {
+              id: '4',
+              version: 'v2.3.0',
+              title: 'New Dashboard',
+              summary: 'Completely redesigned dashboard with better analytics and insights.',
+              date: Date.now() - 86400000 * 25,
+              tags: ['feature', 'improvement'],
+              details: ['New analytics charts', 'Customizable widgets', 'Dark mode support'],
+              reactions: { '🎉': 42, '❤️': 28, '🚀': 19 }
+            }
+          ];
+          this.save();
+        }
+
+        this.render();
+
+        // Filter clicks
+        document.querySelectorAll('.filter').forEach(f => {
+          f.onclick = () => {
+            document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
+            f.classList.add('active');
+            this.filter = f.dataset.filter;
+            this.render();
+          };
+        });
+
+        // Reaction clicks
+        $('timeline').onclick = e => {
+          const reaction = e.target.closest('.reaction');
+          if (reaction) {
+            this.react(reaction.dataset.id, reaction.dataset.emoji);
+          }
+        };
+
+        // Subscribe
+        $('subBtn').onclick = () => {
+          const email = $('email').value.trim();
+          if (email && email.includes('@')) {
+            const subs = JSON.parse(localStorage.getItem('changelog-subs') || '[]');
+            if (!subs.includes(email)) {
+              subs.push(email);
+              localStorage.setItem('changelog-subs', JSON.stringify(subs));
+            }
+            $('email').value = '';
+            alert('Subscribed! You\'ll get updates via email.');
+          }
+        };
+
+        // Admin mode
+        if (this.isAdmin) {
+          $('adminBar').classList.add('show');
+          $('addEntry').onclick = () => {
+            const title = prompt('Entry title:');
+            const version = prompt('Version (e.g. v2.5.0):');
+            const summary = prompt('Summary:');
+            if (title && version && summary) {
+              this.entries.unshift({
+                id: Date.now().toString(36),
+                version,
+                title,
+                summary,
+                date: Date.now(),
+                tags: ['feature'],
+                details: [],
+                reactions: {}
+              });
+              this.save();
+              this.render();
+            }
+          };
+        }
+      }
+    }
+
+    window.Changelog = new Changelog();
+  </script>
+</body>
+</html>
