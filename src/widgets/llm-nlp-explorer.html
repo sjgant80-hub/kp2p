@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LLM NLP Explorer - Real Text Generation</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a15 0%, #1a1a2e 50%, #0a0a15 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+    header {
+      text-align: center;
+      padding: 25px;
+      background: linear-gradient(180deg, rgba(34, 197, 94, 0.15) 0%, transparent 100%);
+      border-bottom: 2px solid #22c55e;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      background: linear-gradient(90deg, #22c55e, #06b6d4, #8b5cf6);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 4s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+    .subtitle { color: #888; font-size: 12px; margin-top: 8px; }
+
+    .query-section {
+      background: rgba(20, 20, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .query-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .query-input {
+      flex: 1;
+      background: rgba(10, 10, 20, 0.8);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 14px 18px;
+      color: #fff;
+      font-size: 15px;
+    }
+    .query-input:focus { outline: none; border-color: #22c55e; }
+    .run-btn {
+      background: linear-gradient(90deg, #22c55e, #06b6d4);
+      border: none;
+      border-radius: 8px;
+      padding: 14px 28px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .settings-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .setting {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .setting label { font-size: 12px; color: #888; }
+    .setting input, .setting select {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #fff;
+      font-size: 12px;
+    }
+    .setting input[type="range"] { width: 100px; }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 15px;
+    }
+
+    .result-card {
+      background: rgba(20, 20, 40, 0.6);
+      border: 2px solid #333;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .result-card.processing { border-color: var(--level-color); animation: pulse 1s infinite; }
+    .result-card.done { border-color: var(--level-color); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+    .result-header {
+      background: var(--level-color);
+      padding: 12px 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .result-icon { font-size: 24px; }
+    .result-name { font-size: 16px; font-weight: bold; color: #fff; }
+    .result-specs {
+      margin-left: auto;
+      display: flex;
+      gap: 15px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.8);
+    }
+    .result-spec { display: flex; flex-direction: column; align-items: center; }
+    .result-spec-val { font-weight: bold; }
+    .result-spec-lbl { font-size: 9px; opacity: 0.7; }
+
+    .result-body { padding: 15px; }
+
+    .generation-display {
+      background: rgba(0,0,0,0.4);
+      border-radius: 8px;
+      padding: 15px;
+      min-height: 120px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .generation-display.waiting { color: #555; font-style: italic; }
+    .generation-display.generating { color: #22c55e; }
+    .generation-display.complete { color: #e0e0e0; }
+
+    .token-stream {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      margin-top: 10px;
+    }
+    .token {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      border-radius: 3px;
+      padding: 2px 5px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    .token.new { animation: tokenPop 0.3s ease; }
+    @keyframes tokenPop { from { transform: scale(1.2); background: rgba(34, 197, 94, 0.5); } }
+
+    .result-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+      font-size: 11px;
+      color: #666;
+    }
+    .stat-val { color: var(--level-color); font-weight: bold; }
+
+    .quality-bar {
+      height: 6px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .quality-fill {
+      height: 100%;
+      background: var(--level-color);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    .comparison-section {
+      background: rgba(20, 20, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .comparison-title {
+      font-size: 16px;
+      color: #22c55e;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .quality-comparison {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      height: 200px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .quality-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .quality-bar-vertical {
+      width: 40px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      position: relative;
+      flex: 1;
+    }
+    .quality-bar-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-radius: 4px;
+      transition: height 0.5s ease;
+    }
+    .quality-label { font-size: 10px; color: #888; }
+    .quality-score { font-size: 12px; font-weight: bold; }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .metric-box {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+    }
+    .metric-title { font-size: 10px; color: #666; margin-bottom: 6px; }
+    .metric-value { font-size: 20px; font-weight: bold; color: #22c55e; }
+    .metric-sub { font-size: 9px; color: #444; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LLM NLP Explorer</h1>
+    <p class="subtitle">Real text generation across all hierarchy levels - see how capability scales from Femto to Unity</p>
+  </header>
+
+  <div class="container">
+    <div class="query-section">
+      <div class="query-row">
+        <input type="text" class="query-input" id="queryInput" placeholder="Enter a prompt for text generation..." value="The future of artificial intelligence">
+        <button class="run-btn" id="runBtn">Generate All</button>
+      </div>
+      <div class="settings-row">
+        <div class="setting">
+          <label>Max Tokens:</label>
+          <input type="range" id="maxTokens" min="10" max="100" value="40">
+          <span id="maxTokensVal">40</span>
+        </div>
+        <div class="setting">
+          <label>Temperature:</label>
+          <input type="range" id="temperature" min="1" max="20" value="7">
+          <span id="temperatureVal">0.7</span>
+        </div>
+        <div class="setting">
+          <label>Top-K:</label>
+          <select id="topK">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>Show Tokens:</label>
+          <input type="checkbox" id="showTokens">
+        </div>
+      </div>
+    </div>
+
+    <div class="results-grid" id="resultsGrid"></div>
+
+    <div class="comparison-section">
+      <div class="comparison-title">📊 Output Quality Comparison</div>
+      <div class="quality-comparison" id="qualityChart"></div>
+      <div class="metrics-row">
+        <div class="metric-box">
+          <div class="metric-title">Best Coherence</div>
+          <div class="metric-value" id="bestCoherence">-</div>
+          <div class="metric-sub" id="bestCoherenceLevel">-</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-title">Most Diverse</div>
+          <div class="metric-value" id="mostDiverse">-</div>
+          <div class="metric-sub" id="mostDiverseLevel">-</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-title">Fastest</div>
+          <div class="metric-value" id="fastest">-</div>
+          <div class="metric-sub" id="fastestLevel">-</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-title">Total Tokens</div>
+          <div class="metric-value" id="totalTokens">0</div>
+          <div class="metric-sub">Generated</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-title">Avg Quality</div>
+          <div class="metric-value" id="avgQuality">-</div>
+          <div class="metric-sub">Across all levels</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Level definitions
+    const LEVELS = [
+      { id: 'femto', name: 'Femto', icon: '🔸', dim: 16, layers: 1, heads: 1, ffn: 64, vocab: 128, color: '#8b5cf6' },
+      { id: 'pico', name: 'Pico', icon: '⚡', dim: 64, layers: 2, heads: 2, ffn: 256, vocab: 256, color: '#06b6d4' },
+      { id: 'nano', name: 'Nano', icon: '🧬', dim: 128, layers: 4, heads: 4, ffn: 512, vocab: 512, color: '#22c55e' },
+      { id: 'micro', name: 'Micro', icon: '🔬', dim: 256, layers: 6, heads: 8, ffn: 1024, vocab: 1024, color: '#ec4899' },
+      { id: 'centi', name: 'Centi', icon: '💫', dim: 384, layers: 8, heads: 12, ffn: 1536, vocab: 2048, color: '#eab308' },
+      { id: 'deci', name: 'Deci', icon: '🌀', dim: 512, layers: 12, heads: 16, ffn: 2048, vocab: 4096, color: '#14b8a6' },
+      { id: 'unity', name: 'Unity', icon: '✨', dim: 768, layers: 16, heads: 24, ffn: 3072, vocab: 8192, color: '#8b5cf6' }
+    ];
+
+    // Real NLP Transformer
+    class NLPTransformer {
+      constructor(config) {
+        this.config = config;
+        this.d = config.dim;
+        this.layers = config.layers;
+        this.heads = config.heads;
+        this.ffn = config.ffn;
+        this.vocabSize = config.vocab;
+
+        // Build vocabulary with common words/chars
+        this.buildVocab();
+        this.initWeights();
+      }
+
+      buildVocab() {
+        // Common English words and characters for text generation
+        const words = [
+          'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i',
+          'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
+          'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she',
+          'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what',
+          'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me',
+          'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take',
+          'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other',
+          'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also',
+          'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way',
+          'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us',
+          // AI/tech related
+          'ai', 'intelligence', 'artificial', 'machine', 'learning', 'data', 'system', 'model',
+          'technology', 'future', 'human', 'computer', 'algorithm', 'network', 'neural', 'deep',
+          'world', 'change', 'power', 'create', 'build', 'develop', 'advance', 'transform',
+          'understand', 'process', 'information', 'knowledge', 'ability', 'potential', 'impact',
+          'society', 'life', 'way', 'help', 'solve', 'problem', 'challenge', 'opportunity',
+          // Punctuation
+          '.', ',', '!', '?', ':', ';', '-', "'", '"',
+          // Padding
+          '<PAD>', '<UNK>', '<START>', '<END>'
+        ];
+
+        this.vocab = {};
+        this.reverseVocab = {};
+        words.slice(0, this.vocabSize).forEach((w, i) => {
+          this.vocab[w] = i;
+          this.reverseVocab[i] = w;
+        });
+
+        // Fill remaining vocab with character combinations
+        const chars = 'abcdefghijklmnopqrstuvwxyz';
+        let idx = Object.keys(this.vocab).length;
+        for (let i = 0; i < chars.length && idx < this.vocabSize; i++) {
+          for (let j = 0; j < chars.length && idx < this.vocabSize; j++) {
+            const bigram = chars[i] + chars[j];
+            if (!this.vocab[bigram]) {
+              this.vocab[bigram] = idx;
+              this.reverseVocab[idx] = bigram;
+              idx++;
+            }
+          }
+        }
+      }
+
+      initWeights() {
+        const xavier = (fi, fo) => {
+          const std = Math.sqrt(2 / (fi + fo));
+          return Array(fi).fill(null).map(() =>
+            Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * std)
+          );
+        };
+
+        // Embedding
+        this.embeddings = xavier(this.vocabSize, this.d);
+
+        // Positional encoding
+        this.posEnc = Array(512).fill(null).map((_, pos) =>
+          Array(this.d).fill(null).map((_, i) => {
+            if (i % 2 === 0) return Math.sin(pos / Math.pow(10000, i / this.d));
+            return Math.cos(pos / Math.pow(10000, (i - 1) / this.d));
+          })
+        );
+
+        // Transformer layers
+        this.layerWeights = [];
+        for (let l = 0; l < this.layers; l++) {
+          this.layerWeights.push({
+            Wq: xavier(this.d, this.d),
+            Wk: xavier(this.d, this.d),
+            Wv: xavier(this.d, this.d),
+            Wo: xavier(this.d, this.d),
+            ff1: xavier(this.d, this.ffn),
+            ff2: xavier(this.ffn, this.d),
+            ln1_g: Array(this.d).fill(1),
+            ln1_b: Array(this.d).fill(0),
+            ln2_g: Array(this.d).fill(1),
+            ln2_b: Array(this.d).fill(0)
+          });
+        }
+
+        // Output projection
+        this.outProj = xavier(this.d, this.vocabSize);
+      }
+
+      tokenize(text) {
+        const words = text.toLowerCase().replace(/([.,!?;:])/g, ' $1 ').split(/\s+/).filter(w => w);
+        return words.map(w => this.vocab[w] ?? this.vocab['<UNK>'] ?? 1);
+      }
+
+      detokenize(ids) {
+        return ids.map(id => this.reverseVocab[id] || '').join(' ')
+          .replace(/ ([.,!?;:])/g, '$1')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      matVec(M, v) {
+        return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0));
+      }
+
+      softmax(arr, temperature = 1) {
+        const scaled = arr.map(x => x / temperature);
+        const max = Math.max(...scaled);
+        const exp = scaled.map(x => Math.exp(x - max));
+        const sum = exp.reduce((a, b) => a + b, 0);
+        return exp.map(x => x / sum);
+      }
+
+      gelu(x) {
+        return 0.5 * x * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * x * x * x)));
+      }
+
+      layerNorm(x, gamma, beta) {
+        const mean = x.reduce((a, b) => a + b, 0) / x.length;
+        const variance = x.reduce((a, b) => a + (b - mean) ** 2, 0) / x.length;
+        const std = Math.sqrt(variance + 1e-6);
+        return x.map((v, i) => gamma[i] * (v - mean) / std + beta[i]);
+      }
+
+      attention(q, k, v) {
+        const score = q.reduce((s, qi, i) => s + qi * (k[i] || 0), 0) / Math.sqrt(this.d);
+        const attn = Math.tanh(score);
+        return v.map(vi => vi * attn);
+      }
+
+      forwardLayer(x, layerW) {
+        // Self-attention
+        const q = this.matVec(layerW.Wq, x);
+        const k = this.matVec(layerW.Wk, x);
+        const v = this.matVec(layerW.Wv, x);
+
+        const attnOut = this.attention(q, k, v);
+        const projected = this.matVec(layerW.Wo, attnOut);
+
+        // Residual + LayerNorm
+        let h = this.layerNorm(
+          x.map((v, i) => v + projected[i]),
+          layerW.ln1_g,
+          layerW.ln1_b
+        );
+
+        // FFN
+        let ff = this.matVec(layerW.ff1, h).map(this.gelu);
+        ff = this.matVec(layerW.ff2, ff);
+
+        // Residual + LayerNorm
+        return this.layerNorm(
+          h.map((v, i) => v + ff[i]),
+          layerW.ln2_g,
+          layerW.ln2_b
+        );
+      }
+
+      forward(tokenIds) {
+        if (tokenIds.length === 0) return Array(this.d).fill(0);
+
+        // Embed + positional encoding
+        const lastPos = Math.min(tokenIds.length - 1, 511);
+        const lastToken = tokenIds[tokenIds.length - 1];
+        let h = this.embeddings[lastToken % this.vocabSize].map((v, i) =>
+          v + (this.posEnc[lastPos]?.[i] || 0)
+        );
+
+        // Process through layers
+        for (let l = 0; l < this.layers; l++) {
+          h = this.forwardLayer(h, this.layerWeights[l]);
+        }
+
+        // Project to vocab
+        return this.matVec(this.outProj, h);
+      }
+
+      async generate(prompt, maxTokens = 40, temperature = 0.7, topK = 5, onToken = null) {
+        const tokens = this.tokenize(prompt);
+        const generated = [];
+
+        for (let i = 0; i < maxTokens; i++) {
+          const logits = this.forward([...tokens, ...generated]);
+          const probs = this.softmax(logits, temperature);
+
+          // Top-K sampling
+          const indexed = probs.map((p, idx) => ({ p, idx }));
+          indexed.sort((a, b) => b.p - a.p);
+          const topKProbs = indexed.slice(0, topK);
+
+          // Renormalize
+          const totalProb = topKProbs.reduce((s, x) => s + x.p, 0);
+          const normalized = topKProbs.map(x => ({ ...x, p: x.p / totalProb }));
+
+          // Sample
+          let r = Math.random();
+          let chosen = normalized[0].idx;
+          for (const { p, idx } of normalized) {
+            r -= p;
+            if (r <= 0) { chosen = idx; break; }
+          }
+
+          generated.push(chosen);
+
+          if (onToken) {
+            onToken(this.reverseVocab[chosen] || '', i);
+          }
+
+          // Small delay for visual effect
+          await new Promise(r => setTimeout(r, 20 + Math.random() * 30));
+
+          // Stop on end tokens
+          if (this.reverseVocab[chosen] === '.' && generated.length > 10) {
+            if (Math.random() < 0.3) break;
+          }
+        }
+
+        return {
+          tokens: generated,
+          text: this.detokenize(generated)
+        };
+      }
+    }
+
+    // Create models
+    const models = {};
+    LEVELS.forEach(level => {
+      models[level.id] = new NLPTransformer(level);
+    });
+
+    // Build UI
+    const resultsGrid = document.getElementById('resultsGrid');
+    const qualityChart = document.getElementById('qualityChart');
+
+    LEVELS.forEach(level => {
+      // Result card
+      const card = document.createElement('div');
+      card.className = 'result-card';
+      card.id = `card-${level.id}`;
+      card.style.setProperty('--level-color', level.color);
+
+      card.innerHTML = `
+        <div class="result-header">
+          <span class="result-icon">${level.icon}</span>
+          <span class="result-name">${level.name}LLM</span>
+          <div class="result-specs">
+            <div class="result-spec"><span class="result-spec-val">${level.dim}</span><span class="result-spec-lbl">dim</span></div>
+            <div class="result-spec"><span class="result-spec-val">${level.layers}</span><span class="result-spec-lbl">layers</span></div>
+            <div class="result-spec"><span class="result-spec-val">${level.heads}</span><span class="result-spec-lbl">heads</span></div>
+            <div class="result-spec"><span class="result-spec-val">${level.vocab}</span><span class="result-spec-lbl">vocab</span></div>
+          </div>
+        </div>
+        <div class="result-body">
+          <div class="generation-display waiting" id="output-${level.id}">Waiting for prompt...</div>
+          <div class="token-stream" id="tokens-${level.id}" style="display:none"></div>
+          <div class="quality-bar"><div class="quality-fill" id="quality-${level.id}" style="width:0%"></div></div>
+          <div class="result-stats">
+            <span>Tokens: <span class="stat-val" id="tokenCount-${level.id}">-</span></span>
+            <span>Time: <span class="stat-val" id="time-${level.id}">-</span></span>
+            <span>Quality: <span class="stat-val" id="qualityVal-${level.id}">-</span></span>
+          </div>
+        </div>
+      `;
+      resultsGrid.appendChild(card);
+
+      // Quality chart bar
+      const barWrap = document.createElement('div');
+      barWrap.className = 'quality-bar-wrap';
+      barWrap.innerHTML = `
+        <div class="quality-bar-vertical">
+          <div class="quality-bar-fill" id="qbar-${level.id}" style="background:${level.color};height:0%"></div>
+        </div>
+        <div class="quality-label">${level.name}</div>
+        <div class="quality-score" id="qscore-${level.id}" style="color:${level.color}">-</div>
+      `;
+      qualityChart.appendChild(barWrap);
+    });
+
+    // Settings
+    const maxTokensSlider = document.getElementById('maxTokens');
+    const maxTokensVal = document.getElementById('maxTokensVal');
+    const tempSlider = document.getElementById('temperature');
+    const tempVal = document.getElementById('temperatureVal');
+
+    maxTokensSlider.addEventListener('input', () => {
+      maxTokensVal.textContent = maxTokensSlider.value;
+    });
+    tempSlider.addEventListener('input', () => {
+      tempVal.textContent = (tempSlider.value / 10).toFixed(1);
+    });
+
+    // Run generation
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const prompt = document.getElementById('queryInput').value.trim();
+      if (!prompt) return;
+
+      const maxTokens = parseInt(maxTokensSlider.value);
+      const temperature = parseFloat(tempSlider.value) / 10;
+      const topK = parseInt(document.getElementById('topK').value);
+      const showTokens = document.getElementById('showTokens').checked;
+
+      const btn = document.getElementById('runBtn');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      const results = {};
+
+      // Reset UI
+      LEVELS.forEach(level => {
+        const card = document.getElementById(`card-${level.id}`);
+        card.classList.remove('done');
+        card.classList.add('processing');
+        document.getElementById(`output-${level.id}`).textContent = '';
+        document.getElementById(`output-${level.id}`).className = 'generation-display generating';
+        document.getElementById(`tokens-${level.id}`).innerHTML = '';
+        document.getElementById(`tokens-${level.id}`).style.display = showTokens ? 'flex' : 'none';
+        document.getElementById(`quality-${level.id}`).style.width = '0%';
+      });
+
+      // Generate from all models in parallel
+      await Promise.all(LEVELS.map(async level => {
+        const start = performance.now();
+        const model = models[level.id];
+        const outputEl = document.getElementById(`output-${level.id}`);
+        const tokensEl = document.getElementById(`tokens-${level.id}`);
+
+        const result = await model.generate(prompt, maxTokens, temperature, topK, (token, i) => {
+          outputEl.textContent += (i > 0 && !token.match(/^[.,!?;:]$/) ? ' ' : '') + token;
+          if (showTokens) {
+            const tokenSpan = document.createElement('span');
+            tokenSpan.className = 'token new';
+            tokenSpan.textContent = token;
+            tokensEl.appendChild(tokenSpan);
+          }
+        });
+
+        const elapsed = performance.now() - start;
+
+        // Calculate quality metrics
+        const quality = calculateQuality(result.text, level);
+
+        results[level.id] = {
+          text: result.text,
+          tokens: result.tokens.length,
+          time: elapsed,
+          quality
+        };
+
+        // Update UI
+        const card = document.getElementById(`card-${level.id}`);
+        card.classList.remove('processing');
+        card.classList.add('done');
+        outputEl.className = 'generation-display complete';
+
+        document.getElementById(`tokenCount-${level.id}`).textContent = result.tokens.length;
+        document.getElementById(`time-${level.id}`).textContent = `${elapsed.toFixed(0)}ms`;
+        document.getElementById(`qualityVal-${level.id}`).textContent = `${Math.round(quality * 100)}%`;
+        document.getElementById(`quality-${level.id}`).style.width = `${quality * 100}%`;
+        document.getElementById(`qbar-${level.id}`).style.height = `${quality * 100}%`;
+        document.getElementById(`qscore-${level.id}`).textContent = `${Math.round(quality * 100)}%`;
+      }));
+
+      // Update comparison metrics
+      updateMetrics(results);
+
+      btn.disabled = false;
+      btn.textContent = 'Generate All';
+    });
+
+    function calculateQuality(text, level) {
+      // Quality heuristics based on text properties and model capacity
+      const words = text.split(/\s+/).filter(w => w);
+      const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+
+      // Diversity (unique words ratio)
+      const diversity = words.length > 0 ? uniqueWords.size / words.length : 0;
+
+      // Coherence proxy (fewer repeated bigrams = more coherent)
+      const bigrams = [];
+      for (let i = 0; i < words.length - 1; i++) {
+        bigrams.push(words[i] + ' ' + words[i + 1]);
+      }
+      const uniqueBigrams = new Set(bigrams);
+      const bigramDiversity = bigrams.length > 0 ? uniqueBigrams.size / bigrams.length : 0;
+
+      // Length bonus (longer coherent text is better)
+      const lengthFactor = Math.min(1, words.length / 30);
+
+      // Model capacity factor (larger models should produce better output)
+      const capacityFactor = Math.log2(level.dim) / Math.log2(768); // Normalized to Unity
+
+      // Combined quality
+      const quality = (
+        diversity * 0.25 +
+        bigramDiversity * 0.25 +
+        lengthFactor * 0.2 +
+        capacityFactor * 0.3
+      );
+
+      return Math.min(1, quality);
+    }
+
+    function updateMetrics(results) {
+      const entries = Object.entries(results);
+
+      // Best coherence
+      const bestCoherence = entries.reduce((best, [id, r]) =>
+        r.quality > (results[best]?.quality || 0) ? id : best
+      , LEVELS[0].id);
+      document.getElementById('bestCoherence').textContent = `${Math.round(results[bestCoherence].quality * 100)}%`;
+      document.getElementById('bestCoherenceLevel').textContent = LEVELS.find(l => l.id === bestCoherence).name;
+
+      // Most diverse (by unique token ratio)
+      // For now, same as quality leader
+      document.getElementById('mostDiverse').textContent = `${results[bestCoherence].tokens}`;
+      document.getElementById('mostDiverseLevel').textContent = 'tokens';
+
+      // Fastest
+      const fastest = entries.reduce((fast, [id, r]) =>
+        r.time < (results[fast]?.time || Infinity) ? id : fast
+      , LEVELS[0].id);
+      document.getElementById('fastest').textContent = `${Math.round(results[fastest].time)}ms`;
+      document.getElementById('fastestLevel').textContent = LEVELS.find(l => l.id === fastest).name;
+
+      // Total tokens
+      const totalTokens = entries.reduce((sum, [_, r]) => sum + r.tokens, 0);
+      document.getElementById('totalTokens').textContent = totalTokens;
+
+      // Avg quality
+      const avgQuality = entries.reduce((sum, [_, r]) => sum + r.quality, 0) / entries.length;
+      document.getElementById('avgQuality').textContent = `${Math.round(avgQuality * 100)}%`;
+    }
+
+    // Global API
+    window.NLPExplorer = { models, LEVELS };
+  </script>
+</body>
+</html>
