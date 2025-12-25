@@ -137,6 +137,35 @@ Connect to ComfyUI backends and run Stable Diffusion workflows
     .empty-state { text-align: center; padding: 40px; color: #666; }
     .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
     .empty-state h3 { margin-bottom: 8px; color: #888; }
+
+    /* Custom Nodes Manager */
+    .nodes-search { margin-bottom: 16px; }
+    .nodes-search input { width: 100%; }
+    .nodes-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .nodes-tab { padding: 6px 12px; background: #222; border: none; border-radius: 4px; color: #888; cursor: pointer; font-size: 11px; }
+    .nodes-tab.active { background: #a855f7; color: #fff; }
+    .custom-node-card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+    .custom-node-card.installed { border-color: #22c55e; }
+    .custom-node-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .custom-node-icon { font-size: 20px; }
+    .custom-node-info { flex: 1; min-width: 0; }
+    .custom-node-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .custom-node-author { font-size: 10px; color: #888; }
+    .custom-node-desc { font-size: 11px; color: #888; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .custom-node-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .custom-node-tag { font-size: 9px; padding: 2px 6px; background: #333; border-radius: 4px; color: #888; }
+    .custom-node-tag.category { background: #a855f722; color: #a855f7; }
+    .custom-node-actions { display: flex; gap: 8px; }
+    .custom-node-actions .btn { flex: 1; padding: 6px; font-size: 11px; }
+    .custom-node-stats { display: flex; gap: 12px; font-size: 10px; color: #666; margin-bottom: 8px; }
+    .node-status { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+    .node-status.installed { background: #22c55e22; color: #22c55e; }
+    .node-status.not-installed { background: #33333; color: #888; }
+    .node-status.update { background: #f59e0b22; color: #f59e0b; }
+    .nodes-loading { text-align: center; padding: 40px; color: #888; }
+    .nodes-loading .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #333; border-top-color: #a855f7; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .installed-badge { background: #22c55e; color: #000; font-size: 9px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
   </style>
 </head>
 <body>
@@ -254,6 +283,7 @@ Connect to ComfyUI backends and run Stable Diffusion workflows
       <div class="panel-tabs">
         <div class="panel-tab active" data-panel="queue">Queue</div>
         <div class="panel-tab" data-panel="gallery">Gallery</div>
+        <div class="panel-tab" data-panel="nodes">Nodes</div>
         <div class="panel-tab" data-panel="settings">Settings</div>
       </div>
 
@@ -277,6 +307,29 @@ Connect to ComfyUI backends and run Stable Diffusion workflows
           <div class="icon">🖼️</div>
           <h3>No Images Yet</h3>
           <p>Generated images will appear here</p>
+        </div>
+      </div>
+
+      <!-- Custom Nodes Panel -->
+      <div class="panel-content hidden" id="panel-nodes">
+        <div class="nodes-search">
+          <input type="text" id="customNodeSearch" placeholder="Search custom nodes..." oninput="filterCustomNodes()">
+        </div>
+        <div class="nodes-tabs">
+          <button class="nodes-tab active" data-filter="all" onclick="setNodesFilter('all', this)">All</button>
+          <button class="nodes-tab" data-filter="installed" onclick="setNodesFilter('installed', this)">Installed</button>
+          <button class="nodes-tab" data-filter="popular" onclick="setNodesFilter('popular', this)">Popular</button>
+        </div>
+        <div id="customNodesList">
+          <div class="empty-state">
+            <div class="icon">📦</div>
+            <h3>Connect to Load Nodes</h3>
+            <p>Connect to ComfyUI to browse custom nodes</p>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid #333">
+          <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="refreshNodeList()">🔄 Refresh Node List</button>
+          <button class="btn btn-secondary" style="width:100%" onclick="openManagerUI()">🌐 Open Manager UI</button>
         </div>
       </div>
 
@@ -362,6 +415,10 @@ Connect to ComfyUI backends and run Stable Diffusion workflows
     let dragOffset = { x: 0, y: 0 };
     let gallery = [];
     let queue = [];
+    let customNodes = [];
+    let installedNodes = [];
+    let currentNodesFilter = 'all';
+    let allNodeDefs = {}; // Will be populated from server
 
     // Node definitions
     const NODE_DEFS = {
@@ -515,6 +572,7 @@ Connect to ComfyUI backends and run Stable Diffusion workflows
           btn.classList.remove('btn-primary');
           btn.classList.add('btn-danger');
           loadModels();
+          loadCustomNodes(); // Load custom nodes on connect
         };
 
         ws.onmessage = (event) => {
@@ -1059,6 +1117,353 @@ Connect to ComfyUI backends and run Stable Diffusion workflows
         const text = item.textContent.toLowerCase();
         item.style.display = text.includes(search) ? 'flex' : 'none';
       });
+    }
+
+    // =========================================================================
+    // CUSTOM NODES MANAGER
+    // =========================================================================
+
+    // Popular custom node packs (fallback when not connected)
+    const POPULAR_NODES = [
+      { id: 'comfyui-manager', title: 'ComfyUI Manager', author: 'ltdrdata', desc: 'Manage custom nodes, models, and more. Essential for installing other nodes.', stars: 5000, category: 'Management', installed: false, url: 'https://github.com/ltdrdata/ComfyUI-Manager' },
+      { id: 'controlnet-aux', title: 'ControlNet Preprocessors', author: 'Fannovel16', desc: 'Preprocessors for ControlNet including OpenPose, Depth, Canny, etc.', stars: 3200, category: 'ControlNet', installed: false, url: 'https://github.com/Fannovel16/comfyui_controlnet_aux' },
+      { id: 'comfyui-impact-pack', title: 'Impact Pack', author: 'ltdrdata', desc: 'Face detailer, SAM, bbox, segs, and many utility nodes.', stars: 2800, category: 'Detection', installed: false, url: 'https://github.com/ltdrdata/ComfyUI-Impact-Pack' },
+      { id: 'comfyui-reactor', title: 'ReActor', author: 'Gourieff', desc: 'Fast and simple face swap extension for ComfyUI.', stars: 2500, category: 'Face', installed: false, url: 'https://github.com/Gourieff/comfyui-reactor-node' },
+      { id: 'was-node-suite', title: 'WAS Node Suite', author: 'WASasquatch', desc: '100+ nodes for image processing, text, math, and more.', stars: 2200, category: 'Utility', installed: false, url: 'https://github.com/WASasquatch/was-node-suite-comfyui' },
+      { id: 'rgthree-comfy', title: 'rgthree Nodes', author: 'rgthree', desc: 'Power Lora Loader, Context nodes, reroute, and more workflow helpers.', stars: 1800, category: 'Utility', installed: false, url: 'https://github.com/rgthree/rgthree-comfy' },
+      { id: 'comfyui-animatediff', title: 'AnimateDiff', author: 'Kosinkadink', desc: 'AnimateDiff integration for video generation in ComfyUI.', stars: 2100, category: 'Video', installed: false, url: 'https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved' },
+      { id: 'comfyui-ipadapter', title: 'IPAdapter Plus', author: 'cubiq', desc: 'Image Prompt Adapter for style/content transfer and face ID.', stars: 2000, category: 'Adapter', installed: false, url: 'https://github.com/cubiq/ComfyUI_IPAdapter_plus' },
+      { id: 'efficiency-nodes', title: 'Efficiency Nodes', author: 'jags111', desc: 'Efficient workflow nodes for LoRA, sampling, and batch processing.', stars: 1500, category: 'Efficiency', installed: false, url: 'https://github.com/jags111/efficiency-nodes-comfyui' },
+      { id: 'comfyui-easy-use', title: 'Easy Use', author: 'yolain', desc: 'Simplified nodes for common workflows, great for beginners.', stars: 1400, category: 'Easy', installed: false, url: 'https://github.com/yolain/ComfyUI-Easy-Use' },
+      { id: 'comfyui-custom-scripts', title: 'Custom Scripts', author: 'pythongosssss', desc: 'UI enhancements, image feed, auto-arrange, and workflow tools.', stars: 1300, category: 'UI', installed: false, url: 'https://github.com/pythongosssss/ComfyUI-Custom-Scripts' },
+      { id: 'comfyui-instantid', title: 'InstantID', author: 'cubiq', desc: 'Zero-shot identity-preserving generation in ComfyUI.', stars: 1200, category: 'Face', installed: false, url: 'https://github.com/cubiq/ComfyUI_InstantID' },
+      { id: 'comfyui-art-venture', title: 'Art Venture', author: 'sipherxyz', desc: 'Useful nodes for image manipulation and model loading.', stars: 1100, category: 'Utility', installed: false, url: 'https://github.com/sipherxyz/comfyui-art-venture' },
+      { id: 'comfyui-videohelpersuite', title: 'Video Helper Suite', author: 'Kosinkadink', desc: 'Load, combine, and split video frames in ComfyUI.', stars: 1000, category: 'Video', installed: false, url: 'https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite' },
+      { id: 'comfyui-frame-interpolation', title: 'Frame Interpolation', author: 'Fannovel16', desc: 'FILM and RIFE frame interpolation for smooth video.', stars: 900, category: 'Video', installed: false, url: 'https://github.com/Fannovel16/ComfyUI-Frame-Interpolation' },
+    ];
+
+    async function loadCustomNodes() {
+      if (!connected) {
+        // Show popular nodes as fallback
+        customNodes = POPULAR_NODES;
+        renderCustomNodes();
+        return;
+      }
+
+      const url = document.getElementById('serverUrl').value;
+      const container = document.getElementById('customNodesList');
+
+      container.innerHTML = '<div class="nodes-loading"><div class="spinner"></div><p>Loading custom nodes...</p></div>';
+
+      try {
+        // Try to get node list from ComfyUI Manager API
+        const response = await fetch(`${url}/customnode/getlist`);
+        if (response.ok) {
+          const data = await response.json();
+          customNodes = data.custom_nodes || [];
+
+          // Also get installed nodes
+          const installedResponse = await fetch(`${url}/customnode/getmappings`);
+          if (installedResponse.ok) {
+            const installed = await installedResponse.json();
+            installedNodes = Object.keys(installed || {});
+
+            // Mark installed nodes
+            customNodes.forEach(node => {
+              node.installed = installedNodes.some(i =>
+                node.title?.toLowerCase().includes(i.toLowerCase()) ||
+                node.id?.toLowerCase().includes(i.toLowerCase())
+              );
+            });
+          }
+        } else {
+          // Manager not installed, use fallback
+          customNodes = POPULAR_NODES;
+        }
+      } catch (e) {
+        console.error('Failed to load custom nodes:', e);
+        customNodes = POPULAR_NODES;
+      }
+
+      // Load all node definitions from server
+      await loadAllNodeDefinitions();
+
+      renderCustomNodes();
+    }
+
+    async function loadAllNodeDefinitions() {
+      if (!connected) return;
+
+      const url = document.getElementById('serverUrl').value;
+      try {
+        const response = await fetch(`${url}/object_info`);
+        if (response.ok) {
+          allNodeDefs = await response.json();
+          updateNodePalette();
+        }
+      } catch (e) {
+        console.error('Failed to load node definitions:', e);
+      }
+    }
+
+    function updateNodePalette() {
+      const palette = document.getElementById('nodePalette');
+      if (!allNodeDefs || Object.keys(allNodeDefs).length === 0) return;
+
+      // Group nodes by category
+      const categories = {};
+      for (const [name, def] of Object.entries(allNodeDefs)) {
+        const cat = def.category || 'Uncategorized';
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push({ name, def });
+
+        // Add to NODE_DEFS if not already there
+        if (!NODE_DEFS[name]) {
+          NODE_DEFS[name] = {
+            title: def.display_name || name,
+            color: getCategoryColor(cat),
+            inputs: Object.entries(def.input?.required || {}).map(([n, v]) => ({
+              name: n,
+              type: Array.isArray(v) ? v[0] : (typeof v === 'object' ? 'ANY' : v)
+            })),
+            outputs: (def.output || []).map((type, i) => ({
+              name: def.output_name?.[i] || type,
+              type: type
+            })),
+            widgets: Object.entries(def.input?.required || {})
+              .filter(([n, v]) => !['MODEL', 'CLIP', 'VAE', 'CONDITIONING', 'LATENT', 'IMAGE', 'MASK'].includes(Array.isArray(v) ? v[0] : v))
+              .map(([n, v]) => ({
+                name: n,
+                type: Array.isArray(v[0]) ? 'combo' : 'string',
+                options: Array.isArray(v[0]) ? v[0] : undefined,
+                default: v[1]?.default
+              }))
+          };
+        }
+      }
+
+      // Rebuild palette HTML with all categories
+      let html = '';
+      const mainCategories = ['loaders', 'conditioning', 'latent', 'sampling', 'image', '_for_testing'];
+      const customCategories = Object.keys(categories).filter(c => !mainCategories.some(m => c.toLowerCase().includes(m)));
+
+      // First add standard categories
+      html += renderPaletteCategory('Loaders', categories['loaders'] || []);
+      html += renderPaletteCategory('Conditioning', categories['conditioning'] || []);
+      html += renderPaletteCategory('Latent', categories['latent'] || []);
+      html += renderPaletteCategory('Sampling', categories['sampling'] || []);
+      html += renderPaletteCategory('Image', categories['image'] || []);
+
+      // Then add custom node categories
+      for (const cat of customCategories.slice(0, 10)) { // Limit to first 10 custom categories
+        const nodes = categories[cat];
+        if (nodes && nodes.length > 0) {
+          html += renderPaletteCategory(cat, nodes.slice(0, 5)); // Max 5 nodes per category
+        }
+      }
+
+      if (html) {
+        palette.innerHTML = html;
+        // Re-setup drag handlers
+        document.querySelectorAll('.node-item[draggable]').forEach(item => {
+          item.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('nodeType', item.dataset.type);
+          });
+        });
+      }
+    }
+
+    function renderPaletteCategory(name, nodes) {
+      if (!nodes || nodes.length === 0) return '';
+      return `
+        <div class="node-category">
+          <h4>${name}</h4>
+          ${nodes.map(n => `
+            <div class="node-item" draggable="true" data-type="${n.name}">
+              <span class="icon">${getCategoryIcon(name)}</span> ${n.def?.display_name || n.name}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function getCategoryColor(category) {
+      const colors = {
+        'loaders': '#3b82f6',
+        'conditioning': '#f59e0b',
+        'latent': '#ec4899',
+        'sampling': '#22c55e',
+        'image': '#8b5cf6',
+        'mask': '#06b6d4',
+        'controlnet': '#ef4444',
+        'ipadapter': '#f97316',
+        'video': '#14b8a6',
+      };
+      const key = Object.keys(colors).find(k => category.toLowerCase().includes(k));
+      return colors[key] || '#6b7280';
+    }
+
+    function getCategoryIcon(category) {
+      const icons = {
+        'Loaders': '📦',
+        'Conditioning': '📝',
+        'Latent': '⬜',
+        'Sampling': '🎲',
+        'Image': '🖼️',
+        'Mask': '🎭',
+        'ControlNet': '🎮',
+        'Video': '🎬',
+      };
+      return icons[category] || '🔧';
+    }
+
+    function renderCustomNodes() {
+      const container = document.getElementById('customNodesList');
+      const search = document.getElementById('customNodeSearch').value.toLowerCase();
+
+      let filtered = customNodes.filter(node => {
+        const matchesSearch = !search ||
+          node.title?.toLowerCase().includes(search) ||
+          node.author?.toLowerCase().includes(search) ||
+          node.desc?.toLowerCase().includes(search);
+
+        const matchesFilter = currentNodesFilter === 'all' ||
+          (currentNodesFilter === 'installed' && node.installed) ||
+          (currentNodesFilter === 'popular' && (node.stars || 0) > 1000);
+
+        return matchesSearch && matchesFilter;
+      });
+
+      // Sort by stars (popularity)
+      filtered.sort((a, b) => (b.stars || 0) - (a.stars || 0));
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <h3>No Nodes Found</h3>
+            <p>Try a different search or filter</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(node => `
+        <div class="custom-node-card ${node.installed ? 'installed' : ''}">
+          <div class="custom-node-header">
+            <span class="custom-node-icon">${getCategoryIcon(node.category || 'Utility')}</span>
+            <div class="custom-node-info">
+              <div class="custom-node-name">
+                ${node.title}
+                ${node.installed ? '<span class="installed-badge">Installed</span>' : ''}
+              </div>
+              <div class="custom-node-author">by ${node.author || 'Unknown'}</div>
+            </div>
+          </div>
+          <div class="custom-node-desc">${node.desc || 'No description available'}</div>
+          <div class="custom-node-stats">
+            ${node.stars ? `<span>⭐ ${node.stars.toLocaleString()}</span>` : ''}
+            <span class="custom-node-tag category">${node.category || 'Utility'}</span>
+          </div>
+          <div class="custom-node-actions">
+            ${node.installed
+              ? `<button class="btn btn-danger" onclick="uninstallNode('${node.id}')">Uninstall</button>`
+              : `<button class="btn btn-primary" onclick="installNode('${node.id}', '${node.url || ''}')">Install</button>`
+            }
+            ${node.url ? `<button class="btn btn-secondary" onclick="window.open('${node.url}', '_blank')">GitHub</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterCustomNodes() {
+      renderCustomNodes();
+    }
+
+    function setNodesFilter(filter, btn) {
+      currentNodesFilter = filter;
+      document.querySelectorAll('.nodes-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      renderCustomNodes();
+    }
+
+    async function installNode(nodeId, url) {
+      if (!connected) {
+        if (url) {
+          window.open(url, '_blank');
+          alert('Please install manually by cloning this repository to your ComfyUI/custom_nodes folder.');
+        }
+        return;
+      }
+
+      const serverUrl = document.getElementById('serverUrl').value;
+
+      try {
+        const response = await fetch(`${serverUrl}/customnode/install`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: nodeId })
+        });
+
+        if (response.ok) {
+          alert('Node installation started! ComfyUI may need to restart.');
+          // Mark as installed locally
+          const node = customNodes.find(n => n.id === nodeId);
+          if (node) node.installed = true;
+          renderCustomNodes();
+        } else {
+          const error = await response.text();
+          alert('Install failed: ' + error);
+        }
+      } catch (e) {
+        alert('Install failed: ' + e.message);
+        if (url) {
+          window.open(url, '_blank');
+        }
+      }
+    }
+
+    async function uninstallNode(nodeId) {
+      if (!connected) {
+        alert('Connect to ComfyUI to uninstall nodes');
+        return;
+      }
+
+      if (!confirm('Are you sure you want to uninstall this node?')) return;
+
+      const serverUrl = document.getElementById('serverUrl').value;
+
+      try {
+        const response = await fetch(`${serverUrl}/customnode/uninstall`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: nodeId })
+        });
+
+        if (response.ok) {
+          alert('Node uninstalled! ComfyUI may need to restart.');
+          const node = customNodes.find(n => n.id === nodeId);
+          if (node) node.installed = false;
+          renderCustomNodes();
+        } else {
+          alert('Uninstall failed');
+        }
+      } catch (e) {
+        alert('Uninstall failed: ' + e.message);
+      }
+    }
+
+    function refreshNodeList() {
+      loadCustomNodes();
+    }
+
+    function openManagerUI() {
+      if (!connected) {
+        alert('Connect to ComfyUI first');
+        return;
+      }
+      const url = document.getElementById('serverUrl').value;
+      window.open(`${url}/manager`, '_blank');
     }
 
     // Settings
