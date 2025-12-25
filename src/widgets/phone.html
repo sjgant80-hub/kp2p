@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KonoPhone - P2P Decentralized Phone</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a25;
+      --accent: #00ff88;
+      --accent2: #00cc6a;
+      --text: #ffffff;
+      --text2: #888899;
+      --red: #ff4444;
+      --green: #00ff88;
+      --blue: #4488ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .phone-container {
+      width: 100%;
+      max-width: 400px;
+      background: var(--surface);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 255, 136, 0.1);
+    }
+
+    /* Header */
+    .phone-header {
+      padding: 20px;
+      background: var(--surface2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .phone-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .mesh-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .mesh-status .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: var(--surface2);
+      padding: 0 10px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 15px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab:hover { color: var(--text); }
+
+    /* Content */
+    .content {
+      padding: 20px;
+      min-height: 500px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Dialpad */
+    .dialpad-display {
+      text-align: center;
+      padding: 30px 20px;
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      min-height: 80px;
+      word-break: break-all;
+    }
+
+    .dialpad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      padding: 10px;
+    }
+
+    .dial-btn {
+      aspect-ratio: 1;
+      border: none;
+      border-radius: 50%;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 28px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dial-btn:hover {
+      background: var(--accent);
+      color: var(--bg);
+      transform: scale(1.05);
+    }
+
+    .dial-btn:active { transform: scale(0.95); }
+
+    .dial-btn .sub {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+
+    .dial-btn:hover .sub { color: var(--bg); }
+
+    .call-actions {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .call-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 24px;
+      transition: all 0.2s;
+    }
+
+    .call-btn.green {
+      background: var(--green);
+      color: var(--bg);
+    }
+
+    .call-btn.red {
+      background: var(--red);
+      color: white;
+    }
+
+    .call-btn:hover { transform: scale(1.1); }
+
+    /* Contacts */
+    .search-box {
+      width: 100%;
+      padding: 15px;
+      background: var(--surface2);
+      border: none;
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    .contact-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .contact-item:hover { background: var(--surface2); }
+
+    .contact-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .contact-info { flex: 1; }
+    .contact-name { font-weight: 500; }
+    .contact-id {
+      font-size: 12px;
+      color: var(--text2);
+      font-family: monospace;
+    }
+
+    .contact-status {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .contact-status.online { background: var(--green); }
+    .contact-status.offline { background: var(--text2); }
+
+    /* Recent Calls */
+    .call-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .call-item:hover { background: var(--surface2); }
+
+    .call-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .call-icon.incoming { background: rgba(0, 255, 136, 0.2); color: var(--green); }
+    .call-icon.outgoing { background: rgba(68, 136, 255, 0.2); color: var(--blue); }
+    .call-icon.missed { background: rgba(255, 68, 68, 0.2); color: var(--red); }
+
+    .call-details { flex: 1; }
+    .call-name { font-weight: 500; }
+    .call-time { font-size: 12px; color: var(--text2); }
+    .call-duration { font-size: 12px; color: var(--text2); }
+
+    /* Active Call Screen */
+    .call-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 60px 20px 40px;
+      z-index: 100;
+    }
+
+    .call-screen.active { display: flex; }
+
+    .call-peer-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .call-peer-name {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .call-status {
+      font-size: 16px;
+      color: var(--accent);
+    }
+
+    .call-timer {
+      font-size: 24px;
+      font-family: monospace;
+      color: var(--text2);
+      margin-top: 20px;
+    }
+
+    .call-controls {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .control-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .control-btn:hover { background: var(--surface); }
+    .control-btn.active { background: var(--accent); color: var(--bg); }
+
+    .control-btn .label {
+      font-size: 10px;
+      margin-top: 4px;
+    }
+
+    .end-call-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: none;
+      background: var(--red);
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+      margin-top: 30px;
+      transition: transform 0.2s;
+    }
+
+    .end-call-btn:hover { transform: scale(1.1); }
+
+    /* Mesh Network View */
+    .mesh-info {
+      background: var(--surface2);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .mesh-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--surface);
+    }
+
+    .mesh-stat:last-child { border: none; }
+    .mesh-stat .label { color: var(--text2); }
+    .mesh-stat .value { font-weight: 600; color: var(--accent); }
+
+    .peer-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .peer-node {
+      background: var(--surface2);
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .peer-node .icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .peer-node .name {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .peer-node .hops {
+      font-size: 10px;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+
+    /* Incoming Call Modal */
+    .incoming-call {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .incoming-call.active { display: flex; }
+
+    .incoming-caller {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .incoming-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin: 0 auto 20px;
+      animation: ring 1s infinite;
+    }
+
+    @keyframes ring {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .incoming-name {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .incoming-label {
+      color: var(--text2);
+    }
+
+    .incoming-actions {
+      display: flex;
+      gap: 60px;
+    }
+
+    .answer-btn, .decline-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .answer-btn {
+      background: var(--green);
+      color: var(--bg);
+    }
+
+    .decline-btn {
+      background: var(--red);
+      color: white;
+    }
+
+    .answer-btn:hover, .decline-btn:hover {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="phone-container">
+    <div class="phone-header">
+      <div class="phone-title">KonoPhone</div>
+      <div class="mesh-status">
+        <span class="dot"></span>
+        <span id="peerCount">12 peers</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="dialpad">Keypad</div>
+      <div class="tab" data-tab="contacts">Contacts</div>
+      <div class="tab" data-tab="recent">Recent</div>
+      <div class="tab" data-tab="mesh">Mesh</div>
+    </div>
+
+    <div class="content">
+      <!-- Dialpad View -->
+      <div class="view active" id="dialpad">
+        <div class="dialpad-display" id="phoneNumber"></div>
+        <div class="dialpad-grid">
+          <button class="dial-btn" data-digit="1">1<span class="sub"></span></button>
+          <button class="dial-btn" data-digit="2">2<span class="sub">ABC</span></button>
+          <button class="dial-btn" data-digit="3">3<span class="sub">DEF</span></button>
+          <button class="dial-btn" data-digit="4">4<span class="sub">GHI</span></button>
+          <button class="dial-btn" data-digit="5">5<span class="sub">JKL</span></button>
+          <button class="dial-btn" data-digit="6">6<span class="sub">MNO</span></button>
+          <button class="dial-btn" data-digit="7">7<span class="sub">PQRS</span></button>
+          <button class="dial-btn" data-digit="8">8<span class="sub">TUV</span></button>
+          <button class="dial-btn" data-digit="9">9<span class="sub">WXYZ</span></button>
+          <button class="dial-btn" data-digit="*">*</button>
+          <button class="dial-btn" data-digit="0">0<span class="sub">+</span></button>
+          <button class="dial-btn" data-digit="#">#</button>
+        </div>
+        <div class="call-actions">
+          <button class="call-btn green" id="callBtn">📞</button>
+        </div>
+      </div>
+
+      <!-- Contacts View -->
+      <div class="view" id="contacts">
+        <input type="text" class="search-box" placeholder="Search contacts or enter Peer ID...">
+        <div class="contact-list" id="contactList"></div>
+      </div>
+
+      <!-- Recent Calls View -->
+      <div class="view" id="recent">
+        <div id="recentList"></div>
+      </div>
+
+      <!-- Mesh Network View -->
+      <div class="view" id="mesh">
+        <div class="mesh-info">
+          <div class="mesh-stat">
+            <span class="label">Your Peer ID</span>
+            <span class="value" id="myPeerId">kp2p-abc123</span>
+          </div>
+          <div class="mesh-stat">
+            <span class="label">Connected Peers</span>
+            <span class="value" id="connectedPeers">12</span>
+          </div>
+          <div class="mesh-stat">
+            <span class="label">Network Coverage</span>
+            <span class="value">2.4 km radius</span>
+          </div>
+          <div class="mesh-stat">
+            <span class="label">Signal Strength</span>
+            <span class="value">Strong (WiFi + BT)</span>
+          </div>
+        </div>
+        <h4 style="margin-bottom: 15px; color: var(--text2);">Nearby Nodes</h4>
+        <div class="peer-grid" id="peerGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Call Screen -->
+  <div class="call-screen" id="callScreen">
+    <div style="text-align: center;">
+      <div class="call-peer-avatar" id="callAvatar">J</div>
+      <div class="call-peer-name" id="callPeerName">John Doe</div>
+      <div class="call-status" id="callStatus">Calling...</div>
+      <div class="call-timer" id="callTimer">00:00</div>
+    </div>
+    <div>
+      <div class="call-controls">
+        <button class="control-btn" id="muteBtn">🎤<span class="label">Mute</span></button>
+        <button class="control-btn" id="speakerBtn">🔊<span class="label">Speaker</span></button>
+        <button class="control-btn" id="videoBtn">📹<span class="label">Video</span></button>
+        <button class="control-btn" id="holdBtn">⏸️<span class="label">Hold</span></button>
+        <button class="control-btn" id="addBtn">➕<span class="label">Add</span></button>
+        <button class="control-btn" id="keypadBtn">⌨️<span class="label">Keypad</span></button>
+      </div>
+      <button class="end-call-btn" id="endCallBtn">📵</button>
+    </div>
+  </div>
+
+  <!-- Incoming Call Modal -->
+  <div class="incoming-call" id="incomingCall">
+    <div class="incoming-caller">
+      <div class="incoming-avatar" id="incomingAvatar">?</div>
+      <div class="incoming-name" id="incomingName">Unknown Caller</div>
+      <div class="incoming-label">Incoming P2P Call</div>
+    </div>
+    <div class="incoming-actions">
+      <button class="decline-btn" id="declineBtn">📵</button>
+      <button class="answer-btn" id="answerBtn">📞</button>
+    </div>
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // KONOPHONE - P2P DECENTRALIZED PHONE SYSTEM
+    // =========================================================================
+
+    // Phone State
+    const state = {
+      phoneNumber: '',
+      contacts: [],
+      recentCalls: [],
+      peers: [],
+      currentCall: null,
+      callTimer: null,
+      callSeconds: 0,
+      isMuted: false,
+      isSpeaker: false,
+      isVideo: false,
+      isHold: false,
+      myPeerId: 'kp2p-' + Math.random().toString(36).substr(2, 8),
+    };
+
+    // Demo contacts
+    state.contacts = [
+      { id: 'kp2p-alice01', name: 'Alice Chen', online: true },
+      { id: 'kp2p-bob002', name: 'Bob Smith', online: true },
+      { id: 'kp2p-carol3', name: 'Carol White', online: false },
+      { id: 'kp2p-dave04', name: 'Dave Johnson', online: true },
+      { id: 'kp2p-eve005', name: 'Eve Williams', online: true },
+      { id: 'kp2p-frank6', name: 'Frank Brown', online: false },
+    ];
+
+    // Demo recent calls
+    state.recentCalls = [
+      { id: 'kp2p-alice01', name: 'Alice Chen', type: 'outgoing', time: '2 min ago', duration: '5:23' },
+      { id: 'kp2p-bob002', name: 'Bob Smith', type: 'incoming', time: '1 hour ago', duration: '12:45' },
+      { id: 'kp2p-unknown', name: 'Unknown', type: 'missed', time: '3 hours ago', duration: '' },
+      { id: 'kp2p-dave04', name: 'Dave Johnson', type: 'outgoing', time: 'Yesterday', duration: '2:11' },
+    ];
+
+    // Demo peers
+    state.peers = [
+      { id: 'node-1', name: 'Node A', hops: 1 },
+      { id: 'node-2', name: 'Node B', hops: 1 },
+      { id: 'node-3', name: 'Node C', hops: 2 },
+      { id: 'node-4', name: 'Node D', hops: 2 },
+      { id: 'node-5', name: 'Node E', hops: 3 },
+      { id: 'node-6', name: 'Node F', hops: 1 },
+    ];
+
+    // DOM Elements
+    const phoneDisplay = document.getElementById('phoneNumber');
+    const callScreen = document.getElementById('callScreen');
+    const incomingCall = document.getElementById('incomingCall');
+
+    // =========================================================================
+    // TAB NAVIGATION
+    // =========================================================================
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // =========================================================================
+    // DIALPAD
+    // =========================================================================
+
+    document.querySelectorAll('.dial-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.phoneNumber += btn.dataset.digit;
+        phoneDisplay.textContent = formatPhoneNumber(state.phoneNumber);
+        playDTMF(btn.dataset.digit);
+      });
+    });
+
+    // Long press 0 for +
+    let zeroTimer;
+    document.querySelector('[data-digit="0"]').addEventListener('mousedown', () => {
+      zeroTimer = setTimeout(() => {
+        state.phoneNumber = state.phoneNumber.slice(0, -1) + '+';
+        phoneDisplay.textContent = formatPhoneNumber(state.phoneNumber);
+      }, 500);
+    });
+    document.querySelector('[data-digit="0"]').addEventListener('mouseup', () => clearTimeout(zeroTimer));
+
+    // Backspace on display click
+    phoneDisplay.addEventListener('click', () => {
+      state.phoneNumber = state.phoneNumber.slice(0, -1);
+      phoneDisplay.textContent = formatPhoneNumber(state.phoneNumber);
+    });
+
+    function formatPhoneNumber(num) {
+      if (num.startsWith('kp2p-')) return num;
+      if (num.length <= 3) return num;
+      if (num.length <= 6) return `${num.slice(0, 3)}-${num.slice(3)}`;
+      return `${num.slice(0, 3)}-${num.slice(3, 6)}-${num.slice(6, 10)}`;
+    }
+
+    function playDTMF(digit) {
+      // Would play DTMF tone
+      console.log('DTMF:', digit);
+    }
+
+    // =========================================================================
+    // CALL HANDLING
+    // =========================================================================
+
+    document.getElementById('callBtn').addEventListener('click', () => {
+      if (state.phoneNumber.length > 0) {
+        startCall(state.phoneNumber, 'Peer ' + state.phoneNumber);
+      }
+    });
+
+    function startCall(peerId, name) {
+      state.currentCall = { peerId, name, startTime: Date.now() };
+      document.getElementById('callAvatar').textContent = name[0].toUpperCase();
+      document.getElementById('callPeerName').textContent = name;
+      document.getElementById('callStatus').textContent = 'Calling...';
+      document.getElementById('callTimer').textContent = '00:00';
+      callScreen.classList.add('active');
+
+      // Simulate connection
+      setTimeout(() => {
+        document.getElementById('callStatus').textContent = 'Connected via mesh';
+        startCallTimer();
+      }, 2000);
+    }
+
+    function startCallTimer() {
+      state.callSeconds = 0;
+      state.callTimer = setInterval(() => {
+        state.callSeconds++;
+        const mins = Math.floor(state.callSeconds / 60).toString().padStart(2, '0');
+        const secs = (state.callSeconds % 60).toString().padStart(2, '0');
+        document.getElementById('callTimer').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    document.getElementById('endCallBtn').addEventListener('click', () => {
+      endCall();
+    });
+
+    function endCall() {
+      if (state.callTimer) clearInterval(state.callTimer);
+      state.currentCall = null;
+      state.callSeconds = 0;
+      callScreen.classList.remove('active');
+      state.phoneNumber = '';
+      phoneDisplay.textContent = '';
+    }
+
+    // Call controls
+    document.getElementById('muteBtn').addEventListener('click', (e) => {
+      state.isMuted = !state.isMuted;
+      e.currentTarget.classList.toggle('active', state.isMuted);
+    });
+
+    document.getElementById('speakerBtn').addEventListener('click', (e) => {
+      state.isSpeaker = !state.isSpeaker;
+      e.currentTarget.classList.toggle('active', state.isSpeaker);
+    });
+
+    document.getElementById('videoBtn').addEventListener('click', (e) => {
+      state.isVideo = !state.isVideo;
+      e.currentTarget.classList.toggle('active', state.isVideo);
+    });
+
+    document.getElementById('holdBtn').addEventListener('click', (e) => {
+      state.isHold = !state.isHold;
+      e.currentTarget.classList.toggle('active', state.isHold);
+      document.getElementById('callStatus').textContent = state.isHold ? 'On Hold' : 'Connected via mesh';
+    });
+
+    // =========================================================================
+    // INCOMING CALL
+    // =========================================================================
+
+    document.getElementById('answerBtn').addEventListener('click', () => {
+      incomingCall.classList.remove('active');
+      const name = document.getElementById('incomingName').textContent;
+      startCall('incoming', name);
+    });
+
+    document.getElementById('declineBtn').addEventListener('click', () => {
+      incomingCall.classList.remove('active');
+    });
+
+    // Simulate incoming call (demo)
+    function simulateIncomingCall() {
+      const caller = state.contacts[Math.floor(Math.random() * state.contacts.length)];
+      document.getElementById('incomingAvatar').textContent = caller.name[0];
+      document.getElementById('incomingName').textContent = caller.name;
+      incomingCall.classList.add('active');
+    }
+
+    // =========================================================================
+    // RENDER FUNCTIONS
+    // =========================================================================
+
+    function renderContacts() {
+      const list = document.getElementById('contactList');
+      list.innerHTML = state.contacts.map(c => `
+        <div class="contact-item" data-id="${c.id}">
+          <div class="contact-avatar">${c.name[0]}</div>
+          <div class="contact-info">
+            <div class="contact-name">${c.name}</div>
+            <div class="contact-id">${c.id}</div>
+          </div>
+          <div class="contact-status ${c.online ? 'online' : 'offline'}"></div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.contact-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const contact = state.contacts.find(c => c.id === item.dataset.id);
+          if (contact) startCall(contact.id, contact.name);
+        });
+      });
+    }
+
+    function renderRecentCalls() {
+      const list = document.getElementById('recentList');
+      list.innerHTML = state.recentCalls.map(c => `
+        <div class="call-item" data-id="${c.id}">
+          <div class="call-icon ${c.type}">${c.type === 'incoming' ? '📥' : c.type === 'outgoing' ? '📤' : '📵'}</div>
+          <div class="call-details">
+            <div class="call-name">${c.name}</div>
+            <div class="call-time">${c.time}</div>
+          </div>
+          <div class="call-duration">${c.duration}</div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.call-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const call = state.recentCalls.find(c => c.id === item.dataset.id);
+          if (call) startCall(call.id, call.name);
+        });
+      });
+    }
+
+    function renderPeers() {
+      const grid = document.getElementById('peerGrid');
+      grid.innerHTML = state.peers.map(p => `
+        <div class="peer-node">
+          <div class="icon">📡</div>
+          <div class="name">${p.name}</div>
+          <div class="hops">${p.hops} hop${p.hops > 1 ? 's' : ''}</div>
+        </div>
+      `).join('');
+    }
+
+    // Initialize
+    document.getElementById('myPeerId').textContent = state.myPeerId;
+    renderContacts();
+    renderRecentCalls();
+    renderPeers();
+
+    // Demo: Simulate incoming call after 10 seconds
+    // setTimeout(simulateIncomingCall, 10000);
+
+    console.log('🌐 KonoPhone initialized - P2P mesh phone ready');
+    console.log('📱 Your Peer ID:', state.myPeerId);
+  </script>
+</body>
+</html>
