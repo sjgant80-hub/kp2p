@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Bridge - Secure Link Exchange</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #f59e0b, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+
+        .status-dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+        .status-dot.connected { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .room-display {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px dashed rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .room-code {
+            font-family: 'Fira Code', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            color: #f59e0b;
+            letter-spacing: 4px;
+            margin: 12px 0;
+        }
+
+        .room-link {
+            font-size: 11px;
+            color: #666;
+            word-break: break-all;
+            margin-top: 12px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f59e0b, #ec4899);
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn:hover { transform: scale(1.05); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Fira Code', monospace;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #f59e0b;
+        }
+
+        .peers-list {
+            margin-top: 20px;
+        }
+
+        .peer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .peer-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .peer-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f59e0b, #ec4899);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .peer-id {
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .messages {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.incoming {
+            background: rgba(139, 92, 246, 0.2);
+            border-left: 3px solid #8b5cf6;
+        }
+
+        .message.outgoing {
+            background: rgba(34, 197, 94, 0.2);
+            border-left: 3px solid #22c55e;
+        }
+
+        .message.system {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid #f59e0b;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .message-content {
+            font-size: 14px;
+            word-break: break-word;
+        }
+
+        .message-content.data {
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        .auth-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .auth-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .key-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .key-label {
+            font-size: 12px;
+            color: #888;
+            min-width: 80px;
+        }
+
+        .key-value {
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            color: #22c55e;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .copy-btn {
+            padding: 4px 12px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(236, 72, 153, 0.2));
+            color: #fff;
+        }
+
+        .tab:hover { background: rgba(255, 255, 255, 0.1); }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🔗</div>
+            <h1>P2P Bridge</h1>
+            <p class="subtitle">Secure peer-to-peer link exchange • No server required</p>
+        </div>
+
+        <!-- Connection Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Connection</span>
+                <div class="status">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Disconnected</span>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <button class="tab active" onclick="Bridge.setMode('host', this)">🏠 Host Room</button>
+                <button class="tab" onclick="Bridge.setMode('join', this)">🚪 Join Room</button>
+            </div>
+
+            <!-- Host Mode -->
+            <div id="hostMode">
+                <div class="room-display">
+                    <div style="font-size:12px;color:#888;">Your Room Code</div>
+                    <div class="room-code" id="roomCode">------</div>
+                    <div class="room-link" id="roomLink">Generating...</div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="Bridge.createRoom()">Generate New Room</button>
+                    <button class="btn btn-secondary" onclick="Bridge.copyLink()">Copy Link</button>
+                </div>
+            </div>
+
+            <!-- Join Mode -->
+            <div id="joinMode" class="hidden">
+                <div class="input-group">
+                    <input type="text" id="joinCode" placeholder="Enter room code or paste link...">
+                    <button class="btn btn-primary" onclick="Bridge.joinRoom()">Connect</button>
+                </div>
+            </div>
+
+            <!-- Connected Peers -->
+            <div class="peers-list" id="peersList"></div>
+        </div>
+
+        <!-- Messages Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Secure Channel</span>
+                <span style="font-size:12px;color:#888;" id="peerCount">0 peers</span>
+            </div>
+
+            <div class="messages" id="messages">
+                <div class="message system">
+                    <div class="message-content">Waiting for connection...</div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="messageInput" placeholder="Send message or data..." onkeydown="if(event.key==='Enter')Bridge.sendMessage()">
+                <button class="btn btn-primary" onclick="Bridge.sendMessage()">Send</button>
+            </div>
+
+            <!-- Auth Exchange Section -->
+            <div class="auth-section">
+                <div class="auth-title">🔐 Key Exchange</div>
+                <div class="key-display">
+                    <span class="key-label">Your Key:</span>
+                    <span class="key-value" id="myPublicKey">Generating...</span>
+                    <button class="copy-btn" onclick="Bridge.copyKey()">Copy</button>
+                </div>
+                <div class="key-display">
+                    <span class="key-label">Peer Key:</span>
+                    <span class="key-value" id="peerPublicKey">Not connected</span>
+                    <span id="keyVerified" style="color:#22c55e;font-size:11px;"></span>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="Bridge.sendAuthRequest()">Request Auth</button>
+                    <button class="btn btn-secondary" onclick="Bridge.shareLink()">Share Link</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import Trystero from 'https://esm.run/trystero';
+
+        class P2PBridge {
+            constructor() {
+                this.room = null;
+                this.roomId = null;
+                this.myId = this.generateId();
+                this.peers = new Map();
+                this.mode = 'host';
+                this.keyPair = null;
+
+                // Communication channels
+                this.sendMessage = null;
+                this.sendAuth = null;
+                this.sendLink = null;
+
+                this.init();
+            }
+
+            async init() {
+                // Generate keypair for auth
+                await this.generateKeyPair();
+
+                // Check URL for room code
+                const params = new URLSearchParams(window.location.search);
+                const roomParam = params.get('room');
+                if (roomParam) {
+                    document.getElementById('joinCode').value = roomParam;
+                    this.setMode('join', document.querySelectorAll('.tab')[1]);
+                    setTimeout(() => this.joinRoom(), 500);
+                }
+            }
+
+            async generateKeyPair() {
+                // Generate ECDH key pair for secure exchange
+                this.keyPair = await crypto.subtle.generateKey(
+                    { name: 'ECDH', namedCurve: 'P-256' },
+                    true,
+                    ['deriveKey']
+                );
+
+                // Export public key
+                const publicKeyBuffer = await crypto.subtle.exportKey('raw', this.keyPair.publicKey);
+                const publicKeyHex = Array.from(new Uint8Array(publicKeyBuffer))
+                    .map(b => b.toString(16).padStart(2, '0')).join('');
+
+                document.getElementById('myPublicKey').textContent = publicKeyHex.substring(0, 32) + '...';
+                this.myPublicKeyHex = publicKeyHex;
+            }
+
+            generateId() {
+                return Math.random().toString(36).substring(2, 8).toUpperCase();
+            }
+
+            generateRoomCode() {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let code = '';
+                for (let i = 0; i < 6; i++) {
+                    code += chars[Math.floor(Math.random() * chars.length)];
+                }
+                return code;
+            }
+
+            setMode(mode, el) {
+                this.mode = mode;
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+
+                document.getElementById('hostMode').classList.toggle('hidden', mode !== 'host');
+                document.getElementById('joinMode').classList.toggle('hidden', mode !== 'join');
+            }
+
+            async createRoom() {
+                // Leave existing room
+                if (this.room) {
+                    this.room.leave();
+                }
+
+                this.roomId = this.generateRoomCode();
+                document.getElementById('roomCode').textContent = this.roomId;
+
+                const link = `${window.location.origin}${window.location.pathname}?room=${this.roomId}`;
+                document.getElementById('roomLink').textContent = link;
+
+                this.updateStatus('connecting', 'Creating room...');
+
+                await this.connectToRoom(this.roomId);
+            }
+
+            async joinRoom() {
+                let code = document.getElementById('joinCode').value.trim();
+
+                // Extract room code from URL if pasted
+                if (code.includes('room=')) {
+                    const match = code.match(/room=([A-Z0-9]+)/i);
+                    if (match) code = match[1];
+                }
+
+                if (!code || code.length < 4) {
+                    this.addMessage('system', 'Invalid room code');
+                    return;
+                }
+
+                this.roomId = code.toUpperCase();
+                this.updateStatus('connecting', 'Joining room...');
+
+                await this.connectToRoom(this.roomId);
+            }
+
+            async connectToRoom(roomId) {
+                try {
+                    // Use Trystero with nostr strategy for P2P
+                    const config = { appId: 'konomi-p2p-bridge-v1' };
+                    this.room = Trystero.joinRoom(config, roomId);
+
+                    // Setup channels
+                    const [sendMsg, getMsg] = this.room.makeAction('message');
+                    const [sendAuth, getAuth] = this.room.makeAction('auth');
+                    const [sendLink, getLink] = this.room.makeAction('link');
+
+                    this.sendMessage = sendMsg;
+                    this.sendAuth = sendAuth;
+                    this.sendLink = sendLink;
+
+                    // Handle incoming messages
+                    getMsg((data, peerId) => this.handleMessage(data, peerId));
+                    getAuth((data, peerId) => this.handleAuth(data, peerId));
+                    getLink((data, peerId) => this.handleLink(data, peerId));
+
+                    // Handle peer events
+                    this.room.onPeerJoin(peerId => this.onPeerJoin(peerId));
+                    this.room.onPeerLeave(peerId => this.onPeerLeave(peerId));
+
+                    this.updateStatus('connected', `Room: ${roomId}`);
+                    this.addMessage('system', `Connected to room ${roomId}`);
+
+                } catch (err) {
+                    console.error('Connection error:', err);
+                    this.updateStatus('disconnected', 'Connection failed');
+                    this.addMessage('system', `Error: ${err.message}`);
+                }
+            }
+
+            onPeerJoin(peerId) {
+                const shortId = peerId.substring(0, 8);
+                this.peers.set(peerId, { id: shortId, joinedAt: Date.now() });
+
+                this.addMessage('system', `Peer ${shortId} connected`);
+                this.renderPeers();
+
+                // Send our public key
+                if (this.sendAuth) {
+                    this.sendAuth({ type: 'key', key: this.myPublicKeyHex }, peerId);
+                }
+            }
+
+            onPeerLeave(peerId) {
+                const peer = this.peers.get(peerId);
+                const shortId = peer ? peer.id : peerId.substring(0, 8);
+
+                this.peers.delete(peerId);
+                this.addMessage('system', `Peer ${shortId} disconnected`);
+                this.renderPeers();
+            }
+
+            handleMessage(data, peerId) {
+                const peer = this.peers.get(peerId);
+                const from = peer ? peer.id : 'Unknown';
+
+                this.addMessage('incoming', data.text, from, data.data);
+            }
+
+            handleAuth(data, peerId) {
+                const peer = this.peers.get(peerId);
+
+                if (data.type === 'key') {
+                    if (peer) {
+                        peer.publicKey = data.key;
+                        document.getElementById('peerPublicKey').textContent = data.key.substring(0, 32) + '...';
+                        document.getElementById('keyVerified').textContent = '✓ Key received';
+                    }
+                    this.addMessage('system', `Received public key from ${peer?.id || 'peer'}`);
+                } else if (data.type === 'request') {
+                    this.addMessage('incoming', 'Auth request received', peer?.id, data);
+                }
+            }
+
+            handleLink(data, peerId) {
+                const peer = this.peers.get(peerId);
+                this.addMessage('incoming', `Shared link: ${data.url}`, peer?.id, {
+                    title: data.title,
+                    url: data.url
+                });
+            }
+
+            sendMessageAction() {
+                const input = document.getElementById('messageInput');
+                const text = input.value.trim();
+                if (!text || !this.sendMessage) return;
+
+                // Check if it's JSON data
+                let data = null;
+                try {
+                    if (text.startsWith('{') || text.startsWith('[')) {
+                        data = JSON.parse(text);
+                    }
+                } catch (e) {}
+
+                this.sendMessage({ text, data });
+                this.addMessage('outgoing', text, 'You', data);
+                input.value = '';
+            }
+
+            sendAuthRequest() {
+                if (!this.sendAuth) {
+                    this.addMessage('system', 'Not connected to any peers');
+                    return;
+                }
+
+                const authData = {
+                    type: 'request',
+                    timestamp: Date.now(),
+                    nonce: crypto.randomUUID(),
+                    publicKey: this.myPublicKeyHex
+                };
+
+                this.sendAuth(authData);
+                this.addMessage('outgoing', 'Auth request sent', 'You', authData);
+            }
+
+            shareLink() {
+                if (!this.sendLink) {
+                    this.addMessage('system', 'Not connected to any peers');
+                    return;
+                }
+
+                const url = prompt('Enter URL to share:');
+                if (!url) return;
+
+                const linkData = {
+                    url,
+                    title: 'Shared Link',
+                    sharedAt: Date.now()
+                };
+
+                this.sendLink(linkData);
+                this.addMessage('outgoing', `Shared: ${url}`, 'You');
+            }
+
+            addMessage(type, text, from = null, data = null) {
+                const container = document.getElementById('messages');
+                const msg = document.createElement('div');
+                msg.className = `message ${type}`;
+
+                const time = new Date().toLocaleTimeString();
+
+                msg.innerHTML = `
+                    <div class="message-header">
+                        <span>${from || 'System'}</span>
+                        <span>${time}</span>
+                    </div>
+                    <div class="message-content">${this.escapeHtml(text)}</div>
+                    ${data ? `<div class="message-content data">${JSON.stringify(data, null, 2)}</div>` : ''}
+                `;
+
+                container.appendChild(msg);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            renderPeers() {
+                const container = document.getElementById('peersList');
+                const count = this.peers.size;
+
+                document.getElementById('peerCount').textContent = `${count} peer${count !== 1 ? 's' : ''}`;
+
+                if (count === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                container.innerHTML = Array.from(this.peers.entries()).map(([id, peer]) => `
+                    <div class="peer">
+                        <div class="peer-info">
+                            <div class="peer-avatar">${peer.id.substring(0, 2)}</div>
+                            <div>
+                                <div style="font-weight:600;">Peer ${peer.id}</div>
+                                <div class="peer-id">${id.substring(0, 16)}...</div>
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:#22c55e;">● Connected</div>
+                    </div>
+                `).join('');
+            }
+
+            updateStatus(state, text) {
+                const dot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+
+                dot.className = 'status-dot ' + state;
+                statusText.textContent = text;
+            }
+
+            copyLink() {
+                const link = document.getElementById('roomLink').textContent;
+                navigator.clipboard.writeText(link).then(() => {
+                    this.addMessage('system', 'Link copied to clipboard!');
+                });
+            }
+
+            copyKey() {
+                navigator.clipboard.writeText(this.myPublicKeyHex).then(() => {
+                    this.addMessage('system', 'Public key copied!');
+                });
+            }
+        }
+
+        // Initialize
+        const bridge = new P2PBridge();
+
+        // Expose to window for onclick handlers
+        window.Bridge = {
+            setMode: (m, el) => bridge.setMode(m, el),
+            createRoom: () => bridge.createRoom(),
+            joinRoom: () => bridge.joinRoom(),
+            sendMessage: () => bridge.sendMessageAction(),
+            sendAuthRequest: () => bridge.sendAuthRequest(),
+            shareLink: () => bridge.shareLink(),
+            copyLink: () => bridge.copyLink(),
+            copyKey: () => bridge.copyKey()
+        };
+    </script>
+</body>
+</html>
