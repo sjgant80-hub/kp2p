@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Bridge v2 - WebSocket Relay</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; }
+
+        .header { text-align: center; padding: 40px 0; }
+        .logo { font-size: 48px; margin-bottom: 16px; }
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #f59e0b, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .subtitle { color: #888; font-size: 14px; }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: linear-gradient(90deg, #22c55e, #10b981);
+            border-radius: 12px;
+            font-size: 11px;
+            color: #000;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title { font-size: 18px; font-weight: 600; }
+
+        .status { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #ef4444;
+        }
+        .status-dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+        .status-dot.connected { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .room-display {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px dashed rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .room-code {
+            font-family: 'Fira Code', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            color: #f59e0b;
+            letter-spacing: 4px;
+            margin: 12px 0;
+        }
+
+        .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: linear-gradient(135deg, #f59e0b, #ec4899); color: #000; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
+        .btn:hover { transform: scale(1.05); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .input-group { display: flex; gap: 12px; margin-bottom: 16px; }
+
+        input, textarea {
+            flex: 1;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'Fira Code', monospace;
+        }
+        input:focus, textarea:focus { outline: none; border-color: #f59e0b; }
+
+        .messages {
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message.incoming { background: rgba(139, 92, 246, 0.2); border-left: 3px solid #8b5cf6; }
+        .message.outgoing { background: rgba(34, 197, 94, 0.2); border-left: 3px solid #22c55e; }
+        .message.system { background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; font-size: 12px; color: #888; }
+
+        .message-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 11px; color: #888; }
+        .message-content { font-size: 14px; word-break: break-word; }
+
+        .relay-list { font-size: 11px; color: #666; margin-top: 12px; }
+        .relay-item { padding: 4px 8px; background: rgba(255,255,255,0.05); border-radius: 4px; margin: 4px 0; display: flex; justify-content: space-between; }
+        .relay-status { color: #22c55e; }
+        .relay-status.error { color: #ef4444; }
+
+        .peer-count {
+            padding: 4px 12px;
+            background: rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            font-size: 12px;
+            color: #22c55e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🌐</div>
+            <h1>P2P Bridge v2</h1>
+            <p class="subtitle">WebSocket Relay • Works through NAT/Firewalls</p>
+            <div class="badge">NO WebRTC REQUIRED</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🔗 Connection</span>
+                <div class="status">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Disconnected</span>
+                </div>
+            </div>
+
+            <div class="room-display">
+                <div style="font-size:12px;color:#888;">Room Code</div>
+                <div class="room-code" id="roomCode">------</div>
+                <div class="input-group" style="max-width:400px;margin:16px auto 0;">
+                    <input type="text" id="roomInput" placeholder="Enter room code to join...">
+                    <button class="btn btn-primary" onclick="Bridge.joinRoom()">Join</button>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="Bridge.createRoom()">Create New Room</button>
+                <button class="btn btn-secondary" onclick="Bridge.copyRoom()">Copy Code</button>
+            </div>
+
+            <div class="relay-list" id="relayList">
+                <div style="margin-bottom:8px;color:#888;">📡 Nostr Relays:</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">💬 Messages</span>
+                <span class="peer-count" id="peerCount">0 peers</span>
+            </div>
+
+            <div class="messages" id="messages">
+                <div class="message system">
+                    <div class="message-content">Create or join a room to start messaging...</div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="messageInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')Bridge.send()">
+                <button class="btn btn-primary" onclick="Bridge.send()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // P2P Bridge v2 - Pure WebSocket via Nostr relays
+        // No WebRTC = works through any firewall/NAT
+
+        const RELAYS = [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.nostr.band',
+            'wss://nostr.wine'
+        ];
+
+        class NostrBridge {
+            constructor() {
+                this.sockets = new Map();
+                this.roomId = null;
+                this.myId = this.generateId();
+                this.peers = new Set();
+                this.subId = null;
+
+                this.init();
+            }
+
+            generateId() {
+                return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                    .map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+
+            generateRoomCode() {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                return Array.from(crypto.getRandomValues(new Uint8Array(6)))
+                    .map(b => chars[b % chars.length]).join('');
+            }
+
+            async init() {
+                this.connectRelays();
+
+                // Check URL for room
+                const params = new URLSearchParams(window.location.search);
+                const room = params.get('room');
+                if (room) {
+                    document.getElementById('roomInput').value = room;
+                    setTimeout(() => this.joinRoom(), 1000);
+                }
+            }
+
+            connectRelays() {
+                const listEl = document.getElementById('relayList');
+                listEl.innerHTML = '<div style="margin-bottom:8px;color:#888;">📡 Nostr Relays:</div>';
+
+                RELAYS.forEach(url => {
+                    const item = document.createElement('div');
+                    item.className = 'relay-item';
+                    item.innerHTML = `<span>${url}</span><span class="relay-status" id="relay-${url.replace(/\W/g,'')}">connecting...</span>`;
+                    listEl.appendChild(item);
+
+                    try {
+                        const ws = new WebSocket(url);
+
+                        ws.onopen = () => {
+                            this.sockets.set(url, ws);
+                            document.getElementById(`relay-${url.replace(/\W/g,'')}`).textContent = '● connected';
+                            this.updateStatus();
+
+                            // Resubscribe if we have a room
+                            if (this.roomId) {
+                                this.subscribe(ws);
+                            }
+                        };
+
+                        ws.onmessage = (e) => this.handleMessage(e.data, url);
+
+                        ws.onerror = () => {
+                            const el = document.getElementById(`relay-${url.replace(/\W/g,'')}`);
+                            if (el) { el.textContent = '✗ error'; el.className = 'relay-status error'; }
+                        };
+
+                        ws.onclose = () => {
+                            this.sockets.delete(url);
+                            const el = document.getElementById(`relay-${url.replace(/\W/g,'')}`);
+                            if (el) { el.textContent = '○ closed'; el.className = 'relay-status error'; }
+                            this.updateStatus();
+
+                            // Reconnect after 5s
+                            setTimeout(() => this.reconnectRelay(url), 5000);
+                        };
+                    } catch (err) {
+                        console.error('Relay error:', url, err);
+                    }
+                });
+            }
+
+            reconnectRelay(url) {
+                if (this.sockets.has(url)) return;
+
+                try {
+                    const ws = new WebSocket(url);
+                    ws.onopen = () => {
+                        this.sockets.set(url, ws);
+                        document.getElementById(`relay-${url.replace(/\W/g,'')}`).textContent = '● connected';
+                        this.updateStatus();
+                        if (this.roomId) this.subscribe(ws);
+                    };
+                    ws.onmessage = (e) => this.handleMessage(e.data, url);
+                    ws.onclose = () => {
+                        this.sockets.delete(url);
+                        setTimeout(() => this.reconnectRelay(url), 5000);
+                    };
+                } catch (err) {}
+            }
+
+            updateStatus() {
+                const connected = this.sockets.size;
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+
+                if (connected === 0) {
+                    dot.className = 'status-dot';
+                    text.textContent = 'Disconnected';
+                } else if (this.roomId) {
+                    dot.className = 'status-dot connected';
+                    text.textContent = `Room: ${this.roomId} (${connected} relays)`;
+                } else {
+                    dot.className = 'status-dot connecting';
+                    text.textContent = `${connected} relays connected`;
+                }
+            }
+
+            createRoom() {
+                this.roomId = this.generateRoomCode();
+                document.getElementById('roomCode').textContent = this.roomId;
+                document.getElementById('roomInput').value = this.roomId;
+
+                this.subscribeAll();
+                this.addSystemMessage(`Created room: ${this.roomId}`);
+                this.updateStatus();
+
+                // Announce presence
+                this.broadcast({ type: 'join', peerId: this.myId });
+            }
+
+            joinRoom() {
+                const code = document.getElementById('roomInput').value.trim().toUpperCase();
+                if (!code) return;
+
+                this.roomId = code;
+                document.getElementById('roomCode').textContent = this.roomId;
+
+                this.subscribeAll();
+                this.addSystemMessage(`Joined room: ${this.roomId}`);
+                this.updateStatus();
+
+                // Announce presence
+                this.broadcast({ type: 'join', peerId: this.myId });
+            }
+
+            subscribeAll() {
+                this.subId = 'sub-' + this.generateId().substring(0, 8);
+                this.sockets.forEach(ws => this.subscribe(ws));
+            }
+
+            subscribe(ws) {
+                if (!this.roomId || ws.readyState !== WebSocket.OPEN) return;
+
+                // Subscribe to messages for this room (using kind 30078 for app data)
+                const filter = {
+                    kinds: [30078],
+                    '#d': [`p2p-bridge-${this.roomId}`],
+                    since: Math.floor(Date.now() / 1000) - 60 // Last minute
+                };
+
+                ws.send(JSON.stringify(['REQ', this.subId, filter]));
+            }
+
+            handleMessage(data, relay) {
+                try {
+                    const msg = JSON.parse(data);
+
+                    if (msg[0] === 'EVENT') {
+                        const event = msg[2];
+                        if (event.kind === 30078) {
+                            this.handleEvent(event);
+                        }
+                    }
+                } catch (err) {}
+            }
+
+            handleEvent(event) {
+                try {
+                    const content = JSON.parse(event.content);
+
+                    // Ignore our own messages
+                    if (content.peerId === this.myId) return;
+
+                    if (content.type === 'join') {
+                        if (!this.peers.has(content.peerId)) {
+                            this.peers.add(content.peerId);
+                            this.addSystemMessage(`Peer ${content.peerId.substring(0,8)} joined`);
+                            this.updatePeerCount();
+
+                            // Respond with our presence
+                            this.broadcast({ type: 'here', peerId: this.myId });
+                        }
+                    } else if (content.type === 'here') {
+                        if (!this.peers.has(content.peerId)) {
+                            this.peers.add(content.peerId);
+                            this.addSystemMessage(`Peer ${content.peerId.substring(0,8)} is here`);
+                            this.updatePeerCount();
+                        }
+                    } else if (content.type === 'leave') {
+                        this.peers.delete(content.peerId);
+                        this.addSystemMessage(`Peer ${content.peerId.substring(0,8)} left`);
+                        this.updatePeerCount();
+                    } else if (content.type === 'msg') {
+                        this.addMessage('incoming', content.text, content.peerId.substring(0,8));
+                    }
+                } catch (err) {}
+            }
+
+            updatePeerCount() {
+                document.getElementById('peerCount').textContent = `${this.peers.size} peer${this.peers.size !== 1 ? 's' : ''}`;
+            }
+
+            broadcast(content) {
+                if (!this.roomId) return;
+
+                // Create nostr event (unsigned, relays will accept for ephemeral use)
+                const event = {
+                    kind: 30078,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [['d', `p2p-bridge-${this.roomId}`]],
+                    content: JSON.stringify(content),
+                    pubkey: this.myId,
+                    id: this.generateId(),
+                    sig: this.generateId() + this.generateId() // Fake sig for relay acceptance
+                };
+
+                const msg = JSON.stringify(['EVENT', event]);
+                this.sockets.forEach(ws => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(msg);
+                    }
+                });
+            }
+
+            send() {
+                const input = document.getElementById('messageInput');
+                const text = input.value.trim();
+                if (!text || !this.roomId) return;
+
+                this.broadcast({ type: 'msg', text, peerId: this.myId });
+                this.addMessage('outgoing', text, 'You');
+                input.value = '';
+            }
+
+            addMessage(type, text, from) {
+                const container = document.getElementById('messages');
+                const msg = document.createElement('div');
+                msg.className = `message ${type}`;
+                msg.innerHTML = `
+                    <div class="message-header">
+                        <span>${from}</span>
+                        <span>${new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div class="message-content">${this.escapeHtml(text)}</div>
+                `;
+                container.appendChild(msg);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            addSystemMessage(text) {
+                const container = document.getElementById('messages');
+                const msg = document.createElement('div');
+                msg.className = 'message system';
+                msg.innerHTML = `<div class="message-content">${text}</div>`;
+                container.appendChild(msg);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            copyRoom() {
+                if (this.roomId) {
+                    navigator.clipboard.writeText(this.roomId);
+                    this.addSystemMessage('Room code copied!');
+                }
+            }
+        }
+
+        const bridge = new NostrBridge();
+        window.Bridge = bridge;
+    </script>
+</body>
+</html>
