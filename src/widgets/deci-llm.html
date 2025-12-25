@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DeciLLM - 59,049 FemtoLLM Constellation</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a1a1a 0%, #1a2a2a 50%, #0a2a1a 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(20, 40, 40, 0.5);
+      border-bottom: 2px solid #14b8a6;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      background: linear-gradient(90deg, #14b8a6, #06b6d4, #14b8a6);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+    .subtitle { color: #888; font-size: 12px; margin-top: 5px; }
+    .hierarchy-badge { display: inline-block; background: linear-gradient(90deg, #14b8a6, #06b6d4); padding: 4px 12px; border-radius: 12px; font-size: 10px; margin-top: 8px; color: #000; font-weight: bold; }
+
+    .main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+
+    .deci-view { background: rgba(15, 30, 30, 0.6); border: 1px solid #333; border-radius: 12px; padding: 20px; }
+    .cube-canvas-wrap { position: relative; aspect-ratio: 1.2; background: radial-gradient(ellipse at center, #0a1a1a 0%, #050a0a 100%); border-radius: 8px; overflow: hidden; }
+    #deciCanvas { width: 100%; height: 100%; cursor: grab; }
+
+    .scale-indicator { display: flex; justify-content: center; gap: 8px; margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; }
+    .scale-level { padding: 6px 12px; border-radius: 6px; font-size: 10px; background: rgba(40,50,50,0.5); border: 1px solid #333; color: #666; }
+    .scale-level.passed { border-color: #333; color: #444; }
+    .scale-level.active { background: linear-gradient(180deg, #0d9488, #115e59); border-color: #14b8a6; color: #fff; }
+    .scale-level.available { border-color: #14b8a6; color: #14b8a6; }
+
+    .control-panel { display: flex; flex-direction: column; gap: 15px; }
+    .panel { background: rgba(15, 30, 30, 0.6); border: 1px solid #333; border-radius: 12px; padding: 15px; }
+    .panel-title { font-size: 14px; color: #14b8a6; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+    .panel-badge { font-size: 9px; background: rgba(20, 184, 166, 0.2); border: 1px solid #14b8a6; padding: 2px 8px; border-radius: 10px; color: #14b8a6; }
+
+    .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .spec-item { background: rgba(10, 20, 20, 0.5); border: 1px solid #222; border-radius: 6px; padding: 10px; text-align: center; }
+    .spec-value { font-size: 18px; font-weight: bold; color: #14b8a6; }
+    .spec-label { font-size: 9px; color: #666; margin-top: 3px; }
+
+    .centi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .centi-node { background: linear-gradient(180deg, #1a2a2a, #0a1a1a); border: 2px solid #334; border-radius: 6px; padding: 8px 4px; text-align: center; font-size: 9px; cursor: pointer; transition: all 0.2s; }
+    .centi-node:hover { border-color: #14b8a6; }
+    .centi-node.active { border-color: #14b8a6; background: rgba(20, 184, 166, 0.15); }
+    .centi-node.central { grid-column: 2; border-color: #eab308; }
+    .centi-id { color: #eab308; font-weight: bold; }
+    .centi-dim { color: #444; font-size: 8px; }
+    .centi-sub { color: #555; font-size: 7px; }
+
+    .hierarchy-tree { background: rgba(5, 15, 15, 0.5); border-radius: 8px; padding: 12px; font-size: 9px; font-family: monospace; }
+    .tree-line { color: #666; margin: 2px 0; }
+    .tree-highlight { color: #14b8a6; }
+
+    .query-section { margin-top: 15px; }
+    .query-input { width: 100%; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 12px; color: #fff; font-size: 13px; resize: vertical; min-height: 70px; }
+    .query-input:focus { outline: none; border-color: #14b8a6; }
+    .run-btn { width: 100%; margin-top: 10px; background: linear-gradient(90deg, #14b8a6, #06b6d4); border: none; border-radius: 8px; padding: 12px; color: #000; font-weight: bold; cursor: pointer; }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .results-panel { background: rgba(15, 30, 30, 0.6); border: 1px solid #333; border-radius: 12px; padding: 15px; margin-top: 20px; }
+    .result-content { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 12px; font-size: 11px; max-height: 200px; overflow-y: auto; }
+    .deci-aggregate { margin-top: 10px; padding: 10px; background: rgba(20, 184, 166, 0.15); border: 1px solid #14b8a6; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌀 DeciLLM - 16384 Dimensions</h1>
+    <p class="subtitle">9 CentiLLMs • 59,049 FemtoLLMs • 32 Layers • 32 Attention Heads</p>
+    <div class="hierarchy-badge">CENTI × 9 → DECI | FEMTO × 59,049</div>
+  </header>
+
+  <div class="container">
+    <div class="main-grid">
+      <div class="deci-view">
+        <div class="cube-canvas-wrap"><canvas id="deciCanvas"></canvas></div>
+        <div class="scale-indicator">
+          <span class="scale-level passed">Femto</span>
+          <span class="scale-level passed">Pico</span>
+          <span class="scale-level passed">Nano</span>
+          <span class="scale-level passed">Micro</span>
+          <span class="scale-level passed">Centi</span>
+          <span class="scale-level active">Deci</span>
+          <span class="scale-level available">Unity</span>
+        </div>
+        <div class="results-panel" id="resultsPanel" style="display:none">
+          <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+            <span style="color:#14b8a6">DeciLLM Output</span>
+            <span style="color:#666;font-size:10px" id="resultTime"></span>
+          </div>
+          <div class="result-content" id="resultContent"></div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <div class="panel">
+          <div class="panel-title">📊 DeciLLM Specs <span class="panel-badge">16384-dim</span></div>
+          <div class="specs-grid">
+            <div class="spec-item"><div class="spec-value">16K</div><div class="spec-label">Hidden Size</div></div>
+            <div class="spec-item"><div class="spec-value">32</div><div class="spec-label">Layers</div></div>
+            <div class="spec-item"><div class="spec-value">32</div><div class="spec-label">Attn Heads</div></div>
+            <div class="spec-item"><div class="spec-value">64K</div><div class="spec-label">FFN Size</div></div>
+            <div class="spec-item"><div class="spec-value">~5B</div><div class="spec-label">Parameters</div></div>
+            <div class="spec-item"><div class="spec-value">128K</div><div class="spec-label">Context</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">💫 Constituent Centis (9)</div>
+          <div class="centi-grid">
+            <div class="centi-node" data-id="C-NWU"><div class="centi-id">C-NWU</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node" data-id="C-NEU"><div class="centi-id">C-NEU</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node" data-id="C-SEU"><div class="centi-id">C-SEU</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node central" data-id="C-CTR"><div class="centi-id">⬡ C-CTR</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node" data-id="C-NWD"><div class="centi-id">C-NWD</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node" data-id="C-NED"><div class="centi-id">C-NED</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node" data-id="C-SWU"><div class="centi-id">C-SWU</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node" data-id="C-SED"><div class="centi-id">C-SED</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+            <div class="centi-node" data-id="C-SWD"><div class="centi-id">C-SWD</div><div class="centi-dim">4096d</div><div class="centi-sub">6,561 femtos</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🌳 Hierarchy</div>
+          <div class="hierarchy-tree">
+            <div class="tree-line"><span class="tree-highlight">DeciLLM</span> (16384d) = 9 × Centi</div>
+            <div class="tree-line">├─ CentiLLM = 9 × Micro = 81 × Nano</div>
+            <div class="tree-line">├─ = 729 × Pico = 6,561 × Femto</div>
+            <div class="tree-line">└─ <span class="tree-highlight">59,049 Femtos total (9⁵)</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">📈 Stats</div>
+          <div class="specs-grid">
+            <div class="spec-item"><div class="spec-value" id="queryCount">0</div><div class="spec-label">Queries</div></div>
+            <div class="spec-item"><div class="spec-value" id="avgLatency">0ms</div><div class="spec-label">Latency</div></div>
+          </div>
+        </div>
+
+        <div class="query-section">
+          <textarea class="query-input" id="queryInput" placeholder="Enter query for DeciLLM (59,049 Femtos)..."></textarea>
+          <button class="run-btn" id="runBtn">🌀 Process with DeciLLM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const CENTI_IDS = ['C-NEU', 'C-NED', 'C-NWU', 'C-NWD', 'C-SEU', 'C-SED', 'C-SWU', 'C-SWD', 'C-CTR'];
+
+    class DeciLLM {
+      constructor() {
+        this.hiddenSize = 16384;
+        this.numLayers = 32;
+        this.femtoCount = 59049; // 9^5
+        this.queryCount = 0;
+        this.totalTime = 0;
+      }
+
+      async process(query) {
+        const start = performance.now();
+        this.queryCount++;
+
+        // Simulate processing
+        await new Promise(r => setTimeout(r, 50));
+
+        const elapsed = performance.now() - start;
+        this.totalTime += elapsed;
+
+        return {
+          output: `DeciLLM: 59,049 Femtos → 6,561 Picos → 729 Nanos → 81 Micros → 9 Centis → 16384-dim unified representation.`,
+          time: elapsed,
+          avgTime: this.totalTime / this.queryCount
+        };
+      }
+    }
+
+    class DeciRenderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.rotX = 0.3; this.rotY = 0.1;
+        this.autoRotate = true;
+        this.activeNodes = new Set();
+        this.pulsePhase = 0;
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        let d = false, lx, ly;
+        this.canvas.addEventListener('mousedown', e => { d = true; lx = e.clientX; ly = e.clientY; this.autoRotate = false; });
+        window.addEventListener('mousemove', e => { if (!d) return; this.rotY += (e.clientX - lx) * 0.005; this.rotX += (e.clientY - ly) * 0.005; lx = e.clientX; ly = e.clientY; });
+        window.addEventListener('mouseup', () => { d = false; setTimeout(() => this.autoRotate = true, 2000); });
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width * 2;
+        this.canvas.height = rect.height * 2;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+        this.scale = Math.min(this.canvas.width, this.canvas.height) * 0.1;
+      }
+
+      project(x, y, z) {
+        const cy = Math.cos(this.rotY), sy = Math.sin(this.rotY);
+        let x1 = x * cy - z * sy, z1 = x * sy + z * cy;
+        const cx = Math.cos(this.rotX), sx = Math.sin(this.rotX);
+        let y1 = y * cx - z1 * sx, z2 = y * sx + z1 * cx;
+        const p = 5 / (5 + z2);
+        return { x: this.centerX + x1 * this.scale * p, y: this.centerY - y1 * this.scale * p, z: z2, scale: p };
+      }
+
+      render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.autoRotate) this.rotY += 0.0008;
+        this.pulsePhase += 0.015;
+
+        // Multiple shells for depth effect
+        for (let i = 4; i >= 1; i--) {
+          const alpha = 0.03 + (4 - i) * 0.02;
+          this.drawShell(i * 1.1, `rgba(20, 184, 166, ${alpha})`, 2 + i);
+        }
+
+        const positions = [
+          { id: 'C-NEU', x: 2.2, y: 2.2, z: 2.2 }, { id: 'C-NED', x: 2.2, y: 2.2, z: -2.2 },
+          { id: 'C-NWU', x: -2.2, y: 2.2, z: 2.2 }, { id: 'C-NWD', x: -2.2, y: 2.2, z: -2.2 },
+          { id: 'C-SEU', x: 2.2, y: -2.2, z: 2.2 }, { id: 'C-SED', x: 2.2, y: -2.2, z: -2.2 },
+          { id: 'C-SWU', x: -2.2, y: -2.2, z: 2.2 }, { id: 'C-SWD', x: -2.2, y: -2.2, z: -2.2 },
+          { id: 'C-CTR', x: 0, y: 0, z: 0 }
+        ];
+
+        const sorted = positions.map(p => ({ ...p, proj: this.project(p.x, p.y, p.z) })).sort((a, b) => a.proj.z - b.proj.z);
+
+        for (const centi of sorted) {
+          const isActive = this.activeNodes.has(centi.id);
+          const isCentral = centi.id === 'C-CTR';
+          const p = centi.proj;
+          const size = (isCentral ? 25 : 20) * p.scale;
+
+          if (isActive) {
+            const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 3);
+            grad.addColorStop(0, 'rgba(20, 184, 166, 0.6)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.arc(p.x, p.y, size * 3, 0, Math.PI * 2); ctx.fill();
+          }
+
+          // Fractal cube effect
+          for (let i = 0; i < 4; i++) {
+            const s = size * (1 - i * 0.2);
+            ctx.strokeStyle = `rgba(234, 179, 8, ${0.3 - i * 0.07})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.rect(p.x - s, p.y - s, s * 2, s * 2);
+            ctx.stroke();
+          }
+
+          ctx.beginPath(); ctx.arc(p.x, p.y, size * 0.35, 0, Math.PI * 2);
+          ctx.fillStyle = isCentral ? '#eab308' : '#ca8a04';
+          ctx.fill();
+
+          ctx.fillStyle = isActive ? '#14b8a6' : '#666';
+          ctx.font = `${Math.round(9 * p.scale)}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(centi.id.replace('C-', ''), p.x, p.y + size + 14 * p.scale);
+        }
+
+        ctx.fillStyle = 'rgba(20, 184, 166, 0.85)';
+        ctx.font = 'bold 40px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('DECI', this.centerX, this.centerY + this.scale * 5);
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = 'rgba(20, 184, 166, 0.5)';
+        ctx.fillText('16384-dim • 59,049 Femtos', this.centerX, this.centerY + this.scale * 5 + 24);
+
+        requestAnimationFrame(() => this.render());
+      }
+
+      drawShell(size, color, width) {
+        const ctx = this.ctx;
+        const verts = [[1,1,1],[1,1,-1],[-1,1,1],[-1,1,-1],[1,-1,1],[1,-1,-1],[-1,-1,1],[-1,-1,-1]].map(([x,y,z]) => this.project(x*size, y*size, z*size));
+        const edges = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]];
+        ctx.strokeStyle = color; ctx.lineWidth = width;
+        for (const [a,b] of edges) { ctx.beginPath(); ctx.moveTo(verts[a].x, verts[a].y); ctx.lineTo(verts[b].x, verts[b].y); ctx.stroke(); }
+      }
+    }
+
+    const deci = new DeciLLM();
+    const canvas = document.getElementById('deciCanvas');
+    const renderer = new DeciRenderer(canvas);
+    renderer.render();
+
+    document.querySelectorAll('.centi-node').forEach(n => {
+      n.addEventListener('mouseenter', () => { renderer.activeNodes.add(n.dataset.id); n.classList.add('active'); });
+      n.addEventListener('mouseleave', () => { renderer.activeNodes.delete(n.dataset.id); n.classList.remove('active'); });
+    });
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const query = document.getElementById('queryInput').value.trim();
+      if (!query) return;
+      const btn = document.getElementById('runBtn');
+      btn.disabled = true; btn.textContent = '⏳ Processing 59,049 Femtos...';
+      CENTI_IDS.forEach(id => renderer.activeNodes.add(id));
+
+      const result = await deci.process(query);
+      document.getElementById('resultsPanel').style.display = 'block';
+      document.getElementById('resultTime').textContent = `${result.time.toFixed(0)}ms`;
+      document.getElementById('resultContent').innerHTML = `<div class="deci-aggregate"><div style="color:#14b8a6;font-weight:bold">🌀 DeciLLM (16384-dim)</div><div style="color:#ccc;font-size:10px;margin-top:4px">${result.output}</div></div>`;
+      document.getElementById('queryCount').textContent = deci.queryCount;
+      document.getElementById('avgLatency').textContent = `${result.avgTime.toFixed(0)}ms`;
+      renderer.activeNodes.clear(); btn.disabled = false; btn.textContent = '🌀 Process with DeciLLM';
+    });
+
+    window.DeciLLM = { instance: deci, renderer, process: (q) => deci.process(q) };
+  </script>
+</body>
+</html>

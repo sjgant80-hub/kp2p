@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PicoLLM - 9 FemtoLLM Constellation</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(30, 10, 50, 0.5);
+      border-bottom: 2px solid #06b6d4;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      background: linear-gradient(90deg, #06b6d4, #8b5cf6, #06b6d4);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+    .subtitle { color: #888; font-size: 12px; margin-top: 5px; }
+    .hierarchy-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 10px;
+      margin-top: 8px;
+      color: #fff;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+    }
+
+    .pico-view {
+      background: rgba(20, 10, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .cube-canvas-wrap {
+      position: relative;
+      aspect-ratio: 1.2;
+      background: radial-gradient(ellipse at center, #0a1a30 0%, #050a15 100%);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #picoCanvas {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    #picoCanvas:active { cursor: grabbing; }
+
+    .scale-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 15px;
+      padding: 10px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+    .scale-level {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 10px;
+      background: rgba(50,50,80,0.5);
+      border: 1px solid #333;
+      color: #666;
+    }
+    .scale-level.active {
+      background: linear-gradient(180deg, #0891b2, #065f73);
+      border-color: #06b6d4;
+      color: #fff;
+    }
+    .scale-level.available {
+      border-color: #444;
+      color: #888;
+    }
+
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .panel {
+      background: rgba(20, 10, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+    }
+    .panel-title {
+      font-size: 14px;
+      color: #06b6d4;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-badge {
+      font-size: 9px;
+      background: rgba(6, 182, 212, 0.2);
+      border: 1px solid #06b6d4;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .spec-item {
+      background: rgba(10, 10, 30, 0.5);
+      border: 1px solid #222;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+    .spec-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #06b6d4;
+    }
+    .spec-label {
+      font-size: 9px;
+      color: #666;
+      margin-top: 3px;
+    }
+
+    .femto-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .femto-node {
+      background: linear-gradient(180deg, #1a2040, #0a1020);
+      border: 2px solid #334;
+      border-radius: 6px;
+      padding: 8px 4px;
+      text-align: center;
+      font-size: 9px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .femto-node:hover { border-color: #06b6d4; }
+    .femto-node.active { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+    .femto-node.central {
+      grid-column: 2;
+      background: linear-gradient(180deg, #2a1050, #1a0830);
+      border-color: #8b5cf6;
+    }
+    .femto-id { color: #8b5cf6; font-weight: bold; }
+    .femto-dim { color: #444; font-size: 8px; }
+
+    .mode-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .mode-btn {
+      background: linear-gradient(180deg, #1a2040, #0a1020);
+      border: 1px solid #334;
+      border-radius: 6px;
+      padding: 10px;
+      cursor: pointer;
+      text-align: center;
+      color: #888;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+    .mode-btn:hover { border-color: #06b6d4; color: #ccc; }
+    .mode-btn.active { border-color: #06b6d4; background: rgba(6, 182, 212, 0.15); color: #fff; }
+
+    .aggregation-viz {
+      background: rgba(10, 10, 30, 0.5);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .agg-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .agg-box {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 10px;
+    }
+    .agg-femto { background: rgba(139, 92, 246, 0.3); border: 1px solid #8b5cf6; }
+    .agg-arrow { color: #444; }
+    .agg-pico { background: rgba(6, 182, 212, 0.3); border: 1px solid #06b6d4; }
+
+    .query-section {
+      margin-top: 15px;
+    }
+    .query-input {
+      width: 100%;
+      background: #0a0a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 70px;
+    }
+    .query-input:focus { outline: none; border-color: #06b6d4; }
+
+    .run-btn {
+      width: 100%;
+      margin-top: 10px;
+      background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .run-btn:hover { opacity: 0.9; }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .results-panel {
+      background: rgba(20, 10, 40, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .result-title { font-size: 12px; color: #06b6d4; }
+    .result-time { font-size: 10px; color: #666; }
+    .result-content {
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .femto-result {
+      margin-bottom: 8px;
+      padding: 8px;
+      background: rgba(139, 92, 246, 0.1);
+      border-left: 2px solid #8b5cf6;
+      border-radius: 0 4px 4px 0;
+    }
+    .femto-result-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #8b5cf6;
+      margin-bottom: 4px;
+    }
+    .pico-aggregate {
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid #06b6d4;
+      border-radius: 6px;
+    }
+    .pico-aggregate-header {
+      font-size: 11px;
+      color: #06b6d4;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚡ PicoLLM - 64 Dimensions</h1>
+    <p class="subtitle">9 FemtoLLMs United • 2 Layers • 2 Attention Heads</p>
+    <div class="hierarchy-badge">FEMTO × 9 → PICO</div>
+  </header>
+
+  <div class="container">
+    <div class="main-grid">
+      <div class="pico-view">
+        <div class="cube-canvas-wrap">
+          <canvas id="picoCanvas"></canvas>
+        </div>
+
+        <div class="scale-indicator">
+          <span class="scale-level">Femto</span>
+          <span class="scale-level active">Pico</span>
+          <span class="scale-level available">Nano</span>
+          <span class="scale-level available">Micro</span>
+          <span class="scale-level available">Centi</span>
+          <span class="scale-level available">Deci</span>
+          <span class="scale-level available">Unity</span>
+        </div>
+
+        <div class="results-panel" id="resultsPanel" style="display:none">
+          <div class="result-header">
+            <span class="result-title">Constellation Output</span>
+            <span class="result-time" id="resultTime"></span>
+          </div>
+          <div class="result-content" id="resultContent"></div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <div class="panel">
+          <div class="panel-title">
+            📊 PicoLLM Specifications
+            <span class="panel-badge">64-dim</span>
+          </div>
+          <div class="specs-grid">
+            <div class="spec-item">
+              <div class="spec-value">64</div>
+              <div class="spec-label">Hidden Size</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">2</div>
+              <div class="spec-label">Layers</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">2</div>
+              <div class="spec-label">Attn Heads</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">256</div>
+              <div class="spec-label">FFN Size</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">~100K</div>
+              <div class="spec-label">Parameters</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">512</div>
+              <div class="spec-label">Context</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🧬 Constituent Femtos</div>
+          <div class="femto-grid">
+            <div class="femto-node" data-id="NWU"><div class="femto-id">NWU</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node" data-id="NEU"><div class="femto-id">NEU</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node" data-id="SEU"><div class="femto-id">SEU</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node central" data-id="CENTRAL"><div class="femto-id">⬡ CTR</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node" data-id="NWD"><div class="femto-id">NWD</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node" data-id="NED"><div class="femto-id">NED</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node" data-id="SWU"><div class="femto-id">SWU</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node" data-id="SED"><div class="femto-id">SED</div><div class="femto-dim">16d</div></div>
+            <div class="femto-node" data-id="SWD"><div class="femto-id">SWD</div><div class="femto-dim">16d</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🔀 Aggregation Mode</div>
+          <div class="mode-buttons">
+            <div class="mode-btn active" data-mode="concat">Concatenate</div>
+            <div class="mode-btn" data-mode="mean">Mean Pool</div>
+            <div class="mode-btn" data-mode="attention">Attention</div>
+            <div class="mode-btn" data-mode="hierarchical">Hierarchical</div>
+          </div>
+          <div class="aggregation-viz">
+            <div style="font-size:10px;color:#666;margin-bottom:8px">Aggregation Flow</div>
+            <div class="agg-flow">
+              <span class="agg-box agg-femto">9×16d</span>
+              <span class="agg-arrow">→</span>
+              <span class="agg-box agg-pico">64d</span>
+            </div>
+            <div style="font-size:9px;color:#444;margin-top:5px">144 → 64 (projection)</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">📈 Processing Stats</div>
+          <div class="specs-grid">
+            <div class="spec-item">
+              <div class="spec-value" id="queryCount">0</div>
+              <div class="spec-label">Queries</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value" id="avgLatency">0ms</div>
+              <div class="spec-label">Avg Latency</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="query-section">
+          <textarea class="query-input" id="queryInput" placeholder="Enter query for PicoLLM constellation..."></textarea>
+          <button class="run-btn" id="runBtn">⚡ Process with PicoLLM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Vertex positions for cube
+    const VERTICES = ['NEU', 'NED', 'NWU', 'NWD', 'SEU', 'SED', 'SWU', 'SWD'];
+    const VERTEX_POS = {
+      NEU: { x: 1, y: 1, z: 1 },
+      NED: { x: 1, y: 1, z: -1 },
+      NWU: { x: -1, y: 1, z: 1 },
+      NWD: { x: -1, y: 1, z: -1 },
+      SEU: { x: 1, y: -1, z: 1 },
+      SED: { x: 1, y: -1, z: -1 },
+      SWU: { x: -1, y: -1, z: 1 },
+      SWD: { x: -1, y: -1, z: -1 },
+      CENTRAL: { x: 0, y: 0, z: 0 }
+    };
+
+    const EDGES = [
+      ['NEU', 'NWU'], ['NWU', 'SWU'], ['SWU', 'SEU'], ['SEU', 'NEU'],
+      ['NED', 'NWD'], ['NWD', 'SWD'], ['SWD', 'SED'], ['SED', 'NED'],
+      ['NEU', 'NED'], ['NWU', 'NWD'], ['SWU', 'SWD'], ['SEU', 'SED'],
+      ['CENTRAL', 'NEU'], ['CENTRAL', 'NED'], ['CENTRAL', 'NWU'], ['CENTRAL', 'NWD'],
+      ['CENTRAL', 'SEU'], ['CENTRAL', 'SED'], ['CENTRAL', 'SWU'], ['CENTRAL', 'SWD']
+    ];
+
+    // FemtoLLM - 16 dimensional nano model
+    class FemtoLLM {
+      constructor(nodeId) {
+        this.nodeId = nodeId;
+        this.hiddenSize = 16;
+        this.vocab = this.buildVocab();
+        this.initWeights();
+      }
+
+      buildVocab() {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789 .,!?';
+        const v = { '<PAD>': 0, '<UNK>': 1 };
+        chars.split('').forEach((c, i) => v[c] = i + 2);
+        return v;
+      }
+
+      initWeights() {
+        const d = this.hiddenSize;
+        const v = Object.keys(this.vocab).length;
+        const xavier = (fi, fo) => {
+          const std = Math.sqrt(2 / (fi + fo));
+          return Array(fi).fill(null).map(() =>
+            Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * std)
+          );
+        };
+        this.W = {
+          embed: xavier(v, d),
+          attn: xavier(d, d),
+          ff1: xavier(d, d * 2),
+          ff2: xavier(d * 2, d),
+          out: xavier(d, v)
+        };
+        this.bias = VERTEX_POS[this.nodeId] || { x: 0, y: 0, z: 0 };
+      }
+
+      tokenize(text) {
+        return text.toLowerCase().split('').map(c => this.vocab[c] || 1);
+      }
+
+      softmax(arr) {
+        const max = Math.max(...arr);
+        const exp = arr.map(x => Math.exp(x - max));
+        const sum = exp.reduce((a, b) => a + b, 0);
+        return exp.map(x => x / sum);
+      }
+
+      relu(x) { return Math.max(0, x); }
+
+      matVec(M, v) {
+        return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0));
+      }
+
+      forward(tokens) {
+        const d = this.hiddenSize;
+        let h = Array(d).fill(0);
+        tokens.slice(0, 32).forEach(t => {
+          const emb = this.W.embed[t] || this.W.embed[0];
+          emb.forEach((v, i) => h[i] += v / tokens.length);
+        });
+
+        h[0] += this.bias.x * 0.1;
+        h[1] += this.bias.y * 0.1;
+        h[2] += this.bias.z * 0.1;
+
+        h = this.matVec(this.W.attn, h);
+        let ff = this.matVec(this.W.ff1, h).map(this.relu);
+        h = this.matVec(this.W.ff2, ff);
+
+        return h; // Return embedding instead of logits for aggregation
+      }
+
+      async process(query) {
+        const start = performance.now();
+        const tokens = this.tokenize(query);
+        const embedding = this.forward(tokens);
+        const elapsed = performance.now() - start;
+
+        return {
+          node: this.nodeId,
+          embedding: embedding,
+          time: elapsed
+        };
+      }
+    }
+
+    // PicoLLM - Aggregates 9 FemtoLLMs into 64-dim model
+    class PicoLLM {
+      constructor() {
+        this.hiddenSize = 64;
+        this.numLayers = 2;
+        this.numHeads = 2;
+        this.ffnSize = 256;
+        this.femtos = {};
+        this.aggregationMode = 'concat';
+        this.queryCount = 0;
+        this.totalTime = 0;
+
+        this.initFemtos();
+        this.initAggregationWeights();
+      }
+
+      initFemtos() {
+        for (const v of VERTICES) {
+          this.femtos[v] = new FemtoLLM(v);
+        }
+        this.femtos['CENTRAL'] = new FemtoLLM('CENTRAL');
+      }
+
+      initAggregationWeights() {
+        const xavier = (fi, fo) => {
+          const std = Math.sqrt(2 / (fi + fo));
+          return Array(fi).fill(null).map(() =>
+            Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * std)
+          );
+        };
+
+        // Projection from concatenated femto outputs (9*16=144) to pico hidden (64)
+        this.W = {
+          project: xavier(144, 64),
+          attn1_q: xavier(64, 64),
+          attn1_k: xavier(64, 64),
+          attn1_v: xavier(64, 64),
+          attn1_o: xavier(64, 64),
+          ff1_up: xavier(64, 256),
+          ff1_down: xavier(256, 64),
+          attn2_q: xavier(64, 64),
+          attn2_k: xavier(64, 64),
+          attn2_v: xavier(64, 64),
+          attn2_o: xavier(64, 64),
+          ff2_up: xavier(64, 256),
+          ff2_down: xavier(256, 64),
+          attnAgg: xavier(16, 1) // For attention aggregation mode
+        };
+      }
+
+      matVec(M, v) {
+        return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0));
+      }
+
+      softmax(arr) {
+        const max = Math.max(...arr);
+        const exp = arr.map(x => Math.exp(x - max));
+        const sum = exp.reduce((a, b) => a + b, 0);
+        return exp.map(x => x / sum);
+      }
+
+      gelu(x) {
+        return 0.5 * x * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * x * x * x)));
+      }
+
+      aggregate(femtoOutputs) {
+        const embeddings = Object.values(femtoOutputs).map(r => r.embedding);
+
+        switch (this.aggregationMode) {
+          case 'concat': {
+            // Concatenate all 9 embeddings (9*16=144) then project to 64
+            const concat = embeddings.flat();
+            return this.matVec(this.W.project, concat);
+          }
+
+          case 'mean': {
+            // Mean pool across all femtos, then expand
+            const mean = Array(16).fill(0);
+            embeddings.forEach(emb => emb.forEach((v, i) => mean[i] += v / 9));
+            // Repeat to get 64 dims
+            return [...mean, ...mean, ...mean, ...mean];
+          }
+
+          case 'attention': {
+            // Compute attention weights for each femto
+            const scores = embeddings.map(emb => this.matVec(this.W.attnAgg, emb)[0]);
+            const weights = this.softmax(scores);
+            // Weighted sum
+            const weighted = Array(16).fill(0);
+            embeddings.forEach((emb, i) => emb.forEach((v, j) => weighted[j] += v * weights[i]));
+            return [...weighted, ...weighted, ...weighted, ...weighted];
+          }
+
+          case 'hierarchical': {
+            // Group by position: top vs bottom, then aggregate
+            const top = ['NEU', 'NWU', 'SEU', 'SWU'];
+            const bottom = ['NED', 'NWD', 'SED', 'SWD'];
+            const central = ['CENTRAL'];
+
+            const avgGroup = (ids) => {
+              const sum = Array(16).fill(0);
+              ids.forEach(id => {
+                const emb = femtoOutputs[id]?.embedding || Array(16).fill(0);
+                emb.forEach((v, i) => sum[i] += v / ids.length);
+              });
+              return sum;
+            };
+
+            const topAvg = avgGroup(top);
+            const bottomAvg = avgGroup(bottom);
+            const centralEmb = femtoOutputs['CENTRAL']?.embedding || Array(16).fill(0);
+
+            // Combine: top + bottom + central + interaction
+            const interaction = topAvg.map((v, i) => v * bottomAvg[i]);
+            return [...topAvg, ...bottomAvg, ...centralEmb, ...interaction];
+          }
+
+          default:
+            return embeddings.flat().slice(0, 64);
+        }
+      }
+
+      transformerLayer(x, layerIdx) {
+        const prefix = layerIdx === 0 ? 'attn1' : 'attn2';
+        const ffPrefix = layerIdx === 0 ? 'ff1' : 'ff2';
+
+        // Self-attention (simplified single-head for efficiency)
+        const q = this.matVec(this.W[`${prefix}_q`], x);
+        const k = this.matVec(this.W[`${prefix}_k`], x);
+        const v = this.matVec(this.W[`${prefix}_v`], x);
+
+        // Attention score
+        const score = q.reduce((s, qi, i) => s + qi * k[i], 0) / Math.sqrt(64);
+        const attnOut = v.map(vi => vi * Math.tanh(score));
+        let h = this.matVec(this.W[`${prefix}_o`], attnOut);
+
+        // Residual
+        h = h.map((v, i) => v + x[i]);
+
+        // FFN
+        let ff = this.matVec(this.W[`${ffPrefix}_up`], h).map(this.gelu);
+        ff = this.matVec(this.W[`${ffPrefix}_down`], ff);
+
+        // Residual
+        return ff.map((v, i) => v + h[i]);
+      }
+
+      async process(query) {
+        const start = performance.now();
+        this.queryCount++;
+
+        // Step 1: Process through all 9 FemtoLLMs
+        const femtoResults = {};
+        const allNodes = [...VERTICES, 'CENTRAL'];
+
+        for (const nodeId of allNodes) {
+          femtoResults[nodeId] = await this.femtos[nodeId].process(query);
+        }
+
+        // Step 2: Aggregate femto outputs
+        let h = this.aggregate(femtoResults);
+
+        // Step 3: Process through Pico transformer layers
+        for (let layer = 0; layer < this.numLayers; layer++) {
+          h = this.transformerLayer(h, layer);
+        }
+
+        // Step 4: Generate output
+        const output = this.generateOutput(h, query);
+
+        const elapsed = performance.now() - start;
+        this.totalTime += elapsed;
+
+        return {
+          femtoResults,
+          picoEmbedding: h,
+          output,
+          time: elapsed,
+          avgTime: this.totalTime / this.queryCount
+        };
+      }
+
+      generateOutput(embedding, query) {
+        // Simple deterministic output based on embedding stats
+        const mean = embedding.reduce((a, b) => a + b, 0) / embedding.length;
+        const variance = embedding.reduce((a, b) => a + (b - mean) ** 2, 0) / embedding.length;
+        const energy = embedding.reduce((a, b) => a + Math.abs(b), 0);
+
+        const words = query.toLowerCase().split(' ').filter(w => w.length > 2);
+        const topWord = words[Math.floor(Math.abs(mean * 10) % Math.max(1, words.length))] || 'input';
+
+        const responses = [
+          `Processing "${topWord}" with ${this.aggregationMode} aggregation.`,
+          `Constellation energy: ${energy.toFixed(2)}, variance: ${variance.toFixed(3)}`,
+          `9 Femtos → 64-dim Pico representation computed.`
+        ];
+
+        return responses.join(' ');
+      }
+    }
+
+    // 3D Renderer for Pico constellation
+    class PicoRenderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.rotX = 0.5;
+        this.rotY = 0.3;
+        this.autoRotate = true;
+        this.activeNodes = new Set();
+        this.pulsePhase = 0;
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupInteraction();
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width * 2;
+        this.canvas.height = rect.height * 2;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+        this.scale = Math.min(this.canvas.width, this.canvas.height) * 0.22;
+      }
+
+      setupInteraction() {
+        let dragging = false;
+        let lastX, lastY;
+
+        this.canvas.addEventListener('mousedown', e => {
+          dragging = true;
+          lastX = e.clientX;
+          lastY = e.clientY;
+          this.autoRotate = false;
+        });
+
+        window.addEventListener('mousemove', e => {
+          if (!dragging) return;
+          this.rotY += (e.clientX - lastX) * 0.005;
+          this.rotX += (e.clientY - lastY) * 0.005;
+          lastX = e.clientX;
+          lastY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => {
+          dragging = false;
+          setTimeout(() => this.autoRotate = true, 2000);
+        });
+      }
+
+      project(x, y, z) {
+        const cosY = Math.cos(this.rotY), sinY = Math.sin(this.rotY);
+        let x1 = x * cosY - z * sinY;
+        let z1 = x * sinY + z * cosY;
+
+        const cosX = Math.cos(this.rotX), sinX = Math.sin(this.rotX);
+        let y1 = y * cosX - z1 * sinX;
+        let z2 = y * sinX + z1 * cosX;
+
+        const perspective = 3.5 / (3.5 + z2);
+        return {
+          x: this.centerX + x1 * this.scale * perspective,
+          y: this.centerY - y1 * this.scale * perspective,
+          z: z2,
+          scale: perspective
+        };
+      }
+
+      render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        if (this.autoRotate) this.rotY += 0.003;
+        this.pulsePhase += 0.05;
+
+        // Project vertices
+        const projected = {};
+        for (const [name, pos] of Object.entries(VERTEX_POS)) {
+          projected[name] = this.project(pos.x, pos.y, pos.z);
+        }
+
+        // Draw outer shell (Pico boundary)
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
+        ctx.lineWidth = 3;
+        const corners = ['NEU', 'NWU', 'SWU', 'SEU'];
+        ctx.beginPath();
+        corners.forEach((c, i) => {
+          const p = projected[c];
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.closePath();
+        ctx.stroke();
+
+        // Draw edges
+        const sortedEdges = [...EDGES].sort((a, b) => {
+          return (projected[a[0]].z + projected[a[1]].z) / 2 - (projected[b[0]].z + projected[b[1]].z) / 2;
+        });
+
+        for (const [from, to] of sortedEdges) {
+          const p1 = projected[from], p2 = projected[to];
+          const isCentral = from === 'CENTRAL' || to === 'CENTRAL';
+
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+
+          if (isCentral) {
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
+            ctx.lineWidth = 1.5;
+          } else {
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+            ctx.lineWidth = 2;
+          }
+          ctx.stroke();
+
+          // Data flow animation
+          if (this.activeNodes.size > 0) {
+            const t = (Math.sin(this.pulsePhase) + 1) / 2;
+            const px = p1.x + (p2.x - p1.x) * t;
+            const py = p1.y + (p2.y - p1.y) * t;
+
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#22c55e';
+            ctx.fill();
+          }
+        }
+
+        // Draw nodes
+        const sortedNodes = Object.entries(projected).sort((a, b) => a[1].z - b[1].z);
+
+        for (const [name, p] of sortedNodes) {
+          const isCentral = name === 'CENTRAL';
+          const isActive = this.activeNodes.has(name);
+          const radius = (isCentral ? 18 : 14) * p.scale;
+
+          // Glow effect
+          if (isActive) {
+            const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 3);
+            grad.addColorStop(0, 'rgba(34, 197, 94, 0.6)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius * 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Node body
+          const nodeGrad = ctx.createRadialGradient(p.x - radius * 0.3, p.y - radius * 0.3, 0, p.x, p.y, radius);
+          if (isCentral) {
+            nodeGrad.addColorStop(0, '#a855f7');
+            nodeGrad.addColorStop(1, '#6b21a8');
+          } else {
+            nodeGrad.addColorStop(0, '#22d3ee');
+            nodeGrad.addColorStop(1, '#0891b2');
+          }
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = nodeGrad;
+          ctx.fill();
+          ctx.strokeStyle = isCentral ? '#8b5cf6' : '#06b6d4';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // "16d" label inside
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.font = `${Math.round(9 * p.scale)}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText('16d', p.x, p.y + 3);
+
+          // Node name below
+          ctx.fillStyle = '#fff';
+          ctx.font = `${Math.round(10 * p.scale)}px system-ui`;
+          ctx.fillText(name, p.x, p.y + radius + 12 * p.scale);
+        }
+
+        // Draw "PICO" label in center
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.8)';
+        ctx.font = 'bold 24px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('PICO', this.centerX, this.centerY + this.scale * 1.5);
+        ctx.font = '12px system-ui';
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.5)';
+        ctx.fillText('64-dim', this.centerX, this.centerY + this.scale * 1.5 + 18);
+
+        requestAnimationFrame(() => this.render());
+      }
+    }
+
+    // Initialize
+    const pico = new PicoLLM();
+    const canvas = document.getElementById('picoCanvas');
+    const renderer = new PicoRenderer(canvas);
+    renderer.render();
+
+    // Mode selection
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        pico.aggregationMode = btn.dataset.mode;
+      });
+    });
+
+    // Femto node highlighting
+    document.querySelectorAll('.femto-node').forEach(node => {
+      node.addEventListener('mouseenter', () => {
+        renderer.activeNodes.add(node.dataset.id);
+        node.classList.add('active');
+      });
+      node.addEventListener('mouseleave', () => {
+        renderer.activeNodes.delete(node.dataset.id);
+        node.classList.remove('active');
+      });
+    });
+
+    // Query execution
+    const runBtn = document.getElementById('runBtn');
+    const queryInput = document.getElementById('queryInput');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const resultContent = document.getElementById('resultContent');
+    const resultTime = document.getElementById('resultTime');
+
+    runBtn.addEventListener('click', async () => {
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      runBtn.disabled = true;
+      runBtn.textContent = '⏳ Processing through 9 Femtos...';
+
+      // Activate all nodes
+      [...VERTICES, 'CENTRAL'].forEach(id => renderer.activeNodes.add(id));
+      document.querySelectorAll('.femto-node').forEach(n => n.classList.add('active'));
+
+      try {
+        const result = await pico.process(query);
+
+        // Display results
+        resultsPanel.style.display = 'block';
+        resultTime.textContent = `${result.time.toFixed(1)}ms`;
+
+        let html = '';
+
+        // Show femto results
+        for (const [nodeId, data] of Object.entries(result.femtoResults)) {
+          const embSum = data.embedding.reduce((a, b) => a + Math.abs(b), 0).toFixed(2);
+          html += `
+            <div class="femto-result">
+              <div class="femto-result-header">
+                <span>${nodeId}</span>
+                <span>${data.time.toFixed(1)}ms | Σ|e|=${embSum}</span>
+              </div>
+            </div>
+          `;
+        }
+
+        // Show aggregated result
+        html += `
+          <div class="pico-aggregate">
+            <div class="pico-aggregate-header">⚡ PicoLLM Output (64-dim)</div>
+            <div style="font-size:11px;color:#ccc">${result.output}</div>
+          </div>
+        `;
+
+        resultContent.innerHTML = html;
+
+        // Update stats
+        document.getElementById('queryCount').textContent = pico.queryCount;
+        document.getElementById('avgLatency').textContent = `${result.avgTime.toFixed(0)}ms`;
+
+      } catch (err) {
+        resultContent.innerHTML = `<div style="color:#ef4444">${err.message}</div>`;
+      }
+
+      // Reset
+      renderer.activeNodes.clear();
+      document.querySelectorAll('.femto-node').forEach(n => n.classList.remove('active'));
+      runBtn.disabled = false;
+      runBtn.textContent = '⚡ Process with PicoLLM';
+    });
+
+    // Global API
+    window.PicoLLM = {
+      instance: pico,
+      renderer,
+      process: (q) => pico.process(q),
+      setAggregationMode: (m) => { pico.aggregationMode = m; }
+    };
+  </script>
+</body>
+</html>

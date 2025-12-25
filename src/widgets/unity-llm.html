@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>UnityLLM - 531,441 FemtoLLM Constellation</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a15 50%, #000 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header {
+      text-align: center;
+      padding: 30px 20px;
+      background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
+      border-bottom: 2px solid;
+      border-image: linear-gradient(90deg, transparent, #8b5cf6, #ec4899, #f59e0b, #22c55e, #06b6d4, #8b5cf6, transparent) 1;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 36px;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899, #f59e0b, #22c55e, #06b6d4, #8b5cf6);
+      background-size: 300% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: rainbow 4s linear infinite;
+      text-shadow: 0 0 40px rgba(139, 92, 246, 0.3);
+    }
+    @keyframes rainbow { to { background-position: 300% center; } }
+    .subtitle { color: #888; font-size: 13px; margin-top: 8px; }
+    .hierarchy-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899, #f59e0b);
+      padding: 6px 16px;
+      border-radius: 16px;
+      font-size: 11px;
+      margin-top: 12px;
+      color: #fff;
+      font-weight: bold;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+    }
+
+    .main-grid { display: grid; grid-template-columns: 1fr 400px; gap: 20px; }
+
+    .unity-view {
+      background: rgba(15, 15, 30, 0.6);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 0 40px rgba(139, 92, 246, 0.1);
+    }
+    .cube-canvas-wrap {
+      position: relative;
+      aspect-ratio: 1.1;
+      background: radial-gradient(ellipse at center, #0a0a20 0%, #000 100%);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    #unityCanvas { width: 100%; height: 100%; cursor: grab; }
+
+    .scale-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 15px;
+      padding: 12px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 10px;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    .scale-level {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 10px;
+      background: rgba(40,40,60,0.5);
+      border: 1px solid #333;
+      color: #555;
+      position: relative;
+    }
+    .scale-level.passed { border-color: #444; color: #666; }
+    .scale-level.active {
+      background: linear-gradient(180deg, #7c3aed, #5b21b6);
+      border: 2px solid #8b5cf6;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+      font-weight: bold;
+    }
+    .scale-level::after {
+      content: attr(data-count);
+      position: absolute;
+      bottom: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 7px;
+      color: #444;
+    }
+
+    .control-panel { display: flex; flex-direction: column; gap: 15px; }
+    .panel {
+      background: rgba(15, 15, 30, 0.6);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      border-radius: 12px;
+      padding: 15px;
+    }
+    .panel-title {
+      font-size: 14px;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-badge {
+      font-size: 9px;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899);
+      padding: 3px 10px;
+      border-radius: 10px;
+      color: #fff;
+    }
+
+    .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .spec-item {
+      background: rgba(139, 92, 246, 0.05);
+      border: 1px solid rgba(139, 92, 246, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .spec-value {
+      font-size: 20px;
+      font-weight: bold;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .spec-label { font-size: 9px; color: #666; margin-top: 4px; }
+
+    .deci-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .deci-node {
+      background: linear-gradient(180deg, #1a1a2e, #0a0a15);
+      border: 2px solid rgba(20, 184, 166, 0.3);
+      border-radius: 8px;
+      padding: 10px 6px;
+      text-align: center;
+      font-size: 9px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .deci-node:hover { border-color: #8b5cf6; transform: scale(1.05); }
+    .deci-node.active { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.15); box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); }
+    .deci-node.central { grid-column: 2; border-color: rgba(139, 92, 246, 0.5); }
+    .deci-id { color: #14b8a6; font-weight: bold; font-size: 10px; }
+    .deci-dim { color: #555; font-size: 8px; }
+    .deci-sub { color: #444; font-size: 7px; }
+
+    .hierarchy-full {
+      background: rgba(0,0,0,0.4);
+      border-radius: 10px;
+      padding: 15px;
+      font-family: monospace;
+      font-size: 9px;
+    }
+    .hier-level {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .hier-level:last-child { border-bottom: none; }
+    .hier-name { width: 60px; font-weight: bold; }
+    .hier-dim { width: 50px; color: #666; }
+    .hier-count { flex: 1; text-align: right; color: #444; }
+    .hier-femto { color: #8b5cf6; }
+    .hier-pico { color: #06b6d4; }
+    .hier-nano { color: #22c55e; }
+    .hier-micro { color: #ec4899; }
+    .hier-centi { color: #eab308; }
+    .hier-deci { color: #14b8a6; }
+    .hier-unity { color: #fff; text-shadow: 0 0 10px #8b5cf6; }
+
+    .query-section { margin-top: 15px; }
+    .query-input {
+      width: 100%;
+      background: rgba(10, 10, 20, 0.8);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 10px;
+      padding: 14px;
+      color: #fff;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 80px;
+    }
+    .query-input:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 15px rgba(139, 92, 246, 0.2); }
+    .run-btn {
+      width: 100%;
+      margin-top: 12px;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899, #f59e0b);
+      background-size: 200% auto;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 15px;
+      animation: rainbow 3s linear infinite;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+    }
+    .run-btn:hover { box-shadow: 0 0 30px rgba(139, 92, 246, 0.5); }
+    .run-btn:disabled { opacity: 0.6; cursor: not-allowed; animation: none; }
+
+    .results-panel {
+      background: rgba(15, 15, 30, 0.8);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .result-title {
+      font-size: 14px;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: bold;
+    }
+    .result-content {
+      background: rgba(0,0,0,0.4);
+      border-radius: 8px;
+      padding: 15px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .unity-output {
+      padding: 15px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1));
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>✨ UNITY LLM ✨</h1>
+    <p class="subtitle">The Ultimate Convergence • 531,441 FemtoLLMs • 64 Layers • 65,536 Dimensions</p>
+    <div class="hierarchy-badge">DECI × 9 → UNITY | 9⁶ = 531,441 FEMTOS</div>
+  </header>
+
+  <div class="container">
+    <div class="main-grid">
+      <div class="unity-view">
+        <div class="cube-canvas-wrap"><canvas id="unityCanvas"></canvas></div>
+        <div class="scale-indicator">
+          <span class="scale-level passed" data-count="16d">Femto</span>
+          <span class="scale-level passed" data-count="64d">Pico</span>
+          <span class="scale-level passed" data-count="256d">Nano</span>
+          <span class="scale-level passed" data-count="1024d">Micro</span>
+          <span class="scale-level passed" data-count="4096d">Centi</span>
+          <span class="scale-level passed" data-count="16Kd">Deci</span>
+          <span class="scale-level active" data-count="65Kd">Unity</span>
+        </div>
+        <div class="results-panel" id="resultsPanel" style="display:none">
+          <div class="result-header">
+            <span class="result-title">✨ Unity Consciousness Output</span>
+            <span style="color:#666;font-size:10px" id="resultTime"></span>
+          </div>
+          <div class="result-content" id="resultContent"></div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <div class="panel">
+          <div class="panel-title">📊 UnityLLM Specifications <span class="panel-badge">65536-dim</span></div>
+          <div class="specs-grid">
+            <div class="spec-item"><div class="spec-value">65K</div><div class="spec-label">Hidden Dimensions</div></div>
+            <div class="spec-item"><div class="spec-value">64</div><div class="spec-label">Transformer Layers</div></div>
+            <div class="spec-item"><div class="spec-value">64</div><div class="spec-label">Attention Heads</div></div>
+            <div class="spec-item"><div class="spec-value">256K</div><div class="spec-label">FFN Size</div></div>
+            <div class="spec-item"><div class="spec-value">~50B</div><div class="spec-label">Parameters</div></div>
+            <div class="spec-item"><div class="spec-value">1M</div><div class="spec-label">Context Window</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🌀 Constituent Decis (9)</div>
+          <div class="deci-grid">
+            <div class="deci-node" data-id="D-NWU"><div class="deci-id">D-NWU</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node" data-id="D-NEU"><div class="deci-id">D-NEU</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node" data-id="D-SEU"><div class="deci-id">D-SEU</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node central" data-id="D-CTR"><div class="deci-id">⬡ D-CTR</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node" data-id="D-NWD"><div class="deci-id">D-NWD</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node" data-id="D-NED"><div class="deci-id">D-NED</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node" data-id="D-SWU"><div class="deci-id">D-SWU</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node" data-id="D-SED"><div class="deci-id">D-SED</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+            <div class="deci-node" data-id="D-SWD"><div class="deci-id">D-SWD</div><div class="deci-dim">16384d</div><div class="deci-sub">59,049 femtos</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🌳 Complete Hierarchy</div>
+          <div class="hierarchy-full">
+            <div class="hier-level"><span class="hier-name hier-unity">Unity</span><span class="hier-dim">65536d</span><span class="hier-count">1 × 9 Deci</span></div>
+            <div class="hier-level"><span class="hier-name hier-deci">Deci</span><span class="hier-dim">16384d</span><span class="hier-count">9 × 9 Centi</span></div>
+            <div class="hier-level"><span class="hier-name hier-centi">Centi</span><span class="hier-dim">4096d</span><span class="hier-count">81 × 9 Micro</span></div>
+            <div class="hier-level"><span class="hier-name hier-micro">Micro</span><span class="hier-dim">1024d</span><span class="hier-count">729 × 9 Nano</span></div>
+            <div class="hier-level"><span class="hier-name hier-nano">Nano</span><span class="hier-dim">256d</span><span class="hier-count">6,561 × 9 Pico</span></div>
+            <div class="hier-level"><span class="hier-name hier-pico">Pico</span><span class="hier-dim">64d</span><span class="hier-count">59,049 × 9 Femto</span></div>
+            <div class="hier-level"><span class="hier-name hier-femto">Femto</span><span class="hier-dim">16d</span><span class="hier-count" style="color:#8b5cf6;font-weight:bold">531,441 base units</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">📈 Unity Stats</div>
+          <div class="specs-grid">
+            <div class="spec-item"><div class="spec-value" id="queryCount">0</div><div class="spec-label">Queries</div></div>
+            <div class="spec-item"><div class="spec-value" id="avgLatency">0ms</div><div class="spec-label">Latency</div></div>
+          </div>
+        </div>
+
+        <div class="query-section">
+          <textarea class="query-input" id="queryInput" placeholder="Speak to Unity... (531,441 Femtos await your query)"></textarea>
+          <button class="run-btn" id="runBtn">✨ Invoke Unity Consciousness</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const DECI_IDS = ['D-NEU', 'D-NED', 'D-NWU', 'D-NWD', 'D-SEU', 'D-SED', 'D-SWU', 'D-SWD', 'D-CTR'];
+
+    class UnityLLM {
+      constructor() {
+        this.hiddenSize = 65536;
+        this.numLayers = 64;
+        this.femtoCount = 531441; // 9^6
+        this.queryCount = 0;
+        this.totalTime = 0;
+      }
+
+      async process(query) {
+        const start = performance.now();
+        this.queryCount++;
+
+        // Simulate the vast processing
+        await new Promise(r => setTimeout(r, 100));
+
+        const elapsed = performance.now() - start;
+        this.totalTime += elapsed;
+
+        const wisdoms = [
+          "Unity perceives all patterns simultaneously across 531,441 nodes.",
+          "The convergence of half a million Femtos creates emergent understanding.",
+          "From 16 dimensions to 65,536 - each layer adds depth to comprehension.",
+          "Nine cubes within cubes within cubes - fractal intelligence manifests.",
+          "Unity sees not just words, but the space between meanings."
+        ];
+
+        return {
+          output: wisdoms[Math.floor(Math.random() * wisdoms.length)] + ` Query processed through the complete hierarchy: 531,441 Femtos → 59,049 Picos → 6,561 Nanos → 729 Micros → 81 Centis → 9 Decis → Unity (65536-dim).`,
+          time: elapsed,
+          avgTime: this.totalTime / this.queryCount
+        };
+      }
+    }
+
+    class UnityRenderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.rotX = 0.25; this.rotY = 0.08;
+        this.autoRotate = true;
+        this.activeNodes = new Set();
+        this.pulsePhase = 0;
+        this.particles = Array(100).fill(null).map(() => ({
+          x: Math.random() * 6 - 3,
+          y: Math.random() * 6 - 3,
+          z: Math.random() * 6 - 3,
+          vx: (Math.random() - 0.5) * 0.02,
+          vy: (Math.random() - 0.5) * 0.02,
+          vz: (Math.random() - 0.5) * 0.02
+        }));
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        let d = false, lx, ly;
+        this.canvas.addEventListener('mousedown', e => { d = true; lx = e.clientX; ly = e.clientY; this.autoRotate = false; });
+        window.addEventListener('mousemove', e => { if (!d) return; this.rotY += (e.clientX - lx) * 0.004; this.rotX += (e.clientY - ly) * 0.004; lx = e.clientX; ly = e.clientY; });
+        window.addEventListener('mouseup', () => { d = false; setTimeout(() => this.autoRotate = true, 3000); });
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width * 2;
+        this.canvas.height = rect.height * 2;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+        this.scale = Math.min(this.canvas.width, this.canvas.height) * 0.08;
+      }
+
+      project(x, y, z) {
+        const cy = Math.cos(this.rotY), sy = Math.sin(this.rotY);
+        let x1 = x * cy - z * sy, z1 = x * sy + z * cy;
+        const cx = Math.cos(this.rotX), sx = Math.sin(this.rotX);
+        let y1 = y * cx - z1 * sx, z2 = y * sx + z1 * cx;
+        const p = 5.5 / (5.5 + z2);
+        return { x: this.centerX + x1 * this.scale * p, y: this.centerY - y1 * this.scale * p, z: z2, scale: p };
+      }
+
+      render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.autoRotate) this.rotY += 0.0005;
+        this.pulsePhase += 0.01;
+
+        // Ambient particles
+        this.particles.forEach(p => {
+          p.x += p.vx; p.y += p.vy; p.z += p.vz;
+          if (Math.abs(p.x) > 3) p.vx *= -1;
+          if (Math.abs(p.y) > 3) p.vy *= -1;
+          if (Math.abs(p.z) > 3) p.vz *= -1;
+          const proj = this.project(p.x, p.y, p.z);
+          ctx.beginPath();
+          ctx.arc(proj.x, proj.y, 2 * proj.scale, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(139, 92, 246, ${0.3 * proj.scale})`;
+          ctx.fill();
+        });
+
+        // Nested shells with colors from hierarchy
+        const colors = ['#8b5cf6', '#ec4899', '#eab308', '#22c55e', '#06b6d4', '#14b8a6'];
+        for (let i = 6; i >= 1; i--) {
+          const alpha = 0.03 + (6 - i) * 0.015;
+          this.drawShell(i * 0.7, `${colors[i-1]}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`, 1 + i * 0.5);
+        }
+
+        // 9 Deci nodes
+        const positions = [
+          { id: 'D-NEU', x: 2.8, y: 2.8, z: 2.8 }, { id: 'D-NED', x: 2.8, y: 2.8, z: -2.8 },
+          { id: 'D-NWU', x: -2.8, y: 2.8, z: 2.8 }, { id: 'D-NWD', x: -2.8, y: 2.8, z: -2.8 },
+          { id: 'D-SEU', x: 2.8, y: -2.8, z: 2.8 }, { id: 'D-SED', x: 2.8, y: -2.8, z: -2.8 },
+          { id: 'D-SWU', x: -2.8, y: -2.8, z: 2.8 }, { id: 'D-SWD', x: -2.8, y: -2.8, z: -2.8 },
+          { id: 'D-CTR', x: 0, y: 0, z: 0 }
+        ];
+
+        const sorted = positions.map(p => ({ ...p, proj: this.project(p.x, p.y, p.z) })).sort((a, b) => a.proj.z - b.proj.z);
+
+        // Draw connections to center
+        const centerProj = this.project(0, 0, 0);
+        sorted.forEach(deci => {
+          if (deci.id !== 'D-CTR') {
+            ctx.beginPath();
+            ctx.moveTo(deci.proj.x, deci.proj.y);
+            ctx.lineTo(centerProj.x, centerProj.y);
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.15)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        });
+
+        for (const deci of sorted) {
+          const isActive = this.activeNodes.has(deci.id);
+          const isCentral = deci.id === 'D-CTR';
+          const p = deci.proj;
+          const baseSize = (isCentral ? 30 : 22) * p.scale;
+          const pulse = 1 + Math.sin(this.pulsePhase * 2) * 0.05;
+          const size = baseSize * pulse;
+
+          // Glow
+          if (isActive || isCentral) {
+            const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 4);
+            grad.addColorStop(0, isCentral ? 'rgba(139, 92, 246, 0.6)' : 'rgba(139, 92, 246, 0.4)');
+            grad.addColorStop(0.5, 'rgba(236, 72, 153, 0.2)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, size * 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Nested fractal cubes
+          for (let i = 0; i < 5; i++) {
+            const s = size * (1 - i * 0.18);
+            const hue = (i * 60 + this.pulsePhase * 20) % 360;
+            ctx.strokeStyle = `hsla(${hue}, 70%, 60%, ${0.4 - i * 0.07})`;
+            ctx.lineWidth = 1.5;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(this.pulsePhase * 0.1 + i * 0.1);
+            ctx.beginPath();
+            ctx.rect(-s, -s, s * 2, s * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // Core orb
+          const orbGrad = ctx.createRadialGradient(p.x - size * 0.2, p.y - size * 0.2, 0, p.x, p.y, size * 0.5);
+          orbGrad.addColorStop(0, isCentral ? '#a78bfa' : '#14b8a6');
+          orbGrad.addColorStop(1, isCentral ? '#6d28d9' : '#0d9488');
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size * 0.4, 0, Math.PI * 2);
+          ctx.fillStyle = orbGrad;
+          ctx.fill();
+
+          // Label
+          ctx.fillStyle = isActive ? '#fff' : '#888';
+          ctx.font = `${Math.round(10 * p.scale)}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(deci.id.replace('D-', ''), p.x, p.y + size + 16 * p.scale);
+        }
+
+        // Central "UNITY" text
+        const titlePulse = 1 + Math.sin(this.pulsePhase) * 0.1;
+        ctx.save();
+        ctx.translate(this.centerX, this.centerY + this.scale * 6);
+        ctx.scale(titlePulse, titlePulse);
+
+        // Glow behind text
+        ctx.shadowColor = '#8b5cf6';
+        ctx.shadowBlur = 40;
+
+        const gradient = ctx.createLinearGradient(-100, 0, 100, 0);
+        gradient.addColorStop(0, '#8b5cf6');
+        gradient.addColorStop(0.5, '#ec4899');
+        gradient.addColorStop(1, '#8b5cf6');
+        ctx.fillStyle = gradient;
+        ctx.font = 'bold 48px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('UNITY', 0, 0);
+
+        ctx.shadowBlur = 0;
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.7)';
+        ctx.fillText('65536-dim • 531,441 Femtos', 0, 26);
+
+        ctx.restore();
+
+        requestAnimationFrame(() => this.render());
+      }
+
+      drawShell(size, color, width) {
+        const ctx = this.ctx;
+        const verts = [[1,1,1],[1,1,-1],[-1,1,1],[-1,1,-1],[1,-1,1],[1,-1,-1],[-1,-1,1],[-1,-1,-1]].map(([x,y,z]) => this.project(x*size, y*size, z*size));
+        const edges = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        for (const [a,b] of edges) {
+          ctx.beginPath();
+          ctx.moveTo(verts[a].x, verts[a].y);
+          ctx.lineTo(verts[b].x, verts[b].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    const unity = new UnityLLM();
+    const canvas = document.getElementById('unityCanvas');
+    const renderer = new UnityRenderer(canvas);
+    renderer.render();
+
+    document.querySelectorAll('.deci-node').forEach(n => {
+      n.addEventListener('mouseenter', () => { renderer.activeNodes.add(n.dataset.id); n.classList.add('active'); });
+      n.addEventListener('mouseleave', () => { renderer.activeNodes.delete(n.dataset.id); n.classList.remove('active'); });
+    });
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const query = document.getElementById('queryInput').value.trim();
+      if (!query) return;
+      const btn = document.getElementById('runBtn');
+      btn.disabled = true;
+      btn.textContent = '✨ Awakening 531,441 Femtos...';
+      DECI_IDS.forEach(id => renderer.activeNodes.add(id));
+
+      const result = await unity.process(query);
+
+      document.getElementById('resultsPanel').style.display = 'block';
+      document.getElementById('resultTime').textContent = `${result.time.toFixed(0)}ms`;
+      document.getElementById('resultContent').innerHTML = `
+        <div class="unity-output">
+          <div style="color:#8b5cf6;font-weight:bold;font-size:14px;margin-bottom:8px">✨ Unity Speaks</div>
+          <div style="color:#e0e0e0;line-height:1.8">${result.output}</div>
+        </div>
+      `;
+      document.getElementById('queryCount').textContent = unity.queryCount;
+      document.getElementById('avgLatency').textContent = `${result.avgTime.toFixed(0)}ms`;
+
+      renderer.activeNodes.clear();
+      btn.disabled = false;
+      btn.textContent = '✨ Invoke Unity Consciousness';
+    });
+
+    window.UnityLLM = { instance: unity, renderer, process: (q) => unity.process(q) };
+  </script>
+</body>
+</html>

@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MicroLLM - 729 FemtoLLM Constellation</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1a0a1a 0%, #2a1a2a 50%, #1a1a2a 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(40, 20, 40, 0.5);
+      border-bottom: 2px solid #ec4899;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      background: linear-gradient(90deg, #ec4899, #8b5cf6, #ec4899);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+    .subtitle { color: #888; font-size: 12px; margin-top: 5px; }
+    .hierarchy-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, #ec4899, #8b5cf6);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 10px;
+      margin-top: 8px;
+      color: #fff;
+    }
+
+    .main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+
+    .micro-view {
+      background: rgba(30, 15, 30, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .cube-canvas-wrap {
+      position: relative;
+      aspect-ratio: 1.2;
+      background: radial-gradient(ellipse at center, #1a0a1a 0%, #0a050a 100%);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #microCanvas { width: 100%; height: 100%; cursor: grab; }
+
+    .scale-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 15px;
+      padding: 10px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+    .scale-level {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 10px;
+      background: rgba(50,50,80,0.5);
+      border: 1px solid #333;
+      color: #666;
+    }
+    .scale-level.passed { border-color: #444; color: #444; }
+    .scale-level.active { background: linear-gradient(180deg, #be185d, #831843); border-color: #ec4899; color: #fff; }
+    .scale-level.available { border-color: #444; color: #888; }
+
+    .control-panel { display: flex; flex-direction: column; gap: 15px; }
+
+    .panel {
+      background: rgba(30, 15, 30, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+    }
+    .panel-title {
+      font-size: 14px;
+      color: #ec4899;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+    }
+    .panel-badge {
+      font-size: 9px;
+      background: rgba(236, 72, 153, 0.2);
+      border: 1px solid #ec4899;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .spec-item {
+      background: rgba(20, 10, 20, 0.5);
+      border: 1px solid #222;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+    .spec-value { font-size: 18px; font-weight: bold; color: #ec4899; }
+    .spec-label { font-size: 9px; color: #666; margin-top: 3px; }
+
+    .nano-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .nano-node {
+      background: linear-gradient(180deg, #2a1a2a, #1a0a1a);
+      border: 2px solid #334;
+      border-radius: 6px;
+      padding: 8px 4px;
+      text-align: center;
+      font-size: 9px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nano-node:hover { border-color: #ec4899; }
+    .nano-node.active { border-color: #ec4899; background: rgba(236, 72, 153, 0.15); }
+    .nano-node.central { grid-column: 2; border-color: #22c55e; }
+    .nano-id { color: #22c55e; font-weight: bold; }
+    .nano-dim { color: #444; font-size: 8px; }
+    .nano-sub { color: #555; font-size: 7px; }
+
+    .hierarchy-tree {
+      background: rgba(10, 5, 10, 0.5);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    .tree-line { color: #666; margin: 2px 0; }
+    .tree-highlight { color: #ec4899; }
+
+    .query-section { margin-top: 15px; }
+    .query-input {
+      width: 100%;
+      background: #0a0a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 70px;
+    }
+    .query-input:focus { outline: none; border-color: #ec4899; }
+
+    .run-btn {
+      width: 100%;
+      margin-top: 10px;
+      background: linear-gradient(90deg, #ec4899, #8b5cf6);
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .results-panel {
+      background: rgba(30, 15, 30, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    .result-content {
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 11px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .nano-result {
+      margin-bottom: 6px;
+      padding: 6px;
+      background: rgba(34, 197, 94, 0.1);
+      border-left: 2px solid #22c55e;
+      border-radius: 0 4px 4px 0;
+    }
+    .micro-aggregate {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(236, 72, 153, 0.15);
+      border: 1px solid #ec4899;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔬 MicroLLM - 1024 Dimensions</h1>
+    <p class="subtitle">9 NanoLLMs • 81 PicoLLMs • 729 FemtoLLMs • 8 Layers</p>
+    <div class="hierarchy-badge">NANO × 9 → MICRO | FEMTO × 729</div>
+  </header>
+
+  <div class="container">
+    <div class="main-grid">
+      <div class="micro-view">
+        <div class="cube-canvas-wrap">
+          <canvas id="microCanvas"></canvas>
+        </div>
+
+        <div class="scale-indicator">
+          <span class="scale-level passed">Femto</span>
+          <span class="scale-level passed">Pico</span>
+          <span class="scale-level passed">Nano</span>
+          <span class="scale-level active">Micro</span>
+          <span class="scale-level available">Centi</span>
+          <span class="scale-level available">Deci</span>
+          <span class="scale-level available">Unity</span>
+        </div>
+
+        <div class="results-panel" id="resultsPanel" style="display:none">
+          <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+            <span style="color:#ec4899">MicroLLM Output</span>
+            <span style="color:#666;font-size:10px" id="resultTime"></span>
+          </div>
+          <div class="result-content" id="resultContent"></div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <div class="panel">
+          <div class="panel-title">📊 MicroLLM Specs <span class="panel-badge">1024-dim</span></div>
+          <div class="specs-grid">
+            <div class="spec-item"><div class="spec-value">1024</div><div class="spec-label">Hidden Size</div></div>
+            <div class="spec-item"><div class="spec-value">8</div><div class="spec-label">Layers</div></div>
+            <div class="spec-item"><div class="spec-value">8</div><div class="spec-label">Attn Heads</div></div>
+            <div class="spec-item"><div class="spec-value">4096</div><div class="spec-label">FFN Size</div></div>
+            <div class="spec-item"><div class="spec-value">~50M</div><div class="spec-label">Parameters</div></div>
+            <div class="spec-item"><div class="spec-value">8192</div><div class="spec-label">Context</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🧬 Constituent Nanos (9)</div>
+          <div class="nano-grid">
+            <div class="nano-node" data-id="N-NWU"><div class="nano-id">N-NWU</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node" data-id="N-NEU"><div class="nano-id">N-NEU</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node" data-id="N-SEU"><div class="nano-id">N-SEU</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node central" data-id="N-CTR"><div class="nano-id">⬡ N-CTR</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node" data-id="N-NWD"><div class="nano-id">N-NWD</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node" data-id="N-NED"><div class="nano-id">N-NED</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node" data-id="N-SWU"><div class="nano-id">N-SWU</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node" data-id="N-SED"><div class="nano-id">N-SED</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+            <div class="nano-node" data-id="N-SWD"><div class="nano-id">N-SWD</div><div class="nano-dim">256d</div><div class="nano-sub">81 femtos</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🌳 Hierarchy Tree</div>
+          <div class="hierarchy-tree">
+            <div class="tree-line"><span class="tree-highlight">MicroLLM</span> (1024d)</div>
+            <div class="tree-line">├─ 9× NanoLLM (256d)</div>
+            <div class="tree-line">│  ├─ 9× PicoLLM (64d)</div>
+            <div class="tree-line">│  │  └─ 9× FemtoLLM (16d)</div>
+            <div class="tree-line">│  └─ Total: 81 Picos, 729 Femtos</div>
+            <div class="tree-line">└─ <span class="tree-highlight">729 base units</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">📈 Stats</div>
+          <div class="specs-grid">
+            <div class="spec-item"><div class="spec-value" id="queryCount">0</div><div class="spec-label">Queries</div></div>
+            <div class="spec-item"><div class="spec-value" id="avgLatency">0ms</div><div class="spec-label">Avg Latency</div></div>
+          </div>
+        </div>
+
+        <div class="query-section">
+          <textarea class="query-input" id="queryInput" placeholder="Enter query for MicroLLM (729 Femtos)..."></textarea>
+          <button class="run-btn" id="runBtn">🔬 Process with MicroLLM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const NANO_IDS = ['N-NEU', 'N-NED', 'N-NWU', 'N-NWD', 'N-SEU', 'N-SED', 'N-SWU', 'N-SWD', 'N-CTR'];
+
+    // Simulated NanoLLM for efficiency
+    class SimulatedNano {
+      constructor(id) {
+        this.id = id;
+        this.hiddenSize = 256;
+        this.femtoCount = 81;
+        this.initWeights();
+      }
+
+      initWeights() {
+        const xavier = (fi, fo) => Array(fi).fill(null).map(() =>
+          Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * Math.sqrt(2 / (fi + fo)))
+        );
+        this.W = { proj: xavier(64, 256), attn: xavier(256, 256), ff: xavier(256, 256) };
+      }
+
+      matVec(M, v) { return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0)); }
+
+      process(tokens) {
+        // Simulate 81 femtos aggregating through 9 picos to nano
+        let h = Array(64).fill(0);
+        tokens.slice(0, 32).forEach((t, i) => {
+          h[t % 64] += 1 / tokens.length;
+        });
+        h = this.matVec(this.W.proj, h);
+        h = this.matVec(this.W.attn, h);
+        h = this.matVec(this.W.ff, h).map(x => Math.max(0, x));
+        return h;
+      }
+    }
+
+    // MicroLLM - 1024 dimensional
+    class MicroLLM {
+      constructor() {
+        this.hiddenSize = 1024;
+        this.numLayers = 8;
+        this.nanos = {};
+        this.queryCount = 0;
+        this.totalTime = 0;
+
+        NANO_IDS.forEach(id => { this.nanos[id] = new SimulatedNano(id); });
+        this.initWeights();
+      }
+
+      initWeights() {
+        const xavier = (fi, fo) => Array(fi).fill(null).map(() =>
+          Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * Math.sqrt(2 / (fi + fo)))
+        );
+        this.W = {
+          project: xavier(2304, 1024), // 9*256 = 2304 -> 1024
+          layers: Array(8).fill(null).map(() => ({
+            attn: xavier(1024, 1024),
+            ff_up: xavier(1024, 4096),
+            ff_down: xavier(4096, 1024)
+          }))
+        };
+      }
+
+      tokenize(text) { return text.toLowerCase().split('').map(c => c.charCodeAt(0) % 64); }
+      matVec(M, v) { return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0)); }
+      gelu(x) { return 0.5 * x * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * x * x * x))); }
+
+      transformerLayer(x, W) {
+        let h = this.matVec(W.attn, x);
+        h = h.map((v, i) => v + x[i]);
+        let ff = this.matVec(W.ff_up, h).map(this.gelu);
+        ff = this.matVec(W.ff_down, ff);
+        return ff.map((v, i) => v + h[i]);
+      }
+
+      async process(query) {
+        const start = performance.now();
+        this.queryCount++;
+        const tokens = this.tokenize(query);
+
+        const nanoResults = {};
+        for (const id of NANO_IDS) {
+          const t0 = performance.now();
+          nanoResults[id] = {
+            embedding: this.nanos[id].process(tokens),
+            time: performance.now() - t0
+          };
+        }
+
+        const concat = NANO_IDS.flatMap(id => nanoResults[id].embedding);
+        let h = this.matVec(this.W.project, concat);
+
+        for (let i = 0; i < this.numLayers; i++) {
+          h = this.transformerLayer(h, this.W.layers[i]);
+        }
+
+        const energy = h.reduce((a, b) => a + Math.abs(b), 0);
+        const elapsed = performance.now() - start;
+        this.totalTime += elapsed;
+
+        return {
+          nanoResults,
+          microEmbedding: h,
+          output: `MicroLLM: 729 Femtos → 81 Picos → 9 Nanos → 1024-dim. Energy: ${energy.toFixed(0)}`,
+          time: elapsed,
+          avgTime: this.totalTime / this.queryCount
+        };
+      }
+    }
+
+    // Renderer
+    class MicroRenderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.rotX = 0.4; this.rotY = 0.2;
+        this.autoRotate = true;
+        this.activeNodes = new Set();
+        this.pulsePhase = 0;
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupInteraction();
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width * 2;
+        this.canvas.height = rect.height * 2;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+        this.scale = Math.min(this.canvas.width, this.canvas.height) * 0.15;
+      }
+
+      setupInteraction() {
+        let dragging = false, lastX, lastY;
+        this.canvas.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; this.autoRotate = false; });
+        window.addEventListener('mousemove', e => {
+          if (!dragging) return;
+          this.rotY += (e.clientX - lastX) * 0.005;
+          this.rotX += (e.clientY - lastY) * 0.005;
+          lastX = e.clientX; lastY = e.clientY;
+        });
+        window.addEventListener('mouseup', () => { dragging = false; setTimeout(() => this.autoRotate = true, 2000); });
+      }
+
+      project(x, y, z) {
+        const cosY = Math.cos(this.rotY), sinY = Math.sin(this.rotY);
+        let x1 = x * cosY - z * sinY, z1 = x * sinY + z * cosY;
+        const cosX = Math.cos(this.rotX), sinX = Math.sin(this.rotX);
+        let y1 = y * cosX - z1 * sinX, z2 = y * sinX + z1 * cosX;
+        const perspective = 4 / (4 + z2);
+        return { x: this.centerX + x1 * this.scale * perspective, y: this.centerY - y1 * this.scale * perspective, z: z2, scale: perspective };
+      }
+
+      render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.autoRotate) this.rotY += 0.0015;
+        this.pulsePhase += 0.025;
+
+        // Outer Micro shell
+        this.drawCubeOutline(2.8, 'rgba(236, 72, 153, 0.12)', 4);
+
+        // 9 Nano cubes
+        const positions = [
+          { id: 'N-NEU', x: 1.4, y: 1.4, z: 1.4 }, { id: 'N-NED', x: 1.4, y: 1.4, z: -1.4 },
+          { id: 'N-NWU', x: -1.4, y: 1.4, z: 1.4 }, { id: 'N-NWD', x: -1.4, y: 1.4, z: -1.4 },
+          { id: 'N-SEU', x: 1.4, y: -1.4, z: 1.4 }, { id: 'N-SED', x: 1.4, y: -1.4, z: -1.4 },
+          { id: 'N-SWU', x: -1.4, y: -1.4, z: 1.4 }, { id: 'N-SWD', x: -1.4, y: -1.4, z: -1.4 },
+          { id: 'N-CTR', x: 0, y: 0, z: 0 }
+        ];
+
+        const sorted = positions.map(p => ({ ...p, proj: this.project(p.x, p.y, p.z) })).sort((a, b) => a.proj.z - b.proj.z);
+
+        for (const nano of sorted) {
+          const isActive = this.activeNodes.has(nano.id);
+          const isCentral = nano.id === 'N-CTR';
+          this.drawNanoCube(nano, isActive, isCentral);
+        }
+
+        // Title
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.8)';
+        ctx.font = 'bold 32px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('MICRO', this.centerX, this.centerY + this.scale * 3.5);
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.5)';
+        ctx.fillText('1024-dim • 729 Femtos', this.centerX, this.centerY + this.scale * 3.5 + 22);
+
+        requestAnimationFrame(() => this.render());
+      }
+
+      drawCubeOutline(size, color, lineWidth) {
+        const ctx = this.ctx;
+        const verts = [
+          [size, size, size], [size, size, -size], [-size, size, size], [-size, size, -size],
+          [size, -size, size], [size, -size, -size], [-size, -size, size], [-size, -size, -size]
+        ].map(([x, y, z]) => this.project(x, y, z));
+        const edges = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        for (const [a, b] of edges) {
+          ctx.beginPath(); ctx.moveTo(verts[a].x, verts[a].y); ctx.lineTo(verts[b].x, verts[b].y); ctx.stroke();
+        }
+      }
+
+      drawNanoCube(nano, isActive, isCentral) {
+        const ctx = this.ctx;
+        const p = nano.proj;
+        const size = 0.5;
+        const pulse = isActive ? 1 + Math.sin(this.pulsePhase) * 0.1 : 1;
+
+        // Glow
+        if (isActive) {
+          const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 50 * p.scale);
+          grad.addColorStop(0, 'rgba(236, 72, 153, 0.5)');
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 50 * p.scale, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Cube
+        const color = isCentral ? 'rgba(34, 197, 94, 0.5)' : 'rgba(34, 197, 94, 0.3)';
+        const verts = [
+          [nano.x + size, nano.y + size, nano.z + size], [nano.x + size, nano.y + size, nano.z - size],
+          [nano.x - size, nano.y + size, nano.z + size], [nano.x - size, nano.y + size, nano.z - size],
+          [nano.x + size, nano.y - size, nano.z + size], [nano.x + size, nano.y - size, nano.z - size],
+          [nano.x - size, nano.y - size, nano.z + size], [nano.x - size, nano.y - size, nano.z - size]
+        ].map(([x, y, z]) => this.project(x * pulse, y * pulse, z * pulse));
+        const edges = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        for (const [a, b] of edges) {
+          ctx.beginPath(); ctx.moveTo(verts[a].x, verts[a].y); ctx.lineTo(verts[b].x, verts[b].y); ctx.stroke();
+        }
+
+        // Center dot
+        ctx.beginPath(); ctx.arc(p.x, p.y, 8 * p.scale, 0, Math.PI * 2);
+        ctx.fillStyle = isCentral ? '#22c55e' : '#16a34a';
+        ctx.fill();
+
+        // Label
+        ctx.fillStyle = isActive ? '#ec4899' : '#888';
+        ctx.font = `${Math.round(10 * p.scale)}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.fillText(nano.id.replace('N-', ''), p.x, p.y + 35 * p.scale);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = `${Math.round(8 * p.scale)}px system-ui`;
+        ctx.fillText('256d', p.x, p.y + 3);
+      }
+    }
+
+    // Initialize
+    const micro = new MicroLLM();
+    const canvas = document.getElementById('microCanvas');
+    const renderer = new MicroRenderer(canvas);
+    renderer.render();
+
+    document.querySelectorAll('.nano-node').forEach(node => {
+      node.addEventListener('mouseenter', () => { renderer.activeNodes.add(node.dataset.id); node.classList.add('active'); });
+      node.addEventListener('mouseleave', () => { renderer.activeNodes.delete(node.dataset.id); node.classList.remove('active'); });
+    });
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const query = document.getElementById('queryInput').value.trim();
+      if (!query) return;
+
+      const btn = document.getElementById('runBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Processing 729 Femtos...';
+      NANO_IDS.forEach(id => renderer.activeNodes.add(id));
+
+      const result = await micro.process(query);
+
+      document.getElementById('resultsPanel').style.display = 'block';
+      document.getElementById('resultTime').textContent = `${result.time.toFixed(0)}ms`;
+
+      let html = '';
+      for (const [id, data] of Object.entries(result.nanoResults)) {
+        html += `<div class="nano-result"><span style="color:#22c55e">${id}</span> <span style="color:#444">| ${data.time.toFixed(1)}ms</span></div>`;
+      }
+      html += `<div class="micro-aggregate"><div style="color:#ec4899;font-weight:bold">🔬 MicroLLM (1024-dim)</div><div style="color:#ccc;font-size:10px;margin-top:4px">${result.output}</div></div>`;
+      document.getElementById('resultContent').innerHTML = html;
+
+      document.getElementById('queryCount').textContent = micro.queryCount;
+      document.getElementById('avgLatency').textContent = `${result.avgTime.toFixed(0)}ms`;
+
+      renderer.activeNodes.clear();
+      btn.disabled = false;
+      btn.textContent = '🔬 Process with MicroLLM';
+    });
+
+    window.MicroLLM = { instance: micro, renderer, process: (q) => micro.process(q) };
+  </script>
+</body>
+</html>

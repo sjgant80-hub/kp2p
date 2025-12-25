@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NanoLLM - 81 FemtoLLM Constellation</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #0a1a2e 50%, #1a2a1a 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(20, 40, 30, 0.5);
+      border-bottom: 2px solid #22c55e;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      background: linear-gradient(90deg, #22c55e, #06b6d4, #22c55e);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 3s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+    .subtitle { color: #888; font-size: 12px; margin-top: 5px; }
+    .hierarchy-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, #22c55e, #06b6d4);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 10px;
+      margin-top: 8px;
+      color: #fff;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+    }
+
+    .nano-view {
+      background: rgba(20, 30, 20, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .cube-canvas-wrap {
+      position: relative;
+      aspect-ratio: 1.2;
+      background: radial-gradient(ellipse at center, #0a1a0a 0%, #050a05 100%);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #nanoCanvas { width: 100%; height: 100%; cursor: grab; }
+    #nanoCanvas:active { cursor: grabbing; }
+
+    .scale-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 15px;
+      padding: 10px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+    .scale-level {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 10px;
+      background: rgba(50,50,80,0.5);
+      border: 1px solid #333;
+      color: #666;
+    }
+    .scale-level.passed { border-color: #444; color: #555; background: rgba(30,30,50,0.5); }
+    .scale-level.active { background: linear-gradient(180deg, #16a34a, #0f5132); border-color: #22c55e; color: #fff; }
+    .scale-level.available { border-color: #444; color: #888; }
+
+    .control-panel { display: flex; flex-direction: column; gap: 15px; }
+
+    .panel {
+      background: rgba(20, 30, 20, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+    }
+    .panel-title {
+      font-size: 14px;
+      color: #22c55e;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-badge {
+      font-size: 9px;
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid #22c55e;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .spec-item {
+      background: rgba(10, 20, 10, 0.5);
+      border: 1px solid #222;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+    .spec-value { font-size: 18px; font-weight: bold; color: #22c55e; }
+    .spec-label { font-size: 9px; color: #666; margin-top: 3px; }
+
+    .pico-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .pico-node {
+      background: linear-gradient(180deg, #1a2a20, #0a1510);
+      border: 2px solid #334;
+      border-radius: 6px;
+      padding: 8px 4px;
+      text-align: center;
+      font-size: 9px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pico-node:hover { border-color: #22c55e; }
+    .pico-node.active { border-color: #22c55e; background: rgba(34, 197, 94, 0.15); }
+    .pico-node.central { grid-column: 2; background: linear-gradient(180deg, #1a3020, #0a1810); border-color: #06b6d4; }
+    .pico-id { color: #06b6d4; font-weight: bold; }
+    .pico-dim { color: #444; font-size: 8px; }
+    .pico-femtos { color: #555; font-size: 7px; }
+
+    .hierarchy-viz {
+      background: rgba(10, 20, 10, 0.5);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .hier-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 6px 0; }
+    .hier-box { padding: 6px 10px; border-radius: 4px; font-size: 9px; }
+    .hier-femto { background: rgba(139, 92, 246, 0.3); border: 1px solid #8b5cf6; }
+    .hier-pico { background: rgba(6, 182, 212, 0.3); border: 1px solid #06b6d4; }
+    .hier-nano { background: rgba(34, 197, 94, 0.3); border: 1px solid #22c55e; }
+    .hier-arrow { color: #444; font-size: 10px; }
+
+    .query-section { margin-top: 15px; }
+    .query-input {
+      width: 100%;
+      background: #0a0a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 70px;
+    }
+    .query-input:focus { outline: none; border-color: #22c55e; }
+
+    .run-btn {
+      width: 100%;
+      margin-top: 10px;
+      background: linear-gradient(90deg, #22c55e, #06b6d4);
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .run-btn:hover { opacity: 0.9; }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .results-panel {
+      background: rgba(20, 30, 20, 0.6);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    .result-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .result-title { font-size: 12px; color: #22c55e; }
+    .result-time { font-size: 10px; color: #666; }
+    .result-content {
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .pico-result {
+      margin-bottom: 8px;
+      padding: 8px;
+      background: rgba(6, 182, 212, 0.1);
+      border-left: 2px solid #06b6d4;
+      border-radius: 0 4px 4px 0;
+    }
+    .nano-aggregate {
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid #22c55e;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧬 NanoLLM - 256 Dimensions</h1>
+    <p class="subtitle">9 PicoLLMs • 81 FemtoLLMs • 4 Layers • 4 Attention Heads</p>
+    <div class="hierarchy-badge">PICO × 9 → NANO | FEMTO × 81</div>
+  </header>
+
+  <div class="container">
+    <div class="main-grid">
+      <div class="nano-view">
+        <div class="cube-canvas-wrap">
+          <canvas id="nanoCanvas"></canvas>
+        </div>
+
+        <div class="scale-indicator">
+          <span class="scale-level passed">Femto</span>
+          <span class="scale-level passed">Pico</span>
+          <span class="scale-level active">Nano</span>
+          <span class="scale-level available">Micro</span>
+          <span class="scale-level available">Centi</span>
+          <span class="scale-level available">Deci</span>
+          <span class="scale-level available">Unity</span>
+        </div>
+
+        <div class="results-panel" id="resultsPanel" style="display:none">
+          <div class="result-header">
+            <span class="result-title">NanoLLM Constellation Output</span>
+            <span class="result-time" id="resultTime"></span>
+          </div>
+          <div class="result-content" id="resultContent"></div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <div class="panel">
+          <div class="panel-title">
+            📊 NanoLLM Specifications
+            <span class="panel-badge">256-dim</span>
+          </div>
+          <div class="specs-grid">
+            <div class="spec-item">
+              <div class="spec-value">256</div>
+              <div class="spec-label">Hidden Size</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">4</div>
+              <div class="spec-label">Layers</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">4</div>
+              <div class="spec-label">Attn Heads</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">1024</div>
+              <div class="spec-label">FFN Size</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">~3M</div>
+              <div class="spec-label">Parameters</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value">2048</div>
+              <div class="spec-label">Context</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">🔷 Constituent Picos (9)</div>
+          <div class="pico-grid">
+            <div class="pico-node" data-id="P-NWU"><div class="pico-id">P-NWU</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node" data-id="P-NEU"><div class="pico-id">P-NEU</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node" data-id="P-SEU"><div class="pico-id">P-SEU</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node central" data-id="P-CTR"><div class="pico-id">⬡ P-CTR</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node" data-id="P-NWD"><div class="pico-id">P-NWD</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node" data-id="P-NED"><div class="pico-id">P-NED</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node" data-id="P-SWU"><div class="pico-id">P-SWU</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node" data-id="P-SED"><div class="pico-id">P-SED</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+            <div class="pico-node" data-id="P-SWD"><div class="pico-id">P-SWD</div><div class="pico-dim">64d</div><div class="pico-femtos">9 femtos</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">📐 Hierarchy Structure</div>
+          <div class="hierarchy-viz">
+            <div class="hier-row">
+              <span class="hier-box hier-femto">81× Femto (16d)</span>
+            </div>
+            <div class="hier-row"><span class="hier-arrow">↓ ×9 aggregate</span></div>
+            <div class="hier-row">
+              <span class="hier-box hier-pico">9× Pico (64d)</span>
+            </div>
+            <div class="hier-row"><span class="hier-arrow">↓ ×9 aggregate</span></div>
+            <div class="hier-row">
+              <span class="hier-box hier-nano">1× Nano (256d)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">📈 Processing Stats</div>
+          <div class="specs-grid">
+            <div class="spec-item">
+              <div class="spec-value" id="queryCount">0</div>
+              <div class="spec-label">Queries</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-value" id="avgLatency">0ms</div>
+              <div class="spec-label">Avg Latency</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="query-section">
+          <textarea class="query-input" id="queryInput" placeholder="Enter query for NanoLLM constellation (81 Femtos)..."></textarea>
+          <button class="run-btn" id="runBtn">🧬 Process with NanoLLM</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const VERTICES = ['NEU', 'NED', 'NWU', 'NWD', 'SEU', 'SED', 'SWU', 'SWD'];
+    const PICO_IDS = ['P-NEU', 'P-NED', 'P-NWU', 'P-NWD', 'P-SEU', 'P-SED', 'P-SWU', 'P-SWD', 'P-CTR'];
+
+    const VERTEX_POS = {
+      NEU: { x: 1, y: 1, z: 1 }, NED: { x: 1, y: 1, z: -1 },
+      NWU: { x: -1, y: 1, z: 1 }, NWD: { x: -1, y: 1, z: -1 },
+      SEU: { x: 1, y: -1, z: 1 }, SED: { x: 1, y: -1, z: -1 },
+      SWU: { x: -1, y: -1, z: 1 }, SWD: { x: -1, y: -1, z: -1 },
+      CENTRAL: { x: 0, y: 0, z: 0 }
+    };
+
+    // FemtoLLM - 16 dimensional
+    class FemtoLLM {
+      constructor(nodeId) {
+        this.nodeId = nodeId;
+        this.hiddenSize = 16;
+        this.initWeights();
+      }
+
+      initWeights() {
+        const d = 16, v = 44;
+        const xavier = (fi, fo) => Array(fi).fill(null).map(() =>
+          Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * Math.sqrt(2 / (fi + fo)))
+        );
+        this.W = { embed: xavier(v, d), attn: xavier(d, d), ff: xavier(d, d) };
+      }
+
+      process(tokens) {
+        let h = Array(16).fill(0);
+        tokens.slice(0, 16).forEach((t, i) => {
+          const emb = this.W.embed[t % 44] || this.W.embed[0];
+          emb.forEach((v, j) => h[j] += v / tokens.length);
+        });
+        return h;
+      }
+    }
+
+    // PicoLLM - 64 dimensional (contains 9 Femtos)
+    class PicoLLM {
+      constructor(picoId) {
+        this.picoId = picoId;
+        this.hiddenSize = 64;
+        this.femtos = {};
+        [...VERTICES, 'CENTRAL'].forEach(v => {
+          this.femtos[v] = new FemtoLLM(`${picoId}-${v}`);
+        });
+        this.initWeights();
+      }
+
+      initWeights() {
+        const xavier = (fi, fo) => Array(fi).fill(null).map(() =>
+          Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * Math.sqrt(2 / (fi + fo)))
+        );
+        this.W = { project: xavier(144, 64), attn: xavier(64, 64), ff: xavier(64, 64) };
+      }
+
+      matVec(M, v) {
+        return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0));
+      }
+
+      process(tokens) {
+        // Get embeddings from all 9 femtos
+        const femtoOutputs = Object.values(this.femtos).map(f => f.process(tokens));
+        const concat = femtoOutputs.flat();
+        let h = this.matVec(this.W.project, concat);
+        h = this.matVec(this.W.attn, h);
+        h = this.matVec(this.W.ff, h).map(x => Math.max(0, x));
+        return h;
+      }
+    }
+
+    // NanoLLM - 256 dimensional (contains 9 Picos = 81 Femtos)
+    class NanoLLM {
+      constructor() {
+        this.hiddenSize = 256;
+        this.numLayers = 4;
+        this.numHeads = 4;
+        this.picos = {};
+        this.queryCount = 0;
+        this.totalTime = 0;
+
+        // Create 9 PicoLLMs
+        PICO_IDS.forEach(id => {
+          this.picos[id] = new PicoLLM(id);
+        });
+
+        this.initWeights();
+      }
+
+      initWeights() {
+        const xavier = (fi, fo) => Array(fi).fill(null).map(() =>
+          Array(fo).fill(null).map(() => (Math.random() * 2 - 1) * Math.sqrt(2 / (fi + fo)))
+        );
+
+        // Projection from 9*64=576 to 256
+        this.W = {
+          project: xavier(576, 256),
+          layers: []
+        };
+
+        for (let i = 0; i < this.numLayers; i++) {
+          this.W.layers.push({
+            attn_qkv: xavier(256, 256 * 3),
+            attn_o: xavier(256, 256),
+            ff_up: xavier(256, 1024),
+            ff_down: xavier(1024, 256)
+          });
+        }
+      }
+
+      tokenize(text) {
+        return text.toLowerCase().split('').map(c => c.charCodeAt(0) % 44);
+      }
+
+      matVec(M, v) {
+        return M.map(row => row.reduce((s, w, i) => s + w * (v[i] || 0), 0));
+      }
+
+      gelu(x) {
+        return 0.5 * x * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * x * x * x)));
+      }
+
+      transformerLayer(x, layerW) {
+        // Simplified attention
+        const qkv = this.matVec(layerW.attn_qkv, x);
+        const d = 256;
+        const q = qkv.slice(0, d);
+        const k = qkv.slice(d, d * 2);
+        const v = qkv.slice(d * 2);
+
+        const score = q.reduce((s, qi, i) => s + qi * k[i], 0) / Math.sqrt(d);
+        const attnOut = v.map(vi => vi * Math.tanh(score));
+        let h = this.matVec(layerW.attn_o, attnOut);
+        h = h.map((v, i) => v + x[i]); // Residual
+
+        // FFN
+        let ff = this.matVec(layerW.ff_up, h).map(this.gelu);
+        ff = this.matVec(layerW.ff_down, ff);
+        return ff.map((v, i) => v + h[i]); // Residual
+      }
+
+      async process(query) {
+        const start = performance.now();
+        this.queryCount++;
+
+        const tokens = this.tokenize(query);
+
+        // Process through all 9 PicoLLMs
+        const picoResults = {};
+        for (const picoId of PICO_IDS) {
+          const picoStart = performance.now();
+          const embedding = this.picos[picoId].process(tokens);
+          picoResults[picoId] = {
+            embedding,
+            time: performance.now() - picoStart
+          };
+        }
+
+        // Aggregate: concatenate all pico outputs (9*64=576) and project to 256
+        const concat = PICO_IDS.flatMap(id => picoResults[id].embedding);
+        let h = this.matVec(this.W.project, concat);
+
+        // Process through 4 transformer layers
+        for (let i = 0; i < this.numLayers; i++) {
+          h = this.transformerLayer(h, this.W.layers[i]);
+        }
+
+        // Generate output
+        const energy = h.reduce((a, b) => a + Math.abs(b), 0);
+        const mean = h.reduce((a, b) => a + b, 0) / h.length;
+
+        const elapsed = performance.now() - start;
+        this.totalTime += elapsed;
+
+        return {
+          picoResults,
+          nanoEmbedding: h,
+          output: `NanoLLM processed through 81 Femtos → 9 Picos → 256-dim output. Energy: ${energy.toFixed(1)}, Mean: ${mean.toFixed(3)}`,
+          stats: {
+            femtoCount: 81,
+            picoCount: 9,
+            dimensions: 256,
+            layers: 4
+          },
+          time: elapsed,
+          avgTime: this.totalTime / this.queryCount
+        };
+      }
+    }
+
+    // 3D Renderer
+    class NanoRenderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.rotX = 0.4;
+        this.rotY = 0.2;
+        this.autoRotate = true;
+        this.activeNodes = new Set();
+        this.pulsePhase = 0;
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupInteraction();
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width * 2;
+        this.canvas.height = rect.height * 2;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+        this.scale = Math.min(this.canvas.width, this.canvas.height) * 0.18;
+      }
+
+      setupInteraction() {
+        let dragging = false, lastX, lastY;
+        this.canvas.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; this.autoRotate = false; });
+        window.addEventListener('mousemove', e => {
+          if (!dragging) return;
+          this.rotY += (e.clientX - lastX) * 0.005;
+          this.rotX += (e.clientY - lastY) * 0.005;
+          lastX = e.clientX; lastY = e.clientY;
+        });
+        window.addEventListener('mouseup', () => { dragging = false; setTimeout(() => this.autoRotate = true, 2000); });
+      }
+
+      project(x, y, z, offset = { x: 0, y: 0, z: 0 }) {
+        x += offset.x; y += offset.y; z += offset.z;
+        const cosY = Math.cos(this.rotY), sinY = Math.sin(this.rotY);
+        let x1 = x * cosY - z * sinY, z1 = x * sinY + z * cosY;
+        const cosX = Math.cos(this.rotX), sinX = Math.sin(this.rotX);
+        let y1 = y * cosX - z1 * sinX, z2 = y * sinX + z1 * cosX;
+        const perspective = 4 / (4 + z2);
+        return { x: this.centerX + x1 * this.scale * perspective, y: this.centerY - y1 * this.scale * perspective, z: z2, scale: perspective };
+      }
+
+      render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.autoRotate) this.rotY += 0.002;
+        this.pulsePhase += 0.03;
+
+        // Draw outer Nano cube (large)
+        this.drawCube(ctx, { x: 0, y: 0, z: 0 }, 2.2, 'rgba(34, 197, 94, 0.15)', 3);
+
+        // Draw 9 inner Pico cubes (smaller, at cube positions)
+        const picoPositions = [
+          { id: 'P-NEU', pos: { x: 1.1, y: 1.1, z: 1.1 } },
+          { id: 'P-NED', pos: { x: 1.1, y: 1.1, z: -1.1 } },
+          { id: 'P-NWU', pos: { x: -1.1, y: 1.1, z: 1.1 } },
+          { id: 'P-NWD', pos: { x: -1.1, y: 1.1, z: -1.1 } },
+          { id: 'P-SEU', pos: { x: 1.1, y: -1.1, z: 1.1 } },
+          { id: 'P-SED', pos: { x: 1.1, y: -1.1, z: -1.1 } },
+          { id: 'P-SWU', pos: { x: -1.1, y: -1.1, z: 1.1 } },
+          { id: 'P-SWD', pos: { x: -1.1, y: -1.1, z: -1.1 } },
+          { id: 'P-CTR', pos: { x: 0, y: 0, z: 0 } }
+        ];
+
+        // Sort by depth
+        const sorted = picoPositions.map(p => ({
+          ...p,
+          proj: this.project(p.pos.x, p.pos.y, p.pos.z)
+        })).sort((a, b) => a.proj.z - b.proj.z);
+
+        for (const pico of sorted) {
+          const isActive = this.activeNodes.has(pico.id);
+          const isCentral = pico.id === 'P-CTR';
+
+          // Draw mini cube
+          this.drawMiniCube(ctx, pico.pos, 0.4, isActive, isCentral);
+
+          // Label
+          const p = pico.proj;
+          ctx.fillStyle = isActive ? '#22c55e' : (isCentral ? '#06b6d4' : '#888');
+          ctx.font = `${Math.round(10 * p.scale)}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(pico.id.replace('P-', ''), p.x, p.y + 30 * p.scale);
+
+          // Show "64d" inside
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.font = `${Math.round(8 * p.scale)}px system-ui`;
+          ctx.fillText('64d', p.x, p.y);
+        }
+
+        // Draw connections between picos
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.2)';
+        ctx.lineWidth = 1;
+        for (const pico of sorted) {
+          if (pico.id !== 'P-CTR') {
+            const p1 = this.project(pico.pos.x, pico.pos.y, pico.pos.z);
+            const p2 = this.project(0, 0, 0);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+
+        // Title
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.8)';
+        ctx.font = 'bold 28px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('NANO', this.centerX, this.centerY + this.scale * 2.8);
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.5)';
+        ctx.fillText('256-dim • 81 Femtos', this.centerX, this.centerY + this.scale * 2.8 + 20);
+
+        requestAnimationFrame(() => this.render());
+      }
+
+      drawCube(ctx, offset, size, color, lineWidth) {
+        const verts = [
+          { x: size, y: size, z: size }, { x: size, y: size, z: -size },
+          { x: -size, y: size, z: size }, { x: -size, y: size, z: -size },
+          { x: size, y: -size, z: size }, { x: size, y: -size, z: -size },
+          { x: -size, y: -size, z: size }, { x: -size, y: -size, z: -size }
+        ].map(v => this.project(v.x + offset.x, v.y + offset.y, v.z + offset.z));
+
+        const edges = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        for (const [a, b] of edges) {
+          ctx.beginPath();
+          ctx.moveTo(verts[a].x, verts[a].y);
+          ctx.lineTo(verts[b].x, verts[b].y);
+          ctx.stroke();
+        }
+      }
+
+      drawMiniCube(ctx, offset, size, isActive, isCentral) {
+        const pulse = isActive ? 1 + Math.sin(this.pulsePhase) * 0.1 : 1;
+        const s = size * pulse;
+
+        const center = this.project(offset.x, offset.y, offset.z);
+
+        // Glow
+        if (isActive) {
+          const grad = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, 40 * center.scale);
+          grad.addColorStop(0, 'rgba(34, 197, 94, 0.5)');
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(center.x, center.y, 40 * center.scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Cube body
+        const color = isCentral ? 'rgba(6, 182, 212, 0.6)' : 'rgba(6, 182, 212, 0.4)';
+        this.drawCube(ctx, offset, s, color, 1.5);
+
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, 6 * center.scale, 0, Math.PI * 2);
+        ctx.fillStyle = isCentral ? '#06b6d4' : '#0891b2';
+        ctx.fill();
+      }
+    }
+
+    // Initialize
+    const nano = new NanoLLM();
+    const canvas = document.getElementById('nanoCanvas');
+    const renderer = new NanoRenderer(canvas);
+    renderer.render();
+
+    // Pico node highlighting
+    document.querySelectorAll('.pico-node').forEach(node => {
+      node.addEventListener('mouseenter', () => { renderer.activeNodes.add(node.dataset.id); node.classList.add('active'); });
+      node.addEventListener('mouseleave', () => { renderer.activeNodes.delete(node.dataset.id); node.classList.remove('active'); });
+    });
+
+    // Query execution
+    const runBtn = document.getElementById('runBtn');
+    const queryInput = document.getElementById('queryInput');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const resultContent = document.getElementById('resultContent');
+    const resultTime = document.getElementById('resultTime');
+
+    runBtn.addEventListener('click', async () => {
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      runBtn.disabled = true;
+      runBtn.textContent = '⏳ Processing through 81 Femtos...';
+      PICO_IDS.forEach(id => renderer.activeNodes.add(id));
+      document.querySelectorAll('.pico-node').forEach(n => n.classList.add('active'));
+
+      try {
+        const result = await nano.process(query);
+        resultsPanel.style.display = 'block';
+        resultTime.textContent = `${result.time.toFixed(1)}ms`;
+
+        let html = '<div style="margin-bottom:10px;color:#666;font-size:10px">9 Pico Results:</div>';
+        for (const [picoId, data] of Object.entries(result.picoResults)) {
+          const energy = data.embedding.reduce((a, b) => a + Math.abs(b), 0).toFixed(1);
+          html += `<div class="pico-result"><span style="color:#06b6d4">${picoId}</span> <span style="color:#444">| ${data.time.toFixed(1)}ms | Σ=${energy}</span></div>`;
+        }
+
+        html += `<div class="nano-aggregate">
+          <div style="color:#22c55e;font-weight:bold;margin-bottom:5px">🧬 NanoLLM Output (256-dim)</div>
+          <div style="font-size:11px;color:#ccc">${result.output}</div>
+        </div>`;
+
+        resultContent.innerHTML = html;
+        document.getElementById('queryCount').textContent = nano.queryCount;
+        document.getElementById('avgLatency').textContent = `${result.avgTime.toFixed(0)}ms`;
+
+      } catch (err) {
+        resultContent.innerHTML = `<div style="color:#ef4444">${err.message}</div>`;
+      }
+
+      renderer.activeNodes.clear();
+      document.querySelectorAll('.pico-node').forEach(n => n.classList.remove('active'));
+      runBtn.disabled = false;
+      runBtn.textContent = '🧬 Process with NanoLLM';
+    });
+
+    window.NanoLLM = { instance: nano, renderer, process: (q) => nano.process(q) };
+  </script>
+</body>
+</html>
