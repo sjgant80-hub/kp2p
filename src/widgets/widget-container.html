@@ -178,42 +178,67 @@
     </div>
 
     <script>
-        const WIDGETS = [
-            { id: 'chat', name: 'Chat', icon: '💬', file: 'chat.html' },
-            { id: 'kanban', name: 'Kanban', icon: '📋', file: 'kanban.html' },
-            { id: 'wiki', name: 'Wiki', icon: '📖', file: 'wiki.html' },
-            { id: 'whiteboard', name: 'Whiteboard', icon: '🎨', file: 'whiteboard.html' },
-            { id: 'calendar', name: 'Calendar', icon: '📅', file: 'calendar.html' },
-            { id: 'files', name: 'Files', icon: '📁', file: 'files.html' },
-            { id: 'database', name: 'Database', icon: '🗄️', file: 'database.html' },
-            { id: 'polls', name: 'Polls', icon: '📊', file: 'polls.html' },
-            { id: 'timer', name: 'Timer', icon: '⏱️', file: 'timer.html' },
-            { id: 'pomodoro', name: 'Pomodoro', icon: '🍅', file: 'pomodoro.html' },
-            { id: 'markdown', name: 'Markdown', icon: '📝', file: 'markdown.html' },
-            { id: 'terminal', name: 'Terminal', icon: '💻', file: 'terminal.html' },
-            { id: 'ai-chat', name: 'AI Chat', icon: '🤖', file: 'ai-chat.html' },
-            { id: 'elleen', name: 'Elleen', icon: '📚', file: 'elleen.html' },
-            { id: 'usc', name: 'USC', icon: '📜', file: 'usc.html' },
-            { id: 'mahjong', name: 'Mahjong', icon: '🀄', file: 'mahjong.html' },
-            { id: 'trivia', name: 'Trivia', icon: '🎯', file: 'trivia.html' },
-            { id: 'sisyphus', name: 'Sisyphus', icon: '🪨', file: 'sisyphus.html' },
-            { id: 'tales150', name: 'Tales 150', icon: '💬', file: 'tales150.html' },
-            { id: 'lyrics', name: 'Lyrics', icon: '🎵', file: 'lyrics.html' },
-            { id: 'kode', name: 'Kode', icon: '💻', file: 'kode.html' },
-            { id: 'docs', name: 'Docs', icon: '📄', file: 'docs.html' },
-            { id: 'crm', name: 'CRM', icon: '💼', file: 'crm.html' },
-            { id: 'json', name: 'JSON', icon: '{ }', file: 'json.html' },
-            { id: 'regex', name: 'Regex', icon: '🔍', file: 'regex.html' },
-            { id: 'qrcode', name: 'QR Code', icon: '📱', file: 'qrcode.html' },
-            { id: 'password', name: 'Password', icon: '🔐', file: 'password.html' },
-            { id: 'color', name: 'Color', icon: '🎨', file: 'color.html' },
-        ];
-
+        let WIDGETS = [];
         let selectedWidget = null;
         const widgetGrid = document.getElementById('widgetGrid');
         const downloadBtn = document.getElementById('downloadBtn');
         const status = document.getElementById('status');
         const previewFrame = document.getElementById('previewFrame');
+
+        // Dynamically load widgets from index.html
+        async function loadWidgetList() {
+            showStatus('loading', 'Loading widget list...');
+
+            try {
+                const response = await fetch('index.html');
+                const html = await response.text();
+
+                // Extract the WIDGETS array from the script
+                const match = html.match(/const WIDGETS = \[([\s\S]*?)\];/);
+                if (!match) throw new Error('Could not find WIDGETS array');
+
+                // Parse each widget object
+                const widgetRegex = /\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)',\s*icon:\s*'([^']+)',\s*desc:\s*'([^']+)',\s*file:\s*'([^']+)'/g;
+                let widgetMatch;
+
+                while ((widgetMatch = widgetRegex.exec(match[1])) !== null) {
+                    const [, id, name, icon, desc, file] = widgetMatch;
+                    // Skip hidden widgets and widget-container itself
+                    if (!match[1].includes(`hidden: true`) || !match[1].substring(widgetMatch.index - 200, widgetMatch.index).includes('hidden')) {
+                        if (id !== 'widgetContainer') {
+                            WIDGETS.push({ id, name, icon, desc, file });
+                        }
+                    }
+                }
+
+                // Filter out duplicates and hidden ones
+                const seen = new Set();
+                WIDGETS = WIDGETS.filter(w => {
+                    if (seen.has(w.id)) return false;
+                    seen.add(w.id);
+                    return true;
+                });
+
+                renderWidgets();
+                showStatus('success', `Loaded ${WIDGETS.length} widgets`);
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
+
+            } catch (error) {
+                console.error('Failed to load widget list:', error);
+                showStatus('error', 'Failed to load widgets. Using fallback list.');
+
+                // Fallback to basic list
+                WIDGETS = [
+                    { id: 'chat', name: 'Chat', icon: '💬', file: 'chat.html' },
+                    { id: 'kanban', name: 'Kanban', icon: '📋', file: 'kanban.html' },
+                    { id: 'wiki', name: 'Wiki', icon: '📖', file: 'wiki.html' },
+                    { id: 'calendar', name: 'Calendar', icon: '📅', file: 'calendar.html' },
+                    { id: 'elleen', name: 'Elleen', icon: '📚', file: 'elleen.html' },
+                    { id: 'usc', name: 'USC', icon: '📜', file: 'usc.html' },
+                ];
+                renderWidgets();
+            }
+        }
 
         function renderWidgets() {
             widgetGrid.innerHTML = WIDGETS.map(w => `
@@ -239,6 +264,7 @@
         function showStatus(type, message) {
             status.className = 'status ' + type;
             status.textContent = message;
+            status.style.display = 'block';
         }
 
         async function downloadWidget() {
@@ -288,8 +314,8 @@
             downloadBtn.disabled = false;
         }
 
-        // Init
-        renderWidgets();
+        // Init - load widgets dynamically
+        loadWidgetList();
     </script>
 </body>
 </html>
