@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Widget Container</title>
+    <title>Widget Container - KISS MySaaS</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -14,6 +14,7 @@
             --accent: #e94560;
             --text: #e8e8e8;
             --muted: #666;
+            --success: #22c55e;
         }
 
         body {
@@ -21,54 +22,89 @@
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
+            padding: 20px;
         }
 
-        .setup-panel {
-            max-width: 700px;
-            margin: 40px auto;
-            padding: 32px;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 24px;
             background: var(--panel);
             border-radius: 16px;
             border: 1px solid var(--border);
-        }
-
-        .setup-panel h1 {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-            color: var(--accent);
-        }
-
-        .setup-panel > p {
-            color: var(--muted);
             margin-bottom: 24px;
         }
 
-        .form-group {
-            margin-bottom: 20px;
+        header h1 { font-size: 1.8rem; color: var(--accent); margin-bottom: 8px; }
+        header p { color: var(--muted); }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 16px;
         }
 
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            color: var(--muted);
-            margin-bottom: 6px;
+        .stat { text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--success); }
+        .stat-label { font-size: 12px; color: var(--muted); }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 24px;
         }
+
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        .widget-list {
+            background: var(--panel);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .search-box input:focus { outline: none; border-color: var(--accent); }
 
         .widget-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 10px;
-            margin-top: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            max-height: 60vh;
+            overflow-y: auto;
         }
 
         .widget-card {
-            padding: 14px 8px;
+            padding: 16px 12px;
             background: var(--bg);
             border: 2px solid var(--border);
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             text-align: center;
             transition: all 0.2s;
+            position: relative;
         }
 
         .widget-card:hover {
@@ -81,137 +117,220 @@
             background: rgba(233, 69, 96, 0.15);
         }
 
-        .widget-icon { font-size: 24px; margin-bottom: 6px; }
-        .widget-name { font-size: 11px; font-weight: 500; }
+        .widget-icon { font-size: 28px; margin-bottom: 8px; }
+        .widget-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+        .widget-desc { font-size: 10px; color: var(--muted); line-height: 1.3; }
+
+        .widget-price {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 9px;
+            padding: 2px 6px;
+            background: var(--success);
+            color: #000;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .widget-price.free { background: var(--success); }
+        .widget-price.paid { background: #f59e0b; }
+
+        .widget-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 8px;
+            padding: 2px 5px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .badge-new { background: var(--success); color: #000; }
+        .badge-core { background: #7c3aed; color: #fff; }
+        .badge-kustom { background: linear-gradient(90deg, #f59e0b, #ec4899); color: #000; }
+
+        .detail-panel {
+            background: var(--panel);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            position: sticky;
+            top: 20px;
+        }
+
+        .detail-header {
+            text-align: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .detail-icon { font-size: 48px; margin-bottom: 12px; }
+        .detail-name { font-size: 1.3rem; font-weight: 600; margin-bottom: 4px; }
+        .detail-desc { color: var(--muted); font-size: 13px; }
+
+        .detail-body {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text);
+            margin-bottom: 16px;
+        }
+
+        .detail-kills {
+            margin-bottom: 16px;
+        }
+
+        .detail-kills h4 {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .kill-tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 4px 10px;
+            background: #1a1a1a;
+            border-radius: 100px;
+            color: #888;
+            text-decoration: line-through;
+            margin: 2px;
+        }
+
+        .detail-savings {
+            background: rgba(34, 197, 94, 0.15);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .savings-value { font-size: 1.5rem; font-weight: bold; color: var(--success); }
+        .savings-label { font-size: 11px; color: var(--muted); }
 
         .btn {
+            width: 100%;
             padding: 14px 24px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 14px;
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 600;
+            margin-bottom: 10px;
         }
 
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-            width: 100%;
-            margin-top: 24px;
-        }
-
+        .btn-primary { background: var(--accent); color: white; }
         .btn-primary:hover { opacity: 0.9; }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-secondary:hover { background: #3a3a45; }
+
         .status {
-            margin-top: 16px;
-            padding: 12px;
+            margin-top: 12px;
+            padding: 10px;
             border-radius: 8px;
-            font-size: 13px;
-            display: none;
+            font-size: 12px;
+            text-align: center;
         }
 
-        .status.loading {
-            display: block;
-            background: rgba(99, 102, 241, 0.2);
-            color: #a5b4fc;
-        }
-
-        .status.success {
-            display: block;
-            background: rgba(34, 197, 94, 0.2);
-            color: #86efac;
-        }
-
-        .status.error {
-            display: block;
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-
-        .info-box {
-            margin-top: 24px;
-            padding: 16px;
-            background: rgba(233, 69, 96, 0.1);
-            border-radius: 8px;
-            font-size: 13px;
-            color: var(--muted);
-            line-height: 1.6;
-        }
+        .status.loading { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+        .status.success { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+        .status.error { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 
         .preview-frame {
             width: 100%;
-            height: 400px;
+            height: 300px;
             border: 1px solid var(--border);
             border-radius: 8px;
-            margin-top: 16px;
+            margin-top: 12px;
             background: white;
         }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--muted);
+        }
+
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
     </style>
 </head>
 <body>
-    <div class="setup-panel">
-        <h1>📦 Widget Container</h1>
-        <p>Download any widget as a standalone HTML file that works offline</p>
+    <div class="container">
+        <header>
+            <h1>📦 Widget Container</h1>
+            <p>Download standalone widgets - works offline!</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="widgetCount">0</div>
+                    <div class="stat-label">Widgets</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">$0</div>
+                    <div class="stat-label">Cost</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="totalSavings">$0</div>
+                    <div class="stat-label">Saved/yr</div>
+                </div>
+            </div>
+        </header>
 
-        <div class="form-group">
-            <label>Select a widget to download:</label>
-            <div class="widget-grid" id="widgetGrid"></div>
+        <div class="main-grid">
+            <div class="widget-list">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search widgets..." oninput="filterWidgets()">
+                </div>
+                <div class="widget-grid" id="widgetGrid"></div>
+            </div>
+
+            <div class="detail-panel" id="detailPanel">
+                <div class="empty-state">
+                    <div class="icon">👆</div>
+                    <p>Select a widget to see details</p>
+                </div>
+            </div>
         </div>
-
-        <button class="btn btn-primary" id="downloadBtn" onclick="downloadWidget()">
-            ⬇️ Download Selected Widget
-        </button>
-
-        <div class="status" id="status"></div>
-
-        <div class="info-box">
-            <strong>How it works:</strong><br>
-            1. Click a widget to select it<br>
-            2. Click "Download" to save as standalone HTML<br>
-            3. Open the downloaded file - works completely offline!<br><br>
-            <strong>Note:</strong> Some widgets with external APIs (like WebLLM) need internet for AI features, but will work in offline/fallback mode.
-        </div>
-
-        <iframe id="previewFrame" class="preview-frame" style="display: none;"></iframe>
     </div>
 
     <script>
         let WIDGETS = [];
+        let filteredWidgets = [];
         let selectedWidget = null;
-        const widgetGrid = document.getElementById('widgetGrid');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const status = document.getElementById('status');
-        const previewFrame = document.getElementById('previewFrame');
 
-        // Dynamically load widgets from index.html
         async function loadWidgetList() {
-            showStatus('loading', 'Loading widget list...');
-
             try {
                 const response = await fetch('index.html');
                 const html = await response.text();
 
-                // Extract the WIDGETS array from the script
                 const match = html.match(/const WIDGETS = \[([\s\S]*?)\];/);
                 if (!match) throw new Error('Could not find WIDGETS array');
 
-                // Parse each widget object
-                const widgetRegex = /\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)',\s*icon:\s*'([^']+)',\s*desc:\s*'([^']+)',\s*file:\s*'([^']+)'/g;
-                let widgetMatch;
+                // More comprehensive regex to capture all fields
+                const widgetRegex = /\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)',\s*icon:\s*'([^']+)',\s*desc:\s*'([^']+)',\s*file:\s*'([^']+)',\s*body:\s*'([^']+)',\s*kills:\s*\[([^\]]*)\],\s*price:\s*(\d+)(?:,\s*color:\s*'([^']*)')?(?:,\s*badge:\s*'([^']*)')?/g;
 
+                let widgetMatch;
                 while ((widgetMatch = widgetRegex.exec(match[1])) !== null) {
-                    const [, id, name, icon, desc, file] = widgetMatch;
-                    // Skip hidden widgets and widget-container itself
-                    if (!match[1].includes(`hidden: true`) || !match[1].substring(widgetMatch.index - 200, widgetMatch.index).includes('hidden')) {
-                        if (id !== 'widgetContainer') {
-                            WIDGETS.push({ id, name, icon, desc, file });
-                        }
+                    const [, id, name, icon, desc, file, body, killsStr, price, color, badge] = widgetMatch;
+
+                    // Parse kills array
+                    const kills = killsStr.match(/'([^']+)'/g)?.map(k => k.replace(/'/g, '')) || [];
+
+                    if (id !== 'widgetContainer') {
+                        WIDGETS.push({
+                            id, name, icon, desc, file, body, kills,
+                            price: parseInt(price) || 0,
+                            color: color || '#e94560',
+                            badge: badge || ''
+                        });
                     }
                 }
 
-                // Filter out duplicates and hidden ones
+                // Remove duplicates
                 const seen = new Set();
                 WIDGETS = WIDGETS.filter(w => {
                     if (seen.has(w.id)) return false;
@@ -219,34 +338,55 @@
                     return true;
                 });
 
+                filteredWidgets = [...WIDGETS];
                 renderWidgets();
-                showStatus('success', `Loaded ${WIDGETS.length} widgets`);
-                setTimeout(() => { status.style.display = 'none'; }, 2000);
+                updateStats();
 
             } catch (error) {
                 console.error('Failed to load widget list:', error);
-                showStatus('error', 'Failed to load widgets. Using fallback list.');
-
-                // Fallback to basic list
+                // Fallback
                 WIDGETS = [
-                    { id: 'chat', name: 'Chat', icon: '💬', file: 'chat.html' },
-                    { id: 'kanban', name: 'Kanban', icon: '📋', file: 'kanban.html' },
-                    { id: 'wiki', name: 'Wiki', icon: '📖', file: 'wiki.html' },
-                    { id: 'calendar', name: 'Calendar', icon: '📅', file: 'calendar.html' },
-                    { id: 'elleen', name: 'Elleen', icon: '📚', file: 'elleen.html' },
-                    { id: 'usc', name: 'USC', icon: '📜', file: 'usc.html' },
+                    { id: 'chat', name: 'Chat', icon: '💬', desc: 'Real-time chat', file: 'chat.html', body: 'P2P chat rooms', kills: ['Stream $499/mo'], price: 499 },
+                    { id: 'elleen', name: 'Elleen', icon: '📚', desc: 'AI Grammar', file: 'elleen.html', body: 'Grammar checker', kills: ['Grammarly $12/mo'], price: 12 },
                 ];
+                filteredWidgets = [...WIDGETS];
                 renderWidgets();
             }
         }
 
+        function updateStats() {
+            document.getElementById('widgetCount').textContent = WIDGETS.length;
+            const totalPrice = WIDGETS.reduce((sum, w) => sum + (w.price || 0), 0);
+            document.getElementById('totalSavings').textContent = `$${(totalPrice * 12 / 1000).toFixed(0)}K+`;
+        }
+
+        function filterWidgets() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            filteredWidgets = WIDGETS.filter(w =>
+                w.name.toLowerCase().includes(query) ||
+                w.desc.toLowerCase().includes(query) ||
+                w.body?.toLowerCase().includes(query)
+            );
+            renderWidgets();
+        }
+
         function renderWidgets() {
-            widgetGrid.innerHTML = WIDGETS.map(w => `
-                <div class="widget-card" data-id="${w.id}" onclick="selectWidget('${w.id}')">
-                    <div class="widget-icon">${w.icon}</div>
-                    <div class="widget-name">${w.name}</div>
-                </div>
-            `).join('');
+            const grid = document.getElementById('widgetGrid');
+            grid.innerHTML = filteredWidgets.map(w => {
+                const priceClass = w.price > 0 ? 'paid' : 'free';
+                const priceText = w.price > 0 ? `$${w.price}/mo` : 'Free';
+                const badgeClass = w.badge === 'NEW' ? 'badge-new' : (w.badge === 'KUSTOM' ? 'badge-kustom' : 'badge-core');
+
+                return `
+                    <div class="widget-card" data-id="${w.id}" onclick="selectWidget('${w.id}')" style="border-color: ${w.color}22">
+                        ${w.badge ? `<span class="widget-badge ${badgeClass}">${w.badge}</span>` : ''}
+                        <span class="widget-price ${priceClass}">${priceText}</span>
+                        <div class="widget-icon">${w.icon}</div>
+                        <div class="widget-name">${w.name}</div>
+                        <div class="widget-desc">${w.desc}</div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function selectWidget(id) {
@@ -254,46 +394,89 @@
             document.querySelectorAll('.widget-card').forEach(card => {
                 card.classList.toggle('selected', card.dataset.id === id);
             });
-            downloadBtn.textContent = `⬇️ Download ${selectedWidget.name}`;
-
-            // Show preview
-            previewFrame.style.display = 'block';
-            previewFrame.src = selectedWidget.file;
+            renderDetailPanel();
         }
 
-        function showStatus(type, message) {
-            status.className = 'status ' + type;
-            status.textContent = message;
-            status.style.display = 'block';
-        }
+        function renderDetailPanel() {
+            const panel = document.getElementById('detailPanel');
+            const w = selectedWidget;
 
-        async function downloadWidget() {
-            if (!selectedWidget) {
-                alert('Please select a widget first!');
+            if (!w) {
+                panel.innerHTML = `<div class="empty-state"><div class="icon">👆</div><p>Select a widget</p></div>`;
                 return;
             }
 
-            showStatus('loading', `Fetching ${selectedWidget.name} widget...`);
-            downloadBtn.disabled = true;
+            const yearlySavings = (w.price || 0) * 12;
+
+            panel.innerHTML = `
+                <div class="detail-header">
+                    <div class="detail-icon">${w.icon}</div>
+                    <div class="detail-name">${w.name}</div>
+                    <div class="detail-desc">${w.desc}</div>
+                </div>
+
+                <div class="detail-body">${w.body || ''}</div>
+
+                ${w.kills?.length ? `
+                    <div class="detail-kills">
+                        <h4>Replaces:</h4>
+                        ${w.kills.map(k => `<span class="kill-tag">${k}</span>`).join('')}
+                    </div>
+                ` : ''}
+
+                ${yearlySavings > 0 ? `
+                    <div class="detail-savings">
+                        <div class="savings-value">$${yearlySavings}/yr</div>
+                        <div class="savings-label">You save with KISS MySaaS</div>
+                    </div>
+                ` : ''}
+
+                <button class="btn btn-primary" onclick="downloadWidget()">
+                    ⬇️ Download ${w.name}
+                </button>
+                <button class="btn btn-secondary" onclick="previewWidget()">
+                    👁️ Preview
+                </button>
+
+                <div class="status" id="status" style="display: none;"></div>
+                <iframe id="previewFrame" class="preview-frame" style="display: none;"></iframe>
+            `;
+        }
+
+        function previewWidget() {
+            if (!selectedWidget) return;
+            const frame = document.getElementById('previewFrame');
+            frame.style.display = 'block';
+            frame.src = selectedWidget.file;
+        }
+
+        async function downloadWidget() {
+            if (!selectedWidget) return;
+
+            const status = document.getElementById('status');
+            status.className = 'status loading';
+            status.textContent = `Fetching ${selectedWidget.name}...`;
+            status.style.display = 'block';
 
             try {
-                // Fetch the widget HTML
                 const response = await fetch(selectedWidget.file);
-                if (!response.ok) throw new Error('Failed to fetch widget');
+                if (!response.ok) throw new Error('Failed to fetch');
 
                 let html = await response.text();
 
-                // Add a comment header
+                // Add metadata header
                 const header = `<!--
   KISS MySaaS - ${selectedWidget.name} Widget
+  ${selectedWidget.desc}
+  ${selectedWidget.body}
+  Replaces: ${selectedWidget.kills?.join(', ') || 'N/A'}
+  Savings: $${(selectedWidget.price || 0) * 12}/year
   Downloaded from Widget Container
-  This is a standalone file - works offline!
-  https://github.com/user/kp2p
+  https://github.com/teslasolar/kp2p
 -->\n`;
 
                 html = header + html;
 
-                // Create download
                 const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -304,17 +487,16 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
-                showStatus('success', `✓ Downloaded ${selectedWidget.name} widget! Open the file to use it.`);
+                status.className = 'status success';
+                status.textContent = `✓ Downloaded! Open the file to use.`;
 
             } catch (error) {
-                console.error('Download error:', error);
-                showStatus('error', `Failed to download: ${error.message}`);
+                status.className = 'status error';
+                status.textContent = `Failed: ${error.message}`;
             }
-
-            downloadBtn.disabled = false;
         }
 
-        // Init - load widgets dynamically
+        // Init
         loadWidgetList();
     </script>
 </body>
