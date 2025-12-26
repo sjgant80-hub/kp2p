@@ -684,11 +684,60 @@
         }
 
         async function fetchSection(title, section, subsection) {
-            // Try to fetch from Cornell LII
             const liiUrl = `https://www.law.cornell.edu/uscode/text/${title}/${section}`;
 
-            // Since we can't directly fetch due to CORS, show link
-            displayGenericSection(title, section, subsection, liiUrl);
+            try {
+                // Use allorigins proxy to bypass CORS
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(liiUrl)}`;
+                const response = await fetch(proxyUrl);
+
+                if (!response.ok) throw new Error('Failed to fetch');
+
+                const html = await response.text();
+
+                // Parse the HTML to extract section content
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Try to find the section title
+                const titleEl = doc.querySelector('.section-head, h1.page-title, .field-body h2');
+                const sectionTitle = titleEl?.textContent?.trim() || `Section ${section}`;
+
+                // Try to find the main content
+                const contentEl = doc.querySelector('.field-body, .statutory-body, #content-body, .section');
+                let content = '';
+
+                if (contentEl) {
+                    // Clean up the content
+                    content = contentEl.innerHTML
+                        .replace(/<a[^>]*>/gi, '')
+                        .replace(/<\/a>/gi, '')
+                        .replace(/class="[^"]*"/gi, '')
+                        .replace(/id="[^"]*"/gi, '')
+                        .replace(/style="[^"]*"/gi, '');
+                } else {
+                    // Fallback - try to get any paragraph content
+                    const paragraphs = doc.querySelectorAll('p');
+                    if (paragraphs.length > 2) {
+                        content = Array.from(paragraphs).slice(0, 10).map(p => `<p>${p.textContent}</p>`).join('');
+                    }
+                }
+
+                if (content && content.length > 100) {
+                    displaySection(title, section, subsection, {
+                        title: sectionTitle,
+                        cite: `${title} U.S.C. § ${section}`,
+                        content: content
+                    });
+                } else {
+                    throw new Error('Could not parse content');
+                }
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                // Fall back to showing links
+                displayGenericSection(title, section, subsection, liiUrl);
+            }
         }
 
         function displayGenericSection(title, section, subsection, externalUrl) {
