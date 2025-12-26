@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<script type="application/json" id="widget-meta">
+{
+    "id": "eds-awareness",
+    "name": "EDS AWARENESS",
+    "icon": "🦓",
+    "desc": "Ehlers-Danlos Syndrome Info",
+    "body": "Educational resource about Ehlers-Danlos Syndromes - 13 genetic connective tissue disorders. Types, symptoms, diagnosis, and support resources from the Ehlers-Danlos Society.",
+    "kills": ["Medical Brochures $0", "Awareness Cards $$$"],
+    "price": 0,
+    "color": "#7c3aed",
+    "badge": "NEW"
+}
+</script>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDS Awareness - Ehlers-Danlos Syndrome Information</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e4e4e7;
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(139, 92, 246, 0.1));
+            border-radius: 16px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+        }
+        .zebra-icon { font-size: 4rem; margin-bottom: 12px; }
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #a78bfa, #c4b5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .tagline { color: #a1a1aa; font-size: 1rem; margin-bottom: 16px; }
+        .zebra-ribbon {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: repeating-linear-gradient(
+                45deg,
+                #000,
+                #000 10px,
+                #fff 10px,
+                #fff 20px
+            );
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #000;
+            font-weight: 600;
+        }
+        .zebra-ribbon span { background: #fff; padding: 2px 8px; border-radius: 4px; }
+
+        /* Why Zebra */
+        .zebra-explainer {
+            background: rgba(0,0,0,0.2);
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border-left: 4px solid #a78bfa;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .zebra-explainer strong { color: #c4b5fd; }
+
+        /* Navigation Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #a1a1aa;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .tab:hover { background: rgba(255,255,255,0.1); }
+        .tab.active {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Content Sections */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        .card:hover { border-color: rgba(124, 58, 237, 0.5); transform: translateY(-2px); }
+        .card-icon { font-size: 2rem; margin-bottom: 12px; }
+        .card h3 { color: #c4b5fd; font-size: 1.1rem; margin-bottom: 8px; }
+        .card p { color: #a1a1aa; font-size: 0.9rem; }
+
+        /* Type Cards */
+        .type-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .type-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .type-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .type-badge.common { background: #22c55e; color: #000; }
+        .type-badge.rare { background: #f59e0b; color: #000; }
+        .type-badge.ultra-rare { background: #ef4444; color: #fff; }
+        .type-card h3 { color: #c4b5fd; margin-bottom: 4px; }
+        .type-card .gene { color: #71717a; font-size: 0.8rem; font-family: monospace; }
+        .type-card p { color: #a1a1aa; font-size: 0.9rem; margin-top: 12px; }
+        .type-card .prevalence {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: rgba(124, 58, 237, 0.1);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #a78bfa;
+        }
+
+        /* Symptoms List */
+        .symptoms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+        .symptom-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        .symptom-icon { font-size: 1.2rem; }
+        .symptom-text { font-size: 0.9rem; color: #d4d4d8; }
+
+        /* Info Box */
+        .info-box {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .info-box h3 { color: #c4b5fd; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .info-box p { color: #d4d4d8; font-size: 0.95rem; }
+
+        /* Warning Box */
+        .warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .warning-box h3 { color: #fca5a5; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .warning-box p { color: #d4d4d8; font-size: 0.95rem; }
+        .warning-box ul { margin-top: 12px; margin-left: 20px; color: #d4d4d8; }
+        .warning-box li { margin-bottom: 6px; }
+
+        /* Resources */
+        .resource-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+        }
+        .resource-link:hover { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
+        .resource-icon { font-size: 1.5rem; }
+        .resource-info h4 { color: #c4b5fd; font-size: 1rem; margin-bottom: 4px; }
+        .resource-info p { color: #71717a; font-size: 0.85rem; }
+        .resource-arrow { margin-left: auto; color: #71717a; }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-box {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat-value { font-size: 2rem; font-weight: 700; color: #a78bfa; }
+        .stat-label { font-size: 0.8rem; color: #71717a; margin-top: 4px; }
+
+        /* Beighton Score */
+        .beighton-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .beighton-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .beighton-item:hover { background: rgba(0,0,0,0.3); }
+        .beighton-item.checked { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+        .beighton-check {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #71717a;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .beighton-item.checked .beighton-check { background: #22c55e; border-color: #22c55e; color: #000; }
+        .beighton-text { flex: 1; font-size: 0.9rem; }
+        .beighton-points { font-size: 0.8rem; color: #71717a; }
+        .beighton-score {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(139, 92, 246, 0.1));
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        .beighton-score .score-value { font-size: 3rem; font-weight: 700; color: #a78bfa; }
+        .beighton-score .score-label { color: #a1a1aa; margin-top: 4px; }
+        .beighton-score .score-note { font-size: 0.85rem; color: #71717a; margin-top: 12px; }
+
+        /* Share Button */
+        .share-section {
+            text-align: center;
+            padding: 30px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            margin-top: 24px;
+        }
+        .share-section h3 { color: #c4b5fd; margin-bottom: 16px; }
+        .share-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .share-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .share-btn.primary { background: #7c3aed; color: white; }
+        .share-btn.primary:hover { background: #6d28d9; }
+        .share-btn.secondary { background: rgba(255,255,255,0.1); color: #e4e4e7; }
+        .share-btn.secondary:hover { background: rgba(255,255,255,0.15); }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 24px;
+            margin-top: 24px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: #71717a;
+            font-size: 0.85rem;
+        }
+        footer a { color: #a78bfa; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        /* Print Styles */
+        @media print {
+            body { background: white; color: black; }
+            .tabs, .share-section, .beighton-item { display: none; }
+            .section { display: block !important; page-break-inside: avoid; }
+            .card, .type-card, .info-box { border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="zebra-icon">🦓</div>
+            <h1>Ehlers-Danlos Syndromes</h1>
+            <p class="tagline">Understanding the 13 Types of Connective Tissue Disorders</p>
+            <div class="zebra-ribbon">
+                <span>EDS Awareness</span>
+            </div>
+            <div class="zebra-explainer">
+                <strong>Why the Zebra?</strong> Medical students are taught "When you hear hoofbeats, think horses, not zebras" — meaning common conditions are more likely. But EDS patients are the "zebras": rare conditions that are often missed. The zebra stripe ribbon represents the EDS community.
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="overview">Overview</button>
+            <button class="tab" data-tab="types">13 Types</button>
+            <button class="tab" data-tab="symptoms">Symptoms</button>
+            <button class="tab" data-tab="diagnosis">Diagnosis</button>
+            <button class="tab" data-tab="beighton">Beighton Score</button>
+            <button class="tab" data-tab="resources">Resources</button>
+        </div>
+
+        <!-- Overview Section -->
+        <div id="overview" class="section active">
+            <div class="info-box">
+                <h3>📚 What is Ehlers-Danlos Syndrome?</h3>
+                <p>Ehlers-Danlos Syndromes (EDS) are a group of <strong>13 inherited connective tissue disorders</strong> caused by genetic mutations affecting collagen and related proteins. Connective tissue provides support and structure throughout the body, so EDS can affect the skin, joints, blood vessels, and other organs.</p>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-value">13</div>
+                    <div class="stat-label">Recognized Types</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">1 in 5,000</div>
+                    <div class="stat-label">Estimated Prevalence (hEDS)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">10 years</div>
+                    <div class="stat-label">Median Time to Diagnosis</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">90%</div>
+                    <div class="stat-label">Cases are Hypermobile Type</div>
+                </div>
+            </div>
+
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon">🧬</div>
+                    <h3>Genetic Condition</h3>
+                    <p>EDS is caused by mutations in genes that affect collagen production or structure. Most types can be confirmed through genetic testing, except hEDS.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">👨‍👩‍👧</div>
+                    <h3>Inherited</h3>
+                    <p>EDS is passed from parent to child through either dominant or recessive inheritance patterns, depending on the type.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🏥</div>
+                    <h3>Multi-System</h3>
+                    <p>Because connective tissue is everywhere, EDS can affect joints, skin, blood vessels, digestive system, heart, and more.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">⚠️</div>
+                    <h3>Often Misdiagnosed</h3>
+                    <p>The average patient waits 10+ years for diagnosis. Increased awareness helps patients get proper care sooner.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Types Section -->
+        <div id="types" class="section">
+            <div class="info-box">
+                <h3>📋 The 13 Types of EDS (2017 Classification)</h3>
+                <p>In 2017, the international classification recognized 13 distinct types of EDS. Each type has specific genetic causes and clinical features. Genetic testing can confirm diagnosis for all types except hEDS.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Hypermobile EDS (hEDS)</h3>
+                    <span class="type-badge common">Most Common</span>
+                </div>
+                <div class="gene">Gene: Unknown (clinical diagnosis only)</div>
+                <p>Characterized by generalized joint hypermobility, chronic pain, frequent dislocations/subluxations, soft stretchy skin, fatigue, and often associated with POTS, MCAS, and GI issues. This is the only type without a known genetic marker.</p>
+                <div class="prevalence">📊 Affects ~1 in 3,100–5,000 people (90% of all EDS cases)</div>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Classical EDS (cEDS)</h3>
+                    <span class="type-badge rare">Rare</span>
+                </div>
+                <div class="gene">Genes: COL5A1, COL5A2, rarely COL1A1</div>
+                <p>Very stretchy, fragile skin that bruises easily and heals with characteristic "cigarette paper" scars. Significant joint hypermobility with dislocations.</p>
+                <div class="prevalence">📊 Affects ~1 in 20,000–40,000 people</div>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Vascular EDS (vEDS)</h3>
+                    <span class="type-badge ultra-rare">Serious</span>
+                </div>
+                <div class="gene">Gene: COL3A1 (rarely COL1A1)</div>
+                <p>The most serious type. Characterized by thin, translucent skin, easy bruising, and risk of spontaneous arterial/organ rupture. Requires careful medical monitoring.</p>
+                <div class="prevalence">📊 Affects ~1 in 50,000–200,000 people | Median life expectancy: 48 years</div>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Kyphoscoliotic EDS (kEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Genes: PLOD1, FKBP14</div>
+                <p>Severe muscle weakness at birth, progressive scoliosis, fragile eyes prone to rupture, and joint hypermobility.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Classical-like EDS (clEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Gene: TNXB</div>
+                <p>Similar to classical EDS but without the characteristic atrophic scarring. Features skin hyperextensibility and generalized joint hypermobility.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Cardiac-valvular EDS (cvEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Gene: COL1A2</div>
+                <p>Severe progressive cardiac-valvular problems, skin involvement, and joint hypermobility. Requires cardiac monitoring.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Arthrochalasia EDS (aEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Genes: COL1A1, COL1A2</div>
+                <p>Severe joint hypermobility with congenital hip dislocation, fragile skin with easy bruising, and muscle weakness.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Dermatosparaxis EDS (dEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Gene: ADAMTS2</div>
+                <p>Extremely fragile skin that sags and wrinkles, severe bruising, and soft, doughy skin texture.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Brittle Cornea Syndrome (BCS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Genes: ZNF469, PRDM5</div>
+                <p>Thin corneas prone to rupture, blue sclerae, keratoconus, and hearing loss. Joint hypermobility may be present.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Spondylodysplastic EDS (spEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Genes: B4GALT7, B3GALT6, SLC39A13</div>
+                <p>Short stature, muscle weakness, bowing of limbs, and characteristic facial features.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Musculocontractural EDS (mcEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Genes: CHST14, DSE</div>
+                <p>Congenital multiple contractures, characteristic facial features, fragile skin, and internal organ anomalies.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Myopathic EDS (mEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Gene: COL12A1</div>
+                <p>Congenital muscle weakness that improves with age, joint hypermobility, and soft skin.</p>
+            </div>
+
+            <div class="type-card">
+                <div class="type-header">
+                    <h3>Periodontal EDS (pEDS)</h3>
+                    <span class="type-badge ultra-rare">Ultra-Rare</span>
+                </div>
+                <div class="gene">Genes: C1R, C1S</div>
+                <p>Severe, early-onset periodontitis leading to tooth loss, lack of attached gingiva, and pretibial plaques.</p>
+            </div>
+        </div>
+
+        <!-- Symptoms Section -->
+        <div id="symptoms" class="section">
+            <div class="info-box">
+                <h3>🩺 Common Signs & Symptoms</h3>
+                <p>Symptoms vary significantly between types and individuals. Many people with EDS experience a combination of these symptoms. The severity can range from mild to severely disabling.</p>
+            </div>
+
+            <h3 style="color: #c4b5fd; margin-bottom: 16px;">Joint & Musculoskeletal</h3>
+            <div class="symptoms-grid">
+                <div class="symptom-item">
+                    <span class="symptom-icon">🦴</span>
+                    <span class="symptom-text">Joint hypermobility (unusually flexible joints)</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">⚡</span>
+                    <span class="symptom-text">Frequent joint dislocations and subluxations</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">😰</span>
+                    <span class="symptom-text">Chronic joint and muscle pain</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🔄</span>
+                    <span class="symptom-text">Joint instability and "clicking"</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">💪</span>
+                    <span class="symptom-text">Muscle weakness and fatigue</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🦵</span>
+                    <span class="symptom-text">Flat feet and abnormal gait</span>
+                </div>
+            </div>
+
+            <h3 style="color: #c4b5fd; margin: 24px 0 16px;">Skin</h3>
+            <div class="symptoms-grid">
+                <div class="symptom-item">
+                    <span class="symptom-icon">✨</span>
+                    <span class="symptom-text">Soft, velvety, or stretchy skin</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🩹</span>
+                    <span class="symptom-text">Fragile skin that tears easily</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">💜</span>
+                    <span class="symptom-text">Easy bruising</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">📍</span>
+                    <span class="symptom-text">Poor wound healing, abnormal scars</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🔵</span>
+                    <span class="symptom-text">Stretch marks (striae)</span>
+                </div>
+            </div>
+
+            <h3 style="color: #c4b5fd; margin: 24px 0 16px;">Systemic & Associated Conditions</h3>
+            <div class="symptoms-grid">
+                <div class="symptom-item">
+                    <span class="symptom-icon">😴</span>
+                    <span class="symptom-text">Chronic fatigue</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">💓</span>
+                    <span class="symptom-text">POTS (Postural Orthostatic Tachycardia)</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🫀</span>
+                    <span class="symptom-text">Mitral valve prolapse</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🤧</span>
+                    <span class="symptom-text">MCAS (Mast Cell Activation Syndrome)</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🫃</span>
+                    <span class="symptom-text">Digestive issues (IBS, gastroparesis)</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">😵‍💫</span>
+                    <span class="symptom-text">Dizziness and fainting</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">🧠</span>
+                    <span class="symptom-text">Brain fog and concentration issues</span>
+                </div>
+                <div class="symptom-item">
+                    <span class="symptom-icon">😴</span>
+                    <span class="symptom-text">Sleep disturbances</span>
+                </div>
+            </div>
+
+            <div class="warning-box" style="margin-top: 24px;">
+                <h3>⚠️ When to Seek Emergency Care</h3>
+                <p>Especially for those with or suspected of having vascular EDS:</p>
+                <ul>
+                    <li>Sudden severe pain in the chest, abdomen, or limbs</li>
+                    <li>Sudden difficulty breathing</li>
+                    <li>Signs of internal bleeding</li>
+                    <li>Sudden severe headache</li>
+                    <li>Unexplained swelling or bruising</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Diagnosis Section -->
+        <div id="diagnosis" class="section">
+            <div class="info-box">
+                <h3>🔬 How is EDS Diagnosed?</h3>
+                <p>Diagnosis typically involves clinical evaluation, family history, and for most types, genetic testing. The 2017 diagnostic criteria provide a framework for diagnosis. The Ehlers-Danlos Society is working on updated criteria expected in 2026.</p>
+            </div>
+
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon">👨‍⚕️</div>
+                    <h3>Clinical Evaluation</h3>
+                    <p>A doctor examines joint mobility, skin elasticity, scarring patterns, and other physical signs. The Beighton score measures joint hypermobility.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">👨‍👩‍👧</div>
+                    <h3>Family History</h3>
+                    <p>EDS is inherited, so family history of similar symptoms, hypermobility, or confirmed EDS diagnoses is important.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🧬</div>
+                    <h3>Genetic Testing</h3>
+                    <p>Can confirm 12 of the 13 types. Currently, there is no genetic test for hEDS—it's diagnosed clinically.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">📋</div>
+                    <h3>2017 Criteria</h3>
+                    <p>International diagnostic criteria specify requirements for each type. hEDS has specific criteria including Beighton score and systemic features.</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3>🗓️ Road to 2026</h3>
+                <p>The Ehlers-Danlos Society is leading an international effort to update EDS classification and diagnostic criteria. A scientific symposium in Toronto (2025) will present findings, with final publication expected in late 2026.</p>
+            </div>
+
+            <div class="warning-box">
+                <h3>⏱️ The Diagnostic Delay</h3>
+                <p>On average, EDS patients wait <strong>10 years</strong> from first symptoms to diagnosis. The median time from seeking a GP opinion to diagnosis is also years. Early diagnosis can help prevent complications and improve quality of life.</p>
+            </div>
+        </div>
+
+        <!-- Beighton Score Section -->
+        <div id="beighton" class="section">
+            <div class="info-box">
+                <h3>📊 Beighton Score Calculator</h3>
+                <p>The Beighton Score is a simple test to measure generalized joint hypermobility. It's one component of EDS diagnosis. A score of ≥5 for adults (≥6 for children) suggests hypermobility. <strong>Note:</strong> This is for educational purposes only—diagnosis requires professional evaluation.</p>
+            </div>
+
+            <div class="beighton-grid">
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Left pinky bends back ≥90°</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Right pinky bends back ≥90°</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Left thumb touches forearm</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Right thumb touches forearm</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Left elbow hyperextends ≥10°</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Right elbow hyperextends ≥10°</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Left knee hyperextends ≥10°</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Right knee hyperextends ≥10°</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+                <div class="beighton-item" data-points="1" onclick="toggleBeighton(this)">
+                    <div class="beighton-check">✓</div>
+                    <span class="beighton-text">Palms flat on floor (legs straight)</span>
+                    <span class="beighton-points">1 pt</span>
+                </div>
+            </div>
+
+            <div class="beighton-score">
+                <div class="score-value" id="beightonTotal">0</div>
+                <div class="score-label">out of 9</div>
+                <div class="score-note" id="beightonNote">Select the movements you can perform</div>
+            </div>
+        </div>
+
+        <!-- Resources Section -->
+        <div id="resources" class="section">
+            <div class="info-box">
+                <h3>🌐 Official Resources & Support</h3>
+                <p>Connect with the EDS community and find support through these trusted organizations.</p>
+            </div>
+
+            <a href="https://www.ehlers-danlos.com/" target="_blank" rel="noopener" class="resource-link">
+                <span class="resource-icon">🦓</span>
+                <div class="resource-info">
+                    <h4>The Ehlers-Danlos Society</h4>
+                    <p>Global patient advocacy organization • ehlers-danlos.com</p>
+                </div>
+                <span class="resource-arrow">→</span>
+            </a>
+
+            <a href="https://www.ehlers-danlos.org/" target="_blank" rel="noopener" class="resource-link">
+                <span class="resource-icon">🇬🇧</span>
+                <div class="resource-info">
+                    <h4>Ehlers-Danlos Support UK</h4>
+                    <p>UK charity providing support and information • ehlers-danlos.org</p>
+                </div>
+                <span class="resource-arrow">→</span>
+            </a>
+
+            <a href="https://gptoolkit.ehlers-danlos.org/" target="_blank" rel="noopener" class="resource-link">
+                <span class="resource-icon">👨‍⚕️</span>
+                <div class="resource-info">
+                    <h4>EDS GP Toolkit</h4>
+                    <p>Resources for healthcare providers • gptoolkit.ehlers-danlos.org</p>
+                </div>
+                <span class="resource-arrow">→</span>
+            </a>
+
+            <a href="https://www.hypermobility.org/" target="_blank" rel="noopener" class="resource-link">
+                <span class="resource-icon">🤸</span>
+                <div class="resource-info">
+                    <h4>The Hypermobility Syndromes Association (HMSA)</h4>
+                    <p>UK charity for hypermobility conditions • hypermobility.org</p>
+                </div>
+                <span class="resource-arrow">→</span>
+            </a>
+
+            <a href="https://rarediseases.org/" target="_blank" rel="noopener" class="resource-link">
+                <span class="resource-icon">🎗️</span>
+                <div class="resource-info">
+                    <h4>NORD (National Organization for Rare Disorders)</h4>
+                    <p>US rare disease patient advocacy • rarediseases.org</p>
+                </div>
+                <span class="resource-arrow">→</span>
+            </a>
+
+            <div class="cards-grid" style="margin-top: 24px;">
+                <div class="card">
+                    <div class="card-icon">📅</div>
+                    <h3>EDS Awareness Month</h3>
+                    <p>May is EDS Awareness Month. Help spread awareness by sharing information and wearing zebra stripes!</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🩺</div>
+                    <h3>Find a Specialist</h3>
+                    <p>The Ehlers-Danlos Society maintains a directory of healthcare providers familiar with EDS.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="share-section">
+            <h3>🦓 Spread Awareness</h3>
+            <div class="share-buttons">
+                <button class="share-btn primary" onclick="shareWidget()">
+                    📤 Share This Page
+                </button>
+                <button class="share-btn secondary" onclick="copyLink()">
+                    🔗 Copy Link
+                </button>
+                <button class="share-btn secondary" onclick="window.print()">
+                    🖨️ Print Info
+                </button>
+            </div>
+        </div>
+
+        <footer>
+            <p>This widget is for educational purposes only and is not medical advice.</p>
+            <p>Always consult healthcare professionals for diagnosis and treatment.</p>
+            <p style="margin-top: 12px;">
+                Sources: <a href="https://www.ehlers-danlos.com/" target="_blank">The Ehlers-Danlos Society</a> •
+                <a href="https://www.ehlers-danlos.org/" target="_blank">EDS Support UK</a> •
+                <a href="https://en.wikipedia.org/wiki/Ehlers–Danlos_syndrome" target="_blank">Wikipedia</a> •
+                <a href="https://my.clevelandclinic.org/health/diseases/17813-ehlers-danlos-syndrome" target="_blank">Cleveland Clinic</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Tab Navigation
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Beighton Score Calculator
+        function toggleBeighton(item) {
+            item.classList.toggle('checked');
+            updateBeightonScore();
+        }
+
+        function updateBeightonScore() {
+            const checked = document.querySelectorAll('.beighton-item.checked').length;
+            document.getElementById('beightonTotal').textContent = checked;
+
+            const note = document.getElementById('beightonNote');
+            if (checked === 0) {
+                note.textContent = 'Select the movements you can perform';
+            } else if (checked < 4) {
+                note.textContent = 'Score suggests normal joint mobility';
+            } else if (checked < 5) {
+                note.textContent = 'Borderline hypermobility';
+            } else {
+                note.textContent = 'Score suggests generalized joint hypermobility (≥5)';
+                note.style.color = '#a78bfa';
+            }
+        }
+
+        // Share Functions
+        async function shareWidget() {
+            const shareData = {
+                title: 'Ehlers-Danlos Syndrome Awareness',
+                text: 'Learn about the 13 types of Ehlers-Danlos Syndromes, symptoms, diagnosis, and support resources.',
+                url: window.location.href
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    copyLink();
+                }
+            } catch (err) {
+                copyLink();
+            }
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this link:', window.location.href);
+            });
+        }
+
+        // Expose for external use
+        window.EDSAwareness = {
+            version: '1.0',
+            showTab: (tabName) => {
+                document.querySelector(`[data-tab="${tabName}"]`)?.click();
+            }
+        };
+    </script>
+</body>
+</html>
