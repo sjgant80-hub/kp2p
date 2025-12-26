@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Container</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0f;
+            --panel: #111118;
+            --border: #2a2a35;
+            --accent: #e94560;
+            --text: #e8e8e8;
+            --muted: #666;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Toolbar mode */
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .toolbar.hidden { display: none; }
+
+        .toolbar-title {
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .toolbar-url {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .toolbar-url:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover { opacity: 0.9; }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover { background: #3a3a45; }
+
+        .btn-icon {
+            padding: 8px;
+            background: transparent;
+            color: var(--muted);
+        }
+
+        .btn-icon:hover { color: var(--text); }
+
+        /* Widget container */
+        .widget-frame {
+            position: fixed;
+            top: 48px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: none;
+        }
+
+        .widget-frame.fullscreen {
+            top: 0;
+        }
+
+        /* Setup mode */
+        .setup-panel {
+            max-width: 600px;
+            margin: 80px auto 40px;
+            padding: 32px;
+            background: var(--panel);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .setup-panel h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: var(--accent);
+        }
+
+        .setup-panel p {
+            color: var(--muted);
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .widget-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .widget-card {
+            padding: 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .widget-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .widget-card.selected {
+            border-color: var(--accent);
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .widget-icon { font-size: 28px; margin-bottom: 8px; }
+        .widget-name { font-size: 13px; font-weight: 500; }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .actions .btn { flex: 1; padding: 14px; }
+
+        .info-box {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(233, 69, 96, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .info-box code {
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar" id="toolbar">
+        <span class="toolbar-title">📦 Widget</span>
+        <input type="text" class="toolbar-url" id="urlInput" placeholder="Widget URL...">
+        <button class="btn btn-primary" onclick="loadWidget()">Load</button>
+        <button class="btn btn-secondary" onclick="showSetup()">Change</button>
+        <button class="btn-icon" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
+        <button class="btn-icon" onclick="downloadContainer()" title="Download">⬇</button>
+    </div>
+
+    <iframe id="widgetFrame" class="widget-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+
+    <div class="setup-panel" id="setupPanel">
+        <h1>📦 Widget Container</h1>
+        <p>Embed any widget in a downloadable standalone page</p>
+
+        <div class="form-group">
+            <label>Widget URL</label>
+            <input type="text" id="customUrl" placeholder="https://example.com/widgets/chat.html">
+        </div>
+
+        <div class="form-group">
+            <label>Or select a KISS MySaaS widget:</label>
+            <div class="widget-grid" id="widgetGrid"></div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" onclick="embedWidget()">Embed Widget</button>
+            <button class="btn btn-secondary" onclick="downloadContainer()">Download Container</button>
+        </div>
+
+        <div class="info-box">
+            <strong>How it works:</strong><br>
+            1. Enter a URL or select a widget<br>
+            2. Click "Embed Widget" to preview<br>
+            3. Click "Download Container" to save as HTML<br><br>
+            <strong>URL params:</strong> <code>?url=https://...</code> or <code>?widget=chat</code>
+        </div>
+    </div>
+
+    <script>
+        const WIDGETS = [
+            { id: 'chat', name: 'Chat', icon: '💬' },
+            { id: 'kanban', name: 'Kanban', icon: '📋' },
+            { id: 'wiki', name: 'Wiki', icon: '📖' },
+            { id: 'whiteboard', name: 'Whiteboard', icon: '🎨' },
+            { id: 'calendar', name: 'Calendar', icon: '📅' },
+            { id: 'files', name: 'Files', icon: '📁' },
+            { id: 'database', name: 'Database', icon: '🗄️' },
+            { id: 'polls', name: 'Polls', icon: '📊' },
+            { id: 'timer', name: 'Timer', icon: '⏱️' },
+            { id: 'pomodoro', name: 'Pomodoro', icon: '🍅' },
+            { id: 'markdown', name: 'Markdown', icon: '📝' },
+            { id: 'terminal', name: 'Terminal', icon: '💻' },
+            { id: 'ai-chat', name: 'AI Chat', icon: '🤖' },
+            { id: 'elleen', name: 'Elleen', icon: '📚' },
+            { id: 'usc', name: 'USC', icon: '📜' },
+            { id: 'mahjong', name: 'Mahjong', icon: '🀄' },
+            { id: 'trivia', name: 'Trivia', icon: '🎯' },
+            { id: 'kode', name: 'Kode', icon: '💻' },
+            { id: 'docs', name: 'Docs', icon: '📄' },
+            { id: 'crm', name: 'CRM', icon: '💼' },
+        ];
+
+        const frame = document.getElementById('widgetFrame');
+        const toolbar = document.getElementById('toolbar');
+        const setupPanel = document.getElementById('setupPanel');
+        const urlInput = document.getElementById('urlInput');
+        const customUrl = document.getElementById('customUrl');
+        const widgetGrid = document.getElementById('widgetGrid');
+
+        let selectedWidget = null;
+        let currentUrl = '';
+        let isFullscreen = false;
+
+        // Render widget grid
+        function renderWidgets() {
+            widgetGrid.innerHTML = WIDGETS.map(w => `
+                <div class="widget-card" data-id="${w.id}" onclick="selectWidget('${w.id}')">
+                    <div class="widget-icon">${w.icon}</div>
+                    <div class="widget-name">${w.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectWidget(id) {
+            selectedWidget = id;
+            document.querySelectorAll('.widget-card').forEach(card => {
+                card.classList.toggle('selected', card.dataset.id === id);
+            });
+            customUrl.value = `./${id}.html`;
+        }
+
+        function getWidgetUrl() {
+            const custom = customUrl.value.trim();
+            if (custom) return custom;
+            if (selectedWidget) return `./${selectedWidget}.html`;
+            return '';
+        }
+
+        function embedWidget() {
+            const url = getWidgetUrl();
+            if (!url) {
+                alert('Please enter a URL or select a widget');
+                return;
+            }
+            currentUrl = url;
+            urlInput.value = url;
+            frame.src = url;
+            setupPanel.style.display = 'none';
+            toolbar.classList.remove('hidden');
+        }
+
+        function loadWidget() {
+            const url = urlInput.value.trim();
+            if (!url) return;
+            currentUrl = url;
+            frame.src = url;
+        }
+
+        function showSetup() {
+            setupPanel.style.display = 'block';
+            toolbar.classList.add('hidden');
+            frame.src = '';
+        }
+
+        function toggleFullscreen() {
+            isFullscreen = !isFullscreen;
+            toolbar.classList.toggle('hidden', isFullscreen);
+            frame.classList.toggle('fullscreen', isFullscreen);
+        }
+
+        function downloadContainer() {
+            const url = currentUrl || getWidgetUrl();
+            if (!url) {
+                alert('Please select or enter a widget URL first');
+                return;
+            }
+
+            // Generate standalone HTML
+            const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Container</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0f; }
+        iframe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <iframe src="${url}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+</body>
+</html>`;
+
+            const blob = new Blob([html], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `widget-container.html`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // Check URL params
+        function init() {
+            renderWidgets();
+
+            const params = new URLSearchParams(window.location.search);
+            const urlParam = params.get('url');
+            const widgetParam = params.get('widget');
+
+            if (urlParam) {
+                currentUrl = urlParam;
+                urlInput.value = urlParam;
+                frame.src = urlParam;
+                setupPanel.style.display = 'none';
+                toolbar.classList.remove('hidden');
+            } else if (widgetParam) {
+                currentUrl = `./${widgetParam}.html`;
+                urlInput.value = currentUrl;
+                frame.src = currentUrl;
+                setupPanel.style.display = 'none';
+                toolbar.classList.remove('hidden');
+            } else {
+                toolbar.classList.add('hidden');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
