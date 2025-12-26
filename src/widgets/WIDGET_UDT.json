@@ -1,0 +1,460 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kiss-mysaas.io/schemas/widget-udt-v1.json",
+  "title": "KISS MySaaS Widget UDT",
+  "description": "ISA-95 inspired User Defined Type for standalone HTML widgets",
+  "version": "1.0.0",
+
+  "definitions": {
+    "WidgetUDT": {
+      "type": "object",
+      "description": "Standard structure for all KISS MySaaS widgets following ISA-95 hierarchical principles",
+
+      "properties": {
+
+        "_meta": {
+          "type": "object",
+          "description": "UDT metadata - describes the type definition itself",
+          "properties": {
+            "udtVersion": { "type": "string", "default": "1.0.0" },
+            "udtType": { "type": "string", "const": "Widget" },
+            "conformsTo": { "type": "string", "default": "ISA-95" }
+          }
+        },
+
+        "identification": {
+          "type": "object",
+          "description": "ISA-95 L1: Unique identification attributes",
+          "required": ["id", "name"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$",
+              "description": "Unique widget identifier (kebab-case)",
+              "examples": ["eds-awareness", "kopilot-pro", "femto-llm"]
+            },
+            "name": {
+              "type": "string",
+              "description": "Human-readable display name",
+              "examples": ["EDS AWARENESS", "KOPILOT PRO", "FEMTO LLM"]
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$",
+              "default": "1.0.0",
+              "description": "Semantic version (major.minor.patch)"
+            },
+            "uuid": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional RFC 4122 UUID for distributed systems"
+            }
+          }
+        },
+
+        "classification": {
+          "type": "object",
+          "description": "ISA-95 L2: Hierarchical classification and categorization",
+          "properties": {
+            "category": {
+              "type": "string",
+              "enum": [
+                "industrial",
+                "ai",
+                "llm",
+                "utility",
+                "visualization",
+                "tool",
+                "sales",
+                "productivity",
+                "awareness",
+                "education",
+                "entertainment"
+              ],
+              "description": "Primary functional category"
+            },
+            "subcategory": {
+              "type": "string",
+              "description": "Secondary classification within category"
+            },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Searchable tags for discovery",
+              "examples": [["webllm", "browser-ai", "offline"]]
+            },
+            "badge": {
+              "type": "string",
+              "enum": ["NEW", "AI", "IIoT", "P2P", "WEB3", "BETA", "PRO"],
+              "description": "Primary feature badge for UI display"
+            },
+            "isa95Level": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4,
+              "description": "ISA-95 hierarchy level (0=Enterprise, 1=Site, 2=Area, 3=Cell, 4=Device)"
+            }
+          }
+        },
+
+        "presentation": {
+          "type": "object",
+          "description": "ISA-95 L3: Visual and UI presentation attributes",
+          "properties": {
+            "icon": {
+              "type": "string",
+              "description": "Emoji or icon identifier",
+              "examples": ["🦓", "🤖", "⚡"]
+            },
+            "color": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Primary brand color (hex)",
+              "examples": ["#7c3aed", "#22c55e"]
+            },
+            "gradient": {
+              "type": "object",
+              "properties": {
+                "from": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "to": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+              },
+              "description": "Optional gradient colors"
+            },
+            "thumbnail": {
+              "type": "string",
+              "format": "uri",
+              "description": "URL to preview image/screenshot"
+            }
+          }
+        },
+
+        "description": {
+          "type": "object",
+          "description": "ISA-95 L4: Textual descriptions at multiple levels",
+          "properties": {
+            "short": {
+              "type": "string",
+              "maxLength": 50,
+              "description": "Brief tagline (card subtitle)",
+              "examples": ["AI-Powered Git Editor"]
+            },
+            "medium": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "One-paragraph description (card body)",
+              "examples": ["WebLLM-powered Git editor with AI code completion..."]
+            },
+            "long": {
+              "type": "string",
+              "description": "Full marketing/documentation description"
+            },
+            "features": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Bullet-point feature list"
+            }
+          }
+        },
+
+        "commercial": {
+          "type": "object",
+          "description": "ISA-95 L5: Business and commercial attributes",
+          "properties": {
+            "price": {
+              "type": "number",
+              "minimum": 0,
+              "description": "One-time purchase price in dollars (0 = free)"
+            },
+            "subscription": {
+              "type": "object",
+              "properties": {
+                "monthly": { "type": "number" },
+                "yearly": { "type": "number" }
+              },
+              "description": "Optional recurring pricing"
+            },
+            "kills": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Competitor products this replaces with pricing",
+              "examples": [["GitHub Copilot $19/mo", "Cursor $20/mo"]]
+            },
+            "license": {
+              "type": "string",
+              "enum": ["MIT", "Apache-2.0", "GPL-3.0", "proprietary", "CC-BY-4.0"],
+              "default": "MIT"
+            }
+          }
+        },
+
+        "technical": {
+          "type": "object",
+          "description": "ISA-95 L6: Technical specifications and requirements",
+          "properties": {
+            "runtime": {
+              "type": "string",
+              "enum": ["browser", "node", "electron", "hybrid"],
+              "default": "browser"
+            },
+            "standalone": {
+              "type": "boolean",
+              "default": true,
+              "description": "Can run without external dependencies"
+            },
+            "offline": {
+              "type": "boolean",
+              "default": true,
+              "description": "Works without internet connection"
+            },
+            "p2pEnabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Supports P2P sync via WebRTC"
+            },
+            "dependencies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "version": { "type": "string" },
+                  "url": { "type": "string", "format": "uri" },
+                  "optional": { "type": "boolean", "default": false }
+                }
+              },
+              "description": "External CDN/ESM dependencies"
+            },
+            "storage": {
+              "type": "object",
+              "properties": {
+                "localStorage": { "type": "boolean" },
+                "indexedDB": { "type": "boolean" },
+                "opfs": { "type": "boolean" }
+              },
+              "description": "Browser storage APIs used"
+            },
+            "apis": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Browser APIs required",
+              "examples": [["WebGPU", "WebWorker", "ServiceWorker", "WebRTC"]]
+            }
+          }
+        },
+
+        "interface": {
+          "type": "object",
+          "description": "ISA-95 L7: External interface definitions (window.* API)",
+          "properties": {
+            "globalName": {
+              "type": "string",
+              "description": "window.X global object name",
+              "examples": ["KonomiKode", "FemtoLLM", "EDSAwareness"]
+            },
+            "methods": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "params": { "type": "array", "items": { "type": "string" } },
+                  "returns": { "type": "string" }
+                }
+              },
+              "description": "Public API methods"
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "payload": { "type": "string" }
+                }
+              },
+              "description": "Custom events emitted"
+            },
+            "postMessage": {
+              "type": "object",
+              "properties": {
+                "accepts": { "type": "array", "items": { "type": "string" } },
+                "emits": { "type": "array", "items": { "type": "string" } }
+              },
+              "description": "postMessage protocol for iframe communication"
+            }
+          }
+        },
+
+        "lifecycle": {
+          "type": "object",
+          "description": "ISA-95 L8: Status and lifecycle management",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["draft", "alpha", "beta", "stable", "deprecated", "archived"],
+              "default": "stable"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date",
+              "description": "Initial creation date"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date",
+              "description": "Last modification date"
+            },
+            "author": {
+              "type": "string",
+              "description": "Creator name or handle"
+            },
+            "maintainers": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+
+        "relations": {
+          "type": "object",
+          "description": "ISA-95 L9: Relationships to other widgets",
+          "properties": {
+            "parent": {
+              "type": "string",
+              "description": "ID of parent widget (for variants)"
+            },
+            "children": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "IDs of child/variant widgets"
+            },
+            "requires": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Widget IDs this depends on"
+            },
+            "recommends": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Suggested companion widgets"
+            },
+            "supersedes": {
+              "type": "string",
+              "description": "Widget ID this replaces"
+            }
+          }
+        }
+      },
+
+      "required": ["identification", "presentation", "description"]
+    },
+
+    "WidgetMetaCompact": {
+      "type": "object",
+      "description": "Compact embedded format for <script type='application/json' id='widget-meta'>",
+      "properties": {
+        "id": { "$ref": "#/definitions/WidgetUDT/properties/identification/properties/id" },
+        "name": { "$ref": "#/definitions/WidgetUDT/properties/identification/properties/name" },
+        "icon": { "$ref": "#/definitions/WidgetUDT/properties/presentation/properties/icon" },
+        "desc": { "$ref": "#/definitions/WidgetUDT/properties/description/properties/short" },
+        "body": { "$ref": "#/definitions/WidgetUDT/properties/description/properties/medium" },
+        "kills": { "$ref": "#/definitions/WidgetUDT/properties/commercial/properties/kills" },
+        "price": { "$ref": "#/definitions/WidgetUDT/properties/commercial/properties/price" },
+        "color": { "$ref": "#/definitions/WidgetUDT/properties/presentation/properties/color" },
+        "badge": { "$ref": "#/definitions/WidgetUDT/properties/classification/properties/badge" }
+      },
+      "required": ["id", "name", "icon", "desc", "body", "price", "color", "badge"]
+    }
+  },
+
+  "examples": [
+    {
+      "_comment": "EXAMPLE 1: Full UDT for a complex AI widget",
+      "_meta": {
+        "udtVersion": "1.0.0",
+        "udtType": "Widget",
+        "conformsTo": "ISA-95"
+      },
+      "identification": {
+        "id": "konomi-kode",
+        "name": "KONOMI KODE",
+        "version": "1.0.0"
+      },
+      "classification": {
+        "category": "ai",
+        "subcategory": "coding-assistant",
+        "tags": ["webllm", "browser-ai", "offline", "coding", "mcp"],
+        "badge": "AI",
+        "isa95Level": 4
+      },
+      "presentation": {
+        "icon": "🤖",
+        "color": "#7c3aed"
+      },
+      "description": {
+        "short": "Browser AI Coding Agent",
+        "medium": "Claude Code alternative running 100% in browser via WebLLM. Virtual filesystem, MCP-style tool calling, agentic Plan→Execute→Observe loop, terminal, and P2P collaboration.",
+        "features": [
+          "WebLLM powered (runs 100% in browser)",
+          "Virtual filesystem with full CRUD",
+          "MCP-style tool calling",
+          "Agentic loop: Plan → Execute → Observe",
+          "Terminal with command execution",
+          "Live file preview",
+          "P2P collaboration ready"
+        ]
+      },
+      "commercial": {
+        "price": 500,
+        "kills": ["Claude Pro $20/mo", "GitHub Copilot $19/mo", "Cursor $20/mo"],
+        "license": "MIT"
+      },
+      "technical": {
+        "runtime": "browser",
+        "standalone": true,
+        "offline": true,
+        "p2pEnabled": true,
+        "dependencies": [
+          {
+            "name": "@mlc-ai/web-llm",
+            "url": "https://esm.run/@mlc-ai/web-llm"
+          }
+        ],
+        "storage": {
+          "localStorage": true,
+          "indexedDB": true
+        },
+        "apis": ["WebWorker", "IndexedDB"]
+      },
+      "interface": {
+        "globalName": "KonomiKode",
+        "methods": [
+          {
+            "name": "chat",
+            "description": "Send a message to the AI",
+            "params": ["message: string"],
+            "returns": "Promise<string>"
+          }
+        ]
+      },
+      "lifecycle": {
+        "status": "stable",
+        "author": "KISS MySaaS"
+      }
+    },
+    {
+      "_comment": "EXAMPLE 2: Compact embedded meta (what goes in HTML)",
+      "id": "konomi-kode",
+      "name": "KONOMI KODE",
+      "icon": "🤖",
+      "desc": "Browser AI Coding Agent",
+      "body": "Claude Code alternative running 100% in browser via WebLLM. Virtual filesystem, MCP-style tool calling, agentic Plan→Execute→Observe loop, terminal, and P2P collaboration.",
+      "kills": ["Claude Pro $20/mo", "GitHub Copilot $19/mo", "Cursor $20/mo"],
+      "price": 500,
+      "color": "#7c3aed",
+      "badge": "AI"
+    }
+  ]
+}
