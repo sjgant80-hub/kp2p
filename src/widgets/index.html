@@ -104,9 +104,56 @@ MySaaS = Mesh Your Serverless Alternative App Suite
 
   <script type="module">
     // =========================================================================
-    // WIDGET REGISTRY - Auto-generates all widget cards and comparison table
+    // WIDGET REGISTRY - Auto-loads metadata from widget files
     // =========================================================================
-    const WIDGETS = [
+
+    // Dynamic loader - loads metadata from each widget's embedded JSON
+    async function loadWidgetMetadata() {
+      try {
+        const manifestRes = await fetch('manifest.json');
+        const manifest = await manifestRes.json();
+
+        const loadPromises = manifest.widgets.map(async (file) => {
+          try {
+            const res = await fetch(file);
+            const html = await res.text();
+
+            // Extract embedded metadata
+            const metaMatch = html.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
+            if (metaMatch) {
+              const meta = JSON.parse(metaMatch[1]);
+              meta.file = file;
+              return meta;
+            }
+
+            // Fallback: extract from title/comments
+            const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+            const name = titleMatch ? titleMatch[1].split('-')[0].trim() : file.replace('.html', '');
+            return {
+              id: file.replace('.html', '').replace(/-/g, ''),
+              name: name,
+              icon: '📦',
+              desc: 'Widget',
+              body: '',
+              kills: [],
+              price: 0,
+              file: file
+            };
+          } catch (e) {
+            return null;
+          }
+        });
+
+        const results = await Promise.all(loadPromises);
+        return results.filter(w => w && w.id !== 'widgetContainer');
+      } catch (error) {
+        console.log('Manifest load failed, using fallback data');
+        return null;
+      }
+    }
+
+    // Fallback hardcoded data (will be used if dynamic load fails)
+    const FALLBACK_WIDGETS = [
       // Communication
       { id: 'chat', name: 'Chat', icon: '💬', desc: 'Real-time chat rooms', file: 'chat.html',
         body: 'Full-featured chat with typing indicators, presence, and message sync. Works across tabs and browsers.',
@@ -564,14 +611,21 @@ MySaaS = Mesh Your Serverless Alternative App Suite
     // =========================================================================
     // RENDER
     // =========================================================================
-    const grid = document.getElementById('widgetGrid');
-    const comparison = document.getElementById('comparisonBody');
-    let totalPrice = 0;
+    async function renderWidgets() {
+      const grid = document.getElementById('widgetGrid');
+      const comparison = document.getElementById('comparisonBody');
+      let totalPrice = 0;
 
-    const visibleWidgets = WIDGETS.filter(w => !w.hidden);
-    document.getElementById('widgetCount').textContent = visibleWidgets.length;
+      // Try to load from embedded metadata, fall back to hardcoded
+      let WIDGETS = await loadWidgetMetadata();
+      if (!WIDGETS || WIDGETS.length === 0) {
+        WIDGETS = FALLBACK_WIDGETS;
+      }
 
-    visibleWidgets.forEach(w => {
+      const visibleWidgets = WIDGETS.filter(w => !w.hidden);
+      document.getElementById('widgetCount').textContent = visibleWidgets.length;
+
+      visibleWidgets.forEach(w => {
       const style = w.color ? `border-color:${w.color};background:linear-gradient(135deg,#111,${w.color}22)` : '';
       const btnStyle = w.color ? `background:${w.color}${w.color === '#eab308' ? ';color:#000' : ''}` : '';
       const badgeClass = w.badge === 'NEW' ? 'new' : (w.badge === 'KUSTOM' ? 'kustom' : 'core');
@@ -605,10 +659,14 @@ MySaaS = Mesh Your Serverless Alternative App Suite
       }
     });
 
-    // Total row
-    const yearlyTotal = totalPrice * 12;
-    comparison.innerHTML += `<tr><td><strong>Total / Year</strong></td><td><span class="price-them"><strong>$${yearlyTotal.toLocaleString()}</strong></span></td><td><strong>$0</strong></td></tr>`;
-    document.getElementById('savedValue').textContent = `$${Math.round(yearlyTotal / 1000)}K+`;
+      // Total row
+      const yearlyTotal = totalPrice * 12;
+      comparison.innerHTML += `<tr><td><strong>Total / Year</strong></td><td><span class="price-them"><strong>$${yearlyTotal.toLocaleString()}</strong></span></td><td><strong>$0</strong></td></tr>`;
+      document.getElementById('savedValue').textContent = `$${Math.round(yearlyTotal / 1000)}K+`;
+    }
+
+    // Initialize
+    renderWidgets();
   </script>
 </body>
 </html>

@@ -304,31 +304,46 @@
 
         async function loadWidgetList() {
             try {
-                const response = await fetch('index.html');
-                const html = await response.text();
+                // Try to load from manifest first
+                const manifestRes = await fetch('manifest.json');
+                const manifest = await manifestRes.json();
 
-                const match = html.match(/const WIDGETS = \[([\s\S]*?)\];/);
-                if (!match) throw new Error('Could not find WIDGETS array');
+                // Fetch metadata from each widget file
+                const loadPromises = manifest.widgets.map(async (file) => {
+                    try {
+                        const res = await fetch(file);
+                        const html = await res.text();
 
-                // More comprehensive regex to capture all fields
-                const widgetRegex = /\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)',\s*icon:\s*'([^']+)',\s*desc:\s*'([^']+)',\s*file:\s*'([^']+)',\s*body:\s*'([^']+)',\s*kills:\s*\[([^\]]*)\],\s*price:\s*(\d+)(?:,\s*color:\s*'([^']*)')?(?:,\s*badge:\s*'([^']*)')?/g;
+                        // Extract widget-meta JSON from the HTML
+                        const metaMatch = html.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
+                        if (metaMatch) {
+                            const meta = JSON.parse(metaMatch[1]);
+                            meta.file = file;
+                            return meta;
+                        }
 
-                let widgetMatch;
-                while ((widgetMatch = widgetRegex.exec(match[1])) !== null) {
-                    const [, id, name, icon, desc, file, body, killsStr, price, color, badge] = widgetMatch;
-
-                    // Parse kills array
-                    const kills = killsStr.match(/'([^']+)'/g)?.map(k => k.replace(/'/g, '')) || [];
-
-                    if (id !== 'widgetContainer') {
-                        WIDGETS.push({
-                            id, name, icon, desc, file, body, kills,
-                            price: parseInt(price) || 0,
-                            color: color || '#e94560',
-                            badge: badge || ''
-                        });
+                        // Fallback: extract from title
+                        const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+                        const name = titleMatch ? titleMatch[1].split(' - ')[0].trim() : file.replace('.html', '');
+                        return {
+                            id: file.replace('.html', ''),
+                            name: name,
+                            icon: '📦',
+                            desc: 'Widget',
+                            file: file,
+                            body: '',
+                            kills: [],
+                            price: 0,
+                            color: '#e94560',
+                            badge: ''
+                        };
+                    } catch (e) {
+                        return null;
                     }
-                }
+                });
+
+                const results = await Promise.all(loadPromises);
+                WIDGETS = results.filter(w => w && w.id !== 'widgetContainer');
 
                 // Remove duplicates
                 const seen = new Set();
@@ -343,11 +358,52 @@
                 updateStats();
 
             } catch (error) {
+                console.error('Failed to load from manifest, trying index.html:', error);
+                await loadFromIndex();
+            }
+        }
+
+        async function loadFromIndex() {
+            try {
+                const response = await fetch('index.html');
+                const html = await response.text();
+
+                const match = html.match(/const WIDGETS = \[([\s\S]*?)\];/);
+                if (!match) throw new Error('Could not find WIDGETS array');
+
+                const widgetRegex = /\{\s*id:\s*'([^']+)',\s*name:\s*'([^']+)',\s*icon:\s*'([^']+)',\s*desc:\s*'([^']+)',\s*file:\s*'([^']+)',\s*body:\s*'([^']+)',\s*kills:\s*\[([^\]]*)\],\s*price:\s*(\d+)(?:,\s*color:\s*'([^']*)')?(?:,\s*badge:\s*'([^']*)')?/g;
+
+                let widgetMatch;
+                while ((widgetMatch = widgetRegex.exec(match[1])) !== null) {
+                    const [, id, name, icon, desc, file, body, killsStr, price, color, badge] = widgetMatch;
+                    const kills = killsStr.match(/'([^']+)'/g)?.map(k => k.replace(/'/g, '')) || [];
+
+                    if (id !== 'widgetContainer') {
+                        WIDGETS.push({
+                            id, name, icon, desc, file, body, kills,
+                            price: parseInt(price) || 0,
+                            color: color || '#e94560',
+                            badge: badge || ''
+                        });
+                    }
+                }
+
+                const seen = new Set();
+                WIDGETS = WIDGETS.filter(w => {
+                    if (seen.has(w.id)) return false;
+                    seen.add(w.id);
+                    return true;
+                });
+
+                filteredWidgets = [...WIDGETS];
+                renderWidgets();
+                updateStats();
+
+            } catch (error) {
                 console.error('Failed to load widget list:', error);
-                // Fallback
                 WIDGETS = [
-                    { id: 'chat', name: 'Chat', icon: '💬', desc: 'Real-time chat', file: 'chat.html', body: 'P2P chat rooms', kills: ['Stream $499/mo'], price: 499 },
                     { id: 'elleen', name: 'Elleen', icon: '📚', desc: 'AI Grammar', file: 'elleen.html', body: 'Grammar checker', kills: ['Grammarly $12/mo'], price: 12 },
+                    { id: 'usc', name: 'USC Browser', icon: '📜', desc: 'US Code lookup', file: 'usc.html', body: 'Legal lookup', kills: ['LexisNexis $200/mo'], price: 200 },
                 ];
                 filteredWidgets = [...WIDGETS];
                 renderWidgets();
