@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plant Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"plant-inventory","name":"Plant Inventory","icon":"🌱","desc":"Nursery plant inventory","category":"nursery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#22c55e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;font-size:.875rem}
+.filter.active{background:#22c55e33;border-color:#22c55e;color:#22c55e}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:15px}
+.plant{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.plant-icon{font-size:3rem;margin-bottom:10px}
+.plant-name{font-weight:600;margin-bottom:5px}
+.plant-variety{font-size:.75rem;color:#22c55e;margin-bottom:10px}
+.plant-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;font-size:.75rem}
+.info-item{background:#252525;padding:8px;border-radius:4px}
+.info-value{font-weight:bold;color:#22c55e}
+.stock{display:flex;justify-content:space-between;align-items:center}
+.stock-count{font-weight:bold}
+.stock-low{color:#f59e0b}
+.stock-ok{color:#22c55e}
+.price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌱 Plant Inventory</h1><button class="btn">+ Add Plant</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">1,247</div><div class="stat-label">Total Plants</div></div>
+<div class="stat"><div class="stat-value">86</div><div class="stat-label">Varieties</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value">$18.5k</div><div class="stat-label">Inventory Value</div></div>
+</div>
+<div class="filters">
+<div class="filter active">All</div>
+<div class="filter">Trees</div>
+<div class="filter">Shrubs</div>
+<div class="filter">Perennials</div>
+<div class="filter">Annuals</div>
+<div class="filter">Succulents</div>
+<div class="filter">Herbs</div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const plants=[
+{name:'Japanese Maple',variety:'Acer palmatum',icon:'🍁',size:'5 gal',zone:'5-8',stock:24,price:89},
+{name:'Lavender',variety:'Lavandula angustifolia',icon:'💜',size:'1 gal',zone:'5-9',stock:156,price:12},
+{name:'Hydrangea',variety:'Hydrangea macrophylla',icon:'💠',size:'3 gal',zone:'6-9',stock:48,price:35},
+{name:'Rose Bush',variety:'Rosa hybrid',icon:'🌹',size:'2 gal',zone:'4-9',stock:8,price:28},
+{name:'Succulent Mix',variety:'Various',icon:'🌵',size:'4"',zone:'9-11',stock:200,price:8},
+{name:'Tomato',variety:'Solanum lycopersicum',icon:'🍅',size:'6"',zone:'Annual',stock:340,price:5},
+{name:'Basil',variety:'Ocimum basilicum',icon:'🌿',size:'4"',zone:'Annual',stock:180,price:4},
+{name:'Fiddle Leaf Fig',variety:'Ficus lyrata',icon:'🌳',size:'10"',zone:'10-12',stock:12,price:65}
+];
+document.getElementById('grid').innerHTML=plants.map(p=>`
+<div class="plant">
+<div class="plant-icon">${p.icon}</div>
+<div class="plant-name">${p.name}</div>
+<div class="plant-variety">${p.variety}</div>
+<div class="plant-info">
+<div class="info-item">Size: <span class="info-value">${p.size}</span></div>
+<div class="info-item">Zone: <span class="info-value">${p.zone}</span></div>
+</div>
+<div class="stock"><span class="stock-count ${p.stock<15?'stock-low':'stock-ok'}">${p.stock} in stock</span><span class="price">$${p.price}</span></div>
+</div>`).join('');
+</script>
+</body>
+</html>

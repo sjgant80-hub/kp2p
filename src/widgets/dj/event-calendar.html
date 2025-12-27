@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Event Calendar - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"event-calendar","name":"Event Calendar","icon":"🎧","desc":"DJ event bookings","category":"dj","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#a855f7;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#a855f7}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.event{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:grid;grid-template-columns:100px 1fr auto;gap:20px;align-items:center}
+.event-date{text-align:center}
+.event-day{font-size:2rem;font-weight:bold;color:#a855f7}
+.event-month{font-size:.875rem;color:#888}
+.event-info{flex:1}
+.event-name{font-weight:600;font-size:1.125rem;margin-bottom:5px}
+.event-details{font-size:.875rem;color:#888;margin-bottom:10px}
+.event-tags{display:flex;gap:8px;flex-wrap:wrap}
+.tag{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.tag-venue{background:#3b82f633;color:#3b82f6}
+.tag-type{background:#a855f733;color:#a855f7}
+.tag-hours{background:#22c55e33;color:#22c55e}
+.event-pay{text-align:right}
+.pay-amount{font-size:1.5rem;font-weight:bold;color:#22c55e}
+.pay-status{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎧 Event Calendar</h1><button class="btn">+ Add Event</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">This Month</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">This Quarter</div></div>
+<div class="stat"><div class="stat-value">$8.4k</div><div class="stat-label">Booked Revenue</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Pending</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const events=[
+{day:'28',month:'DEC',name:'New Year\'s Eve Countdown',venue:'Skyline Rooftop',time:'9 PM - 2 AM',type:'Club Night',pay:1500,status:'Confirmed'},
+{day:'31',month:'DEC',name:'NYE Private Party',venue:'Thompson Residence',time:'10 PM - 3 AM',type:'Private',pay:2000,status:'Deposit Paid'},
+{day:'5',month:'JAN',name:'Club Pulse Saturday',venue:'Club Pulse',time:'10 PM - 2 AM',type:'Residency',pay:800,status:'Confirmed'},
+{day:'12',month:'JAN',name:'Johnson Wedding Reception',venue:'Grand Ballroom',time:'7 PM - 12 AM',type:'Wedding',pay:1800,status:'Pending Contract'},
+{day:'18',month:'JAN',name:'Corporate Launch Party',venue:'Tech Campus',time:'6 PM - 10 PM',type:'Corporate',pay:1200,status:'Confirmed'}
+];
+document.getElementById('list').innerHTML=events.map(e=>`
+<div class="event">
+<div class="event-date"><div class="event-day">${e.day}</div><div class="event-month">${e.month}</div></div>
+<div class="event-info">
+<div class="event-name">${e.name}</div>
+<div class="event-details">📍 ${e.venue} • 🕐 ${e.time}</div>
+<div class="event-tags"><span class="tag tag-venue">${e.venue.split(' ')[0]}</span><span class="tag tag-type">${e.type}</span><span class="tag tag-hours">${e.time.split(' - ')[1]?'5 hrs':''}</span></div>
+</div>
+<div class="event-pay"><div class="pay-amount">$${e.pay.toLocaleString()}</div><div class="pay-status">${e.status}</div></div>
+</div>`).join('');
+</script>
+</body>
+</html>

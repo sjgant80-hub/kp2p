@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Treatment Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"treatment-scheduler","name":"Treatment Scheduler","icon":"🪡","desc":"Schedule acupuncture treatments","category":"acupuncture","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#84cc16;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#84cc16}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule{display:flex;flex-direction:column;gap:10px}
+.appt{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:flex;align-items:center;gap:20px}
+.appt-time{background:#84cc16;color:#000;padding:15px;border-radius:8px;text-align:center;min-width:100px;font-weight:bold}
+.appt-info{flex:1}
+.appt-patient{font-weight:600;font-size:1.125rem;margin-bottom:5px}
+.appt-treatment{font-size:.875rem;color:#888;margin-bottom:5px}
+.appt-points{display:flex;flex-wrap:wrap;gap:5px}
+.point{padding:4px 8px;background:#84cc1620;color:#84cc16;border-radius:4px;font-size:.7rem}
+.appt-status{padding:8px 15px;border-radius:6px;font-size:.75rem;font-weight:600}
+.status-confirmed{background:#22c55e33;color:#22c55e}
+.status-checkedin{background:#3b82f633;color:#3b82f6}
+.status-inprogress{background:#f59e0b33;color:#f59e0b}
+</style>
+</head>
+<body>
+<div class="header"><h1>🪡 Treatment Scheduler</h1><button class="btn">+ New Appointment</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value">45min</div><div class="stat-label">Avg Session</div></div>
+<div class="stat"><div class="stat-value">98%</div><div class="stat-label">Retention</div></div>
+</div>
+<div class="schedule" id="schedule"></div>
+<script>
+const appointments=[
+{time:'9:00 AM',duration:'60 min',patient:'Jennifer Wu',treatment:'Initial Consultation',points:['LI4','ST36','SP6','CV4'],status:'checkedin'},
+{time:'10:00 AM',duration:'45 min',patient:'Michael Chen',treatment:'Pain Management',points:['GB20','BL60','LR3','GB34'],status:'confirmed'},
+{time:'11:00 AM',duration:'45 min',patient:'Sarah Johnson',treatment:'Stress Relief',points:['HT7','PC6','Yintang','GV20'],status:'confirmed'},
+{time:'1:00 PM',duration:'60 min',patient:'David Kim',treatment:'Fertility Support',points:['CV4','SP6','KI3','ST36'],status:'inprogress'},
+{time:'2:00 PM',duration:'45 min',patient:'Lisa Park',treatment:'Migraine',points:['GB20','LI4','LR3','Taiyang'],status:'confirmed'},
+{time:'3:00 PM',duration:'45 min',patient:'Robert Lee',treatment:'Back Pain',points:['BL23','BL40','GV4','GB30'],status:'confirmed'}
+];
+document.getElementById('schedule').innerHTML=appointments.map(a=>`
+<div class="appt">
+<div class="appt-time">${a.time}<div style="font-size:.75rem;font-weight:normal;margin-top:5px">${a.duration}</div></div>
+<div class="appt-info">
+<div class="appt-patient">${a.patient}</div>
+<div class="appt-treatment">${a.treatment}</div>
+<div class="appt-points">${a.points.map(p=>`<span class="point">${p}</span>`).join('')}</div>
+</div>
+<span class="appt-status status-${a.status}">${a.status==='checkedin'?'Checked In':a.status==='inprogress'?'In Progress':'Confirmed'}</span>
+</div>`).join('');
+</script>
+</body>
+</html>

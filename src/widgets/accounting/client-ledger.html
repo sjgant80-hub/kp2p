@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Client Ledger - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"client-ledger","name":"Client Ledger","icon":"📊","desc":"Client accounting ledger","category":"accounting","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.client-select{width:100%;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#e0e0e0;margin-bottom:20px}
+.ledger{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.ledger-header{display:grid;grid-template-columns:100px 1fr 120px 120px 120px;padding:15px 20px;background:#252525;font-weight:600;font-size:.875rem}
+.ledger-row{display:grid;grid-template-columns:100px 1fr 120px 120px 120px;padding:15px 20px;border-top:1px solid #333;align-items:center}
+.ledger-row:hover{background:#252525}
+.date{color:#888}
+.debit{color:#ef4444}
+.credit{color:#22c55e}
+.balance{font-weight:600}
+.desc{font-size:.875rem}
+.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:20px}
+.summary-card{background:#1a1a1a;border-radius:8px;border:1px solid #333;padding:20px;text-align:center}
+.summary-value{font-size:1.5rem;font-weight:bold;margin-bottom:5px}
+.summary-label{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>📊 Client Ledger</h1><button class="btn">+ Add Entry</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Active Clients</div></div>
+<div class="stat"><div class="stat-value">$48.5k</div><div class="stat-label">Total Receivables</div></div>
+<div class="stat"><div class="stat-value">$12.3k</div><div class="stat-label">This Month</div></div>
+<div class="stat"><div class="stat-value">98%</div><div class="stat-label">Collection Rate</div></div>
+</div>
+<select class="client-select"><option>Acme Corporation</option><option>Tech Startup Inc</option><option>Local Restaurant LLC</option><option>Smith & Associates</option></select>
+<div class="ledger">
+<div class="ledger-header"><span>Date</span><span>Description</span><span style="text-align:right">Debit</span><span style="text-align:right">Credit</span><span style="text-align:right">Balance</span></div>
+<div id="entries"></div>
+</div>
+<div class="summary">
+<div class="summary-card"><div class="summary-value debit">$8,450.00</div><div class="summary-label">Total Debits</div></div>
+<div class="summary-card"><div class="summary-value credit">$6,200.00</div><div class="summary-label">Total Credits</div></div>
+<div class="summary-card"><div class="summary-value" style="color:#0ea5e9">$2,250.00</div><div class="summary-label">Net Balance</div></div>
+</div>
+<script>
+const entries=[
+{date:'Dec 27',desc:'Monthly Bookkeeping Services - December',debit:850,credit:0,balance:2250},
+{date:'Dec 20',desc:'Payment Received - Check #4521',debit:0,credit:1200,balance:1400},
+{date:'Dec 15',desc:'Tax Preparation - Q4 Quarterly',debit:450,credit:0,balance:2600},
+{date:'Dec 10',desc:'Payment Received - ACH Transfer',debit:0,credit:2000,balance:2150},
+{date:'Dec 1',desc:'Monthly Bookkeeping Services - November',debit:850,credit:0,balance:4150},
+{date:'Nov 25',desc:'Payroll Processing Services',debit:300,credit:0,balance:3300},
+{date:'Nov 20',desc:'Payment Received - Check #4498',debit:0,credit:3000,balance:3000}
+];
+document.getElementById('entries').innerHTML=entries.map(e=>`
+<div class="ledger-row">
+<span class="date">${e.date}</span>
+<span class="desc">${e.desc}</span>
+<span class="debit" style="text-align:right">${e.debit?'$'+e.debit.toFixed(2):'-'}</span>
+<span class="credit" style="text-align:right">${e.credit?'$'+e.credit.toFixed(2):'-'}</span>
+<span class="balance" style="text-align:right">$${e.balance.toFixed(2)}</span>
+</div>`).join('');
+</script>
+</body>
+</html>

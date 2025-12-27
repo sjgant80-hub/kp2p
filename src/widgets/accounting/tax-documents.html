@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tax Documents - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"tax-documents","name":"Tax Documents","icon":"📄","desc":"Tax document management","category":"accounting","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer}
+.tab.active{background:#0ea5e933;border-color:#0ea5e9;color:#0ea5e9}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.doc{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.doc-header{display:flex;align-items:center;gap:15px;margin-bottom:15px}
+.doc-icon{font-size:2rem}
+.doc-info{flex:1}
+.doc-name{font-weight:600}
+.doc-type{font-size:.75rem;color:#888}
+.doc-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;font-size:.875rem}
+.meta-label{color:#888}
+.status-badge{display:inline-block;padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status-complete{background:#22c55e33;color:#22c55e}
+.status-pending{background:#f59e0b33;color:#f59e0b}
+.status-review{background:#3b82f633;color:#3b82f6}
+.doc-actions{display:flex;gap:10px}
+.doc-btn{flex:1;padding:8px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer;font-size:.875rem}
+.doc-btn.primary{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>📄 Tax Documents</h1><button class="btn">+ Upload Document</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Documents</div></div>
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Clients</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Pending Review</div></div>
+<div class="stat"><div class="stat-value">Apr 15</div><div class="stat-label">Next Deadline</div></div>
+</div>
+<div class="tabs">
+<div class="tab active">All</div>
+<div class="tab">W-2s</div>
+<div class="tab">1099s</div>
+<div class="tab">K-1s</div>
+<div class="tab">Returns</div>
+<div class="tab">Extensions</div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const docs=[
+{name:'2024 Tax Return',type:'Form 1040',client:'Johnson, Michael',year:'2024',status:'pending',icon:'📋'},
+{name:'W-2 Wage Statement',type:'W-2',client:'Smith, Sarah',year:'2024',status:'complete',icon:'📑'},
+{name:'Investment Income',type:'1099-DIV',client:'Chen, David',year:'2024',status:'review',icon:'📊'},
+{name:'Partnership Income',type:'K-1',client:'Acme Corp',year:'2024',status:'pending',icon:'📈'},
+{name:'Quarterly Estimate',type:'1040-ES',client:'Wilson, Emily',year:'2024 Q4',status:'complete',icon:'📝'},
+{name:'Extension Request',type:'Form 4868',client:'Davis, Robert',year:'2024',status:'complete',icon:'📤'}
+];
+document.getElementById('grid').innerHTML=docs.map(d=>`
+<div class="doc">
+<div class="doc-header"><span class="doc-icon">${d.icon}</span><div class="doc-info"><div class="doc-name">${d.name}</div><div class="doc-type">${d.type}</div></div></div>
+<div class="doc-meta">
+<div><span class="meta-label">Client:</span> ${d.client}</div>
+<div><span class="meta-label">Year:</span> ${d.year}</div>
+</div>
+<div style="margin-bottom:15px"><span class="status-badge status-${d.status}">${d.status==='complete'?'Complete':d.status==='pending'?'Pending':'In Review'}</span></div>
+<div class="doc-actions"><button class="doc-btn">View</button><button class="doc-btn primary">Download</button></div>
+</div>`).join('');
+</script>
+</body>
+</html>

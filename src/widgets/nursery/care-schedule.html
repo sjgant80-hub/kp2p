@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Care Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"care-schedule","name":"Care Schedule","icon":"🌿","desc":"Plant care scheduling","category":"nursery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#22c55e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule{display:flex;flex-direction:column;gap:15px}
+.day-section{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.day-header{padding:15px 20px;background:#252525;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.day-count{background:#22c55e33;color:#22c55e;padding:4px 12px;border-radius:12px;font-size:.875rem}
+.tasks{padding:10px}
+.task{display:flex;align-items:center;gap:15px;padding:15px;border-radius:8px;margin-bottom:5px}
+.task:hover{background:#252525}
+.task-check{width:24px;height:24px;border:2px solid #333;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.task-check.done{background:#22c55e;border-color:#22c55e}
+.task-icon{font-size:1.5rem}
+.task-info{flex:1}
+.task-name{font-weight:500;margin-bottom:2px}
+.task-details{font-size:.75rem;color:#888}
+.task-zone{padding:4px 8px;background:#333;border-radius:4px;font-size:.7rem}
+.task-type{font-size:.75rem;padding:4px 10px;border-radius:4px}
+.type-water{background:#3b82f633;color:#3b82f6}
+.type-fertilize{background:#f59e0b33;color:#f59e0b}
+.type-prune{background:#ef444433;color:#ef4444}
+.type-spray{background:#8b5cf633;color:#8b5cf6}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌿 Care Schedule</h1><button class="btn">+ Add Task</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Today's Tasks</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Completed</div></div>
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Zones</div></div>
+</div>
+<div class="schedule">
+<div class="day-section">
+<div class="day-header"><span>📅 Today - December 27</span><span class="day-count">12 tasks</span></div>
+<div class="tasks" id="today"></div>
+</div>
+<div class="day-section">
+<div class="day-header"><span>📅 Tomorrow - December 28</span><span class="day-count">8 tasks</span></div>
+<div class="tasks" id="tomorrow"></div>
+</div>
+</div>
+<script>
+const todayTasks=[
+{icon:'💧',name:'Water Greenhouse A',details:'All seedlings and tropicals',zone:'Zone A',type:'water',done:true},
+{icon:'💧',name:'Water Outdoor Perennials',details:'Deep watering - dry conditions',zone:'Zone C',type:'water',done:true},
+{icon:'🧪',name:'Fertilize Rose Section',details:'Apply 10-10-10 formula',zone:'Zone B',type:'fertilize',done:false},
+{icon:'✂️',name:'Prune Shrub Display',details:'Shape and deadhead',zone:'Zone D',type:'prune',done:false},
+{icon:'🧴',name:'Spray for Aphids',details:'Organic neem oil treatment',zone:'Zone A',type:'spray',done:false}
+];
+const tomorrowTasks=[
+{icon:'💧',name:'Water Succulent House',details:'Light misting only',zone:'Zone E',type:'water',done:false},
+{icon:'🧪',name:'Fertilize Annuals',details:'Liquid feed application',zone:'Zone C',type:'fertilize',done:false},
+{icon:'💧',name:'Water Tree Saplings',details:'Check moisture levels first',zone:'Zone F',type:'water',done:false}
+];
+function renderTasks(tasks,containerId){
+document.getElementById(containerId).innerHTML=tasks.map(t=>`
+<div class="task">
+<div class="task-check ${t.done?'done':''}">${t.done?'✓':''}</div>
+<span class="task-icon">${t.icon}</span>
+<div class="task-info"><div class="task-name">${t.name}</div><div class="task-details">${t.details}</div></div>
+<span class="task-zone">${t.zone}</span>
+<span class="task-type type-${t.type}">${t.type.charAt(0).toUpperCase()+t.type.slice(1)}</span>
+</div>`).join('');
+}
+renderTasks(todayTasks,'today');
+renderTasks(tomorrowTasks,'tomorrow');
+</script>
+</body>
+</html>

@@ -540,6 +540,26 @@ const categoryMap = {
   // Photobooth
   'event-bookings': { category: 'photobooth', subcategory: 'bookings', badge: 'ENT' },
   'photo-gallery': { category: 'photobooth', subcategory: 'gallery', badge: 'ENT' },
+
+  // Acupuncture
+  'treatment-scheduler': { category: 'acupuncture', subcategory: 'scheduling', badge: 'ENT' },
+  'patient-intake': { category: 'acupuncture', subcategory: 'intake', badge: 'ENT' },
+
+  // DJ
+  'event-calendar': { category: 'dj', subcategory: 'scheduling', badge: 'ENT' },
+  'music-library': { category: 'dj', subcategory: 'library', badge: 'ENT' },
+
+  // Tailor
+  'alterations-tracker': { category: 'tailor', subcategory: 'orders', badge: 'ENT' },
+  'measurements': { category: 'tailor', subcategory: 'clients', badge: 'ENT' },
+
+  // Accounting
+  'client-ledger': { category: 'accounting', subcategory: 'ledger', badge: 'ENT' },
+  'tax-documents': { category: 'accounting', subcategory: 'taxes', badge: 'ENT' },
+
+  // Nursery
+  'plant-inventory': { category: 'nursery', subcategory: 'inventory', badge: 'ENT' },
+  'care-schedule': { category: 'nursery', subcategory: 'care', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -776,7 +796,12 @@ const widgetDirs = [
   'courier',
   'optometry',
   'chiro',
-  'photobooth'
+  'photobooth',
+  'acupuncture',
+  'dj',
+  'tailor',
+  'accounting',
+  'nursery'
 ];
 
 // Process all widgets in all directories
