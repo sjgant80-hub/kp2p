@@ -186,6 +186,48 @@ const categoryMap = {
 
   // Index
   'index': { category: 'utility', subcategory: 'launcher', badge: 'NEW' },
+
+  // HR & People
+  'employee-directory': { category: 'hr', subcategory: 'directory', badge: 'ENT' },
+  'org-chart': { category: 'hr', subcategory: 'organization', badge: 'ENT' },
+  'onboarding': { category: 'hr', subcategory: 'hiring', badge: 'ENT' },
+  'timesheet': { category: 'hr', subcategory: 'time-tracking', badge: 'ENT' },
+  'pto-tracker': { category: 'hr', subcategory: 'time-off', badge: 'ENT' },
+  'expense-report': { category: 'hr', subcategory: 'expenses', badge: 'ENT' },
+  'performance-review': { category: 'hr', subcategory: 'reviews', badge: 'ENT' },
+  'goals-okr': { category: 'hr', subcategory: 'goals', badge: 'ENT' },
+  'kudos': { category: 'hr', subcategory: 'recognition', badge: 'ENT' },
+  'applicant-tracker': { category: 'hr', subcategory: 'recruiting', badge: 'ENT' },
+  'training-lms': { category: 'hr', subcategory: 'learning', badge: 'ENT' },
+  'time-clock': { category: 'hr', subcategory: 'attendance', badge: 'ENT' },
+  'leave-calendar': { category: 'hr', subcategory: 'scheduling', badge: 'ENT' },
+  'job-board': { category: 'hr', subcategory: 'recruiting', badge: 'ENT' },
+
+  // Finance & Accounting
+  'general-ledger': { category: 'finance', subcategory: 'accounting', badge: 'ENT' },
+  'budget-tracker': { category: 'finance', subcategory: 'budgeting', badge: 'ENT' },
+  'accounts-payable': { category: 'finance', subcategory: 'payables', badge: 'ENT' },
+
+  // Customer Service
+  'ticket-system': { category: 'service', subcategory: 'helpdesk', badge: 'ENT' },
+
+  // Marketing
+  'email-campaign': { category: 'marketing', subcategory: 'email', badge: 'ENT' },
+
+  // Legal
+  'contract-vault': { category: 'legal', subcategory: 'contracts', badge: 'ENT' },
+
+  // Retail
+  'pos-terminal': { category: 'retail', subcategory: 'pos', badge: 'ENT' },
+
+  // Healthcare
+  'patient-portal': { category: 'healthcare', subcategory: 'patient', badge: 'ENT' },
+
+  // Education
+  'course-catalog': { category: 'education', subcategory: 'courses', badge: 'ENT' },
+
+  // Events
+  'event-builder': { category: 'events', subcategory: 'management', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -336,7 +378,28 @@ const widgetDirs = [
   'games',
   'lifestyle',
   'utility',
-  'data'
+  'data',
+  // Enterprise categories
+  'hr',
+  'finance',
+  'service',
+  'marketing',
+  'legal',
+  'retail',
+  'healthcare',
+  'education',
+  'events',
+  'realestate',
+  'hospitality',
+  'transport',
+  'energy',
+  'agriculture',
+  'construction',
+  'nonprofit',
+  'government',
+  'media',
+  'sports',
+  'science'
 ];
 
 // Process all widgets in all directories
@@ -350,7 +413,8 @@ for (const dir of widgetDirs) {
   const files = fs.readdirSync(scanDir).filter(f => {
     if (!f.endsWith('.html')) return false;
     if (f === 'index.html') return false;
-    if (f.includes('directory')) return false;
+    // Only filter out literal directory listing pages, not widget names containing 'directory'
+    if (f === 'directory.html' || f === 'widget-directory.html') return false;
     return true;
   });
 

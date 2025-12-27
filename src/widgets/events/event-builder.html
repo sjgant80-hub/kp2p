@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Event Builder - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"event-builder","name":"Event Builder","icon":"🎉","desc":"Create and manage events","category":"events","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;padding:20px;border-radius:12px;text-align:center;border:1px solid #333}
+    .stat-value{font-size:2rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:12px;color:#888;margin-top:4px}
+    .events-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+    .event-card{background:#1a1a1a;border-radius:12px;overflow:hidden;border:1px solid #333}
+    .event-card:hover{border-color:#e94560}
+    .event-banner{height:120px;background:linear-gradient(135deg,#1a2a4a,#4a1a2a);display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative}
+    .event-date{position:absolute;top:10px;left:10px;background:#e94560;padding:8px 12px;border-radius:8px;text-align:center}
+    .event-date .month{font-size:10px;text-transform:uppercase}
+    .event-date .day{font-size:1.5rem;font-weight:bold}
+    .event-content{padding:20px}
+    .event-title{font-size:1.2rem;margin-bottom:8px}
+    .event-meta{display:flex;gap:15px;color:#888;font-size:13px;margin-bottom:15px;flex-wrap:wrap}
+    .event-footer{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+    .attendees{display:flex;align-items:center;gap:8px}
+    .attendee-avatars{display:flex}
+    .avatar{width:28px;height:28px;border-radius:50%;background:#333;border:2px solid #1a1a1a;margin-left:-8px;display:flex;align-items:center;justify-content:center;font-size:11px}
+    .avatar:first-child{margin-left:0}
+    .badge{padding:4px 10px;border-radius:12px;font-size:11px}
+    .badge.upcoming{background:#1a4a4a;color:#4cc}
+    .badge.live{background:#4a1a1a;color:#f44;animation:pulse 2s infinite}
+    .badge.past{background:#333;color:#888}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎉 Event Builder</h1>
+    <button class="primary" onclick="showNewEvent()">+ Create Event</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="upcomingCount">0</div><div class="stat-label">Upcoming</div></div>
+    <div class="stat"><div class="stat-value" id="totalAttendees">0</div><div class="stat-label">Total Attendees</div></div>
+    <div class="stat"><div class="stat-value" id="thisMonth">0</div><div class="stat-label">This Month</div></div>
+  </div>
+
+  <div class="events-grid" id="eventsGrid"></div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Create Event</h2>
+      <input type="hidden" id="eventId">
+      <div class="form-group"><label>Event Name</label><input type="text" id="name" placeholder="Annual Conference 2024"></div>
+      <div class="form-group"><label>Description</label><textarea id="description" rows="3" placeholder="Event description..."></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input type="date" id="date"></div>
+        <div class="form-group"><label>Time</label><input type="time" id="time"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>End Date</label><input type="date" id="endDate"></div>
+        <div class="form-group"><label>End Time</label><input type="time" id="endTime"></div>
+      </div>
+      <div class="form-group"><label>Location</label><input type="text" id="location" placeholder="Venue or Virtual"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Type</label><select id="type">
+          <option value="conference">Conference</option>
+          <option value="workshop">Workshop</option>
+          <option value="webinar">Webinar</option>
+          <option value="meetup">Meetup</option>
+          <option value="party">Party</option>
+          <option value="other">Other</option>
+        </select></div>
+        <div class="form-group"><label>Capacity</label><input type="number" id="capacity" placeholder="100"></div>
+      </div>
+      <div class="form-group"><label>Icon (emoji)</label><input type="text" id="icon" value="🎉" style="width:80px"></div>
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveEvent()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let events = JSON.parse(localStorage.getItem('kiss-events') || '[]');
+
+    // Sample events
+    if (events.length === 0) {
+      const today = new Date();
+      events = [
+        {
+          id: '1',
+          name: 'Tech Conference 2024',
+          description: 'Annual technology conference',
+          date: new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0],
+          time: '09:00',
+          endDate: new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0],
+          endTime: '17:00',
+          location: 'Convention Center',
+          type: 'conference',
+          capacity: 500,
+          attendees: 342,
+          icon: '💻'
+        },
+        {
+          id: '2',
+          name: 'Design Workshop',
+          description: 'Hands-on UX design workshop',
+          date: new Date(today.getTime() + 14 * 86400000).toISOString().split('T')[0],
+          time: '10:00',
+          endDate: new Date(today.getTime() + 14 * 86400000).toISOString().split('T')[0],
+          endTime: '15:00',
+          location: 'Creative Hub',
+          type: 'workshop',
+          capacity: 50,
+          attendees: 38,
+          icon: '🎨'
+        }
+      ];
+      save();
+    }
+
+    function save() { localStorage.setItem('kiss-events', JSON.stringify(events)); }
+
+    function getEventStatus(event) {
+      const now = new Date();
+      const eventDate = new Date(event.date + 'T' + (event.time || '00:00'));
+      const endDate = new Date((event.endDate || event.date) + 'T' + (event.endTime || '23:59'));
+
+      if (now >= eventDate && now <= endDate) return 'live';
+      if (eventDate > now) return 'upcoming';
+      return 'past';
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return {
+        month: date.toLocaleDateString('en-US', { month: 'short' }),
+        day: date.getDate()
+      };
+    }
+
+    function render() {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      // Stats
+      const upcoming = events.filter(e => getEventStatus(e) === 'upcoming');
+      const thisMonth = events.filter(e => {
+        const d = new Date(e.date);
+        return d >= monthStart && d <= monthEnd;
+      });
+      const totalAttendees = events.reduce((sum, e) => sum + (e.attendees || 0), 0);
+
+      document.getElementById('upcomingCount').textContent = upcoming.length;
+      document.getElementById('totalAttendees').textContent = totalAttendees.toLocaleString();
+      document.getElementById('thisMonth').textContent = thisMonth.length;
+
+      // Events grid
+      const grid = document.getElementById('eventsGrid');
+      if (events.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No events yet. Create your first event!</div>';
+        return;
+      }
+
+      grid.innerHTML = events
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .map(e => {
+          const status = getEventStatus(e);
+          const dateInfo = formatDate(e.date);
+          const spotsLeft = e.capacity - (e.attendees || 0);
+
+          return `
+            <div class="event-card">
+              <div class="event-banner">
+                ${e.icon || '🎉'}
+                <div class="event-date">
+                  <div class="month">${dateInfo.month}</div>
+                  <div class="day">${dateInfo.day}</div>
+                </div>
+              </div>
+              <div class="event-content">
+                <div class="event-title">${e.name}</div>
+                <div class="event-meta">
+                  <span>📍 ${e.location}</span>
+                  <span>🕐 ${e.time || 'TBD'}</span>
+                  <span class="badge ${status}">${status === 'live' ? '● Live' : status}</span>
+                </div>
+                <div class="event-footer">
+                  <div class="attendees">
+                    <div class="attendee-avatars">
+                      <div class="avatar">👤</div>
+                      <div class="avatar">👤</div>
+                      <div class="avatar">👤</div>
+                    </div>
+                    <span style="font-size:13px;color:#888">${e.attendees || 0} attending</span>
+                  </div>
+                  ${status !== 'past' ?
+                    `<button onclick="editEvent('${e.id}')">Edit</button>` :
+                    `<span style="color:#888;font-size:13px">Completed</span>`
+                  }
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+    }
+
+    function showNewEvent() {
+      document.getElementById('modalTitle').textContent = 'Create Event';
+      document.getElementById('eventId').value = '';
+      document.getElementById('name').value = '';
+      document.getElementById('description').value = '';
+      document.getElementById('date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('time').value = '09:00';
+      document.getElementById('endDate').value = '';
+      document.getElementById('endTime').value = '17:00';
+      document.getElementById('location').value = '';
+      document.getElementById('type').value = 'conference';
+      document.getElementById('capacity').value = '';
+      document.getElementById('icon').value = '🎉';
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function editEvent(id) {
+      const e = events.find(e => e.id === id);
+      if (!e) return;
+      document.getElementById('modalTitle').textContent = 'Edit Event';
+      document.getElementById('eventId').value = id;
+      document.getElementById('name').value = e.name;
+      document.getElementById('description').value = e.description;
+      document.getElementById('date').value = e.date;
+      document.getElementById('time').value = e.time;
+      document.getElementById('endDate').value = e.endDate;
+      document.getElementById('endTime').value = e.endTime;
+      document.getElementById('location').value = e.location;
+      document.getElementById('type').value = e.type;
+      document.getElementById('capacity').value = e.capacity;
+      document.getElementById('icon').value = e.icon;
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function saveEvent() {
+      const name = document.getElementById('name').value.trim();
+      if (!name) {
+        alert('Event name is required');
+        return;
+      }
+
+      const event = {
+        id: document.getElementById('eventId').value || Date.now().toString(),
+        name,
+        description: document.getElementById('description').value.trim(),
+        date: document.getElementById('date').value,
+        time: document.getElementById('time').value,
+        endDate: document.getElementById('endDate').value,
+        endTime: document.getElementById('endTime').value,
+        location: document.getElementById('location').value.trim(),
+        type: document.getElementById('type').value,
+        capacity: parseInt(document.getElementById('capacity').value) || 100,
+        icon: document.getElementById('icon').value || '🎉',
+        attendees: 0
+      };
+
+      const idx = events.findIndex(e => e.id === event.id);
+      if (idx >= 0) {
+        event.attendees = events[idx].attendees;
+        events[idx] = event;
+      } else {
+        events.push(event);
+      }
+
+      save();
+      closeModal();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

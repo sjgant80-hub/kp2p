@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ticket System - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"ticket-system","name":"Ticket System","icon":"🎫","desc":"Help desk ticket management","category":"service","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+    .stat{background:#1a1a1a;padding:15px;border-radius:8px;text-align:center;border:1px solid #333}
+    .stat-value{font-size:1.5rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:11px;color:#888;margin-top:4px}
+    .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .filters input,.filters select{padding:10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff}
+    .ticket-list{display:flex;flex-direction:column;gap:10px}
+    .ticket{background:#1a1a1a;border-radius:10px;padding:16px;border:1px solid #333;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center}
+    .ticket:hover{border-color:#e94560}
+    .ticket-id{font-family:monospace;color:#888;font-size:13px}
+    .ticket-title{font-weight:600;margin-bottom:4px}
+    .ticket-meta{display:flex;gap:12px;font-size:12px;color:#888}
+    .ticket-status{text-align:right}
+    .priority{width:4px;height:40px;border-radius:2px}
+    .priority.low{background:#4a4}
+    .priority.medium{background:#f90}
+    .priority.high{background:#f44}
+    .priority.urgent{background:#f0f}
+    .badge{padding:4px 10px;border-radius:12px;font-size:11px}
+    .badge.open{background:#4a4a1a;color:#f90}
+    .badge.in-progress{background:#1a4a4a;color:#4cc}
+    .badge.resolved{background:#1a4a1a;color:#4a4}
+    .badge.closed{background:#333;color:#888}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .comment-list{margin:20px 0;max-height:300px;overflow-y:auto}
+    .comment{background:#0a0a0a;padding:12px;border-radius:8px;margin-bottom:10px}
+    .comment-header{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:#888}
+    .comment-text{font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎫 Ticket System</h1>
+    <button class="primary" onclick="showNewTicket()">+ New Ticket</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="openCount">0</div><div class="stat-label">Open</div></div>
+    <div class="stat"><div class="stat-value" id="inProgressCount">0</div><div class="stat-label">In Progress</div></div>
+    <div class="stat"><div class="stat-value" id="resolvedCount">0</div><div class="stat-label">Resolved Today</div></div>
+    <div class="stat"><div class="stat-value" id="avgTime">0h</div><div class="stat-label">Avg Response</div></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="search" placeholder="Search tickets..." oninput="render()">
+    <select id="statusFilter" onchange="render()">
+      <option value="">All Status</option>
+      <option value="open">Open</option>
+      <option value="in-progress">In Progress</option>
+      <option value="resolved">Resolved</option>
+      <option value="closed">Closed</option>
+    </select>
+    <select id="priorityFilter" onchange="render()">
+      <option value="">All Priority</option>
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+      <option value="urgent">Urgent</option>
+    </select>
+  </div>
+
+  <div class="ticket-list" id="ticketList"></div>
+
+  <div class="modal" id="newModal">
+    <div class="modal-content">
+      <h2>New Ticket</h2>
+      <div class="form-group"><label>Subject</label><input type="text" id="subject"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Priority</label><select id="priority">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select></div>
+        <div class="form-group"><label>Category</label><select id="category">
+          <option value="technical">Technical</option>
+          <option value="billing">Billing</option>
+          <option value="general">General</option>
+          <option value="feature">Feature Request</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label>Customer Email</label><input type="email" id="email"></div>
+      <div class="form-group"><label>Description</label><textarea id="description" rows="4"></textarea></div>
+      <div class="btn-row">
+        <button onclick="closeModal('newModal')">Cancel</button>
+        <button class="primary" onclick="createTicket()">Create Ticket</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="viewModal">
+    <div class="modal-content" id="viewContent"></div>
+  </div>
+
+  <script>
+    let tickets = JSON.parse(localStorage.getItem('kiss-tickets') || '[]');
+    let currentTicket = null;
+
+    function save() { localStorage.setItem('kiss-tickets', JSON.stringify(tickets)); }
+
+    function generateId() {
+      return 'TKT-' + String(tickets.length + 1).padStart(4, '0');
+    }
+
+    function timeAgo(date) {
+      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+      if (seconds < 60) return 'just now';
+      if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+      if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+      return Math.floor(seconds / 86400) + 'd ago';
+    }
+
+    function render() {
+      const search = document.getElementById('search').value.toLowerCase();
+      const statusFilter = document.getElementById('statusFilter').value;
+      const priorityFilter = document.getElementById('priorityFilter').value;
+
+      // Stats
+      const today = new Date().toDateString();
+      document.getElementById('openCount').textContent = tickets.filter(t => t.status === 'open').length;
+      document.getElementById('inProgressCount').textContent = tickets.filter(t => t.status === 'in-progress').length;
+      document.getElementById('resolvedCount').textContent = tickets.filter(t =>
+        t.status === 'resolved' && new Date(t.resolvedAt).toDateString() === today
+      ).length;
+
+      // Filter
+      let filtered = tickets.filter(t => {
+        if (search && !t.subject.toLowerCase().includes(search) && !t.id.toLowerCase().includes(search)) return false;
+        if (statusFilter && t.status !== statusFilter) return false;
+        if (priorityFilter && t.priority !== priorityFilter) return false;
+        return true;
+      });
+
+      const list = document.getElementById('ticketList');
+      if (filtered.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No tickets found</div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(t => `
+        <div class="ticket" onclick="viewTicket('${t.id}')">
+          <div class="priority ${t.priority}"></div>
+          <div>
+            <div class="ticket-title">${t.subject}</div>
+            <div class="ticket-meta">
+              <span class="ticket-id">${t.id}</span>
+              <span>${t.category}</span>
+              <span>${timeAgo(t.createdAt)}</span>
+              <span>${t.email}</span>
+            </div>
+          </div>
+          <div class="ticket-status">
+            <span class="badge ${t.status}">${t.status.replace('-', ' ')}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showNewTicket() {
+      document.getElementById('subject').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('description').value = '';
+      document.getElementById('priority').value = 'medium';
+      document.getElementById('newModal').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function createTicket() {
+      const subject = document.getElementById('subject').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const description = document.getElementById('description').value.trim();
+
+      if (!subject || !description) {
+        alert('Subject and description are required');
+        return;
+      }
+
+      tickets.unshift({
+        id: generateId(),
+        subject,
+        email,
+        description,
+        priority: document.getElementById('priority').value,
+        category: document.getElementById('category').value,
+        status: 'open',
+        comments: [],
+        createdAt: new Date().toISOString()
+      });
+
+      save();
+      closeModal('newModal');
+      render();
+    }
+
+    function viewTicket(id) {
+      currentTicket = tickets.find(t => t.id === id);
+      if (!currentTicket) return;
+
+      document.getElementById('viewContent').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px">
+          <div>
+            <h2>${currentTicket.subject}</h2>
+            <p style="color:#888;font-size:13px">${currentTicket.id} • ${currentTicket.email} • ${timeAgo(currentTicket.createdAt)}</p>
+          </div>
+          <span class="badge ${currentTicket.status}">${currentTicket.status}</span>
+        </div>
+
+        <div style="background:#0a0a0a;padding:16px;border-radius:8px;margin-bottom:20px">
+          <p style="white-space:pre-wrap">${currentTicket.description}</p>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:20px">
+          <select id="changeStatus" style="flex:1;padding:8px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff">
+            <option value="open" ${currentTicket.status === 'open' ? 'selected' : ''}>Open</option>
+            <option value="in-progress" ${currentTicket.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+            <option value="resolved" ${currentTicket.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+            <option value="closed" ${currentTicket.status === 'closed' ? 'selected' : ''}>Closed</option>
+          </select>
+          <button onclick="updateStatus()">Update</button>
+        </div>
+
+        <h3 style="margin-bottom:10px">Comments (${currentTicket.comments?.length || 0})</h3>
+        <div class="comment-list">
+          ${(currentTicket.comments || []).map(c => `
+            <div class="comment">
+              <div class="comment-header">
+                <span>${c.author}</span>
+                <span>${timeAgo(c.createdAt)}</span>
+              </div>
+              <div class="comment-text">${c.text}</div>
+            </div>
+          `).join('') || '<div style="color:#666;font-size:13px">No comments yet</div>'}
+        </div>
+
+        <div class="form-group" style="margin-top:15px">
+          <textarea id="newComment" rows="2" placeholder="Add a comment..."></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button onclick="addComment()">Add Comment</button>
+          <button onclick="closeModal('viewModal')">Close</button>
+        </div>
+      `;
+
+      document.getElementById('viewModal').classList.add('active');
+    }
+
+    function updateStatus() {
+      if (!currentTicket) return;
+      const newStatus = document.getElementById('changeStatus').value;
+      currentTicket.status = newStatus;
+      if (newStatus === 'resolved') {
+        currentTicket.resolvedAt = new Date().toISOString();
+      }
+      save();
+      viewTicket(currentTicket.id);
+      render();
+    }
+
+    function addComment() {
+      if (!currentTicket) return;
+      const text = document.getElementById('newComment').value.trim();
+      if (!text) return;
+
+      if (!currentTicket.comments) currentTicket.comments = [];
+      currentTicket.comments.push({
+        author: 'Agent',
+        text,
+        createdAt: new Date().toISOString()
+      });
+
+      save();
+      viewTicket(currentTicket.id);
+    }
+
+    render();
+  </script>
+</body>
+</html>

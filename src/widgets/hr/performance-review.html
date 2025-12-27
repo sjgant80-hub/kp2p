@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Performance Review - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"performance-review","name":"Performance Review","icon":"⭐","desc":"360° feedback and performance review management","category":"hr","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button:hover{background:#333}
+    button.primary{background:#e94560;border-color:#e94560}
+    .tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .tab{padding:10px 20px;cursor:pointer;border-radius:6px;background:#1a1a1a;border:1px solid #333}
+    .tab.active{background:#e94560;border-color:#e94560}
+    .section{display:none}
+    .section.active{display:block}
+    .review-card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333;margin-bottom:16px}
+    .review-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:16px}
+    .review-period{display:flex;align-items:center;gap:10px}
+    .period-badge{background:#333;padding:6px 12px;border-radius:6px;font-size:13px}
+    .rating-display{display:flex;align-items:center;gap:10px}
+    .rating-value{font-size:2rem;font-weight:bold;color:#e94560}
+    .rating-max{color:#666}
+    .criteria-list{display:flex;flex-direction:column;gap:12px}
+    .criterion{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#0a0a0a;border-radius:8px}
+    .criterion-name{flex:1}
+    .criterion-rating{display:flex;gap:4px}
+    .star{font-size:20px;cursor:pointer;color:#333}
+    .star.filled{color:#ffe66d}
+    .star:hover{color:#ffe66d}
+    .feedback-section{margin-top:20px}
+    .feedback-section h4{margin-bottom:10px;color:#888}
+    .feedback-text{background:#0a0a0a;padding:16px;border-radius:8px;min-height:100px;white-space:pre-wrap}
+    .goals-section{margin-top:20px}
+    .goal-item{display:flex;align-items:center;gap:12px;padding:10px;background:#0a0a0a;border-radius:6px;margin-bottom:8px}
+    .goal-status{width:20px;height:20px;border-radius:50%;border:2px solid #444}
+    .goal-status.complete{background:#4a4;border-color:#4a4}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .empty{text-align:center;padding:40px;color:#666}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;padding:15px;border-radius:8px;text-align:center;border:1px solid #333}
+    .stat-value{font-size:1.5rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:12px;color:#888;margin-top:4px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⭐ Performance Reviews</h1>
+    <button class="primary" onclick="showNewReview()">+ New Review</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="avgRating">-</div><div class="stat-label">Average Rating</div></div>
+    <div class="stat"><div class="stat-value" id="completedCount">0</div><div class="stat-label">Reviews Completed</div></div>
+    <div class="stat"><div class="stat-value" id="pendingCount">0</div><div class="stat-label">Pending Reviews</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('my-reviews')">My Reviews</div>
+    <div class="tab" onclick="switchTab('team-reviews')">Team Reviews</div>
+    <div class="tab" onclick="switchTab('feedback-requests')">Feedback Requests</div>
+  </div>
+
+  <div class="section active" id="my-reviews"></div>
+  <div class="section" id="team-reviews"></div>
+  <div class="section" id="feedback-requests"></div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>New Performance Review</h2>
+      <div class="form-group"><label>Employee Name</label><input type="text" id="employeeName" placeholder="John Doe"></div>
+      <div class="form-group"><label>Review Period</label><select id="period">
+        <option value="Q1 2024">Q1 2024</option>
+        <option value="Q2 2024">Q2 2024</option>
+        <option value="Q3 2024">Q3 2024</option>
+        <option value="Q4 2024">Q4 2024</option>
+        <option value="Annual 2024">Annual 2024</option>
+      </select></div>
+
+      <h3 style="margin:20px 0 10px">Performance Criteria</h3>
+      <div id="criteriaInputs"></div>
+
+      <div class="form-group" style="margin-top:20px">
+        <label>Strengths</label>
+        <textarea id="strengths" rows="3" placeholder="What did this person do well?"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Areas for Improvement</label>
+        <textarea id="improvements" rows="3" placeholder="Where can they grow?"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Goals for Next Period</label>
+        <textarea id="goals" rows="3" placeholder="One goal per line"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button onclick="saveDraft()">Save Draft</button>
+        <button class="primary" onclick="submitReview()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultCriteria = [
+      'Job Knowledge',
+      'Quality of Work',
+      'Productivity',
+      'Communication',
+      'Teamwork',
+      'Initiative',
+      'Reliability',
+      'Problem Solving'
+    ];
+
+    let reviews = JSON.parse(localStorage.getItem('kiss-performance-reviews') || '[]');
+
+    function save() { localStorage.setItem('kiss-performance-reviews', JSON.stringify(reviews)); }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(tab).classList.add('active');
+    }
+
+    function calculateOverallRating(ratings) {
+      const values = Object.values(ratings).filter(v => v > 0);
+      if (values.length === 0) return 0;
+      return (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1);
+    }
+
+    function renderStars(rating, editable = false) {
+      return [1, 2, 3, 4, 5].map(i =>
+        `<span class="star ${i <= rating ? 'filled' : ''}">${i <= rating ? '★' : '☆'}</span>`
+      ).join('');
+    }
+
+    function render() {
+      // Stats
+      const completed = reviews.filter(r => r.status === 'completed');
+      const pending = reviews.filter(r => r.status === 'pending' || r.status === 'draft');
+
+      document.getElementById('completedCount').textContent = completed.length;
+      document.getElementById('pendingCount').textContent = pending.length;
+
+      if (completed.length > 0) {
+        const avgRating = completed.reduce((sum, r) => sum + parseFloat(calculateOverallRating(r.ratings)), 0) / completed.length;
+        document.getElementById('avgRating').textContent = avgRating.toFixed(1);
+      }
+
+      // My Reviews
+      const myReviews = document.getElementById('my-reviews');
+      if (reviews.length === 0) {
+        myReviews.innerHTML = '<div class="empty">No reviews yet. Create your first performance review!</div>';
+      } else {
+        myReviews.innerHTML = reviews.map(r => {
+          const overall = calculateOverallRating(r.ratings);
+          return `
+            <div class="review-card">
+              <div class="review-header">
+                <div>
+                  <h3>${r.employeeName}</h3>
+                  <div class="review-period">
+                    <span class="period-badge">${r.period}</span>
+                    <span class="period-badge" style="background:${r.status === 'completed' ? '#1a3a1a' : '#4a3a00'};color:${r.status === 'completed' ? '#4a4' : '#f90'}">${r.status}</span>
+                  </div>
+                </div>
+                <div class="rating-display">
+                  <span class="rating-value">${overall}</span>
+                  <span class="rating-max">/5</span>
+                </div>
+              </div>
+              <div class="criteria-list">
+                ${Object.entries(r.ratings).map(([name, rating]) => `
+                  <div class="criterion">
+                    <span class="criterion-name">${name}</span>
+                    <div class="criterion-rating">${renderStars(rating)}</div>
+                  </div>
+                `).join('')}
+              </div>
+              ${r.strengths ? `
+                <div class="feedback-section">
+                  <h4>Strengths</h4>
+                  <div class="feedback-text">${r.strengths}</div>
+                </div>
+              ` : ''}
+              ${r.improvements ? `
+                <div class="feedback-section">
+                  <h4>Areas for Improvement</h4>
+                  <div class="feedback-text">${r.improvements}</div>
+                </div>
+              ` : ''}
+              ${r.goals && r.goals.length > 0 ? `
+                <div class="goals-section">
+                  <h4>Goals</h4>
+                  ${r.goals.map(g => `
+                    <div class="goal-item">
+                      <div class="goal-status ${g.complete ? 'complete' : ''}"></div>
+                      <span>${g.text}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Team reviews and feedback requests would show similar content
+      document.getElementById('team-reviews').innerHTML = '<div class="empty">Team reviews will appear here when assigned</div>';
+      document.getElementById('feedback-requests').innerHTML = '<div class="empty">No pending feedback requests</div>';
+    }
+
+    function showNewReview() {
+      document.getElementById('employeeName').value = '';
+      document.getElementById('strengths').value = '';
+      document.getElementById('improvements').value = '';
+      document.getElementById('goals').value = '';
+
+      // Render criteria inputs
+      const criteriaDiv = document.getElementById('criteriaInputs');
+      criteriaDiv.innerHTML = defaultCriteria.map(c => `
+        <div class="criterion" style="margin-bottom:8px">
+          <span class="criterion-name">${c}</span>
+          <div class="criterion-rating" data-criterion="${c}">
+            ${[1,2,3,4,5].map(i => `<span class="star" onclick="setRating('${c}', ${i})">☆</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('modal').classList.add('active');
+    }
+
+    window.currentRatings = {};
+
+    function setRating(criterion, rating) {
+      window.currentRatings[criterion] = rating;
+      const container = document.querySelector(`[data-criterion="${criterion}"]`);
+      container.innerHTML = [1,2,3,4,5].map(i =>
+        `<span class="star ${i <= rating ? 'filled' : ''}" onclick="setRating('${criterion}', ${i})">${i <= rating ? '★' : '☆'}</span>`
+      ).join('');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function saveDraft() {
+      saveReview('draft');
+    }
+
+    function submitReview() {
+      saveReview('completed');
+    }
+
+    function saveReview(status) {
+      const employeeName = document.getElementById('employeeName').value.trim();
+      if (!employeeName) {
+        alert('Employee name is required');
+        return;
+      }
+
+      const goalsText = document.getElementById('goals').value.trim();
+      const goals = goalsText ? goalsText.split('\n').filter(g => g.trim()).map(g => ({ text: g.trim(), complete: false })) : [];
+
+      const review = {
+        id: Date.now().toString(),
+        employeeName,
+        period: document.getElementById('period').value,
+        ratings: { ...window.currentRatings },
+        strengths: document.getElementById('strengths').value.trim(),
+        improvements: document.getElementById('improvements').value.trim(),
+        goals,
+        status,
+        createdAt: new Date().toISOString()
+      };
+
+      reviews.unshift(review);
+      save();
+      closeModal();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

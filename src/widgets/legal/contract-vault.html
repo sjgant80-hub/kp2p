@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Contract Vault - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"contract-vault","name":"Contract Vault","icon":"📜","desc":"Secure contract repository and management","category":"legal","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;padding:20px;border-radius:12px;text-align:center;border:1px solid #333}
+    .stat-value{font-size:2rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:12px;color:#888;margin-top:4px}
+    .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .filters input,.filters select{padding:10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff}
+    .filters input{width:250px}
+    .contract-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+    .contract-card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333;cursor:pointer}
+    .contract-card:hover{border-color:#e94560}
+    .contract-icon{font-size:2rem;margin-bottom:12px}
+    .contract-title{font-size:1.1rem;margin-bottom:8px}
+    .contract-meta{display:flex;gap:12px;color:#888;font-size:13px;margin-bottom:12px;flex-wrap:wrap}
+    .contract-dates{display:flex;justify-content:space-between;font-size:12px;color:#666;padding-top:12px;border-top:1px solid #333}
+    .badge{padding:4px 10px;border-radius:12px;font-size:11px}
+    .badge.active{background:#1a4a1a;color:#4a4}
+    .badge.expired{background:#4a1a1a;color:#f44}
+    .badge.pending{background:#4a4a1a;color:#f90}
+    .badge.draft{background:#333;color:#888}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .alert{padding:12px 16px;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+    .alert.warning{background:#4a3a1a;color:#f90}
+    .alert.danger{background:#4a1a1a;color:#f44}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📜 Contract Vault</h1>
+    <button class="primary" onclick="showAddContract()">+ Add Contract</button>
+  </div>
+
+  <div id="alerts"></div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="totalContracts">0</div><div class="stat-label">Total Contracts</div></div>
+    <div class="stat"><div class="stat-value" id="activeContracts">0</div><div class="stat-label">Active</div></div>
+    <div class="stat"><div class="stat-value" id="expiringContracts">0</div><div class="stat-label">Expiring Soon</div></div>
+    <div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Total Value</div></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="search" placeholder="Search contracts..." oninput="render()">
+    <select id="typeFilter" onchange="render()">
+      <option value="">All Types</option>
+      <option value="nda">NDA</option>
+      <option value="service">Service Agreement</option>
+      <option value="vendor">Vendor Contract</option>
+      <option value="employment">Employment</option>
+      <option value="license">License</option>
+      <option value="other">Other</option>
+    </select>
+    <select id="statusFilter" onchange="render()">
+      <option value="">All Status</option>
+      <option value="active">Active</option>
+      <option value="pending">Pending</option>
+      <option value="expired">Expired</option>
+      <option value="draft">Draft</option>
+    </select>
+  </div>
+
+  <div class="contract-grid" id="contractGrid"></div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">Add Contract</h2>
+      <input type="hidden" id="contractId">
+      <div class="form-group"><label>Contract Name</label><input type="text" id="name" placeholder="Service Agreement - Vendor X"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Type</label><select id="type">
+          <option value="nda">NDA</option>
+          <option value="service">Service Agreement</option>
+          <option value="vendor">Vendor Contract</option>
+          <option value="employment">Employment</option>
+          <option value="license">License</option>
+          <option value="other">Other</option>
+        </select></div>
+        <div class="form-group"><label>Status</label><select id="status">
+          <option value="draft">Draft</option>
+          <option value="pending">Pending Signature</option>
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label>Counterparty</label><input type="text" id="counterparty" placeholder="Company/Person name"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Start Date</label><input type="date" id="startDate"></div>
+        <div class="form-group"><label>End Date</label><input type="date" id="endDate"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Value ($)</label><input type="number" id="value" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Renewal</label><select id="renewal">
+          <option value="none">None</option>
+          <option value="auto">Auto-renew</option>
+          <option value="manual">Manual</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea id="notes" rows="3" placeholder="Key terms, obligations..."></textarea></div>
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveContract()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let contracts = JSON.parse(localStorage.getItem('kiss-contracts') || '[]');
+
+    function save() { localStorage.setItem('kiss-contracts', JSON.stringify(contracts)); }
+
+    function formatCurrency(amt) {
+      return '$' + parseFloat(amt || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function daysUntil(dateStr) {
+      if (!dateStr) return Infinity;
+      const days = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
+      return days;
+    }
+
+    function getContractIcon(type) {
+      const icons = {
+        nda: '🔒',
+        service: '🤝',
+        vendor: '🏪',
+        employment: '👤',
+        license: '📄',
+        other: '📜'
+      };
+      return icons[type] || '📜';
+    }
+
+    function render() {
+      const search = document.getElementById('search').value.toLowerCase();
+      const typeFilter = document.getElementById('typeFilter').value;
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      // Find expiring contracts for alerts
+      const expiring = contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) <= 30 && daysUntil(c.endDate) > 0);
+      const expired = contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) <= 0);
+
+      // Update expired contracts
+      expired.forEach(c => { c.status = 'expired'; });
+      if (expired.length) save();
+
+      // Alerts
+      const alertsEl = document.getElementById('alerts');
+      let alertsHtml = '';
+      if (expiring.length) {
+        alertsHtml += `<div class="alert warning">⚠️ ${expiring.length} contract(s) expiring within 30 days</div>`;
+      }
+      alertsEl.innerHTML = alertsHtml;
+
+      // Stats
+      document.getElementById('totalContracts').textContent = contracts.length;
+      document.getElementById('activeContracts').textContent = contracts.filter(c => c.status === 'active').length;
+      document.getElementById('expiringContracts').textContent = expiring.length;
+      document.getElementById('totalValue').textContent = formatCurrency(
+        contracts.filter(c => c.status === 'active').reduce((sum, c) => sum + (parseFloat(c.value) || 0), 0)
+      );
+
+      // Filter
+      let filtered = contracts.filter(c => {
+        if (search && !c.name.toLowerCase().includes(search) && !c.counterparty.toLowerCase().includes(search)) return false;
+        if (typeFilter && c.type !== typeFilter) return false;
+        if (statusFilter && c.status !== statusFilter) return false;
+        return true;
+      });
+
+      const grid = document.getElementById('contractGrid');
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No contracts found</div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(c => {
+        const expireDays = daysUntil(c.endDate);
+        const isExpiring = c.status === 'active' && expireDays <= 30 && expireDays > 0;
+
+        return `
+          <div class="contract-card" onclick="editContract('${c.id}')">
+            <div class="contract-icon">${getContractIcon(c.type)}</div>
+            <div class="contract-title">${c.name}</div>
+            <div class="contract-meta">
+              <span>${c.counterparty}</span>
+              <span class="badge ${c.status}">${c.status}</span>
+              ${isExpiring ? '<span class="badge warning">Expiring</span>' : ''}
+            </div>
+            ${c.value ? `<div style="font-size:1.2rem;font-weight:bold;color:#e94560;margin-bottom:10px">${formatCurrency(c.value)}</div>` : ''}
+            <div class="contract-dates">
+              <span>Start: ${formatDate(c.startDate)}</span>
+              <span>End: ${formatDate(c.endDate)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function showAddContract() {
+      document.getElementById('modalTitle').textContent = 'Add Contract';
+      document.getElementById('contractId').value = '';
+      document.getElementById('name').value = '';
+      document.getElementById('counterparty').value = '';
+      document.getElementById('type').value = 'service';
+      document.getElementById('status').value = 'draft';
+      document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('endDate').value = '';
+      document.getElementById('value').value = '';
+      document.getElementById('renewal').value = 'none';
+      document.getElementById('notes').value = '';
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function editContract(id) {
+      const c = contracts.find(c => c.id === id);
+      if (!c) return;
+      document.getElementById('modalTitle').textContent = 'Edit Contract';
+      document.getElementById('contractId').value = id;
+      document.getElementById('name').value = c.name;
+      document.getElementById('counterparty').value = c.counterparty;
+      document.getElementById('type').value = c.type;
+      document.getElementById('status').value = c.status;
+      document.getElementById('startDate').value = c.startDate;
+      document.getElementById('endDate').value = c.endDate;
+      document.getElementById('value').value = c.value;
+      document.getElementById('renewal').value = c.renewal;
+      document.getElementById('notes').value = c.notes || '';
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function saveContract() {
+      const name = document.getElementById('name').value.trim();
+      const counterparty = document.getElementById('counterparty').value.trim();
+
+      if (!name || !counterparty) {
+        alert('Name and counterparty are required');
+        return;
+      }
+
+      const contract = {
+        id: document.getElementById('contractId').value || Date.now().toString(),
+        name,
+        counterparty,
+        type: document.getElementById('type').value,
+        status: document.getElementById('status').value,
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        value: parseFloat(document.getElementById('value').value) || 0,
+        renewal: document.getElementById('renewal').value,
+        notes: document.getElementById('notes').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const idx = contracts.findIndex(c => c.id === contract.id);
+      if (idx >= 0) {
+        contracts[idx] = contract;
+      } else {
+        contract.createdAt = new Date().toISOString();
+        contracts.unshift(contract);
+      }
+
+      save();
+      closeModal();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

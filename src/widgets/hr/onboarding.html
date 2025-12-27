@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Onboarding - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"onboarding","name":"Onboarding","icon":"🚀","desc":"New hire checklist and onboarding progress tracker","category":"hr","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button:hover{background:#333}
+    button.primary{background:#e94560;border-color:#e94560}
+    .tabs{display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid #333;padding-bottom:10px}
+    .tab{padding:10px 20px;cursor:pointer;border-radius:6px 6px 0 0;color:#888}
+    .tab.active{background:#1a1a1a;color:#fff;border:1px solid #333;border-bottom-color:#1a1a1a;margin-bottom:-11px}
+    .section{display:none}
+    .section.active{display:block}
+    .new-hires{display:grid;gap:16px}
+    .hire-card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333}
+    .hire-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+    .hire-info h3{margin-bottom:4px}
+    .hire-info p{color:#888;font-size:13px}
+    .progress-bar{background:#333;height:8px;border-radius:4px;margin:15px 0}
+    .progress-fill{background:#e94560;height:100%;border-radius:4px;transition:width 0.3s}
+    .checklist{display:flex;flex-direction:column;gap:10px}
+    .check-item{display:flex;align-items:center;gap:12px;padding:10px;background:#0a0a0a;border-radius:6px;cursor:pointer}
+    .check-item:hover{background:#222}
+    .check-item.done{opacity:0.6}
+    .check-item.done .check-text{text-decoration:line-through}
+    .checkbox{width:22px;height:22px;border:2px solid #444;border-radius:4px;display:flex;align-items:center;justify-content:center}
+    .check-item.done .checkbox{background:#e94560;border-color:#e94560}
+    .check-text{flex:1}
+    .check-due{font-size:12px;color:#666}
+    .templates{display:flex;flex-direction:column;gap:12px}
+    .template{background:#1a1a1a;padding:16px;border-radius:8px;border:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+    .template-actions{display:flex;gap:8px}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-group textarea{min-height:100px;resize:vertical}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .stats{display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap}
+    .stat{background:#1a1a1a;padding:15px 20px;border-radius:8px;border:1px solid #333;flex:1;min-width:150px}
+    .stat-value{font-size:1.5rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:12px;color:#888}
+    .badge{padding:4px 8px;border-radius:4px;font-size:11px;background:#333}
+    .badge.active{background:#1a4a1a;color:#4a4}
+    .badge.completed{background:#1a1a4a;color:#88f}
+    .empty{text-align:center;padding:40px;color:#666}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🚀 Onboarding</h1>
+    <button class="primary" onclick="showAddHire()">+ New Hire</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="activeCount">0</div><div class="stat-label">Active Onboardings</div></div>
+    <div class="stat"><div class="stat-value" id="completedCount">0</div><div class="stat-label">Completed This Month</div></div>
+    <div class="stat"><div class="stat-value" id="avgDays">0</div><div class="stat-label">Avg Days to Complete</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('hires')">New Hires</div>
+    <div class="tab" onclick="switchTab('templates')">Checklists</div>
+  </div>
+
+  <div class="section active" id="hires">
+    <div class="new-hires" id="hiresList"></div>
+    <div class="empty" id="hiresEmpty">No active onboardings. Add a new hire to get started!</div>
+  </div>
+
+  <div class="section" id="templates">
+    <div style="margin-bottom:16px"><button onclick="showAddTemplate()">+ Add Checklist Template</button></div>
+    <div class="templates" id="templatesList"></div>
+    <div class="empty" id="templatesEmpty">No templates yet. Create your first onboarding checklist!</div>
+  </div>
+
+  <div class="modal" id="hireModal">
+    <div class="modal-content">
+      <h2>Add New Hire</h2>
+      <div class="form-group"><label>Name</label><input type="text" id="hireName" placeholder="Jane Smith"></div>
+      <div class="form-group"><label>Position</label><input type="text" id="hirePosition" placeholder="Software Engineer"></div>
+      <div class="form-group"><label>Start Date</label><input type="date" id="hireDate"></div>
+      <div class="form-group"><label>Checklist Template</label><select id="hireTemplate"></select></div>
+      <div class="btn-row">
+        <button onclick="closeModal('hireModal')">Cancel</button>
+        <button class="primary" onclick="saveHire()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="templateModal">
+    <div class="modal-content">
+      <h2 id="templateModalTitle">Add Checklist Template</h2>
+      <input type="hidden" id="templateId">
+      <div class="form-group"><label>Template Name</label><input type="text" id="templateName" placeholder="Engineering Onboarding"></div>
+      <div class="form-group"><label>Tasks (one per line, use "Day X:" prefix for due dates)</label>
+        <textarea id="templateTasks" placeholder="Day 1: Complete HR paperwork
+Day 1: Setup workstation
+Day 3: Meet with team
+Day 5: Complete security training
+Day 14: First code review"></textarea>
+      </div>
+      <div class="btn-row">
+        <button onclick="closeModal('templateModal')">Cancel</button>
+        <button class="primary" onclick="saveTemplate()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let hires = JSON.parse(localStorage.getItem('kiss-onboarding-hires') || '[]');
+    let templates = JSON.parse(localStorage.getItem('kiss-onboarding-templates') || '[]');
+
+    // Default template if none exist
+    if (templates.length === 0) {
+      templates = [{
+        id: 'default',
+        name: 'Standard Onboarding',
+        tasks: [
+          { text: 'Complete HR paperwork', day: 1 },
+          { text: 'Setup workstation and accounts', day: 1 },
+          { text: 'Review employee handbook', day: 1 },
+          { text: 'Meet with manager', day: 1 },
+          { text: 'Team introduction meeting', day: 2 },
+          { text: 'Complete security training', day: 3 },
+          { text: 'Setup development environment', day: 3 },
+          { text: 'Review codebase documentation', day: 5 },
+          { text: 'First task assignment', day: 7 },
+          { text: '30-day check-in with HR', day: 30 }
+        ]
+      }];
+      saveTemplates();
+    }
+
+    function saveHires() { localStorage.setItem('kiss-onboarding-hires', JSON.stringify(hires)); }
+    function saveTemplates() { localStorage.setItem('kiss-onboarding-templates', JSON.stringify(templates)); }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(tab).classList.add('active');
+    }
+
+    function render() {
+      renderHires();
+      renderTemplates();
+      updateStats();
+    }
+
+    function renderHires() {
+      const list = document.getElementById('hiresList');
+      const empty = document.getElementById('hiresEmpty');
+      const active = hires.filter(h => !h.completed);
+
+      if (active.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = active.map(h => {
+        const completed = h.tasks.filter(t => t.done).length;
+        const total = h.tasks.length;
+        const percent = Math.round((completed / total) * 100);
+        const startDate = new Date(h.startDate);
+        const daysSince = Math.floor((Date.now() - startDate) / (1000 * 60 * 60 * 24));
+
+        return `
+          <div class="hire-card">
+            <div class="hire-header">
+              <div class="hire-info">
+                <h3>${h.name}</h3>
+                <p>${h.position} • Started ${h.startDate} (Day ${daysSince + 1})</p>
+              </div>
+              <span class="badge active">${percent}% Complete</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${percent}%"></div></div>
+            <div class="checklist">
+              ${h.tasks.map((t, i) => `
+                <div class="check-item ${t.done ? 'done' : ''}" onclick="toggleTask('${h.id}', ${i})">
+                  <div class="checkbox">${t.done ? '✓' : ''}</div>
+                  <span class="check-text">${t.text}</span>
+                  <span class="check-due">Day ${t.day}</span>
+                </div>
+              `).join('')}
+            </div>
+            ${percent === 100 ? `<button style="margin-top:15px" onclick="completeOnboarding('${h.id}')">✓ Mark Onboarding Complete</button>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderTemplates() {
+      const list = document.getElementById('templatesList');
+      const empty = document.getElementById('templatesEmpty');
+
+      if (templates.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = templates.map(t => `
+        <div class="template">
+          <div>
+            <strong>${t.name}</strong>
+            <span style="color:#888;font-size:13px;margin-left:10px">${t.tasks.length} tasks</span>
+          </div>
+          <div class="template-actions">
+            <button onclick="editTemplate('${t.id}')">Edit</button>
+            <button onclick="deleteTemplate('${t.id}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateStats() {
+      const active = hires.filter(h => !h.completed);
+      const thisMonth = hires.filter(h => {
+        if (!h.completedDate) return false;
+        const d = new Date(h.completedDate);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+
+      document.getElementById('activeCount').textContent = active.length;
+      document.getElementById('completedCount').textContent = thisMonth.length;
+
+      // Calculate average days
+      const completed = hires.filter(h => h.completedDate);
+      if (completed.length > 0) {
+        const avgDays = completed.reduce((sum, h) => {
+          const start = new Date(h.startDate);
+          const end = new Date(h.completedDate);
+          return sum + Math.floor((end - start) / (1000 * 60 * 60 * 24));
+        }, 0) / completed.length;
+        document.getElementById('avgDays').textContent = Math.round(avgDays);
+      }
+    }
+
+    function showAddHire() {
+      document.getElementById('hireName').value = '';
+      document.getElementById('hirePosition').value = '';
+      document.getElementById('hireDate').value = new Date().toISOString().split('T')[0];
+
+      const select = document.getElementById('hireTemplate');
+      select.innerHTML = templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+      document.getElementById('hireModal').classList.add('active');
+    }
+
+    function showAddTemplate() {
+      document.getElementById('templateModalTitle').textContent = 'Add Checklist Template';
+      document.getElementById('templateId').value = '';
+      document.getElementById('templateName').value = '';
+      document.getElementById('templateTasks').value = '';
+      document.getElementById('templateModal').classList.add('active');
+    }
+
+    function editTemplate(id) {
+      const t = templates.find(t => t.id === id);
+      if (!t) return;
+      document.getElementById('templateModalTitle').textContent = 'Edit Template';
+      document.getElementById('templateId').value = id;
+      document.getElementById('templateName').value = t.name;
+      document.getElementById('templateTasks').value = t.tasks.map(task =>
+        `Day ${task.day}: ${task.text}`
+      ).join('\n');
+      document.getElementById('templateModal').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function saveHire() {
+      const name = document.getElementById('hireName').value.trim();
+      const position = document.getElementById('hirePosition').value.trim();
+      const startDate = document.getElementById('hireDate').value;
+      const templateId = document.getElementById('hireTemplate').value;
+
+      if (!name || !position || !startDate) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      const template = templates.find(t => t.id === templateId);
+      const tasks = template ? template.tasks.map(t => ({ ...t, done: false })) : [];
+
+      hires.push({
+        id: Date.now().toString(),
+        name,
+        position,
+        startDate,
+        tasks,
+        completed: false
+      });
+
+      saveHires();
+      closeModal('hireModal');
+      render();
+    }
+
+    function saveTemplate() {
+      const id = document.getElementById('templateId').value || Date.now().toString();
+      const name = document.getElementById('templateName').value.trim();
+      const tasksText = document.getElementById('templateTasks').value;
+
+      if (!name || !tasksText) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      const tasks = tasksText.split('\n').filter(l => l.trim()).map(line => {
+        const match = line.match(/Day\s*(\d+):\s*(.+)/i);
+        return {
+          day: match ? parseInt(match[1]) : 1,
+          text: match ? match[2].trim() : line.trim()
+        };
+      }).sort((a, b) => a.day - b.day);
+
+      const idx = templates.findIndex(t => t.id === id);
+      if (idx >= 0) {
+        templates[idx] = { id, name, tasks };
+      } else {
+        templates.push({ id, name, tasks });
+      }
+
+      saveTemplates();
+      closeModal('templateModal');
+      render();
+    }
+
+    function deleteTemplate(id) {
+      if (confirm('Delete this template?')) {
+        templates = templates.filter(t => t.id !== id);
+        saveTemplates();
+        render();
+      }
+    }
+
+    function toggleTask(hireId, taskIndex) {
+      const hire = hires.find(h => h.id === hireId);
+      if (hire) {
+        hire.tasks[taskIndex].done = !hire.tasks[taskIndex].done;
+        saveHires();
+        render();
+      }
+    }
+
+    function completeOnboarding(id) {
+      const hire = hires.find(h => h.id === id);
+      if (hire) {
+        hire.completed = true;
+        hire.completedDate = new Date().toISOString().split('T')[0];
+        saveHires();
+        render();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

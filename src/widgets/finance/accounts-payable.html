@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Accounts Payable - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"accounts-payable","name":"Accounts Payable","icon":"💳","desc":"Bill management and vendor payments","category":"finance","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid #333}
+    .stat-value{font-size:1.8rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:13px;color:#888;margin-top:4px}
+    .tabs{display:flex;gap:10px;margin-bottom:20px}
+    .tab{padding:10px 20px;cursor:pointer;border-radius:6px;background:#1a1a1a;border:1px solid #333}
+    .tab.active{background:#e94560;border-color:#e94560}
+    .section{display:none}
+    .section.active{display:block}
+    .bill-list{display:flex;flex-direction:column;gap:12px}
+    .bill-card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333;display:grid;grid-template-columns:1fr auto auto;gap:20px;align-items:center}
+    .bill-card:hover{border-color:#e94560}
+    .bill-info h3{margin-bottom:4px}
+    .bill-info p{color:#888;font-size:13px}
+    .bill-amount{text-align:right}
+    .bill-amount .total{font-size:1.3rem;font-weight:bold;color:#e94560}
+    .bill-amount .due{font-size:12px;margin-top:4px}
+    .badge{padding:4px 10px;border-radius:12px;font-size:11px}
+    .badge.pending{background:#4a4a1a;color:#f90}
+    .badge.approved{background:#1a4a1a;color:#4a4}
+    .badge.paid{background:#1a1a4a;color:#88f}
+    .badge.overdue{background:#4a1a1a;color:#f44}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>💳 Accounts Payable</h1>
+    <button class="primary" onclick="showAddBill()">+ New Bill</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="totalDue">$0</div><div class="stat-label">Total Due</div></div>
+    <div class="stat"><div class="stat-value" id="overdue">$0</div><div class="stat-label">Overdue</div></div>
+    <div class="stat"><div class="stat-value" id="dueWeek">$0</div><div class="stat-label">Due This Week</div></div>
+    <div class="stat"><div class="stat-value" id="paidMonth">$0</div><div class="stat-label">Paid This Month</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('pending')">Pending</div>
+    <div class="tab" onclick="switchTab('approved')">Approved</div>
+    <div class="tab" onclick="switchTab('paid')">Paid</div>
+  </div>
+
+  <div class="section active" id="pending"></div>
+  <div class="section" id="approved"></div>
+  <div class="section" id="paid"></div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>New Bill</h2>
+      <input type="hidden" id="billId">
+      <div class="form-group"><label>Vendor</label><input type="text" id="vendor" placeholder="Vendor name"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Invoice #</label><input type="text" id="invoiceNum" placeholder="INV-001"></div>
+        <div class="form-group"><label>Amount</label><input type="number" id="amount" step="0.01"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Bill Date</label><input type="date" id="billDate"></div>
+        <div class="form-group"><label>Due Date</label><input type="date" id="dueDate"></div>
+      </div>
+      <div class="form-group"><label>Category</label><select id="category">
+        <option value="supplies">Supplies</option>
+        <option value="utilities">Utilities</option>
+        <option value="rent">Rent</option>
+        <option value="services">Professional Services</option>
+        <option value="software">Software</option>
+        <option value="other">Other</option>
+      </select></div>
+      <div class="form-group"><label>Notes</label><textarea id="notes" rows="2"></textarea></div>
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveBill()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let bills = JSON.parse(localStorage.getItem('kiss-ap-bills') || '[]');
+
+    function save() { localStorage.setItem('kiss-ap-bills', JSON.stringify(bills)); }
+
+    function formatCurrency(amt) {
+      return '$' + parseFloat(amt || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function isOverdue(dueDate) {
+      return new Date(dueDate) < new Date() && new Date(dueDate).toDateString() !== new Date().toDateString();
+    }
+
+    function isDueThisWeek(dueDate) {
+      const due = new Date(dueDate);
+      const today = new Date();
+      const weekEnd = new Date();
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      return due >= today && due <= weekEnd;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(tab).classList.add('active');
+    }
+
+    function render() {
+      // Stats
+      let totalDue = 0, overdue = 0, dueWeek = 0, paidMonth = 0;
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      bills.forEach(bill => {
+        if (bill.status === 'paid') {
+          if (bill.paidDate && new Date(bill.paidDate) >= monthStart) {
+            paidMonth += bill.amount;
+          }
+        } else {
+          totalDue += bill.amount;
+          if (isOverdue(bill.dueDate)) overdue += bill.amount;
+          if (isDueThisWeek(bill.dueDate)) dueWeek += bill.amount;
+        }
+      });
+
+      document.getElementById('totalDue').textContent = formatCurrency(totalDue);
+      document.getElementById('overdue').textContent = formatCurrency(overdue);
+      document.getElementById('dueWeek').textContent = formatCurrency(dueWeek);
+      document.getElementById('paidMonth').textContent = formatCurrency(paidMonth);
+
+      // Render sections
+      ['pending', 'approved', 'paid'].forEach(status => {
+        const section = document.getElementById(status);
+        const filtered = bills.filter(b => b.status === status);
+
+        if (filtered.length === 0) {
+          section.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No bills</div>';
+          return;
+        }
+
+        section.innerHTML = `<div class="bill-list">${filtered.map(bill => {
+          const overdueBadge = status !== 'paid' && isOverdue(bill.dueDate);
+          return `
+            <div class="bill-card">
+              <div class="bill-info">
+                <h3>${bill.vendor}</h3>
+                <p>${bill.invoiceNum} • ${bill.category}</p>
+              </div>
+              <div class="bill-amount">
+                <div class="total">${formatCurrency(bill.amount)}</div>
+                <div class="due ${overdueBadge ? 'style="color:#f44"' : ''}">
+                  ${status === 'paid' ? 'Paid ' + formatDate(bill.paidDate) : 'Due ' + formatDate(bill.dueDate)}
+                </div>
+              </div>
+              <div>
+                ${status === 'pending' ? `<button onclick="approveBill('${bill.id}')">Approve</button>` : ''}
+                ${status === 'approved' ? `<button class="primary" onclick="payBill('${bill.id}')">Pay</button>` : ''}
+                ${overdueBadge ? '<span class="badge overdue">Overdue</span>' : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}</div>`;
+      });
+    }
+
+    function showAddBill() {
+      document.getElementById('billId').value = '';
+      document.getElementById('vendor').value = '';
+      document.getElementById('invoiceNum').value = '';
+      document.getElementById('amount').value = '';
+      document.getElementById('billDate').value = new Date().toISOString().split('T')[0];
+      const due = new Date();
+      due.setDate(due.getDate() + 30);
+      document.getElementById('dueDate').value = due.toISOString().split('T')[0];
+      document.getElementById('notes').value = '';
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function saveBill() {
+      const vendor = document.getElementById('vendor').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+
+      if (!vendor || !amount) {
+        alert('Vendor and amount are required');
+        return;
+      }
+
+      bills.push({
+        id: Date.now().toString(),
+        vendor,
+        invoiceNum: document.getElementById('invoiceNum').value.trim(),
+        amount,
+        billDate: document.getElementById('billDate').value,
+        dueDate: document.getElementById('dueDate').value,
+        category: document.getElementById('category').value,
+        notes: document.getElementById('notes').value.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
+
+      save();
+      closeModal();
+      render();
+    }
+
+    function approveBill(id) {
+      const bill = bills.find(b => b.id === id);
+      if (bill) {
+        bill.status = 'approved';
+        save();
+        render();
+      }
+    }
+
+    function payBill(id) {
+      const bill = bills.find(b => b.id === id);
+      if (bill && confirm(`Pay ${formatCurrency(bill.amount)} to ${bill.vendor}?`)) {
+        bill.status = 'paid';
+        bill.paidDate = new Date().toISOString().split('T')[0];
+        save();
+        render();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

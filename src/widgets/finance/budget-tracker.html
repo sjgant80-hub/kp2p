@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Budget vs Actual - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"budget-tracker","name":"Budget vs Actual","icon":"📊","desc":"Budget variance and reporting","category":"finance","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .period-nav{display:flex;align-items:center;gap:15px;margin-bottom:20px}
+    .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+    .summary-card{background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid #333}
+    .summary-label{font-size:13px;color:#888;margin-bottom:8px}
+    .summary-value{font-size:1.8rem;font-weight:bold}
+    .summary-value.under{color:#4ecdc4}
+    .summary-value.over{color:#f38181}
+    .budget-table{width:100%;border-collapse:collapse;background:#1a1a1a;border-radius:12px;overflow:hidden}
+    .budget-table th{text-align:left;padding:14px;background:#0a0a0a;font-size:13px;color:#888}
+    .budget-table td{padding:14px;border-top:1px solid #222}
+    .budget-table tr:hover{background:#222}
+    .progress-cell{width:200px}
+    .progress-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+    .progress-fill{height:100%;border-radius:4px;transition:width 0.3s}
+    .progress-fill.under{background:#4ecdc4}
+    .progress-fill.over{background:#f38181}
+    .progress-fill.warning{background:#f90}
+    .amount{text-align:right;font-family:monospace}
+    .variance{text-align:right}
+    .variance.positive{color:#4ecdc4}
+    .variance.negative{color:#f38181}
+    .category-header{background:#0a0a0a;font-weight:bold}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:500px}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 Budget vs Actual</h1>
+    <div>
+      <button onclick="showAddCategory()">+ Add Category</button>
+      <button class="primary" onclick="showAddExpense()">+ Record Expense</button>
+    </div>
+  </div>
+
+  <div class="period-nav">
+    <button onclick="prevMonth()">← Prev</button>
+    <h2 id="periodLabel">January 2024</h2>
+    <button onclick="nextMonth()">Next →</button>
+  </div>
+
+  <div class="summary">
+    <div class="summary-card"><div class="summary-label">Total Budget</div><div class="summary-value" id="totalBudget">$0</div></div>
+    <div class="summary-card"><div class="summary-label">Actual Spent</div><div class="summary-value" id="totalActual">$0</div></div>
+    <div class="summary-card"><div class="summary-label">Variance</div><div class="summary-value under" id="variance">$0</div></div>
+    <div class="summary-card"><div class="summary-label">% Used</div><div class="summary-value" id="percentUsed">0%</div></div>
+  </div>
+
+  <table class="budget-table">
+    <thead><tr>
+      <th>Category</th>
+      <th style="text-align:right">Budget</th>
+      <th style="text-align:right">Actual</th>
+      <th>Progress</th>
+      <th style="text-align:right">Variance</th>
+      <th style="text-align:right">%</th>
+    </tr></thead>
+    <tbody id="budgetBody"></tbody>
+    <tfoot id="budgetFoot"></tfoot>
+  </table>
+
+  <div class="modal" id="categoryModal">
+    <div class="modal-content">
+      <h2>Add Budget Category</h2>
+      <div class="form-group"><label>Category Name</label><input type="text" id="catName" placeholder="Marketing"></div>
+      <div class="form-group"><label>Monthly Budget</label><input type="number" id="catBudget" step="0.01" placeholder="5000"></div>
+      <div class="form-group"><label>Type</label><select id="catType">
+        <option value="expense">Expense</option>
+        <option value="revenue">Revenue</option>
+      </select></div>
+      <div class="btn-row">
+        <button onclick="closeModal('categoryModal')">Cancel</button>
+        <button class="primary" onclick="saveCategory()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="expenseModal">
+    <div class="modal-content">
+      <h2>Record Expense</h2>
+      <div class="form-group"><label>Category</label><select id="expCategory"></select></div>
+      <div class="form-group"><label>Amount</label><input type="number" id="expAmount" step="0.01"></div>
+      <div class="form-group"><label>Date</label><input type="date" id="expDate"></div>
+      <div class="form-group"><label>Description</label><input type="text" id="expDesc" placeholder="Optional"></div>
+      <div class="btn-row">
+        <button onclick="closeModal('expenseModal')">Cancel</button>
+        <button class="primary" onclick="saveExpense()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultCategories = [
+      { id: 'payroll', name: 'Payroll', budget: 50000, type: 'expense' },
+      { id: 'marketing', name: 'Marketing', budget: 10000, type: 'expense' },
+      { id: 'rent', name: 'Rent & Utilities', budget: 5000, type: 'expense' },
+      { id: 'software', name: 'Software & Tools', budget: 3000, type: 'expense' },
+      { id: 'travel', name: 'Travel', budget: 2000, type: 'expense' },
+      { id: 'supplies', name: 'Office Supplies', budget: 500, type: 'expense' }
+    ];
+
+    let categories = JSON.parse(localStorage.getItem('kiss-budget-categories') || 'null') || defaultCategories;
+    let expenses = JSON.parse(localStorage.getItem('kiss-budget-expenses') || '[]');
+    let currentDate = new Date();
+
+    function save() {
+      localStorage.setItem('kiss-budget-categories', JSON.stringify(categories));
+      localStorage.setItem('kiss-budget-expenses', JSON.stringify(expenses));
+    }
+
+    function formatCurrency(amt) {
+      const prefix = amt < 0 ? '-' : '';
+      return prefix + '$' + Math.abs(amt).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function getMonthKey() {
+      return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getActualForCategory(catId) {
+      const monthKey = getMonthKey();
+      return expenses
+        .filter(e => e.category === catId && e.date.startsWith(monthKey))
+        .reduce((sum, e) => sum + e.amount, 0);
+    }
+
+    function render() {
+      document.getElementById('periodLabel').textContent =
+        currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      let totalBudget = 0, totalActual = 0;
+
+      const rows = categories.map(cat => {
+        const actual = getActualForCategory(cat.id);
+        const variance = cat.budget - actual;
+        const percent = cat.budget > 0 ? (actual / cat.budget * 100) : 0;
+
+        totalBudget += cat.budget;
+        totalActual += actual;
+
+        let progressClass = 'under';
+        if (percent > 100) progressClass = 'over';
+        else if (percent > 80) progressClass = 'warning';
+
+        return `
+          <tr>
+            <td>${cat.name}</td>
+            <td class="amount">${formatCurrency(cat.budget)}</td>
+            <td class="amount">${formatCurrency(actual)}</td>
+            <td class="progress-cell">
+              <div class="progress-bar">
+                <div class="progress-fill ${progressClass}" style="width:${Math.min(100, percent)}%"></div>
+              </div>
+            </td>
+            <td class="variance ${variance >= 0 ? 'positive' : 'negative'}">${formatCurrency(variance)}</td>
+            <td class="amount">${Math.round(percent)}%</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('budgetBody').innerHTML = rows.join('');
+
+      const totalVariance = totalBudget - totalActual;
+      const totalPercent = totalBudget > 0 ? (totalActual / totalBudget * 100) : 0;
+
+      document.getElementById('budgetFoot').innerHTML = `
+        <tr style="background:#0a0a0a;font-weight:bold">
+          <td>TOTAL</td>
+          <td class="amount">${formatCurrency(totalBudget)}</td>
+          <td class="amount">${formatCurrency(totalActual)}</td>
+          <td class="progress-cell">
+            <div class="progress-bar">
+              <div class="progress-fill ${totalPercent > 100 ? 'over' : 'under'}" style="width:${Math.min(100, totalPercent)}%"></div>
+            </div>
+          </td>
+          <td class="variance ${totalVariance >= 0 ? 'positive' : 'negative'}">${formatCurrency(totalVariance)}</td>
+          <td class="amount">${Math.round(totalPercent)}%</td>
+        </tr>
+      `;
+
+      // Summary cards
+      document.getElementById('totalBudget').textContent = formatCurrency(totalBudget);
+      document.getElementById('totalActual').textContent = formatCurrency(totalActual);
+
+      const varianceEl = document.getElementById('variance');
+      varianceEl.textContent = formatCurrency(totalVariance);
+      varianceEl.className = `summary-value ${totalVariance >= 0 ? 'under' : 'over'}`;
+
+      document.getElementById('percentUsed').textContent = Math.round(totalPercent) + '%';
+
+      // Update category dropdown
+      document.getElementById('expCategory').innerHTML =
+        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    }
+
+    function prevMonth() {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      render();
+    }
+
+    function nextMonth() {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      render();
+    }
+
+    function showAddCategory() {
+      document.getElementById('catName').value = '';
+      document.getElementById('catBudget').value = '';
+      document.getElementById('categoryModal').classList.add('active');
+    }
+
+    function showAddExpense() {
+      document.getElementById('expAmount').value = '';
+      document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('expDesc').value = '';
+      document.getElementById('expenseModal').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function saveCategory() {
+      const name = document.getElementById('catName').value.trim();
+      const budget = parseFloat(document.getElementById('catBudget').value);
+      const type = document.getElementById('catType').value;
+
+      if (!name || !budget) {
+        alert('Name and budget are required');
+        return;
+      }
+
+      categories.push({
+        id: Date.now().toString(),
+        name,
+        budget,
+        type
+      });
+
+      save();
+      closeModal('categoryModal');
+      render();
+    }
+
+    function saveExpense() {
+      const category = document.getElementById('expCategory').value;
+      const amount = parseFloat(document.getElementById('expAmount').value);
+      const date = document.getElementById('expDate').value;
+      const description = document.getElementById('expDesc').value.trim();
+
+      if (!amount || !date) {
+        alert('Amount and date are required');
+        return;
+      }
+
+      expenses.push({
+        id: Date.now().toString(),
+        category,
+        amount,
+        date,
+        description
+      });
+
+      save();
+      closeModal('expenseModal');
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

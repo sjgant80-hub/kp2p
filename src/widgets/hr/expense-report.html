@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Expense Report - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"expense-report","name":"Expense Report","icon":"🧾","desc":"Submit and track expense reports with receipts","category":"hr","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button:hover{background:#333}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333}
+    .stat-value{font-size:1.8rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:13px;color:#888;margin-top:4px}
+    .reports{display:flex;flex-direction:column;gap:12px}
+    .report{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+    .report-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;cursor:pointer}
+    .report-header:hover{background:#222}
+    .report-title{display:flex;align-items:center;gap:12px}
+    .report-title h3{margin-bottom:2px}
+    .report-title p{color:#888;font-size:13px}
+    .report-amount{text-align:right}
+    .report-amount .total{font-size:1.3rem;font-weight:bold;color:#e94560}
+    .report-amount .status{margin-top:4px}
+    .badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500}
+    .badge.draft{background:#333;color:#888}
+    .badge.pending{background:#4a3a00;color:#f90}
+    .badge.approved{background:#1a3a1a;color:#4a4}
+    .badge.rejected{background:#3a1a1a;color:#f44}
+    .badge.reimbursed{background:#1a1a4a;color:#88f}
+    .report-body{display:none;border-top:1px solid #333;padding:20px}
+    .report.expanded .report-body{display:block}
+    .expense-table{width:100%}
+    .expense-table th{text-align:left;padding:8px;color:#888;font-size:12px;border-bottom:1px solid #333}
+    .expense-table td{padding:10px 8px;border-bottom:1px solid #222}
+    .expense-table .amount{text-align:right;font-weight:500}
+    .category-badge{padding:2px 8px;border-radius:4px;font-size:11px;background:#333}
+    .receipt-link{color:#e94560;text-decoration:none}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .expense-list{margin-top:20px;border:1px solid #333;border-radius:8px}
+    .expense-item{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #333}
+    .expense-item:last-child{border:none}
+    .add-expense-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-top:16px}
+    .add-expense-row input,.add-expense-row select{padding:8px}
+    .empty{text-align:center;padding:40px;color:#666}
+    .delete-btn{background:#500;border-color:#500}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🧾 Expense Reports</h1>
+    <button class="primary" onclick="showNewReport()">+ New Report</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="pendingAmount">$0</div><div class="stat-label">Pending Reimbursement</div></div>
+    <div class="stat"><div class="stat-value" id="thisMonth">$0</div><div class="stat-label">This Month</div></div>
+    <div class="stat"><div class="stat-value" id="ytdTotal">$0</div><div class="stat-label">Year to Date</div></div>
+  </div>
+
+  <div class="reports" id="reportsList"></div>
+  <div class="empty" id="empty">No expense reports yet. Create your first one!</div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">New Expense Report</h2>
+      <input type="hidden" id="reportId">
+      <div class="form-group"><label>Report Title</label><input type="text" id="title" placeholder="Q1 Travel Expenses"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Start Date</label><input type="date" id="startDate"></div>
+        <div class="form-group"><label>End Date</label><input type="date" id="endDate"></div>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea id="notes" rows="2" placeholder="Optional description..."></textarea></div>
+
+      <h3 style="margin:20px 0 10px">Expenses</h3>
+      <div class="add-expense-row">
+        <input type="text" id="expDesc" placeholder="Description">
+        <select id="expCat">
+          <option value="travel">Travel</option>
+          <option value="meals">Meals</option>
+          <option value="lodging">Lodging</option>
+          <option value="transport">Transport</option>
+          <option value="supplies">Supplies</option>
+          <option value="software">Software</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="number" id="expAmount" placeholder="Amount" step="0.01">
+        <button onclick="addExpense()">+</button>
+      </div>
+      <div class="expense-list" id="expenseList"></div>
+      <div style="text-align:right;margin-top:10px;font-size:1.2rem">
+        Total: <strong id="expenseTotal">$0.00</strong>
+      </div>
+
+      <div class="btn-row">
+        <button id="deleteBtn" class="delete-btn" onclick="deleteReport()" style="display:none">Delete</button>
+        <button onclick="closeModal()">Cancel</button>
+        <button onclick="saveDraft()">Save Draft</button>
+        <button class="primary" onclick="submitReport()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let reports = JSON.parse(localStorage.getItem('kiss-expense-reports') || '[]');
+    let currentExpenses = [];
+
+    function save() { localStorage.setItem('kiss-expense-reports', JSON.stringify(reports)); }
+
+    function formatCurrency(amount) {
+      return '$' + parseFloat(amount || 0).toFixed(2);
+    }
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function getCategoryColor(cat) {
+      const colors = {
+        travel: '#4ecdc4', meals: '#f38181', lodging: '#aa96da',
+        transport: '#95e1d3', supplies: '#ffe66d', software: '#a8d8ea', other: '#888'
+      };
+      return colors[cat] || '#888';
+    }
+
+    function render() {
+      // Calculate stats
+      let pending = 0, thisMonth = 0, ytd = 0;
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+
+      reports.forEach(r => {
+        const total = r.expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+        const date = new Date(r.createdAt);
+
+        if (r.status === 'pending' || r.status === 'approved') pending += total;
+        if (date >= monthStart) thisMonth += total;
+        if (date >= yearStart) ytd += total;
+      });
+
+      document.getElementById('pendingAmount').textContent = formatCurrency(pending);
+      document.getElementById('thisMonth').textContent = formatCurrency(thisMonth);
+      document.getElementById('ytdTotal').textContent = formatCurrency(ytd);
+
+      // Render reports
+      const list = document.getElementById('reportsList');
+      const empty = document.getElementById('empty');
+
+      if (reports.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = reports.map(r => {
+        const total = r.expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+        return `
+          <div class="report" id="report-${r.id}">
+            <div class="report-header" onclick="toggleReport('${r.id}')">
+              <div class="report-title">
+                <div>
+                  <h3>${r.title}</h3>
+                  <p>${formatDate(r.startDate)} - ${formatDate(r.endDate)} • ${r.expenses.length} items</p>
+                </div>
+              </div>
+              <div class="report-amount">
+                <div class="total">${formatCurrency(total)}</div>
+                <div class="status"><span class="badge ${r.status}">${r.status.charAt(0).toUpperCase() + r.status.slice(1)}</span></div>
+              </div>
+            </div>
+            <div class="report-body">
+              <table class="expense-table">
+                <thead><tr><th>Description</th><th>Category</th><th>Date</th><th style="text-align:right">Amount</th></tr></thead>
+                <tbody>
+                  ${r.expenses.map(e => `
+                    <tr>
+                      <td>${e.description}</td>
+                      <td><span class="category-badge" style="background:${getCategoryColor(e.category)}20;color:${getCategoryColor(e.category)}">${e.category}</span></td>
+                      <td>${e.date ? formatDate(e.date) : '-'}</td>
+                      <td class="amount">${formatCurrency(e.amount)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              ${r.notes ? `<p style="margin-top:15px;color:#888">${r.notes}</p>` : ''}
+              <div style="margin-top:15px">
+                ${r.status === 'draft' ? `<button onclick="editReport('${r.id}')">Edit</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleReport(id) {
+      document.getElementById(`report-${id}`).classList.toggle('expanded');
+    }
+
+    function showNewReport() {
+      document.getElementById('modalTitle').textContent = 'New Expense Report';
+      document.getElementById('reportId').value = '';
+      document.getElementById('title').value = '';
+      document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('endDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('notes').value = '';
+      document.getElementById('deleteBtn').style.display = 'none';
+      currentExpenses = [];
+      renderExpenses();
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function editReport(id) {
+      const r = reports.find(r => r.id === id);
+      if (!r) return;
+      document.getElementById('modalTitle').textContent = 'Edit Expense Report';
+      document.getElementById('reportId').value = id;
+      document.getElementById('title').value = r.title;
+      document.getElementById('startDate').value = r.startDate;
+      document.getElementById('endDate').value = r.endDate;
+      document.getElementById('notes').value = r.notes || '';
+      document.getElementById('deleteBtn').style.display = 'block';
+      currentExpenses = [...r.expenses];
+      renderExpenses();
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function addExpense() {
+      const desc = document.getElementById('expDesc').value.trim();
+      const cat = document.getElementById('expCat').value;
+      const amount = document.getElementById('expAmount').value;
+
+      if (!desc || !amount) {
+        alert('Description and amount are required');
+        return;
+      }
+
+      currentExpenses.push({
+        id: Date.now().toString(),
+        description: desc,
+        category: cat,
+        amount: parseFloat(amount),
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      document.getElementById('expDesc').value = '';
+      document.getElementById('expAmount').value = '';
+      renderExpenses();
+    }
+
+    function removeExpense(id) {
+      currentExpenses = currentExpenses.filter(e => e.id !== id);
+      renderExpenses();
+    }
+
+    function renderExpenses() {
+      const list = document.getElementById('expenseList');
+      const total = currentExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+      list.innerHTML = currentExpenses.length === 0 ?
+        '<div class="expense-item" style="color:#666">No expenses added yet</div>' :
+        currentExpenses.map(e => `
+          <div class="expense-item">
+            <div>
+              <strong>${e.description}</strong>
+              <span class="category-badge" style="margin-left:8px;background:${getCategoryColor(e.category)}20;color:${getCategoryColor(e.category)}">${e.category}</span>
+            </div>
+            <div>
+              ${formatCurrency(e.amount)}
+              <button onclick="removeExpense('${e.id}')" style="margin-left:8px;padding:2px 6px">×</button>
+            </div>
+          </div>
+        `).join('');
+
+      document.getElementById('expenseTotal').textContent = formatCurrency(total);
+    }
+
+    function saveDraft() {
+      saveReport('draft');
+    }
+
+    function submitReport() {
+      if (currentExpenses.length === 0) {
+        alert('Add at least one expense');
+        return;
+      }
+      saveReport('pending');
+    }
+
+    function saveReport(status) {
+      const id = document.getElementById('reportId').value || Date.now().toString();
+      const report = {
+        id,
+        title: document.getElementById('title').value.trim() || 'Untitled Report',
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        notes: document.getElementById('notes').value.trim(),
+        expenses: currentExpenses,
+        status,
+        createdAt: new Date().toISOString()
+      };
+
+      const idx = reports.findIndex(r => r.id === id);
+      if (idx >= 0) {
+        reports[idx] = report;
+      } else {
+        reports.unshift(report);
+      }
+
+      save();
+      closeModal();
+      render();
+    }
+
+    function deleteReport() {
+      const id = document.getElementById('reportId').value;
+      if (confirm('Delete this expense report?')) {
+        reports = reports.filter(r => r.id !== id);
+        save();
+        closeModal();
+        render();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

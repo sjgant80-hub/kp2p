@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Applicant Tracker - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"applicant-tracker","name":"Applicant Tracker","icon":"📋","desc":"ATS for managing hiring pipeline","category":"hr","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button:hover{background:#333}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px}
+    .stat{background:#1a1a1a;padding:15px;border-radius:8px;text-align:center;border:1px solid #333}
+    .stat-value{font-size:1.5rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:11px;color:#888;margin-top:4px}
+    .pipeline{display:flex;gap:16px;overflow-x:auto;padding-bottom:20px}
+    .stage{flex:0 0 280px;background:#1a1a1a;border-radius:12px;border:1px solid #333}
+    .stage-header{padding:16px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+    .stage-header h3{font-size:14px;display:flex;align-items:center;gap:8px}
+    .stage-count{background:#333;padding:4px 10px;border-radius:12px;font-size:12px}
+    .stage-body{padding:12px;min-height:200px}
+    .candidate{background:#0a0a0a;border-radius:8px;padding:14px;margin-bottom:10px;cursor:pointer;border:1px solid #222}
+    .candidate:hover{border-color:#e94560}
+    .candidate-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .candidate-avatar{width:36px;height:36px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:12px}
+    .candidate-name{font-weight:600}
+    .candidate-role{color:#888;font-size:12px}
+    .candidate-meta{display:flex;gap:8px;flex-wrap:wrap}
+    .meta-tag{padding:3px 8px;border-radius:4px;font-size:11px;background:#333}
+    .meta-tag.hot{background:#500;color:#f66}
+    .meta-tag.new{background:#004a00;color:#6f6}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .stage-actions{margin-top:15px;padding-top:15px;border-top:1px solid #333}
+    .stage-select{width:100%;padding:8px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff;margin-bottom:10px}
+    .rating{display:flex;gap:4px}
+    .rating span{font-size:18px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 Applicant Tracker</h1>
+    <div>
+      <button onclick="showAddJob()">+ Add Job</button>
+      <button class="primary" onclick="showAddCandidate()">+ Add Candidate</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="totalCandidates">0</div><div class="stat-label">Candidates</div></div>
+    <div class="stat"><div class="stat-value" id="newThisWeek">0</div><div class="stat-label">New This Week</div></div>
+    <div class="stat"><div class="stat-value" id="inInterview">0</div><div class="stat-label">Interviewing</div></div>
+    <div class="stat"><div class="stat-value" id="offers">0</div><div class="stat-label">Offers</div></div>
+    <div class="stat"><div class="stat-value" id="hired">0</div><div class="stat-label">Hired</div></div>
+  </div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <div class="modal" id="candidateModal">
+    <div class="modal-content">
+      <h2 id="candidateModalTitle">Add Candidate</h2>
+      <input type="hidden" id="candidateId">
+      <div class="form-row">
+        <div class="form-group"><label>First Name</label><input type="text" id="firstName"></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="lastName"></div>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="email"></div>
+      <div class="form-group"><label>Phone</label><input type="tel" id="phone"></div>
+      <div class="form-group"><label>Position</label><select id="position"></select></div>
+      <div class="form-group"><label>Source</label><select id="source">
+        <option value="LinkedIn">LinkedIn</option>
+        <option value="Indeed">Indeed</option>
+        <option value="Referral">Referral</option>
+        <option value="Website">Website</option>
+        <option value="Other">Other</option>
+      </select></div>
+      <div class="form-group"><label>Resume URL</label><input type="text" id="resume" placeholder="Link to resume"></div>
+      <div class="form-group"><label>Notes</label><textarea id="notes" rows="2"></textarea></div>
+      <div class="btn-row">
+        <button onclick="closeModal('candidateModal')">Cancel</button>
+        <button class="primary" onclick="saveCandidate()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="detailModal">
+    <div class="modal-content">
+      <h2 id="detailName">Candidate Name</h2>
+      <p id="detailRole" style="color:#888;margin-bottom:20px"></p>
+      <div id="detailInfo"></div>
+      <div class="stage-actions">
+        <label style="display:block;margin-bottom:6px;color:#888;font-size:13px">Move to Stage</label>
+        <select class="stage-select" id="moveStage" onchange="moveCandidate()"></select>
+        <div class="form-group">
+          <label>Rating</label>
+          <div class="rating" id="candidateRating"></div>
+        </div>
+        <div class="form-group"><label>Add Note</label><textarea id="addNote" rows="2"></textarea></div>
+        <button onclick="addNote()">Add Note</button>
+      </div>
+      <div class="btn-row">
+        <button onclick="deleteCandidate()" style="background:#500;border-color:#500">Delete</button>
+        <button onclick="closeModal('detailModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="jobModal">
+    <div class="modal-content">
+      <h2>Add Job Opening</h2>
+      <div class="form-group"><label>Job Title</label><input type="text" id="jobTitle"></div>
+      <div class="form-group"><label>Department</label><input type="text" id="jobDept"></div>
+      <div class="btn-row">
+        <button onclick="closeModal('jobModal')">Cancel</button>
+        <button class="primary" onclick="saveJob()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const stages = [
+      { id: 'applied', name: 'Applied', color: '#666' },
+      { id: 'screening', name: 'Screening', color: '#f90' },
+      { id: 'interview', name: 'Interview', color: '#4ecdc4' },
+      { id: 'offer', name: 'Offer', color: '#aa96da' },
+      { id: 'hired', name: 'Hired', color: '#4a4' },
+      { id: 'rejected', name: 'Rejected', color: '#f44' }
+    ];
+
+    let candidates = JSON.parse(localStorage.getItem('kiss-candidates') || '[]');
+    let jobs = JSON.parse(localStorage.getItem('kiss-jobs') || '["Software Engineer", "Product Manager", "Designer"]');
+    let selectedCandidate = null;
+
+    function save() {
+      localStorage.setItem('kiss-candidates', JSON.stringify(candidates));
+      localStorage.setItem('kiss-jobs', JSON.stringify(jobs));
+    }
+
+    function getInitials(first, last) {
+      return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase();
+    }
+
+    function isNewThisWeek(date) {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      return new Date(date) >= oneWeekAgo;
+    }
+
+    function render() {
+      // Stats
+      document.getElementById('totalCandidates').textContent = candidates.length;
+      document.getElementById('newThisWeek').textContent = candidates.filter(c => isNewThisWeek(c.createdAt)).length;
+      document.getElementById('inInterview').textContent = candidates.filter(c => c.stage === 'interview').length;
+      document.getElementById('offers').textContent = candidates.filter(c => c.stage === 'offer').length;
+      document.getElementById('hired').textContent = candidates.filter(c => c.stage === 'hired').length;
+
+      // Pipeline
+      const pipeline = document.getElementById('pipeline');
+      pipeline.innerHTML = stages.filter(s => s.id !== 'rejected').map(stage => {
+        const stageCandidates = candidates.filter(c => c.stage === stage.id);
+        return `
+          <div class="stage">
+            <div class="stage-header">
+              <h3><span style="color:${stage.color}">●</span> ${stage.name}</h3>
+              <span class="stage-count">${stageCandidates.length}</span>
+            </div>
+            <div class="stage-body">
+              ${stageCandidates.map(c => `
+                <div class="candidate" onclick="showDetail('${c.id}')">
+                  <div class="candidate-header">
+                    <div class="candidate-avatar">${getInitials(c.firstName, c.lastName)}</div>
+                    <div>
+                      <div class="candidate-name">${c.firstName} ${c.lastName}</div>
+                      <div class="candidate-role">${c.position}</div>
+                    </div>
+                  </div>
+                  <div class="candidate-meta">
+                    <span class="meta-tag">${c.source}</span>
+                    ${isNewThisWeek(c.createdAt) ? '<span class="meta-tag new">New</span>' : ''}
+                    ${c.rating >= 4 ? '<span class="meta-tag hot">★ Hot</span>' : ''}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Update position dropdown
+      const posSelect = document.getElementById('position');
+      posSelect.innerHTML = jobs.map(j => `<option value="${j}">${j}</option>`).join('');
+    }
+
+    function showAddCandidate() {
+      document.getElementById('candidateModalTitle').textContent = 'Add Candidate';
+      document.getElementById('candidateId').value = '';
+      document.getElementById('firstName').value = '';
+      document.getElementById('lastName').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('phone').value = '';
+      document.getElementById('resume').value = '';
+      document.getElementById('notes').value = '';
+      document.getElementById('candidateModal').classList.add('active');
+    }
+
+    function showAddJob() {
+      document.getElementById('jobTitle').value = '';
+      document.getElementById('jobDept').value = '';
+      document.getElementById('jobModal').classList.add('active');
+    }
+
+    function showDetail(id) {
+      selectedCandidate = candidates.find(c => c.id === id);
+      if (!selectedCandidate) return;
+
+      document.getElementById('detailName').textContent = `${selectedCandidate.firstName} ${selectedCandidate.lastName}`;
+      document.getElementById('detailRole').textContent = selectedCandidate.position;
+      document.getElementById('detailInfo').innerHTML = `
+        <p>📧 ${selectedCandidate.email}</p>
+        <p>📞 ${selectedCandidate.phone || 'N/A'}</p>
+        <p>📍 Source: ${selectedCandidate.source}</p>
+        ${selectedCandidate.resume ? `<p>📄 <a href="${selectedCandidate.resume}" target="_blank" style="color:#e94560">View Resume</a></p>` : ''}
+        ${selectedCandidate.notes ? `<p style="margin-top:10px;padding:10px;background:#0a0a0a;border-radius:6px">${selectedCandidate.notes}</p>` : ''}
+      `;
+
+      // Stage selector
+      const moveSelect = document.getElementById('moveStage');
+      moveSelect.innerHTML = stages.map(s => `<option value="${s.id}" ${s.id === selectedCandidate.stage ? 'selected' : ''}>${s.name}</option>`).join('');
+
+      // Rating
+      const rating = document.getElementById('candidateRating');
+      rating.innerHTML = [1,2,3,4,5].map(i =>
+        `<span onclick="setRating(${i})" style="color:${i <= (selectedCandidate.rating || 0) ? '#ffe66d' : '#333'}">${i <= (selectedCandidate.rating || 0) ? '★' : '☆'}</span>`
+      ).join('');
+
+      document.getElementById('addNote').value = '';
+      document.getElementById('detailModal').classList.add('active');
+    }
+
+    function setRating(rating) {
+      if (selectedCandidate) {
+        selectedCandidate.rating = rating;
+        save();
+        showDetail(selectedCandidate.id);
+        render();
+      }
+    }
+
+    function moveCandidate() {
+      if (selectedCandidate) {
+        selectedCandidate.stage = document.getElementById('moveStage').value;
+        save();
+        render();
+      }
+    }
+
+    function addNote() {
+      const note = document.getElementById('addNote').value.trim();
+      if (note && selectedCandidate) {
+        selectedCandidate.notes = (selectedCandidate.notes ? selectedCandidate.notes + '\n' : '') +
+          `[${new Date().toLocaleDateString()}] ${note}`;
+        save();
+        showDetail(selectedCandidate.id);
+      }
+    }
+
+    function deleteCandidate() {
+      if (selectedCandidate && confirm('Delete this candidate?')) {
+        candidates = candidates.filter(c => c.id !== selectedCandidate.id);
+        save();
+        closeModal('detailModal');
+        render();
+      }
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function saveCandidate() {
+      const firstName = document.getElementById('firstName').value.trim();
+      const lastName = document.getElementById('lastName').value.trim();
+      const email = document.getElementById('email').value.trim();
+
+      if (!firstName || !lastName || !email) {
+        alert('Name and email are required');
+        return;
+      }
+
+      const candidate = {
+        id: document.getElementById('candidateId').value || Date.now().toString(),
+        firstName,
+        lastName,
+        email,
+        phone: document.getElementById('phone').value.trim(),
+        position: document.getElementById('position').value,
+        source: document.getElementById('source').value,
+        resume: document.getElementById('resume').value.trim(),
+        notes: document.getElementById('notes').value.trim(),
+        stage: 'applied',
+        rating: 0,
+        createdAt: new Date().toISOString()
+      };
+
+      const idx = candidates.findIndex(c => c.id === candidate.id);
+      if (idx >= 0) {
+        candidates[idx] = { ...candidates[idx], ...candidate };
+      } else {
+        candidates.push(candidate);
+      }
+
+      save();
+      closeModal('candidateModal');
+      render();
+    }
+
+    function saveJob() {
+      const title = document.getElementById('jobTitle').value.trim();
+      if (title && !jobs.includes(title)) {
+        jobs.push(title);
+        save();
+      }
+      closeModal('jobModal');
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

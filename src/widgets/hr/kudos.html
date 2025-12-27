@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kudos - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"kudos","name":"Kudos","icon":"🏆","desc":"Peer recognition and awards","category":"hr","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+    .stat{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:20px 30px;border-radius:12px;text-align:center}
+    .stat-value{font-size:2rem;font-weight:bold;color:#ffe66d}
+    .stat-label{font-size:12px;color:#888;margin-top:4px}
+    .kudos-feed{display:flex;flex-direction:column;gap:16px}
+    .kudos-card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333;position:relative;overflow:hidden}
+    .kudos-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+    .kudos-card.teamwork::before{background:linear-gradient(90deg,#4ecdc4,#44a3aa)}
+    .kudos-card.innovation::before{background:linear-gradient(90deg,#f38181,#aa5858)}
+    .kudos-card.leadership::before{background:linear-gradient(90deg,#ffe66d,#ccb84a)}
+    .kudos-card.customer::before{background:linear-gradient(90deg,#95e1d3,#6ab3a5)}
+    .kudos-card.excellence::before{background:linear-gradient(90deg,#aa96da,#8877b0)}
+    .kudos-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px}
+    .kudos-badge{display:flex;align-items:center;gap:10px}
+    .badge-icon{font-size:2rem}
+    .badge-info h3{margin-bottom:2px}
+    .badge-info p{color:#888;font-size:13px}
+    .kudos-time{color:#666;font-size:12px}
+    .kudos-message{font-size:1.1rem;line-height:1.5;margin-bottom:15px;padding:15px;background:#0a0a0a;border-radius:8px}
+    .kudos-from{display:flex;align-items:center;gap:10px}
+    .avatar{width:32px;height:32px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:12px}
+    .kudos-actions{display:flex;gap:10px;margin-top:15px;padding-top:15px;border-top:1px solid #333}
+    .action-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;background:#0a0a0a;border:1px solid #333;color:#888;cursor:pointer;font-size:13px}
+    .action-btn:hover{background:#333;color:#fff}
+    .action-btn.liked{color:#e94560}
+    .leaderboard{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333}
+    .leader-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #222}
+    .leader-item:last-child{border:none}
+    .leader-rank{font-size:1.2rem;font-weight:bold;width:30px;color:#888}
+    .leader-rank:nth-child(1){color:#ffe66d}
+    .leader-info{flex:1}
+    .leader-info h4{margin-bottom:2px}
+    .leader-info p{color:#888;font-size:12px}
+    .leader-count{font-size:1.2rem;font-weight:bold;color:#e94560}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:500px}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .badge-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+    .badge-option{padding:15px;border-radius:8px;border:2px solid #333;cursor:pointer;text-align:center;transition:all 0.2s}
+    .badge-option:hover{border-color:#e94560}
+    .badge-option.selected{border-color:#e94560;background:#e9456020}
+    .badge-option .icon{font-size:1.5rem;margin-bottom:5px}
+    .badge-option .name{font-size:12px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .two-col{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+    @media(max-width:800px){.two-col{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏆 Kudos</h1>
+    <button class="primary" onclick="showGiveKudos()">+ Give Kudos</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="givenCount">0</div><div class="stat-label">Kudos Given</div></div>
+    <div class="stat"><div class="stat-value" id="receivedCount">0</div><div class="stat-label">Kudos Received</div></div>
+    <div class="stat"><div class="stat-value" id="thisMonth">0</div><div class="stat-label">This Month</div></div>
+  </div>
+
+  <div class="two-col">
+    <div class="kudos-feed" id="feed"></div>
+    <div>
+      <h3 style="margin-bottom:15px">🏅 Top Contributors</h3>
+      <div class="leaderboard" id="leaderboard"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>Give Kudos</h2>
+      <div class="form-group"><label>To</label><input type="text" id="recipient" placeholder="Enter name"></div>
+      <div class="form-group">
+        <label>Select Badge</label>
+        <div class="badge-options" id="badgeOptions"></div>
+      </div>
+      <div class="form-group"><label>Message</label><textarea id="message" rows="3" placeholder="What did they do that was awesome?"></textarea></div>
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="sendKudos()">Send Kudos</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const badges = [
+      { id: 'teamwork', icon: '🤝', name: 'Teamwork', color: '#4ecdc4' },
+      { id: 'innovation', icon: '💡', name: 'Innovation', color: '#f38181' },
+      { id: 'leadership', icon: '👑', name: 'Leadership', color: '#ffe66d' },
+      { id: 'customer', icon: '💚', name: 'Customer Focus', color: '#95e1d3' },
+      { id: 'excellence', icon: '⭐', name: 'Excellence', color: '#aa96da' },
+      { id: 'mentor', icon: '🎓', name: 'Mentorship', color: '#a8d8ea' }
+    ];
+
+    let kudos = JSON.parse(localStorage.getItem('kiss-kudos') || '[]');
+    let selectedBadge = null;
+
+    function save() { localStorage.setItem('kiss-kudos', JSON.stringify(kudos)); }
+
+    function timeAgo(date) {
+      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+      if (seconds < 60) return 'just now';
+      if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+      if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+      return Math.floor(seconds / 86400) + 'd ago';
+    }
+
+    function getInitials(name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    function render() {
+      // Stats
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thisMonthKudos = kudos.filter(k => new Date(k.createdAt) >= monthStart);
+
+      document.getElementById('givenCount').textContent = kudos.length;
+      document.getElementById('receivedCount').textContent = kudos.length;
+      document.getElementById('thisMonth').textContent = thisMonthKudos.length;
+
+      // Feed
+      const feed = document.getElementById('feed');
+      if (kudos.length === 0) {
+        feed.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No kudos yet. Be the first to recognize someone!</div>';
+      } else {
+        feed.innerHTML = kudos.slice(0, 20).map(k => {
+          const badge = badges.find(b => b.id === k.badge) || badges[0];
+          return `
+            <div class="kudos-card ${k.badge}">
+              <div class="kudos-header">
+                <div class="kudos-badge">
+                  <div class="badge-icon">${badge.icon}</div>
+                  <div class="badge-info">
+                    <h3>${k.recipient}</h3>
+                    <p>received ${badge.name}</p>
+                  </div>
+                </div>
+                <div class="kudos-time">${timeAgo(k.createdAt)}</div>
+              </div>
+              <div class="kudos-message">"${k.message}"</div>
+              <div class="kudos-from">
+                <div class="avatar">${getInitials(k.from)}</div>
+                <span>from <strong>${k.from}</strong></span>
+              </div>
+              <div class="kudos-actions">
+                <button class="action-btn ${k.liked ? 'liked' : ''}" onclick="toggleLike('${k.id}')">
+                  ${k.liked ? '❤️' : '🤍'} ${k.likes || 0}
+                </button>
+                <button class="action-btn" onclick="shareKudos('${k.id}')">📤 Share</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Leaderboard
+      const counts = {};
+      kudos.forEach(k => {
+        counts[k.recipient] = (counts[k.recipient] || 0) + 1;
+      });
+
+      const leaders = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      const leaderboard = document.getElementById('leaderboard');
+      if (leaders.length === 0) {
+        leaderboard.innerHTML = '<div style="text-align:center;padding:20px;color:#666">No data yet</div>';
+      } else {
+        leaderboard.innerHTML = leaders.map(([name, count], idx) => `
+          <div class="leader-item">
+            <div class="leader-rank" style="color:${idx === 0 ? '#ffe66d' : idx === 1 ? '#c0c0c0' : idx === 2 ? '#cd7f32' : '#888'}">${idx + 1}</div>
+            <div class="avatar">${getInitials(name)}</div>
+            <div class="leader-info">
+              <h4>${name}</h4>
+              <p>${count} kudos received</p>
+            </div>
+            <div class="leader-count">${count}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function showGiveKudos() {
+      document.getElementById('recipient').value = '';
+      document.getElementById('message').value = '';
+      selectedBadge = null;
+
+      document.getElementById('badgeOptions').innerHTML = badges.map(b => `
+        <div class="badge-option" onclick="selectBadge('${b.id}')" id="badge-${b.id}">
+          <div class="icon">${b.icon}</div>
+          <div class="name">${b.name}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function selectBadge(id) {
+      selectedBadge = id;
+      document.querySelectorAll('.badge-option').forEach(el => el.classList.remove('selected'));
+      document.getElementById(`badge-${id}`).classList.add('selected');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function sendKudos() {
+      const recipient = document.getElementById('recipient').value.trim();
+      const message = document.getElementById('message').value.trim();
+
+      if (!recipient || !selectedBadge || !message) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      kudos.unshift({
+        id: Date.now().toString(),
+        recipient,
+        badge: selectedBadge,
+        message,
+        from: 'You',
+        likes: 0,
+        liked: false,
+        createdAt: new Date().toISOString()
+      });
+
+      save();
+      closeModal();
+      render();
+    }
+
+    function toggleLike(id) {
+      const k = kudos.find(k => k.id === id);
+      if (k) {
+        k.liked = !k.liked;
+        k.likes = (k.likes || 0) + (k.liked ? 1 : -1);
+        save();
+        render();
+      }
+    }
+
+    function shareKudos(id) {
+      const k = kudos.find(k => k.id === id);
+      if (k) {
+        const text = `🏆 ${k.recipient} received kudos: "${k.message}" - from ${k.from}`;
+        if (navigator.share) {
+          navigator.share({ text });
+        } else {
+          navigator.clipboard.writeText(text);
+          alert('Copied to clipboard!');
+        }
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

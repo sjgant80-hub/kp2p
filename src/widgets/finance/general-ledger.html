@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>General Ledger - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"general-ledger","name":"General Ledger","icon":"📒","desc":"Chart of accounts and general ledger management","category":"finance","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .tabs{display:flex;gap:10px;margin-bottom:20px}
+    .tab{padding:10px 20px;cursor:pointer;border-radius:6px;background:#1a1a1a;border:1px solid #333}
+    .tab.active{background:#e94560;border-color:#e94560}
+    .section{display:none}
+    .section.active{display:block}
+    .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+    .summary-card{background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid #333}
+    .summary-label{font-size:13px;color:#888;margin-bottom:8px}
+    .summary-value{font-size:1.8rem;font-weight:bold}
+    .summary-value.positive{color:#4ecdc4}
+    .summary-value.negative{color:#f38181}
+    .accounts-table{width:100%;border-collapse:collapse;background:#1a1a1a;border-radius:12px;overflow:hidden}
+    .accounts-table th{text-align:left;padding:14px;background:#0a0a0a;font-size:13px;color:#888}
+    .accounts-table td{padding:14px;border-top:1px solid #222}
+    .accounts-table tr:hover{background:#222}
+    .account-type{padding:4px 10px;border-radius:4px;font-size:11px}
+    .account-type.asset{background:#1a4a4a;color:#4ecdc4}
+    .account-type.liability{background:#4a1a1a;color:#f38181}
+    .account-type.equity{background:#4a4a1a;color:#ffe66d}
+    .account-type.revenue{background:#1a4a1a;color:#4a4}
+    .account-type.expense{background:#4a2a1a;color:#f90}
+    .balance{text-align:right;font-family:monospace;font-size:14px}
+    .balance.debit{color:#4ecdc4}
+    .balance.credit{color:#f38181}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:500px}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📒 General Ledger</h1>
+    <div>
+      <button onclick="showAddAccount()">+ Add Account</button>
+      <button class="primary" onclick="showAddEntry()">+ Journal Entry</button>
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="summary-card"><div class="summary-label">Total Assets</div><div class="summary-value positive" id="totalAssets">$0</div></div>
+    <div class="summary-card"><div class="summary-label">Total Liabilities</div><div class="summary-value negative" id="totalLiabilities">$0</div></div>
+    <div class="summary-card"><div class="summary-label">Equity</div><div class="summary-value" id="totalEquity">$0</div></div>
+    <div class="summary-card"><div class="summary-label">Net Income</div><div class="summary-value positive" id="netIncome">$0</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('accounts')">Chart of Accounts</div>
+    <div class="tab" onclick="switchTab('journal')">Journal Entries</div>
+    <div class="tab" onclick="switchTab('trial')">Trial Balance</div>
+  </div>
+
+  <div class="section active" id="accounts">
+    <table class="accounts-table">
+      <thead><tr><th>Code</th><th>Account Name</th><th>Type</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th><th style="text-align:right">Balance</th></tr></thead>
+      <tbody id="accountsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="journal">
+    <table class="accounts-table">
+      <thead><tr><th>Date</th><th>Description</th><th>Account</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th></tr></thead>
+      <tbody id="journalBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="trial">
+    <table class="accounts-table">
+      <thead><tr><th>Account</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th></tr></thead>
+      <tbody id="trialBody"></tbody>
+      <tfoot id="trialFoot"></tfoot>
+    </table>
+  </div>
+
+  <div class="modal" id="accountModal">
+    <div class="modal-content">
+      <h2>Add Account</h2>
+      <div class="form-group"><label>Account Code</label><input type="text" id="accCode" placeholder="1000"></div>
+      <div class="form-group"><label>Account Name</label><input type="text" id="accName" placeholder="Cash"></div>
+      <div class="form-group"><label>Type</label><select id="accType">
+        <option value="asset">Asset</option>
+        <option value="liability">Liability</option>
+        <option value="equity">Equity</option>
+        <option value="revenue">Revenue</option>
+        <option value="expense">Expense</option>
+      </select></div>
+      <div class="btn-row">
+        <button onclick="closeModal('accountModal')">Cancel</button>
+        <button class="primary" onclick="saveAccount()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="entryModal">
+    <div class="modal-content">
+      <h2>Journal Entry</h2>
+      <div class="form-group"><label>Date</label><input type="date" id="entryDate"></div>
+      <div class="form-group"><label>Description</label><input type="text" id="entryDesc" placeholder="Description"></div>
+      <div class="form-group"><label>Debit Account</label><select id="debitAcc"></select></div>
+      <div class="form-group"><label>Debit Amount</label><input type="number" id="debitAmt" step="0.01"></div>
+      <div class="form-group"><label>Credit Account</label><select id="creditAcc"></select></div>
+      <div class="form-group"><label>Credit Amount</label><input type="number" id="creditAmt" step="0.01"></div>
+      <div class="btn-row">
+        <button onclick="closeModal('entryModal')">Cancel</button>
+        <button class="primary" onclick="saveEntry()">Post</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultAccounts = [
+      { code: '1000', name: 'Cash', type: 'asset' },
+      { code: '1100', name: 'Accounts Receivable', type: 'asset' },
+      { code: '1500', name: 'Equipment', type: 'asset' },
+      { code: '2000', name: 'Accounts Payable', type: 'liability' },
+      { code: '2100', name: 'Accrued Expenses', type: 'liability' },
+      { code: '3000', name: 'Common Stock', type: 'equity' },
+      { code: '3100', name: 'Retained Earnings', type: 'equity' },
+      { code: '4000', name: 'Sales Revenue', type: 'revenue' },
+      { code: '4100', name: 'Service Revenue', type: 'revenue' },
+      { code: '5000', name: 'Cost of Goods Sold', type: 'expense' },
+      { code: '5100', name: 'Salaries Expense', type: 'expense' },
+      { code: '5200', name: 'Rent Expense', type: 'expense' }
+    ];
+
+    let accounts = JSON.parse(localStorage.getItem('kiss-gl-accounts') || 'null') || defaultAccounts;
+    let entries = JSON.parse(localStorage.getItem('kiss-gl-entries') || '[]');
+
+    function save() {
+      localStorage.setItem('kiss-gl-accounts', JSON.stringify(accounts));
+      localStorage.setItem('kiss-gl-entries', JSON.stringify(entries));
+    }
+
+    function formatCurrency(amt) {
+      return '$' + Math.abs(amt).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(tab).classList.add('active');
+    }
+
+    function getAccountBalance(code) {
+      let debit = 0, credit = 0;
+      entries.forEach(e => {
+        if (e.debitAcc === code) debit += e.amount;
+        if (e.creditAcc === code) credit += e.amount;
+      });
+      return { debit, credit };
+    }
+
+    function render() {
+      // Calculate totals by type
+      let assets = 0, liabilities = 0, equity = 0, revenue = 0, expense = 0;
+
+      accounts.forEach(acc => {
+        const bal = getAccountBalance(acc.code);
+        const netBal = bal.debit - bal.credit;
+
+        if (acc.type === 'asset') assets += netBal;
+        else if (acc.type === 'liability') liabilities += bal.credit - bal.debit;
+        else if (acc.type === 'equity') equity += bal.credit - bal.debit;
+        else if (acc.type === 'revenue') revenue += bal.credit - bal.debit;
+        else if (acc.type === 'expense') expense += netBal;
+      });
+
+      document.getElementById('totalAssets').textContent = formatCurrency(assets);
+      document.getElementById('totalLiabilities').textContent = formatCurrency(liabilities);
+      document.getElementById('totalEquity').textContent = formatCurrency(equity);
+      document.getElementById('netIncome').textContent = formatCurrency(revenue - expense);
+
+      // Chart of accounts
+      document.getElementById('accountsBody').innerHTML = accounts
+        .sort((a, b) => a.code.localeCompare(b.code))
+        .map(acc => {
+          const bal = getAccountBalance(acc.code);
+          const netBal = ['asset', 'expense'].includes(acc.type) ? bal.debit - bal.credit : bal.credit - bal.debit;
+          return `
+            <tr>
+              <td>${acc.code}</td>
+              <td>${acc.name}</td>
+              <td><span class="account-type ${acc.type}">${acc.type}</span></td>
+              <td class="balance debit">${bal.debit ? formatCurrency(bal.debit) : '-'}</td>
+              <td class="balance credit">${bal.credit ? formatCurrency(bal.credit) : '-'}</td>
+              <td class="balance">${formatCurrency(netBal)}</td>
+            </tr>
+          `;
+        }).join('');
+
+      // Journal entries
+      document.getElementById('journalBody').innerHTML = entries
+        .slice()
+        .reverse()
+        .slice(0, 50)
+        .map(e => {
+          const debitAcc = accounts.find(a => a.code === e.debitAcc);
+          const creditAcc = accounts.find(a => a.code === e.creditAcc);
+          return `
+            <tr>
+              <td>${e.date}</td>
+              <td>${e.description}</td>
+              <td>${debitAcc?.name || e.debitAcc}</td>
+              <td class="balance debit">${formatCurrency(e.amount)}</td>
+              <td class="balance">-</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td style="padding-left:30px">↳ ${creditAcc?.name || e.creditAcc}</td>
+              <td class="balance">-</td>
+              <td class="balance credit">${formatCurrency(e.amount)}</td>
+            </tr>
+          `;
+        }).join('');
+
+      // Trial balance
+      let totalDebit = 0, totalCredit = 0;
+      document.getElementById('trialBody').innerHTML = accounts
+        .map(acc => {
+          const bal = getAccountBalance(acc.code);
+          const isDebitNormal = ['asset', 'expense'].includes(acc.type);
+          const netBal = bal.debit - bal.credit;
+
+          if (netBal > 0) totalDebit += netBal;
+          else totalCredit += Math.abs(netBal);
+
+          return `
+            <tr>
+              <td>${acc.code} - ${acc.name}</td>
+              <td class="balance debit">${netBal > 0 ? formatCurrency(netBal) : '-'}</td>
+              <td class="balance credit">${netBal < 0 ? formatCurrency(Math.abs(netBal)) : '-'}</td>
+            </tr>
+          `;
+        }).join('');
+
+      document.getElementById('trialFoot').innerHTML = `
+        <tr style="background:#0a0a0a;font-weight:bold">
+          <td>Total</td>
+          <td class="balance debit">${formatCurrency(totalDebit)}</td>
+          <td class="balance credit">${formatCurrency(totalCredit)}</td>
+        </tr>
+      `;
+
+      // Update dropdowns
+      const options = accounts.map(a => `<option value="${a.code}">${a.code} - ${a.name}</option>`).join('');
+      document.getElementById('debitAcc').innerHTML = options;
+      document.getElementById('creditAcc').innerHTML = options;
+    }
+
+    function showAddAccount() {
+      document.getElementById('accCode').value = '';
+      document.getElementById('accName').value = '';
+      document.getElementById('accountModal').classList.add('active');
+    }
+
+    function showAddEntry() {
+      document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('entryDesc').value = '';
+      document.getElementById('debitAmt').value = '';
+      document.getElementById('creditAmt').value = '';
+      document.getElementById('entryModal').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    function saveAccount() {
+      const code = document.getElementById('accCode').value.trim();
+      const name = document.getElementById('accName').value.trim();
+      const type = document.getElementById('accType').value;
+
+      if (!code || !name) {
+        alert('Code and name are required');
+        return;
+      }
+
+      if (accounts.some(a => a.code === code)) {
+        alert('Account code already exists');
+        return;
+      }
+
+      accounts.push({ code, name, type });
+      save();
+      closeModal('accountModal');
+      render();
+    }
+
+    function saveEntry() {
+      const date = document.getElementById('entryDate').value;
+      const description = document.getElementById('entryDesc').value.trim();
+      const debitAcc = document.getElementById('debitAcc').value;
+      const creditAcc = document.getElementById('creditAcc').value;
+      const amount = parseFloat(document.getElementById('debitAmt').value || document.getElementById('creditAmt').value);
+
+      if (!date || !description || !debitAcc || !creditAcc || !amount) {
+        alert('All fields are required');
+        return;
+      }
+
+      if (debitAcc === creditAcc) {
+        alert('Debit and credit accounts must be different');
+        return;
+      }
+
+      entries.push({
+        id: Date.now().toString(),
+        date,
+        description,
+        debitAcc,
+        creditAcc,
+        amount
+      });
+
+      save();
+      closeModal('entryModal');
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

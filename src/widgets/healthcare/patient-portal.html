@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Patient Portal - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"patient-portal","name":"Patient Portal","icon":"🏥","desc":"Patient self-service healthcare portal","category":"healthcare","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    h1{font-size:1.5rem}
+    .welcome{background:linear-gradient(135deg,#1a4a4a,#1a2a4a);padding:24px;border-radius:12px;margin-bottom:24px}
+    .welcome h2{margin-bottom:8px}
+    .welcome p{color:#888}
+    .dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+    .card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+    .card-header h3{font-size:1rem}
+    .card-icon{font-size:1.5rem}
+    .appointment{background:#0a0a0a;padding:12px;border-radius:8px;margin-bottom:10px}
+    .appointment-date{font-weight:bold;margin-bottom:4px}
+    .appointment-info{color:#888;font-size:13px}
+    .medication{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#0a0a0a;border-radius:6px;margin-bottom:8px}
+    .medication-name{font-weight:500}
+    .medication-dose{color:#888;font-size:13px}
+    .vitals-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .vital{background:#0a0a0a;padding:12px;border-radius:8px;text-align:center}
+    .vital-value{font-size:1.5rem;font-weight:bold;color:#4ecdc4}
+    .vital-label{font-size:11px;color:#888;margin-top:4px}
+    .quick-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .action-btn{padding:20px;background:#1a1a1a;border:1px solid #333;border-radius:10px;text-align:center;cursor:pointer}
+    .action-btn:hover{border-color:#e94560}
+    .action-btn .icon{font-size:2rem;margin-bottom:8px}
+    .action-btn .label{font-size:13px}
+    .message-preview{display:flex;gap:12px;padding:12px;background:#0a0a0a;border-radius:8px;margin-bottom:10px}
+    .msg-avatar{width:40px;height:40px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center}
+    .msg-content{flex:1}
+    .msg-from{font-weight:500;margin-bottom:2px}
+    .msg-text{color:#888;font-size:13px}
+    .empty{color:#666;text-align:center;padding:20px}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .badge{padding:3px 8px;border-radius:10px;font-size:11px;background:#e94560}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏥 Patient Portal</h1>
+    <button onclick="showSettings()">⚙️ Settings</button>
+  </div>
+
+  <div class="welcome">
+    <h2>Welcome back, <span id="patientName">Patient</span></h2>
+    <p>Your health dashboard at a glance</p>
+  </div>
+
+  <div class="dashboard">
+    <div class="card">
+      <div class="card-header">
+        <h3>📅 Upcoming Appointments</h3>
+        <button onclick="scheduleAppointment()">+ Schedule</button>
+      </div>
+      <div id="appointments"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>💊 Current Medications</h3>
+        <button onclick="requestRefill()">Request Refill</button>
+      </div>
+      <div id="medications"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>❤️ Recent Vitals</h3>
+        <button onclick="logVitals()">+ Log</button>
+      </div>
+      <div class="vitals-grid" id="vitals"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>✉️ Messages</h3>
+        <span class="badge" id="msgCount">0</span>
+      </div>
+      <div id="messages"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h3 style="margin-bottom:15px">⚡ Quick Actions</h3>
+      <div class="quick-actions">
+        <div class="action-btn" onclick="requestAppointment()">
+          <div class="icon">📆</div>
+          <div class="label">Request Appointment</div>
+        </div>
+        <div class="action-btn" onclick="viewRecords()">
+          <div class="icon">📋</div>
+          <div class="label">View Records</div>
+        </div>
+        <div class="action-btn" onclick="payBill()">
+          <div class="icon">💳</div>
+          <div class="label">Pay Bill</div>
+        </div>
+        <div class="action-btn" onclick="contactProvider()">
+          <div class="icon">👨‍⚕️</div>
+          <div class="label">Contact Provider</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Sample data
+    const patient = {
+      name: 'John Smith',
+      appointments: [
+        { date: '2024-02-15', time: '10:00 AM', provider: 'Dr. Johnson', type: 'Annual Physical' },
+        { date: '2024-02-28', time: '2:30 PM', provider: 'Dr. Williams', type: 'Follow-up' }
+      ],
+      medications: [
+        { name: 'Lisinopril', dose: '10mg', frequency: 'Once daily' },
+        { name: 'Metformin', dose: '500mg', frequency: 'Twice daily' },
+        { name: 'Vitamin D', dose: '1000 IU', frequency: 'Once daily' }
+      ],
+      vitals: {
+        bp: '120/80',
+        pulse: 72,
+        weight: 175,
+        glucose: 105
+      },
+      messages: [
+        { from: 'Dr. Johnson', text: 'Your lab results look great!', unread: true },
+        { from: 'Pharmacy', text: 'Your prescription is ready', unread: false }
+      ]
+    };
+
+    function render() {
+      document.getElementById('patientName').textContent = patient.name;
+
+      // Appointments
+      document.getElementById('appointments').innerHTML = patient.appointments.length === 0 ?
+        '<div class="empty">No upcoming appointments</div>' :
+        patient.appointments.map(a => `
+          <div class="appointment">
+            <div class="appointment-date">${formatDate(a.date)} at ${a.time}</div>
+            <div class="appointment-info">${a.type} with ${a.provider}</div>
+          </div>
+        `).join('');
+
+      // Medications
+      document.getElementById('medications').innerHTML = patient.medications.length === 0 ?
+        '<div class="empty">No current medications</div>' :
+        patient.medications.map(m => `
+          <div class="medication">
+            <div>
+              <div class="medication-name">${m.name}</div>
+              <div class="medication-dose">${m.frequency}</div>
+            </div>
+            <span>${m.dose}</span>
+          </div>
+        `).join('');
+
+      // Vitals
+      document.getElementById('vitals').innerHTML = `
+        <div class="vital"><div class="vital-value">${patient.vitals.bp}</div><div class="vital-label">Blood Pressure</div></div>
+        <div class="vital"><div class="vital-value">${patient.vitals.pulse}</div><div class="vital-label">Pulse (bpm)</div></div>
+        <div class="vital"><div class="vital-value">${patient.vitals.weight}</div><div class="vital-label">Weight (lbs)</div></div>
+        <div class="vital"><div class="vital-value">${patient.vitals.glucose}</div><div class="vital-label">Glucose</div></div>
+      `;
+
+      // Messages
+      const unread = patient.messages.filter(m => m.unread).length;
+      document.getElementById('msgCount').textContent = unread;
+      document.getElementById('messages').innerHTML = patient.messages.length === 0 ?
+        '<div class="empty">No messages</div>' :
+        patient.messages.map(m => `
+          <div class="message-preview" style="${m.unread ? 'border-left:3px solid #e94560' : ''}">
+            <div class="msg-avatar">👨‍⚕️</div>
+            <div class="msg-content">
+              <div class="msg-from">${m.from}</div>
+              <div class="msg-text">${m.text}</div>
+            </div>
+          </div>
+        `).join('');
+    }
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function scheduleAppointment() { alert('Opening appointment scheduler...'); }
+    function requestRefill() { alert('Refill request sent!'); }
+    function logVitals() { alert('Opening vitals logger...'); }
+    function requestAppointment() { alert('Opening appointment request form...'); }
+    function viewRecords() { alert('Opening medical records...'); }
+    function payBill() { alert('Opening payment portal...'); }
+    function contactProvider() { alert('Opening secure messaging...'); }
+    function showSettings() { alert('Opening settings...'); }
+
+    render();
+  </script>
+</body>
+</html>

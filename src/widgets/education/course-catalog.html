@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Course Catalog - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"course-catalog","name":"Course Catalog","icon":"📚","desc":"Browse and enroll in courses","category":"education","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    h1{font-size:1.5rem}
+    .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .filters input,.filters select{padding:10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff}
+    .filters input{width:250px}
+    .stats{display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+    .stat{background:#1a1a1a;padding:15px 25px;border-radius:8px;border:1px solid #333}
+    .stat-value{font-size:1.5rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:12px;color:#888;margin-top:4px}
+    .course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+    .course-card{background:#1a1a1a;border-radius:12px;overflow:hidden;border:1px solid #333}
+    .course-card:hover{border-color:#e94560}
+    .course-image{height:140px;background:linear-gradient(135deg,#1a2a4a,#2a1a4a);display:flex;align-items:center;justify-content:center;font-size:3rem}
+    .course-content{padding:20px}
+    .course-title{font-size:1.1rem;margin-bottom:8px}
+    .course-instructor{color:#888;font-size:13px;margin-bottom:12px}
+    .course-meta{display:flex;gap:12px;margin-bottom:15px;flex-wrap:wrap}
+    .meta-item{display:flex;align-items:center;gap:4px;font-size:12px;color:#888}
+    .course-rating{display:flex;align-items:center;gap:6px;margin-bottom:15px}
+    .stars{color:#ffe66d}
+    .rating-count{color:#888;font-size:12px}
+    .course-footer{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+    .price{font-size:1.3rem;font-weight:bold;color:#4ecdc4}
+    .price.free{color:#4a4}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .badge{padding:3px 8px;border-radius:4px;font-size:11px;background:#333}
+    .badge.new{background:#1a4a1a;color:#4a4}
+    .badge.popular{background:#4a3a1a;color:#f90}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📚 Course Catalog</h1>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="totalCourses">0</div><div class="stat-label">Courses</div></div>
+    <div class="stat"><div class="stat-value" id="categories">0</div><div class="stat-label">Categories</div></div>
+    <div class="stat"><div class="stat-value" id="enrolled">0</div><div class="stat-label">Enrolled</div></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="search" placeholder="Search courses..." oninput="render()">
+    <select id="categoryFilter" onchange="render()">
+      <option value="">All Categories</option>
+    </select>
+    <select id="levelFilter" onchange="render()">
+      <option value="">All Levels</option>
+      <option value="beginner">Beginner</option>
+      <option value="intermediate">Intermediate</option>
+      <option value="advanced">Advanced</option>
+    </select>
+    <select id="priceFilter" onchange="render()">
+      <option value="">All Prices</option>
+      <option value="free">Free</option>
+      <option value="paid">Paid</option>
+    </select>
+  </div>
+
+  <div class="course-grid" id="courseGrid"></div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content" id="modalContent"></div>
+  </div>
+
+  <script>
+    const courses = [
+      { id: '1', title: 'Introduction to Programming', instructor: 'Dr. Sarah Chen', category: 'programming', level: 'beginner', duration: '8 weeks', students: 15420, rating: 4.8, reviews: 2341, price: 0, icon: '💻', isNew: false, isPopular: true },
+      { id: '2', title: 'Data Science Fundamentals', instructor: 'Prof. Michael Lee', category: 'data-science', level: 'intermediate', duration: '10 weeks', students: 8932, rating: 4.7, reviews: 1256, price: 49.99, icon: '📊', isNew: true, isPopular: true },
+      { id: '3', title: 'Machine Learning A-Z', instructor: 'Dr. Emily Watson', category: 'ai', level: 'advanced', duration: '12 weeks', students: 12450, rating: 4.9, reviews: 3421, price: 79.99, icon: '🤖', isNew: false, isPopular: true },
+      { id: '4', title: 'Web Development Bootcamp', instructor: 'James Miller', category: 'programming', level: 'beginner', duration: '6 weeks', students: 23100, rating: 4.6, reviews: 4521, price: 0, icon: '🌐', isNew: false, isPopular: true },
+      { id: '5', title: 'Digital Marketing Mastery', instructor: 'Lisa Park', category: 'marketing', level: 'intermediate', duration: '8 weeks', students: 6780, rating: 4.5, reviews: 892, price: 39.99, icon: '📱', isNew: true, isPopular: false },
+      { id: '6', title: 'Financial Analysis', instructor: 'Robert Chen', category: 'finance', level: 'intermediate', duration: '6 weeks', students: 4521, rating: 4.4, reviews: 567, price: 59.99, icon: '💰', isNew: false, isPopular: false },
+      { id: '7', title: 'UX Design Principles', instructor: 'Anna Johnson', category: 'design', level: 'beginner', duration: '4 weeks', students: 9870, rating: 4.7, reviews: 1234, price: 29.99, icon: '🎨', isNew: true, isPopular: false },
+      { id: '8', title: 'Cloud Computing AWS', instructor: 'David Kim', category: 'programming', level: 'advanced', duration: '10 weeks', students: 7650, rating: 4.8, reviews: 987, price: 89.99, icon: '☁️', isNew: false, isPopular: true }
+    ];
+
+    let enrolled = JSON.parse(localStorage.getItem('kiss-enrolled-courses') || '[]');
+
+    function save() { localStorage.setItem('kiss-enrolled-courses', JSON.stringify(enrolled)); }
+
+    function getCategories() {
+      return [...new Set(courses.map(c => c.category))];
+    }
+
+    function render() {
+      const search = document.getElementById('search').value.toLowerCase();
+      const categoryFilter = document.getElementById('categoryFilter').value;
+      const levelFilter = document.getElementById('levelFilter').value;
+      const priceFilter = document.getElementById('priceFilter').value;
+
+      // Update category filter options
+      const catSelect = document.getElementById('categoryFilter');
+      const cats = getCategories();
+      if (catSelect.options.length <= 1) {
+        cats.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c.charAt(0).toUpperCase() + c.slice(1).replace('-', ' ');
+          catSelect.appendChild(opt);
+        });
+      }
+
+      // Stats
+      document.getElementById('totalCourses').textContent = courses.length;
+      document.getElementById('categories').textContent = cats.length;
+      document.getElementById('enrolled').textContent = enrolled.length;
+
+      // Filter
+      let filtered = courses.filter(c => {
+        if (search && !c.title.toLowerCase().includes(search) && !c.instructor.toLowerCase().includes(search)) return false;
+        if (categoryFilter && c.category !== categoryFilter) return false;
+        if (levelFilter && c.level !== levelFilter) return false;
+        if (priceFilter === 'free' && c.price > 0) return false;
+        if (priceFilter === 'paid' && c.price === 0) return false;
+        return true;
+      });
+
+      document.getElementById('courseGrid').innerHTML = filtered.map(c => {
+        const isEnrolled = enrolled.includes(c.id);
+        return `
+          <div class="course-card">
+            <div class="course-image">${c.icon}</div>
+            <div class="course-content">
+              <div style="display:flex;gap:6px;margin-bottom:8px">
+                ${c.isNew ? '<span class="badge new">New</span>' : ''}
+                ${c.isPopular ? '<span class="badge popular">Popular</span>' : ''}
+              </div>
+              <div class="course-title">${c.title}</div>
+              <div class="course-instructor">by ${c.instructor}</div>
+              <div class="course-meta">
+                <span class="meta-item">⏱️ ${c.duration}</span>
+                <span class="meta-item">📊 ${c.level}</span>
+                <span class="meta-item">👥 ${c.students.toLocaleString()}</span>
+              </div>
+              <div class="course-rating">
+                <span class="stars">${'★'.repeat(Math.round(c.rating))}${'☆'.repeat(5-Math.round(c.rating))}</span>
+                <span>${c.rating}</span>
+                <span class="rating-count">(${c.reviews.toLocaleString()} reviews)</span>
+              </div>
+              <div class="course-footer">
+                <span class="price ${c.price === 0 ? 'free' : ''}">${c.price === 0 ? 'Free' : '$' + c.price}</span>
+                ${isEnrolled ?
+                  '<button onclick="viewCourse(\'' + c.id + '\')">Continue →</button>' :
+                  '<button class="primary" onclick="enrollCourse(\'' + c.id + '\')">Enroll</button>'
+                }
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function enrollCourse(id) {
+      if (!enrolled.includes(id)) {
+        enrolled.push(id);
+        save();
+        render();
+        alert('Successfully enrolled!');
+      }
+    }
+
+    function viewCourse(id) {
+      const course = courses.find(c => c.id === id);
+      if (!course) return;
+
+      document.getElementById('modalContent').innerHTML = `
+        <h2>${course.icon} ${course.title}</h2>
+        <p style="color:#888;margin:10px 0">by ${course.instructor}</p>
+        <div style="display:flex;gap:20px;margin:20px 0;flex-wrap:wrap">
+          <span>⏱️ ${course.duration}</span>
+          <span>📊 ${course.level}</span>
+          <span>⭐ ${course.rating} (${course.reviews} reviews)</span>
+        </div>
+        <h3 style="margin:20px 0 10px">Course Content</h3>
+        <div style="background:#0a0a0a;padding:15px;border-radius:8px">
+          <p>Week 1-2: Introduction and Fundamentals</p>
+          <p>Week 3-4: Core Concepts</p>
+          <p>Week 5-6: Advanced Topics</p>
+          <p>Week 7+: Projects and Assessments</p>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+          <button onclick="closeModal()">Close</button>
+          <button class="primary">Start Learning</button>
+        </div>
+      `;
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    render();
+  </script>
+</body>
+</html>

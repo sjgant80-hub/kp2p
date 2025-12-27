@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Goals & OKRs - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"goals-okr","name":"Goals & OKRs","icon":"🎯","desc":"Objectives and Key Results tracking","category":"hr","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button:hover{background:#333}
+    button.primary{background:#e94560;border-color:#e94560}
+    .period-selector{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .period-btn{padding:8px 16px;border-radius:6px;background:#1a1a1a;border:1px solid #333;cursor:pointer;color:#fff}
+    .period-btn.active{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;padding:20px;border-radius:8px;text-align:center;border:1px solid #333}
+    .stat-value{font-size:2rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:12px;color:#888;margin-top:4px}
+    .okr-card{background:#1a1a1a;border-radius:12px;margin-bottom:20px;border:1px solid #333;overflow:hidden}
+    .okr-header{padding:20px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+    .okr-header:hover{background:#222}
+    .okr-title h3{margin-bottom:4px;display:flex;align-items:center;gap:10px}
+    .okr-title p{color:#888;font-size:13px}
+    .okr-progress{text-align:right}
+    .okr-progress .percent{font-size:1.5rem;font-weight:bold}
+    .progress-bar{width:100px;height:8px;background:#333;border-radius:4px;margin-top:8px}
+    .progress-fill{height:100%;border-radius:4px;transition:width 0.3s}
+    .key-results{padding:0 20px 20px;display:none}
+    .okr-card.expanded .key-results{display:block}
+    .kr-item{display:flex;align-items:center;gap:16px;padding:16px;background:#0a0a0a;border-radius:8px;margin-bottom:10px}
+    .kr-checkbox{width:24px;height:24px;border:2px solid #444;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .kr-checkbox.checked{background:#e94560;border-color:#e94560}
+    .kr-content{flex:1}
+    .kr-content h4{margin-bottom:4px}
+    .kr-content p{color:#888;font-size:13px}
+    .kr-metric{text-align:right}
+    .kr-metric input{width:80px;padding:6px;text-align:center;border-radius:4px;border:1px solid #333;background:#1a1a1a;color:#fff}
+    .kr-metric span{color:#888;font-size:13px}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .kr-inputs{margin-top:20px}
+    .kr-input-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:center}
+    .kr-input-row input{padding:8px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .empty{text-align:center;padding:40px;color:#666}
+    .color-good{color:#4a4}
+    .color-warning{color:#f90}
+    .color-danger{color:#f44}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎯 Goals & OKRs</h1>
+    <button class="primary" onclick="showNewOKR()">+ New Objective</button>
+  </div>
+
+  <div class="period-selector">
+    <button class="period-btn active" onclick="setPeriod('Q1 2024')">Q1 2024</button>
+    <button class="period-btn" onclick="setPeriod('Q2 2024')">Q2 2024</button>
+    <button class="period-btn" onclick="setPeriod('Q3 2024')">Q3 2024</button>
+    <button class="period-btn" onclick="setPeriod('Q4 2024')">Q4 2024</button>
+    <button class="period-btn" onclick="setPeriod('Annual')">Annual</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="overallProgress">0%</div><div class="stat-label">Overall Progress</div></div>
+    <div class="stat"><div class="stat-value" id="objectiveCount">0</div><div class="stat-label">Objectives</div></div>
+    <div class="stat"><div class="stat-value" id="krCount">0</div><div class="stat-label">Key Results</div></div>
+    <div class="stat"><div class="stat-value" id="completedKr">0</div><div class="stat-label">Completed KRs</div></div>
+  </div>
+
+  <div id="okrList"></div>
+  <div class="empty" id="empty">No objectives for this period. Create your first OKR!</div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2>New Objective</h2>
+      <input type="hidden" id="okrId">
+      <div class="form-group"><label>Objective</label><input type="text" id="objective" placeholder="What do you want to achieve?"></div>
+      <div class="form-group"><label>Owner</label><input type="text" id="owner" placeholder="Who is responsible?"></div>
+      <div class="form-group"><label>Period</label><select id="okrPeriod">
+        <option value="Q1 2024">Q1 2024</option>
+        <option value="Q2 2024">Q2 2024</option>
+        <option value="Q3 2024">Q3 2024</option>
+        <option value="Q4 2024">Q4 2024</option>
+        <option value="Annual">Annual</option>
+      </select></div>
+
+      <div class="kr-inputs">
+        <h3>Key Results</h3>
+        <div id="krInputList"></div>
+        <button onclick="addKRInput()" style="margin-top:10px">+ Add Key Result</button>
+      </div>
+
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveOKR()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let okrs = JSON.parse(localStorage.getItem('kiss-okrs') || '[]');
+    let currentPeriod = 'Q1 2024';
+    let krInputs = [];
+
+    function save() { localStorage.setItem('kiss-okrs', JSON.stringify(okrs)); }
+
+    function setPeriod(period) {
+      currentPeriod = period;
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === period);
+      });
+      render();
+    }
+
+    function getProgressColor(percent) {
+      if (percent >= 70) return '#4a4';
+      if (percent >= 40) return '#f90';
+      return '#f44';
+    }
+
+    function calculateOKRProgress(okr) {
+      if (!okr.keyResults || okr.keyResults.length === 0) return 0;
+      const totalProgress = okr.keyResults.reduce((sum, kr) => {
+        const progress = Math.min(100, (kr.current / kr.target) * 100);
+        return sum + progress;
+      }, 0);
+      return Math.round(totalProgress / okr.keyResults.length);
+    }
+
+    function render() {
+      const filtered = okrs.filter(o => o.period === currentPeriod);
+      const list = document.getElementById('okrList');
+      const empty = document.getElementById('empty');
+
+      // Stats
+      let totalKRs = 0;
+      let completedKRs = 0;
+      let totalProgress = 0;
+
+      filtered.forEach(okr => {
+        const progress = calculateOKRProgress(okr);
+        totalProgress += progress;
+        if (okr.keyResults) {
+          totalKRs += okr.keyResults.length;
+          completedKRs += okr.keyResults.filter(kr => kr.current >= kr.target).length;
+        }
+      });
+
+      document.getElementById('objectiveCount').textContent = filtered.length;
+      document.getElementById('krCount').textContent = totalKRs;
+      document.getElementById('completedKr').textContent = completedKRs;
+      document.getElementById('overallProgress').textContent = filtered.length > 0 ?
+        Math.round(totalProgress / filtered.length) + '%' : '0%';
+
+      if (filtered.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      list.innerHTML = filtered.map(okr => {
+        const progress = calculateOKRProgress(okr);
+        const color = getProgressColor(progress);
+
+        return `
+          <div class="okr-card" id="okr-${okr.id}">
+            <div class="okr-header" onclick="toggleOKR('${okr.id}')">
+              <div class="okr-title">
+                <h3>🎯 ${okr.objective}</h3>
+                <p>Owner: ${okr.owner} • ${okr.keyResults?.length || 0} Key Results</p>
+              </div>
+              <div class="okr-progress">
+                <div class="percent" style="color:${color}">${progress}%</div>
+                <div class="progress-bar"><div class="progress-fill" style="width:${progress}%;background:${color}"></div></div>
+              </div>
+            </div>
+            <div class="key-results">
+              ${(okr.keyResults || []).map((kr, idx) => {
+                const krProgress = Math.min(100, Math.round((kr.current / kr.target) * 100));
+                const isComplete = kr.current >= kr.target;
+                return `
+                  <div class="kr-item">
+                    <div class="kr-checkbox ${isComplete ? 'checked' : ''}" onclick="toggleKR('${okr.id}', ${idx})">
+                      ${isComplete ? '✓' : ''}
+                    </div>
+                    <div class="kr-content">
+                      <h4>${kr.description}</h4>
+                      <p>Progress: ${krProgress}%</p>
+                    </div>
+                    <div class="kr-metric">
+                      <input type="number" value="${kr.current}" onchange="updateKR('${okr.id}', ${idx}, this.value)">
+                      <span>/ ${kr.target}</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+              <div style="margin-top:15px;display:flex;gap:10px">
+                <button onclick="editOKR('${okr.id}')">Edit</button>
+                <button onclick="deleteOKR('${okr.id}')" style="background:#500;border-color:#500">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleOKR(id) {
+      document.getElementById(`okr-${id}`).classList.toggle('expanded');
+    }
+
+    function toggleKR(okrId, krIdx) {
+      const okr = okrs.find(o => o.id === okrId);
+      if (okr && okr.keyResults[krIdx]) {
+        const kr = okr.keyResults[krIdx];
+        kr.current = kr.current >= kr.target ? 0 : kr.target;
+        save();
+        render();
+      }
+    }
+
+    function updateKR(okrId, krIdx, value) {
+      const okr = okrs.find(o => o.id === okrId);
+      if (okr && okr.keyResults[krIdx]) {
+        okr.keyResults[krIdx].current = parseFloat(value) || 0;
+        save();
+        render();
+      }
+    }
+
+    function showNewOKR() {
+      document.getElementById('okrId').value = '';
+      document.getElementById('objective').value = '';
+      document.getElementById('owner').value = '';
+      document.getElementById('okrPeriod').value = currentPeriod;
+      krInputs = [{ description: '', target: 100, current: 0 }];
+      renderKRInputs();
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function editOKR(id) {
+      const okr = okrs.find(o => o.id === id);
+      if (!okr) return;
+      document.getElementById('okrId').value = id;
+      document.getElementById('objective').value = okr.objective;
+      document.getElementById('owner').value = okr.owner;
+      document.getElementById('okrPeriod').value = okr.period;
+      krInputs = okr.keyResults?.map(kr => ({ ...kr })) || [];
+      if (krInputs.length === 0) krInputs.push({ description: '', target: 100, current: 0 });
+      renderKRInputs();
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function addKRInput() {
+      krInputs.push({ description: '', target: 100, current: 0 });
+      renderKRInputs();
+    }
+
+    function removeKRInput(idx) {
+      krInputs.splice(idx, 1);
+      renderKRInputs();
+    }
+
+    function renderKRInputs() {
+      document.getElementById('krInputList').innerHTML = krInputs.map((kr, idx) => `
+        <div class="kr-input-row">
+          <input type="text" placeholder="Key Result description" value="${kr.description}" onchange="krInputs[${idx}].description=this.value">
+          <input type="number" placeholder="Target" value="${kr.target}" onchange="krInputs[${idx}].target=parseFloat(this.value)">
+          <input type="number" placeholder="Current" value="${kr.current}" onchange="krInputs[${idx}].current=parseFloat(this.value)">
+          <button onclick="removeKRInput(${idx})">×</button>
+        </div>
+      `).join('');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    function saveOKR() {
+      const objective = document.getElementById('objective').value.trim();
+      if (!objective) {
+        alert('Objective is required');
+        return;
+      }
+
+      const keyResults = krInputs.filter(kr => kr.description.trim());
+
+      const okr = {
+        id: document.getElementById('okrId').value || Date.now().toString(),
+        objective,
+        owner: document.getElementById('owner').value.trim() || 'Unassigned',
+        period: document.getElementById('okrPeriod').value,
+        keyResults,
+        createdAt: new Date().toISOString()
+      };
+
+      const idx = okrs.findIndex(o => o.id === okr.id);
+      if (idx >= 0) {
+        okrs[idx] = okr;
+      } else {
+        okrs.push(okr);
+      }
+
+      save();
+      closeModal();
+      render();
+    }
+
+    function deleteOKR(id) {
+      if (confirm('Delete this objective?')) {
+        okrs = okrs.filter(o => o.id !== id);
+        save();
+        render();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Training LMS - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"training-lms","name":"Training LMS","icon":"📚","desc":"Learning management system for employee training","category":"hr","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button:hover{background:#333}
+    button.primary{background:#e94560;border-color:#e94560}
+    .tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .tab{padding:10px 20px;cursor:pointer;border-radius:6px;background:#1a1a1a;border:1px solid #333}
+    .tab.active{background:#e94560;border-color:#e94560}
+    .section{display:none}
+    .section.active{display:block}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;padding:20px;border-radius:8px;text-align:center;border:1px solid #333}
+    .stat-value{font-size:2rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:12px;color:#888;margin-top:4px}
+    .course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+    .course-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+    .course-image{height:120px;background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:3rem}
+    .course-content{padding:20px}
+    .course-title{font-size:1.1rem;margin-bottom:8px}
+    .course-meta{display:flex;gap:12px;color:#888;font-size:13px;margin-bottom:12px}
+    .progress-bar{background:#333;height:6px;border-radius:3px;margin:12px 0}
+    .progress-fill{height:100%;background:#e94560;border-radius:3px}
+    .course-footer{display:flex;justify-content:space-between;align-items:center}
+    .badge{padding:4px 10px;border-radius:12px;font-size:11px}
+    .badge.required{background:#500;color:#f66}
+    .badge.optional{background:#004a00;color:#6f6}
+    .badge.completed{background:#1a1a4a;color:#88f}
+    .lesson-list{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+    .lesson-item{display:flex;align-items:center;gap:12px;padding:12px;background:#0a0a0a;border-radius:8px;cursor:pointer}
+    .lesson-item:hover{background:#222}
+    .lesson-check{width:24px;height:24px;border-radius:50%;border:2px solid #444;display:flex;align-items:center;justify-content:center}
+    .lesson-check.done{background:#4a4;border-color:#4a4}
+    .lesson-info{flex:1}
+    .lesson-info h4{margin-bottom:2px}
+    .lesson-info p{color:#888;font-size:12px}
+    .lesson-duration{color:#888;font-size:13px}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+    .player{background:#0a0a0a;border-radius:8px;padding:40px;text-align:center;margin-bottom:20px}
+    .player h2{margin-bottom:20px}
+    .player-content{font-size:1.1rem;line-height:1.8;text-align:left;max-width:600px;margin:0 auto}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📚 Training LMS</h1>
+    <button class="primary" onclick="showAddCourse()">+ Add Course</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="coursesEnrolled">0</div><div class="stat-label">Courses Enrolled</div></div>
+    <div class="stat"><div class="stat-value" id="completed">0</div><div class="stat-label">Completed</div></div>
+    <div class="stat"><div class="stat-value" id="hoursLearned">0</div><div class="stat-label">Hours Learned</div></div>
+    <div class="stat"><div class="stat-value" id="certifications">0</div><div class="stat-label">Certifications</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('my-learning')">My Learning</div>
+    <div class="tab" onclick="switchTab('catalog')">Course Catalog</div>
+    <div class="tab" onclick="switchTab('certificates')">Certificates</div>
+  </div>
+
+  <div class="section active" id="my-learning">
+    <div class="course-grid" id="myCoursesGrid"></div>
+  </div>
+
+  <div class="section" id="catalog">
+    <div class="course-grid" id="catalogGrid"></div>
+  </div>
+
+  <div class="section" id="certificates">
+    <div id="certificatesList"></div>
+  </div>
+
+  <div class="modal" id="courseModal">
+    <div class="modal-content">
+      <h2>Add Course</h2>
+      <div class="form-group"><label>Course Title</label><input type="text" id="courseTitle" placeholder="Introduction to..."></div>
+      <div class="form-group"><label>Description</label><textarea id="courseDesc" rows="2"></textarea></div>
+      <div class="form-group"><label>Icon (emoji)</label><input type="text" id="courseIcon" value="📖"></div>
+      <div class="form-group"><label>Type</label><select id="courseType">
+        <option value="required">Required</option>
+        <option value="optional">Optional</option>
+      </select></div>
+      <div class="form-group"><label>Duration (hours)</label><input type="number" id="courseDuration" value="1"></div>
+      <div class="form-group"><label>Lessons (one per line)</label>
+        <textarea id="courseLessons" rows="5" placeholder="Lesson 1: Introduction
+Lesson 2: Core Concepts
+Lesson 3: Advanced Topics"></textarea>
+      </div>
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveCourse()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="lessonModal">
+    <div class="modal-content">
+      <h2 id="lessonTitle">Lesson Title</h2>
+      <div class="player">
+        <div class="player-content" id="lessonContent"></div>
+      </div>
+      <div class="btn-row">
+        <button onclick="closeLesson()">Close</button>
+        <button class="primary" onclick="completeLesson()">Mark Complete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultCourses = [
+      {
+        id: 'onboarding',
+        title: 'New Employee Onboarding',
+        description: 'Essential information for new team members',
+        icon: '🎯',
+        type: 'required',
+        duration: 2,
+        lessons: [
+          { id: 'l1', title: 'Welcome to the Team', content: 'Welcome! This course will guide you through everything you need to know...' },
+          { id: 'l2', title: 'Company Culture & Values', content: 'Our core values are integrity, innovation, and collaboration...' },
+          { id: 'l3', title: 'Tools & Systems', content: 'We use the following tools: Slack, Jira, GitHub...' },
+          { id: 'l4', title: 'Security & Compliance', content: 'Security is everyone\'s responsibility. Key policies include...' }
+        ]
+      },
+      {
+        id: 'security',
+        title: 'Security Awareness Training',
+        description: 'Annual security training requirement',
+        icon: '🔒',
+        type: 'required',
+        duration: 1,
+        lessons: [
+          { id: 'l1', title: 'Password Best Practices', content: 'Use strong, unique passwords for each account...' },
+          { id: 'l2', title: 'Phishing Prevention', content: 'Learn to identify phishing attempts...' },
+          { id: 'l3', title: 'Data Protection', content: 'Handle sensitive data with care...' }
+        ]
+      },
+      {
+        id: 'communication',
+        title: 'Effective Communication',
+        description: 'Improve your workplace communication skills',
+        icon: '💬',
+        type: 'optional',
+        duration: 1.5,
+        lessons: [
+          { id: 'l1', title: 'Active Listening', content: 'Active listening is a key skill...' },
+          { id: 'l2', title: 'Written Communication', content: 'Clear and concise writing...' },
+          { id: 'l3', title: 'Giving Feedback', content: 'Constructive feedback helps everyone grow...' }
+        ]
+      }
+    ];
+
+    let courses = JSON.parse(localStorage.getItem('kiss-lms-courses') || 'null') || defaultCourses;
+    let progress = JSON.parse(localStorage.getItem('kiss-lms-progress') || '{}');
+    let currentCourse = null;
+    let currentLesson = null;
+
+    function save() {
+      localStorage.setItem('kiss-lms-courses', JSON.stringify(courses));
+      localStorage.setItem('kiss-lms-progress', JSON.stringify(progress));
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(tab).classList.add('active');
+    }
+
+    function getCourseProgress(courseId) {
+      const course = courses.find(c => c.id === courseId);
+      if (!course || !course.lessons) return 0;
+      const completed = (progress[courseId] || []).length;
+      return Math.round((completed / course.lessons.length) * 100);
+    }
+
+    function isCourseComplete(courseId) {
+      return getCourseProgress(courseId) === 100;
+    }
+
+    function render() {
+      // Stats
+      const enrolled = courses.length;
+      const completed = courses.filter(c => isCourseComplete(c.id)).length;
+      const hours = courses.filter(c => isCourseComplete(c.id)).reduce((sum, c) => sum + c.duration, 0);
+
+      document.getElementById('coursesEnrolled').textContent = enrolled;
+      document.getElementById('completed').textContent = completed;
+      document.getElementById('hoursLearned').textContent = hours;
+      document.getElementById('certifications').textContent = completed;
+
+      // My Learning
+      const myGrid = document.getElementById('myCoursesGrid');
+      myGrid.innerHTML = courses.map(c => {
+        const prog = getCourseProgress(c.id);
+        const isComplete = isCourseComplete(c.id);
+        return `
+          <div class="course-card">
+            <div class="course-image">${c.icon}</div>
+            <div class="course-content">
+              <div class="course-title">${c.title}</div>
+              <div class="course-meta">
+                <span>⏱️ ${c.duration}h</span>
+                <span>📖 ${c.lessons?.length || 0} lessons</span>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
+              <div class="course-footer">
+                <span class="badge ${isComplete ? 'completed' : c.type}">${isComplete ? 'Completed' : c.type}</span>
+                <button onclick="openCourse('${c.id}')">${prog === 0 ? 'Start' : prog === 100 ? 'Review' : 'Continue'}</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Catalog (same as my learning for now)
+      document.getElementById('catalogGrid').innerHTML = myGrid.innerHTML;
+
+      // Certificates
+      const certList = document.getElementById('certificatesList');
+      const completedCourses = courses.filter(c => isCourseComplete(c.id));
+      if (completedCourses.length === 0) {
+        certList.innerHTML = '<div style="text-align:center;padding:40px;color:#666">Complete courses to earn certificates</div>';
+      } else {
+        certList.innerHTML = completedCourses.map(c => `
+          <div style="background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid #333;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <h3 style="margin-bottom:4px">🏆 ${c.title}</h3>
+              <p style="color:#888;font-size:13px">Completed • ${c.duration} hours</p>
+            </div>
+            <button onclick="downloadCert('${c.id}')">📜 Download</button>
+          </div>
+        `).join('');
+      }
+    }
+
+    function openCourse(courseId) {
+      currentCourse = courses.find(c => c.id === courseId);
+      if (!currentCourse) return;
+
+      const completedLessons = progress[courseId] || [];
+
+      document.getElementById('lessonModal').querySelector('h2').textContent = currentCourse.title;
+      document.getElementById('lessonContent').innerHTML = `
+        <div class="lesson-list">
+          ${currentCourse.lessons.map((lesson, idx) => {
+            const done = completedLessons.includes(lesson.id);
+            return `
+              <div class="lesson-item" onclick="openLesson('${courseId}', '${lesson.id}')">
+                <div class="lesson-check ${done ? 'done' : ''}">${done ? '✓' : ''}</div>
+                <div class="lesson-info">
+                  <h4>${lesson.title}</h4>
+                  <p>Lesson ${idx + 1}</p>
+                </div>
+                <span class="lesson-duration">10 min</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      document.getElementById('lessonModal').classList.add('active');
+    }
+
+    function openLesson(courseId, lessonId) {
+      currentCourse = courses.find(c => c.id === courseId);
+      currentLesson = currentCourse?.lessons.find(l => l.id === lessonId);
+      if (!currentLesson) return;
+
+      document.getElementById('lessonTitle').textContent = currentLesson.title;
+      document.getElementById('lessonContent').innerHTML = `<p>${currentLesson.content}</p>`;
+    }
+
+    function completeLesson() {
+      if (!currentCourse || !currentLesson) return;
+
+      if (!progress[currentCourse.id]) {
+        progress[currentCourse.id] = [];
+      }
+
+      if (!progress[currentCourse.id].includes(currentLesson.id)) {
+        progress[currentCourse.id].push(currentLesson.id);
+        save();
+      }
+
+      // Show next lesson or course completion
+      const lessonIdx = currentCourse.lessons.findIndex(l => l.id === currentLesson.id);
+      if (lessonIdx < currentCourse.lessons.length - 1) {
+        const nextLesson = currentCourse.lessons[lessonIdx + 1];
+        openLesson(currentCourse.id, nextLesson.id);
+      } else {
+        closeLesson();
+        if (isCourseComplete(currentCourse.id)) {
+          alert('🎉 Congratulations! You completed ' + currentCourse.title);
+        }
+      }
+      render();
+    }
+
+    function closeLesson() {
+      document.getElementById('lessonModal').classList.remove('active');
+    }
+
+    function showAddCourse() {
+      document.getElementById('courseTitle').value = '';
+      document.getElementById('courseDesc').value = '';
+      document.getElementById('courseIcon').value = '📖';
+      document.getElementById('courseDuration').value = '1';
+      document.getElementById('courseLessons').value = '';
+      document.getElementById('courseModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('courseModal').classList.remove('active');
+    }
+
+    function saveCourse() {
+      const title = document.getElementById('courseTitle').value.trim();
+      const lessonsText = document.getElementById('courseLessons').value;
+
+      if (!title) {
+        alert('Title is required');
+        return;
+      }
+
+      const lessons = lessonsText.split('\n').filter(l => l.trim()).map((l, i) => ({
+        id: 'l' + (i + 1),
+        title: l.trim(),
+        content: 'Lesson content for: ' + l.trim()
+      }));
+
+      courses.push({
+        id: Date.now().toString(),
+        title,
+        description: document.getElementById('courseDesc').value.trim(),
+        icon: document.getElementById('courseIcon').value || '📖',
+        type: document.getElementById('courseType').value,
+        duration: parseFloat(document.getElementById('courseDuration').value) || 1,
+        lessons
+      });
+
+      save();
+      closeModal();
+      render();
+    }
+
+    function downloadCert(courseId) {
+      const course = courses.find(c => c.id === courseId);
+      if (!course) return;
+
+      const certText = `
+CERTIFICATE OF COMPLETION
+
+This certifies that
+
+[Your Name]
+
+has successfully completed
+
+${course.title}
+
+Date: ${new Date().toLocaleDateString()}
+Duration: ${course.duration} hours
+      `;
+
+      const blob = new Blob([certText], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `certificate-${course.id}.txt`;
+      a.click();
+    }
+
+    render();
+  </script>
+</body>
+</html>

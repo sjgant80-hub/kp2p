@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Invoices - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">{"id":"invoices","name":"Invoices","icon":"🧾","desc":"Create and manage invoices","category":"finance","version":"1.0.0"}</script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    h1{font-size:1.5rem}
+    button{padding:8px 16px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer}
+    button.primary{background:#e94560;border-color:#e94560}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+    .stat{background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid #333}
+    .stat-value{font-size:1.8rem;font-weight:bold;color:#e94560}
+    .stat-label{font-size:13px;color:#888;margin-top:4px}
+    .filters{display:flex;gap:10px;margin-bottom:20px}
+    .filters select{padding:10px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#fff}
+    .invoice-list{display:flex;flex-direction:column;gap:12px}
+    .invoice-card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;cursor:pointer}
+    .invoice-card:hover{border-color:#e94560}
+    .invoice-info h3{margin-bottom:4px;display:flex;align-items:center;gap:10px}
+    .invoice-info p{color:#888;font-size:13px}
+    .invoice-amount{text-align:right}
+    .invoice-amount .total{font-size:1.5rem;font-weight:bold;color:#e94560}
+    .invoice-amount .date{font-size:12px;color:#888;margin-top:4px}
+    .badge{padding:4px 10px;border-radius:12px;font-size:11px}
+    .badge.draft{background:#333;color:#888}
+    .badge.sent{background:#4a4a1a;color:#f90}
+    .badge.paid{background:#1a4a1a;color:#4a4}
+    .badge.overdue{background:#4a1a1a;color:#f44}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .modal.active{display:flex}
+    .modal-content{background:#1a1a1a;border-radius:12px;padding:24px;width:90%;max-width:700px;max-height:90vh;overflow-y:auto}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;margin-bottom:6px;color:#888;font-size:13px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #333;background:#0a0a0a;color:#fff}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .line-items{margin:20px 0}
+    .line-item{display:grid;grid-template-columns:3fr 1fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:center}
+    .line-item input{padding:8px}
+    .line-total{font-weight:bold;color:#e94560}
+    .invoice-totals{background:#0a0a0a;padding:20px;border-radius:8px;margin-top:20px}
+    .total-row{display:flex;justify-content:space-between;padding:8px 0}
+    .total-row.grand{font-size:1.3rem;font-weight:bold;border-top:1px solid #333;padding-top:15px;margin-top:10px}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🧾 Invoices</h1>
+    <button class="primary" onclick="showNewInvoice()">+ New Invoice</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="outstanding">$0</div><div class="stat-label">Outstanding</div></div>
+    <div class="stat"><div class="stat-value" id="overdue">$0</div><div class="stat-label">Overdue</div></div>
+    <div class="stat"><div class="stat-value" id="paidMonth">$0</div><div class="stat-label">Paid This Month</div></div>
+    <div class="stat"><div class="stat-value" id="totalInvoices">0</div><div class="stat-label">Total Invoices</div></div>
+  </div>
+
+  <div class="filters">
+    <select id="statusFilter" onchange="render()">
+      <option value="">All Status</option>
+      <option value="draft">Draft</option>
+      <option value="sent">Sent</option>
+      <option value="paid">Paid</option>
+      <option value="overdue">Overdue</option>
+    </select>
+  </div>
+
+  <div class="invoice-list" id="invoiceList"></div>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h2 id="modalTitle">New Invoice</h2>
+      <input type="hidden" id="invoiceId">
+      <div class="form-row">
+        <div class="form-group"><label>Invoice #</label><input type="text" id="invNumber" placeholder="INV-001"></div>
+        <div class="form-group"><label>Date</label><input type="date" id="invDate"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Customer</label><input type="text" id="customer" placeholder="Customer name"></div>
+        <div class="form-group"><label>Due Date</label><input type="date" id="dueDate"></div>
+      </div>
+
+      <div class="line-items">
+        <h3>Line Items</h3>
+        <div class="line-item" style="font-weight:bold;color:#888;font-size:13px">
+          <span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span><span></span>
+        </div>
+        <div id="lineItems"></div>
+        <button onclick="addLineItem()" style="margin-top:10px">+ Add Item</button>
+      </div>
+
+      <div class="invoice-totals">
+        <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+        <div class="total-row"><span>Tax (10%)</span><span id="tax">$0.00</span></div>
+        <div class="total-row grand"><span>Total</span><span id="grandTotal">$0.00</span></div>
+      </div>
+
+      <div class="btn-row">
+        <button onclick="closeModal()">Cancel</button>
+        <button onclick="saveInvoice('draft')">Save Draft</button>
+        <button class="primary" onclick="saveInvoice('sent')">Send Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="viewModal">
+    <div class="modal-content" id="viewContent"></div>
+  </div>
+
+  <script>
+    let invoices = JSON.parse(localStorage.getItem('kiss-invoices') || '[]');
+    let lineItems = [];
+
+    function save() { localStorage.setItem('kiss-invoices', JSON.stringify(invoices)); }
+
+    function formatCurrency(amt) {
+      return '$' + parseFloat(amt || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatDate(dateStr) {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function getInvoiceStatus(inv) {
+      if (inv.status === 'paid') return 'paid';
+      if (inv.status === 'draft') return 'draft';
+      const dueDate = new Date(inv.dueDate);
+      if (dueDate < new Date()) return 'overdue';
+      return 'sent';
+    }
+
+    function render() {
+      const filter = document.getElementById('statusFilter').value;
+
+      // Calculate stats
+      let outstanding = 0, overdue = 0, paidMonth = 0;
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      invoices.forEach(inv => {
+        const status = getInvoiceStatus(inv);
+        if (status === 'sent') outstanding += inv.total;
+        if (status === 'overdue') {
+          outstanding += inv.total;
+          overdue += inv.total;
+        }
+        if (status === 'paid' && new Date(inv.paidDate) >= monthStart) {
+          paidMonth += inv.total;
+        }
+      });
+
+      document.getElementById('outstanding').textContent = formatCurrency(outstanding);
+      document.getElementById('overdue').textContent = formatCurrency(overdue);
+      document.getElementById('paidMonth').textContent = formatCurrency(paidMonth);
+      document.getElementById('totalInvoices').textContent = invoices.length;
+
+      // Render list
+      const filtered = filter ?
+        invoices.filter(inv => getInvoiceStatus(inv) === filter) :
+        invoices;
+
+      document.getElementById('invoiceList').innerHTML = filtered.length === 0 ?
+        '<div style="text-align:center;padding:40px;color:#666">No invoices found</div>' :
+        filtered.map(inv => {
+          const status = getInvoiceStatus(inv);
+          return `
+            <div class="invoice-card" onclick="viewInvoice('${inv.id}')">
+              <div class="invoice-info">
+                <h3>${inv.number} <span class="badge ${status}">${status}</span></h3>
+                <p>${inv.customer}</p>
+              </div>
+              <div class="invoice-amount">
+                <div class="total">${formatCurrency(inv.total)}</div>
+                <div class="date">Due: ${formatDate(inv.dueDate)}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+    }
+
+    function showNewInvoice() {
+      document.getElementById('modalTitle').textContent = 'New Invoice';
+      document.getElementById('invoiceId').value = '';
+      document.getElementById('invNumber').value = 'INV-' + String(invoices.length + 1).padStart(3, '0');
+      document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
+      const due = new Date();
+      due.setDate(due.getDate() + 30);
+      document.getElementById('dueDate').value = due.toISOString().split('T')[0];
+      document.getElementById('customer').value = '';
+      lineItems = [{ description: '', qty: 1, rate: 0 }];
+      renderLineItems();
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function addLineItem() {
+      lineItems.push({ description: '', qty: 1, rate: 0 });
+      renderLineItems();
+    }
+
+    function removeLineItem(idx) {
+      lineItems.splice(idx, 1);
+      renderLineItems();
+    }
+
+    function updateLineItem(idx, field, value) {
+      lineItems[idx][field] = field === 'description' ? value : parseFloat(value) || 0;
+      renderLineItems();
+    }
+
+    function renderLineItems() {
+      document.getElementById('lineItems').innerHTML = lineItems.map((item, idx) => `
+        <div class="line-item">
+          <input type="text" value="${item.description}" onchange="updateLineItem(${idx}, 'description', this.value)" placeholder="Item description">
+          <input type="number" value="${item.qty}" onchange="updateLineItem(${idx}, 'qty', this.value)" min="1">
+          <input type="number" value="${item.rate}" onchange="updateLineItem(${idx}, 'rate', this.value)" step="0.01">
+          <span class="line-total">${formatCurrency(item.qty * item.rate)}</span>
+          <button onclick="removeLineItem(${idx})">×</button>
+        </div>
+      `).join('');
+
+      // Update totals
+      const subtotal = lineItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+      const tax = subtotal * 0.10;
+      const total = subtotal + tax;
+
+      document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+      document.getElementById('tax').textContent = formatCurrency(tax);
+      document.getElementById('grandTotal').textContent = formatCurrency(total);
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+      document.getElementById('viewModal').classList.remove('active');
+    }
+
+    function saveInvoice(status) {
+      const customer = document.getElementById('customer').value.trim();
+      if (!customer) {
+        alert('Customer is required');
+        return;
+      }
+
+      const validItems = lineItems.filter(item => item.description && item.rate > 0);
+      if (validItems.length === 0) {
+        alert('Add at least one line item');
+        return;
+      }
+
+      const subtotal = validItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+      const tax = subtotal * 0.10;
+      const total = subtotal + tax;
+
+      const invoice = {
+        id: document.getElementById('invoiceId').value || Date.now().toString(),
+        number: document.getElementById('invNumber').value,
+        date: document.getElementById('invDate').value,
+        dueDate: document.getElementById('dueDate').value,
+        customer,
+        items: validItems,
+        subtotal,
+        tax,
+        total,
+        status,
+        createdAt: new Date().toISOString()
+      };
+
+      const idx = invoices.findIndex(i => i.id === invoice.id);
+      if (idx >= 0) {
+        invoices[idx] = invoice;
+      } else {
+        invoices.unshift(invoice);
+      }
+
+      save();
+      closeModal();
+      render();
+    }
+
+    function viewInvoice(id) {
+      const inv = invoices.find(i => i.id === id);
+      if (!inv) return;
+
+      const status = getInvoiceStatus(inv);
+
+      document.getElementById('viewContent').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px">
+          <div>
+            <h2>${inv.number}</h2>
+            <p style="color:#888">${formatDate(inv.date)}</p>
+          </div>
+          <span class="badge ${status}" style="font-size:14px;padding:8px 16px">${status.toUpperCase()}</span>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <p style="color:#888;font-size:13px">Bill To:</p>
+          <p style="font-size:1.2rem">${inv.customer}</p>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+          <thead><tr style="border-bottom:1px solid #333">
+            <th style="text-align:left;padding:10px;color:#888">Description</th>
+            <th style="text-align:right;padding:10px;color:#888">Qty</th>
+            <th style="text-align:right;padding:10px;color:#888">Rate</th>
+            <th style="text-align:right;padding:10px;color:#888">Amount</th>
+          </tr></thead>
+          <tbody>
+            ${inv.items.map(item => `
+              <tr style="border-bottom:1px solid #222">
+                <td style="padding:10px">${item.description}</td>
+                <td style="text-align:right;padding:10px">${item.qty}</td>
+                <td style="text-align:right;padding:10px">${formatCurrency(item.rate)}</td>
+                <td style="text-align:right;padding:10px">${formatCurrency(item.qty * item.rate)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div style="text-align:right">
+          <p>Subtotal: ${formatCurrency(inv.subtotal)}</p>
+          <p>Tax: ${formatCurrency(inv.tax)}</p>
+          <p style="font-size:1.5rem;font-weight:bold;color:#e94560;margin-top:10px">Total: ${formatCurrency(inv.total)}</p>
+        </div>
+
+        <div class="btn-row">
+          ${status !== 'paid' ? `<button onclick="markPaid('${inv.id}')" class="primary">Mark as Paid</button>` : ''}
+          <button onclick="closeModal()">Close</button>
+        </div>
+      `;
+
+      document.getElementById('viewModal').classList.add('active');
+    }
+
+    function markPaid(id) {
+      const inv = invoices.find(i => i.id === id);
+      if (inv) {
+        inv.status = 'paid';
+        inv.paidDate = new Date().toISOString();
+        save();
+        closeModal();
+        render();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
