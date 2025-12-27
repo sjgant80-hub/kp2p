@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FastPass - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fastpass","name":"FastPass","icon":"⚡","desc":"Skip-the-line booking","category":"amusement","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.active-passes{background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);border-radius:12px;padding:20px;margin-bottom:20px}
+.passes-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.passes-title{font-size:1.125rem;font-weight:bold}
+.passes-count{padding:4px 12px;background:#ffffff33;border-radius:4px;font-size:.875rem}
+.active-list{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px}
+.active-item{background:#ffffff22;padding:15px;border-radius:8px;min-width:150px}
+.active-ride{font-weight:bold;margin-bottom:5px}
+.active-time{font-size:.875rem;opacity:.9}
+.available{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.ride{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.ride-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.ride-icon{font-size:2rem}
+.ride-wait{text-align:right}
+.wait-label{font-size:.65rem;color:#888}
+.wait-time{font-size:1.25rem;font-weight:bold}
+.wait-time.short{color:#22c55e}
+.wait-time.medium{color:#f59e0b}
+.wait-time.long{color:#ef4444}
+.ride-name{font-size:1rem;font-weight:bold;margin-bottom:10px}
+.ride-slots{margin-bottom:15px}
+.slots-label{font-size:.75rem;color:#888;margin-bottom:8px}
+.slots{display:flex;flex-wrap:wrap;gap:8px}
+.slot{padding:8px 12px;background:#252525;border-radius:6px;font-size:.8rem;cursor:pointer}
+.slot:hover{background:#f9731633}
+.slot.taken{opacity:.5;cursor:not-allowed;text-decoration:line-through}
+.ride-footer{display:flex;justify-content:space-between;align-items:center}
+.ride-type{font-size:.75rem;color:#888}
+.book-btn{padding:8px 15px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>⚡ FastPass</h1><button class="btn">My Passes</button></div>
+<div class="active-passes">
+<div class="passes-header">
+<span class="passes-title">Your Active Passes</span>
+<span class="passes-count">2 of 3 used</span>
+</div>
+<div class="active-list">
+<div class="active-item">
+<div class="active-ride">🎢 Mega Coaster</div>
+<div class="active-time">Return: 2:30 - 3:00 PM</div>
+</div>
+<div class="active-item">
+<div class="active-ride">🌊 River Rapids</div>
+<div class="active-time">Return: 4:15 - 4:45 PM</div>
+</div>
+</div>
+</div>
+<div class="available" id="available"></div>
+<script>
+const rides=[
+{icon:'🔄',name:'The Twister',wait:45,type:'Thrill Ride',slots:[{t:'3:30 PM',avail:true},{t:'4:00 PM',avail:true},{t:'4:30 PM',avail:false},{t:'5:00 PM',avail:true}]},
+{icon:'⬇️',name:'Free Fall Tower',wait:30,type:'Thrill Ride',slots:[{t:'3:15 PM',avail:true},{t:'3:45 PM',avail:true},{t:'4:15 PM',avail:true}]},
+{icon:'🐉',name:'Dragon Flight',wait:35,type:'Family Ride',slots:[{t:'3:00 PM',avail:false},{t:'3:30 PM',avail:true},{t:'4:00 PM',avail:false},{t:'4:30 PM',avail:true}]},
+{icon:'💧',name:'Log Flume',wait:25,type:'Water Ride',slots:[{t:'3:00 PM',avail:true},{t:'3:30 PM',avail:true},{t:'4:00 PM',avail:true},{t:'4:30 PM',avail:true}]},
+{icon:'🎪',name:'4D Theater',wait:20,type:'Show',slots:[{t:'3:30 PM',avail:true},{t:'4:30 PM',avail:true},{t:'5:30 PM',avail:true}]}
+];
+function getWaitClass(w){return w>=40?'long':w>=25?'medium':'short';}
+document.getElementById('available').innerHTML=rides.map(r=>`
+<div class="ride">
+<div class="ride-header">
+<span class="ride-icon">${r.icon}</span>
+<div class="ride-wait">
+<div class="wait-label">STANDBY</div>
+<div class="wait-time ${getWaitClass(r.wait)}">${r.wait} min</div>
+</div>
+</div>
+<div class="ride-name">${r.name}</div>
+<div class="ride-slots">
+<div class="slots-label">AVAILABLE RETURN TIMES</div>
+<div class="slots">${r.slots.map(s=>`<span class="slot${!s.avail?' taken':''}">${s.t}</span>`).join('')}</div>
+</div>
+<div class="ride-footer">
+<span class="ride-type">${r.type}</span>
+<button class="book-btn">Reserve</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -720,6 +720,26 @@ const categoryMap = {
   // Fairground
   'ride-status': { category: 'fairground', subcategory: 'rides', badge: 'ENT' },
   'game-booth': { category: 'fairground', subcategory: 'games', badge: 'ENT' },
+
+  // Observatory
+  'telescope-schedule': { category: 'observatory', subcategory: 'booking', badge: 'ENT' },
+  'celestial-events': { category: 'observatory', subcategory: 'events', badge: 'ENT' },
+
+  // Botanic
+  'plant-directory': { category: 'botanic', subcategory: 'catalog', badge: 'ENT' },
+  'seasonal-calendar': { category: 'botanic', subcategory: 'scheduling', badge: 'ENT' },
+
+  // Aquatic
+  'pool-schedule': { category: 'aquatic', subcategory: 'scheduling', badge: 'ENT' },
+  'swim-lessons': { category: 'aquatic', subcategory: 'lessons', badge: 'ENT' },
+
+  // Racetrack
+  'race-schedule': { category: 'racetrack', subcategory: 'scheduling', badge: 'ENT' },
+  'betting-board': { category: 'racetrack', subcategory: 'betting', badge: 'ENT' },
+
+  // Amusement
+  'park-map': { category: 'amusement', subcategory: 'navigation', badge: 'ENT' },
+  'fastpass': { category: 'amusement', subcategory: 'booking', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1001,7 +1021,12 @@ const widgetDirs = [
   'planetarium',
   'library',
   'theater',
-  'fairground'
+  'fairground',
+  'observatory',
+  'botanic',
+  'aquatic',
+  'racetrack',
+  'amusement'
 ];
 
 // Process all widgets in all directories

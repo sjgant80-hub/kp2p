@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Telescope Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"telescope-schedule","name":"Telescope Schedule","icon":"🔭","desc":"Book telescope sessions","category":"observatory","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.conditions{background:linear-gradient(135deg,#1e3a5f 0%,#0f172a 100%);border-radius:12px;padding:20px;margin-bottom:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px}
+.condition{text-align:center}
+.condition-value{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.condition-label{font-size:.75rem;opacity:.8}
+.telescopes{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.telescope{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.telescope-header{padding:20px;background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)}
+.telescope-name{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.telescope-type{font-size:.875rem;opacity:.9}
+.telescope-body{padding:20px}
+.telescope-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.spec{background:#252525;padding:10px;border-radius:6px}
+.spec-label{font-size:.65rem;color:#888;margin-bottom:3px}
+.spec-value{font-size:.875rem;font-weight:500}
+.telescope-slots{margin-bottom:15px}
+.slots-label{font-size:.75rem;color:#888;margin-bottom:8px}
+.slots{display:flex;flex-wrap:wrap;gap:8px}
+.slot{padding:8px 12px;background:#252525;border-radius:6px;font-size:.8rem;cursor:pointer}
+.slot:hover{background:#3b82f633}
+.slot.booked{opacity:.5;cursor:not-allowed;text-decoration:line-through}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔭 Telescope Booking</h1><button class="btn">My Sessions</button></div>
+<div class="conditions">
+<div class="condition"><div class="condition-value">☁️ Clear</div><div class="condition-label">Sky Conditions</div></div>
+<div class="condition"><div class="condition-value">72%</div><div class="condition-label">Visibility</div></div>
+<div class="condition"><div class="condition-value">🌙 15%</div><div class="condition-label">Moon Phase</div></div>
+<div class="condition"><div class="condition-value">Good</div><div class="condition-label">Seeing</div></div>
+</div>
+<div class="telescopes" id="telescopes"></div>
+<script>
+const telescopes=[
+{name:'Celestron EdgeHD 14"',type:'Schmidt-Cassegrain',aperture:'356mm',focal:'3910mm',mount:'EQ8-R Pro',slots:[{t:'8:00 PM',avail:true},{t:'9:30 PM',avail:false},{t:'11:00 PM',avail:true}]},
+{name:'Meade LX600 16"',type:'ACF Optical',aperture:'406mm',focal:'3251mm',mount:'StarLock',slots:[{t:'8:00 PM',avail:false},{t:'9:30 PM',avail:true},{t:'11:00 PM',avail:true}]},
+{name:'Takahashi FSQ-130ED',type:'Refractor',aperture:'130mm',focal:'650mm',mount:'EM-400',slots:[{t:'8:00 PM',avail:true},{t:'9:30 PM',avail:true},{t:'11:00 PM',avail:false}]},
+{name:'Orion SkyQuest XX16g',type:'Dobsonian',aperture:'406mm',focal:'1800mm',mount:'IntelliScope',slots:[{t:'8:00 PM',avail:true},{t:'9:30 PM',avail:true},{t:'11:00 PM',avail:true}]}
+];
+document.getElementById('telescopes').innerHTML=telescopes.map(t=>`
+<div class="telescope">
+<div class="telescope-header">
+<div class="telescope-name">${t.name}</div>
+<div class="telescope-type">${t.type}</div>
+</div>
+<div class="telescope-body">
+<div class="telescope-specs">
+<div class="spec"><div class="spec-label">APERTURE</div><div class="spec-value">${t.aperture}</div></div>
+<div class="spec"><div class="spec-label">FOCAL LENGTH</div><div class="spec-value">${t.focal}</div></div>
+<div class="spec"><div class="spec-label">MOUNT</div><div class="spec-value">${t.mount}</div></div>
+</div>
+<div class="telescope-slots">
+<div class="slots-label">TONIGHT'S SESSIONS</div>
+<div class="slots">${t.slots.map(s=>`<div class="slot${!s.avail?' booked':''}">${s.t}</div>`).join('')}</div>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

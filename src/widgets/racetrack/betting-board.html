@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Betting Board - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"betting-board","name":"Betting Board","icon":"🎰","desc":"Odds and wagering","category":"racetrack","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.pools{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.pool{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.pool-value{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.pool-label{font-size:.75rem;color:#888;margin-top:5px}
+.board{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.board-header{padding:15px 20px;background:#252525;border-bottom:1px solid #333;font-weight:bold}
+.odds-table{width:100%}
+.odds-row{display:grid;grid-template-columns:40px 1fr repeat(4,80px);padding:12px 20px;border-bottom:1px solid #252525;align-items:center}
+.odds-row.header{background:#1a1a1a;font-size:.75rem;color:#888}
+.odds-row:last-child{border-bottom:none}
+.post{font-weight:bold;color:#dc2626}
+.horse-name{font-weight:500}
+.odds{text-align:center;font-family:monospace;font-weight:bold}
+.odds.favorite{color:#f59e0b}
+.trend{font-size:.75rem}
+.trend.up{color:#22c55e}
+.trend.down{color:#ef4444}
+.bet-types{display:flex;gap:10px;padding:20px;border-top:1px solid #333;flex-wrap:wrap}
+.bet-type{padding:10px 20px;background:#252525;border-radius:6px;cursor:pointer;font-size:.875rem}
+.bet-type:hover{background:#dc262633}
+.bet-type.selected{background:#dc2626}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎰 Betting Board</h1><button class="btn">Place Bet</button></div>
+<div class="pools">
+<div class="pool"><div class="pool-value">$127,450</div><div class="pool-label">Win Pool</div></div>
+<div class="pool"><div class="pool-value">$89,320</div><div class="pool-label">Place Pool</div></div>
+<div class="pool"><div class="pool-value">$64,180</div><div class="pool-label">Show Pool</div></div>
+<div class="pool"><div class="pool-value">$156,890</div><div class="pool-label">Exacta Pool</div></div>
+</div>
+<div class="board">
+<div class="board-header">Race 5 - The Diamond Stakes - Current Odds</div>
+<div class="odds-row header">
+<span>#</span>
+<span>Horse</span>
+<span>M/L</span>
+<span>Current</span>
+<span>Will Pay</span>
+<span>Trend</span>
+</div>
+<div id="odds"></div>
+<div class="bet-types">
+<span class="bet-type selected">Win</span>
+<span class="bet-type">Place</span>
+<span class="bet-type">Show</span>
+<span class="bet-type">Exacta</span>
+<span class="bet-type">Trifecta</span>
+<span class="bet-type">Superfecta</span>
+</div>
+</div>
+<script>
+const horses=[
+{post:1,name:'Golden Arrow',ml:'8/1',current:'10/1',pay:'$22.40',trend:'up'},
+{post:2,name:'Silver Storm',ml:'12/1',current:'15/1',pay:'$32.80',trend:'down'},
+{post:3,name:'Thunder Strike',ml:'5/2',current:'5/2',pay:'$7.00',trend:'—'},
+{post:4,name:'Dark Knight',ml:'6/1',current:'7/1',pay:'$16.20',trend:'up'},
+{post:5,name:'Phoenix Rising',ml:'15/1',current:'20/1',pay:'$42.60',trend:'down'},
+{post:6,name:'Wild Spirit',ml:'9/1',current:'8/1',pay:'$18.40',trend:'up'},
+{post:7,name:'Midnight Sun',ml:'3/1',current:'7/2',pay:'$9.20',trend:'down'},
+{post:8,name:'Victory Lap',ml:'10/1',current:'12/1',pay:'$26.00',trend:'—'}
+];
+document.getElementById('odds').innerHTML=horses.map(h=>`
+<div class="odds-row">
+<span class="post">${h.post}</span>
+<span class="horse-name">${h.name}</span>
+<span class="odds">${h.ml}</span>
+<span class="odds ${h.post===3?'favorite':''}">${h.current}</span>
+<span class="odds">${h.pay}</span>
+<span class="trend ${h.trend}">${h.trend==='up'?'▲':h.trend==='down'?'▼':'—'}</span>
+</div>`).join('');
+</script>
+</body>
+</html>

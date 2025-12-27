@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Race Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"race-schedule","name":"Race Schedule","icon":"🏇","desc":"Today's race card","category":"racetrack","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.next-race{background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);border-radius:12px;padding:25px;margin-bottom:20px}
+.next-label{font-size:.75rem;opacity:.8;margin-bottom:5px}
+.next-info{display:flex;justify-content:space-between;align-items:center}
+.next-name{font-size:1.5rem;font-weight:bold}
+.next-countdown{font-size:2rem;font-weight:bold;font-family:monospace}
+.races{display:flex;flex-direction:column;gap:15px}
+.race{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.race-header{padding:15px 20px;display:grid;grid-template-columns:60px 1fr auto;gap:15px;align-items:center;border-bottom:1px solid #333}
+.race-number{font-size:1.5rem;font-weight:bold;color:#dc2626}
+.race-info h4{margin-bottom:3px}
+.race-meta{font-size:.75rem;color:#888}
+.race-status{padding:6px 15px;border-radius:6px;font-size:.75rem}
+.status-next{background:#dc262633;color:#dc2626}
+.status-upcoming{background:#33333366;color:#888}
+.status-complete{background:#22c55e33;color:#22c55e}
+.race-horses{padding:15px 20px}
+.horse{display:grid;grid-template-columns:30px 1fr auto auto;gap:15px;align-items:center;padding:10px 0;border-bottom:1px solid #252525}
+.horse:last-child{border-bottom:none}
+.horse-post{font-weight:bold;color:#dc2626}
+.horse-name{font-weight:500}
+.horse-jockey{font-size:.75rem;color:#888}
+.horse-odds{font-weight:bold}
+.horse-fav{color:#f59e0b}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏇 Race Card</h1><button class="btn">Betting Window</button></div>
+<div class="next-race">
+<div class="next-label">NEXT RACE - RACE 5</div>
+<div class="next-info">
+<span class="next-name">The Diamond Stakes</span>
+<span class="next-countdown">00:12:45</span>
+</div>
+</div>
+<div class="races" id="races"></div>
+<script>
+const races=[
+{num:5,name:'The Diamond Stakes',distance:'1 Mile',purse:'$50,000',type:'Stakes',status:'next',horses:[{post:3,name:'Thunder Strike',jockey:'J. Rodriguez',odds:'5/2'},{post:7,name:'Midnight Sun',jockey:'M. Smith',odds:'3/1'},{post:1,name:'Golden Arrow',jockey:'K. Johnson',odds:'8/1'}]},
+{num:6,name:'Maiden Claiming',distance:'6 Furlongs',purse:'$15,000',type:'Maiden',status:'upcoming',horses:[{post:4,name:'First Timer',jockey:'R. Davis',odds:'4/1'},{post:2,name:'Dream Catcher',jockey:'L. Martinez',odds:'6/1'},{post:5,name:'Lucky Star',jockey:'T. Williams',odds:'3/1'}]},
+{num:7,name:'Allowance Optional',distance:'1 1/16 Miles',purse:'$35,000',type:'Allowance',status:'upcoming',horses:[{post:6,name:'Seaside Runner',jockey:'P. Garcia',odds:'7/2'},{post:1,name:'Mountain King',jockey:'J. Lee',odds:'5/1'},{post:8,name:'Fast Forward',jockey:'S. Brown',odds:'9/2'}]}
+];
+document.getElementById('races').innerHTML=races.map(r=>`
+<div class="race">
+<div class="race-header">
+<span class="race-number">#${r.num}</span>
+<div class="race-info"><h4>${r.name}</h4><div class="race-meta">${r.distance} • ${r.type} • Purse: ${r.purse}</div></div>
+<span class="race-status status-${r.status}">${r.status==='next'?'POST TIME':r.status==='upcoming'?'UPCOMING':'OFFICIAL'}</span>
+</div>
+<div class="race-horses">
+${r.horses.map((h,i)=>`<div class="horse">
+<span class="horse-post">${h.post}</span>
+<div><div class="horse-name">${h.name}</div><div class="horse-jockey">${h.jockey}</div></div>
+<span class="horse-odds ${i===0?'horse-fav':''}">${h.odds}</span>
+</div>`).join('')}
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

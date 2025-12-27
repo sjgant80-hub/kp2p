@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Park Map - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"park-map","name":"Park Map","icon":"🎢","desc":"Interactive park map","category":"amusement","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#f97316;border-color:#f97316}
+.zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.zone{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.zone-header{padding:15px 20px;display:flex;justify-content:space-between;align-items:center}
+.zone-name{font-weight:bold;display:flex;align-items:center;gap:10px}
+.zone-count{font-size:.75rem;color:#888}
+.zone-attractions{padding:15px}
+.attraction{display:flex;align-items:center;gap:12px;padding:10px;background:#252525;border-radius:6px;margin-bottom:8px}
+.attraction:last-child{margin-bottom:0}
+.attraction-icon{font-size:1.25rem}
+.attraction-info{flex:1}
+.attraction-name{font-weight:500;font-size:.875rem}
+.attraction-wait{font-size:.7rem;color:#888}
+.attraction-status{padding:4px 8px;border-radius:4px;font-size:.65rem}
+.status-open{background:#22c55e33;color:#22c55e}
+.status-closed{background:#ef444433;color:#ef4444}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎢 Park Map</h1><button class="btn">My Location</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">Attractions</div></div>
+<div class="stat"><div class="stat-value">28</div><div class="stat-label">Open Now</div></div>
+<div class="stat"><div class="stat-value">35 min</div><div class="stat-label">Avg Wait</div></div>
+<div class="stat"><div class="stat-value">12,450</div><div class="stat-label">In Park</div></div>
+</div>
+<div class="filters">
+<button class="filter active">All</button>
+<button class="filter">Thrill Rides</button>
+<button class="filter">Family</button>
+<button class="filter">Kids</button>
+<button class="filter">Shows</button>
+<button class="filter">Food</button>
+</div>
+<div class="zones" id="zones"></div>
+<script>
+const zones=[
+{name:'🎢 Thrill Zone',color:'#dc2626',attractions:[{icon:'🎢',name:'Mega Coaster',wait:'60 min',status:'open'},{icon:'🔄',name:'The Twister',wait:'45 min',status:'open'},{icon:'⬇️',name:'Free Fall Tower',wait:'30 min',status:'open'}]},
+{name:'🏰 Fantasy Kingdom',color:'#8b5cf6',attractions:[{icon:'🏰',name:'Castle Tour',wait:'20 min',status:'open'},{icon:'🐉',name:'Dragon Flight',wait:'35 min',status:'open'},{icon:'⚔️',name:'Knight School',wait:'15 min',status:'closed'}]},
+{name:'🌊 Splash Zone',color:'#0ea5e9',attractions:[{icon:'🌊',name:'River Rapids',wait:'40 min',status:'open'},{icon:'💧',name:'Log Flume',wait:'25 min',status:'open'},{icon:'🏊',name:'Wave Pool',wait:'None',status:'open'}]},
+{name:'🎠 Kiddie Land',color:'#22c55e',attractions:[{icon:'🎠',name:'Carousel',wait:'10 min',status:'open'},{icon:'🚂',name:'Mini Train',wait:'15 min',status:'open'},{icon:'🎪',name:'Fun House',wait:'5 min',status:'open'}]}
+];
+document.getElementById('zones').innerHTML=zones.map(z=>`
+<div class="zone">
+<div class="zone-header" style="border-left:4px solid ${z.color}">
+<span class="zone-name">${z.name}</span>
+<span class="zone-count">${z.attractions.length} attractions</span>
+</div>
+<div class="zone-attractions">
+${z.attractions.map(a=>`<div class="attraction">
+<span class="attraction-icon">${a.icon}</span>
+<div class="attraction-info">
+<div class="attraction-name">${a.name}</div>
+<div class="attraction-wait">Wait: ${a.wait}</div>
+</div>
+<span class="attraction-status status-${a.status}">${a.status.toUpperCase()}</span>
+</div>`).join('')}
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

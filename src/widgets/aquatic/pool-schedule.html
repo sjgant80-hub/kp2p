@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pool Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"pool-schedule","name":"Pool Schedule","icon":"🏊","desc":"Swimming pool hours","category":"aquatic","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.pools{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.pool{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.pool-header{padding:20px;background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%)}
+.pool-name{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.pool-temp{font-size:.875rem;opacity:.9}
+.pool-body{padding:20px}
+.pool-schedule{margin-bottom:15px}
+.schedule-label{font-size:.75rem;color:#888;margin-bottom:10px}
+.schedule-item{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#252525;border-radius:6px;margin-bottom:8px}
+.schedule-item:last-child{margin-bottom:0}
+.session-name{font-size:.875rem;font-weight:500}
+.session-time{font-size:.75rem;color:#888}
+.session-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-open{background:#22c55e33;color:#22c55e}
+.status-busy{background:#f59e0b33;color:#f59e0b}
+.status-closed{background:#ef444433;color:#ef4444}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏊 Pool Schedule</h1><button class="btn">Reserve Lane</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">Pools Open</div></div>
+<div class="stat"><div class="stat-value">84°F</div><div class="stat-label">Avg Temp</div></div>
+<div class="stat"><div class="stat-value">45%</div><div class="stat-label">Capacity</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Lanes Available</div></div>
+</div>
+<div class="pools" id="pools"></div>
+<script>
+const pools=[
+{name:'Olympic Pool',temp:'82°F',lanes:10,sessions:[{name:'Lap Swim',time:'6:00 AM - 8:00 AM',status:'open'},{name:'Swim Team Practice',time:'8:00 AM - 10:00 AM',status:'busy'},{name:'Open Swim',time:'10:00 AM - 12:00 PM',status:'open'},{name:'Aqua Fitness',time:'12:00 PM - 1:00 PM',status:'closed'}]},
+{name:'Recreation Pool',temp:'86°F',lanes:6,sessions:[{name:'Family Swim',time:'9:00 AM - 11:00 AM',status:'busy'},{name:'Open Swim',time:'11:00 AM - 3:00 PM',status:'open'},{name:'Senior Swim',time:'3:00 PM - 5:00 PM',status:'open'}]},
+{name:'Therapy Pool',temp:'92°F',lanes:0,sessions:[{name:'Water Therapy',time:'7:00 AM - 9:00 AM',status:'busy'},{name:'Arthritis Class',time:'10:00 AM - 11:00 AM',status:'open'},{name:'Private Sessions',time:'By Appointment',status:'open'}]}
+];
+document.getElementById('pools').innerHTML=pools.map(p=>`
+<div class="pool">
+<div class="pool-header">
+<div class="pool-name">${p.name}</div>
+<div class="pool-temp">🌡️ ${p.temp} ${p.lanes?`• ${p.lanes} lanes`:''}</div>
+</div>
+<div class="pool-body">
+<div class="pool-schedule">
+<div class="schedule-label">TODAY'S SCHEDULE</div>
+${p.sessions.map(s=>`
+<div class="schedule-item">
+<div><div class="session-name">${s.name}</div><div class="session-time">${s.time}</div></div>
+<span class="session-status status-${s.status}">${s.status.toUpperCase()}</span>
+</div>`).join('')}
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
