@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dive Log - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"dive-log","name":"Dive Log","icon":"📖","desc":"Digital dive logbook","category":"diving","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0891b2;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0891b2}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.dive{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.dive-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.dive-num{font-weight:bold;font-size:1.25rem;color:#0891b2}
+.dive-date{font-size:.875rem;color:#888}
+.dive-location{font-size:1.125rem;font-weight:600;margin-bottom:10px}
+.dive-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px;margin-bottom:15px}
+.detail{background:#252525;padding:12px;border-radius:8px;text-align:center}
+.detail-value{font-size:1.125rem;font-weight:bold;color:#0891b2}
+.detail-label{font-size:.7rem;color:#888;margin-top:2px}
+.dive-notes{font-size:.875rem;color:#888;padding:15px;background:#252525;border-radius:8px}
+.dive-tags{display:flex;gap:8px;margin-top:15px}
+.tag{padding:4px 10px;background:#0891b233;color:#0891b2;border-radius:4px;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>📖 Dive Log</h1><button class="btn">+ Log Dive</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">87</div><div class="stat-label">Total Dives</div></div>
+<div class="stat"><div class="stat-value">142m</div><div class="stat-label">Max Depth</div></div>
+<div class="stat"><div class="stat-value">48:32</div><div class="stat-label">Total Time</div></div>
+<div class="stat"><div class="stat-value">15</div><div class="stat-label">Locations</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const dives=[
+{num:87,date:'Dec 20, 2024',location:'Blue Hole, Belize',depth:'40m',time:'52 min',temp:'28°C',viz:'30m+',notes:'Amazing visibility. Spotted reef sharks and eagle rays. Perfect conditions.',tags:['Reef','Sharks','Deep']},
+{num:86,date:'Dec 19, 2024',location:'Half Moon Caye, Belize',depth:'25m',time:'58 min',temp:'27°C',viz:'25m',notes:'Wall dive with incredible coral formations. Sea turtles feeding.',tags:['Wall','Turtle','Coral']},
+{num:85,date:'Dec 18, 2024',location:'Lighthouse Reef, Belize',depth:'18m',time:'62 min',temp:'28°C',viz:'20m',notes:'Night dive! Bioluminescence and hunting octopus observed.',tags:['Night','Octopus']}
+];
+document.getElementById('list').innerHTML=dives.map(d=>`
+<div class="dive">
+<div class="dive-header"><span class="dive-num">Dive #${d.num}</span><span class="dive-date">${d.date}</span></div>
+<div class="dive-location">📍 ${d.location}</div>
+<div class="dive-details">
+<div class="detail"><div class="detail-value">${d.depth}</div><div class="detail-label">Max Depth</div></div>
+<div class="detail"><div class="detail-value">${d.time}</div><div class="detail-label">Bottom Time</div></div>
+<div class="detail"><div class="detail-value">${d.temp}</div><div class="detail-label">Water Temp</div></div>
+<div class="detail"><div class="detail-value">${d.viz}</div><div class="detail-label">Visibility</div></div>
+</div>
+<div class="dive-notes">${d.notes}</div>
+<div class="dive-tags">${d.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

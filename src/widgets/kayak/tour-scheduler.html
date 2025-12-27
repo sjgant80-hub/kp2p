@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tour Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"tour-scheduler","name":"Kayak Tours","icon":"🗺️","desc":"Schedule kayak tours","category":"kayak","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0d9488;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0d9488}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tours{display:flex;flex-direction:column;gap:15px}
+.tour{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.tour-header{padding:20px;background:linear-gradient(135deg,#0d9488 0%,#065f5b 100%)}
+.tour-name{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.tour-route{font-size:.875rem;opacity:.9}
+.tour-body{padding:20px}
+.tour-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:15px;margin-bottom:15px}
+.detail{text-align:center}
+.detail-value{font-weight:bold;color:#0d9488}
+.detail-label{font-size:.7rem;color:#888}
+.tour-desc{font-size:.875rem;color:#888;margin-bottom:15px;line-height:1.5}
+.tour-footer{display:flex;justify-content:space-between;align-items:center}
+.tour-price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.tour-slots{display:flex;align-items:center;gap:10px}
+.slots-bar{width:100px;height:8px;background:#333;border-radius:4px;overflow:hidden}
+.slots-fill{height:100%;background:#0d9488}
+</style>
+</head>
+<body>
+<div class="header"><h1>🗺️ Kayak Tours</h1><button class="btn">+ Create Tour</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">Tours Today</div></div>
+<div class="stat"><div class="stat-value">28</div><div class="stat-label">Participants</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">Guides</div></div>
+<div class="stat"><div class="stat-value">$2.1k</div><div class="stat-label">Revenue</div></div>
+</div>
+<div class="tours" id="tours"></div>
+<script>
+const tours=[
+{name:'Sunrise Wildlife Tour',route:'Mangrove Islands Loop',time:'6:30 AM',duration:'3 hrs',level:'All Levels',distance:'5 mi',price:75,max:10,booked:8,desc:'Paddle through pristine mangroves at sunrise. Spot dolphins, manatees, and various bird species.'},
+{name:'Bioluminescence Night Tour',route:'Indian River Lagoon',time:'8:00 PM',duration:'2 hrs',level:'Beginner',distance:'3 mi',price:65,max:12,booked:12,desc:'Experience the magical glow of bioluminescent plankton under the stars. A truly unforgettable experience!'},
+{name:'Adventure Paddle',route:'Coastal Sea Caves',time:'10:00 AM',duration:'4 hrs',level:'Intermediate',distance:'8 mi',price:95,max:8,booked:5,desc:'Explore hidden sea caves and secluded beaches. Moderate paddling with some ocean swells.'},
+{name:'Family Fun Paddle',route:'Calm Bay Circuit',time:'2:00 PM',duration:'2 hrs',level:'All Ages',distance:'3 mi',price:45,max:14,booked:9,desc:'Perfect for families! Calm waters, frequent stops, and beach breaks for swimming.'}
+];
+document.getElementById('tours').innerHTML=tours.map(t=>`
+<div class="tour">
+<div class="tour-header"><div class="tour-name">${t.name}</div><div class="tour-route">📍 ${t.route}</div></div>
+<div class="tour-body">
+<div class="tour-details">
+<div class="detail"><div class="detail-value">${t.time}</div><div class="detail-label">Start Time</div></div>
+<div class="detail"><div class="detail-value">${t.duration}</div><div class="detail-label">Duration</div></div>
+<div class="detail"><div class="detail-value">${t.distance}</div><div class="detail-label">Distance</div></div>
+<div class="detail"><div class="detail-value">${t.level}</div><div class="detail-label">Skill Level</div></div>
+</div>
+<div class="tour-desc">${t.desc}</div>
+<div class="tour-footer">
+<span class="tour-price">$${t.price}/person</span>
+<div class="tour-slots"><div class="slots-bar"><div class="slots-fill" style="width:${(t.booked/t.max)*100}%"></div></div><span style="font-size:.875rem">${t.booked}/${t.max}</span></div>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

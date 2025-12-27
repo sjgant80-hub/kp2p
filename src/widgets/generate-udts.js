@@ -580,6 +580,26 @@ const categoryMap = {
   // Archery
   'range-booking': { category: 'archery', subcategory: 'booking', badge: 'ENT' },
   'equipment-checkout': { category: 'archery', subcategory: 'rentals', badge: 'ENT' },
+
+  // Climbing
+  'route-tracker': { category: 'climbing', subcategory: 'routes', badge: 'ENT' },
+  'climbing-passes': { category: 'climbing', subcategory: 'membership', badge: 'ENT' },
+
+  // Diving
+  'certification-tracker': { category: 'diving', subcategory: 'certs', badge: 'ENT' },
+  'dive-log': { category: 'diving', subcategory: 'logbook', badge: 'ENT' },
+
+  // Sailing
+  'boat-reservations': { category: 'sailing', subcategory: 'rentals', badge: 'ENT' },
+  'sailing-lessons': { category: 'sailing', subcategory: 'lessons', badge: 'ENT' },
+
+  // Kayak
+  'rental-fleet': { category: 'kayak', subcategory: 'rentals', badge: 'ENT' },
+  'tour-scheduler': { category: 'kayak', subcategory: 'tours', badge: 'ENT' },
+
+  // Surf
+  'lesson-bookings': { category: 'surf', subcategory: 'lessons', badge: 'ENT' },
+  'board-rentals': { category: 'surf', subcategory: 'rentals', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -826,7 +846,12 @@ const widgetDirs = [
   'martial',
   'skating',
   'bowling',
-  'archery'
+  'archery',
+  'climbing',
+  'diving',
+  'sailing',
+  'kayak',
+  'surf'
 ];
 
 // Process all widgets in all directories

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Member Passes - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"climbing-passes","name":"Climbing Passes","icon":"🎫","desc":"Manage climbing gym passes","category":"climbing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f59e0b;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.search{width:100%;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#e0e0e0;margin-bottom:20px}
+.list{display:flex;flex-direction:column;gap:10px}
+.member{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:flex;align-items:center;gap:20px}
+.member-avatar{width:50px;height:50px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.25rem}
+.member-info{flex:1}
+.member-name{font-weight:600}
+.member-meta{font-size:.875rem;color:#888}
+.pass-type{padding:6px 12px;border-radius:6px;font-size:.75rem;font-weight:600}
+.pass-monthly{background:#22c55e33;color:#22c55e}
+.pass-annual{background:#3b82f633;color:#3b82f6}
+.pass-punch{background:#f59e0b33;color:#f59e0b}
+.pass-expired{background:#ef444433;color:#ef4444}
+.member-expires{text-align:right;font-size:.875rem}
+.expires-label{color:#888;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎫 Member Passes</h1><button class="btn">+ New Member</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">342</div><div class="stat-label">Active Members</div></div>
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Checked In</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Expiring Soon</div></div>
+<div class="stat"><div class="stat-value">$28k</div><div class="stat-label">Monthly Revenue</div></div>
+</div>
+<input type="text" class="search" placeholder="🔍 Search members...">
+<div class="list" id="list"></div>
+<script>
+const members=[
+{name:'Michael Chen',email:'mchen@email.com',pass:'annual',expires:'Mar 15, 2025',visits:86},
+{name:'Sarah Johnson',email:'sarah.j@email.com',pass:'monthly',expires:'Jan 15, 2025',visits:24},
+{name:'David Park',email:'dpark@email.com',pass:'punch',remaining:'6 visits',visits:14},
+{name:'Emily Wilson',email:'ewilson@email.com',pass:'annual',expires:'Jun 30, 2025',visits:156},
+{name:'Robert Lee',email:'rlee@email.com',pass:'monthly',expires:'Jan 5, 2025',visits:8},
+{name:'Lisa Martinez',email:'lmartinez@email.com',pass:'expired',expires:'Dec 15, 2024',visits:42}
+];
+document.getElementById('list').innerHTML=members.map(m=>`
+<div class="member">
+<div class="member-avatar">🧗</div>
+<div class="member-info"><div class="member-name">${m.name}</div><div class="member-meta">${m.email} • ${m.visits} visits</div></div>
+<span class="pass-type pass-${m.pass}">${m.pass.charAt(0).toUpperCase()+m.pass.slice(1)}</span>
+<div class="member-expires"><div>${m.remaining||m.expires}</div><div class="expires-label">${m.remaining?'Remaining':'Expires'}</div></div>
+</div>`).join('');
+</script>
+</body>
+</html>

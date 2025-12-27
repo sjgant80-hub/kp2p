@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Board Rentals - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"board-rentals","name":"Board Rentals","icon":"🏄‍♂️","desc":"Surfboard rental management","category":"surf","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#06b6d4;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.inventory{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:15px}
+.board{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.board-icon{font-size:3rem;margin-bottom:10px}
+.board-type{font-weight:600;margin-bottom:5px}
+.board-size{font-size:.875rem;color:#06b6d4;margin-bottom:15px}
+.board-stock{display:flex;justify-content:center;gap:20px;margin-bottom:15px}
+.stock-item{text-align:center}
+.stock-value{font-weight:bold;font-size:1.25rem}
+.stock-label{font-size:.7rem;color:#888}
+.stock-good{color:#22c55e}
+.stock-low{color:#f59e0b}
+.stock-out{color:#ef4444}
+.board-price{margin-bottom:15px}
+.price-row{display:flex;justify-content:space-between;font-size:.875rem;padding:5px 0}
+.price-label{color:#888}
+.rent-btn{width:100%;padding:10px;background:#06b6d4;border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:600}
+.rent-btn:disabled{background:#333;color:#888;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏄‍♂️ Board Rentals</h1><button class="btn">+ Add Inventory</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Total Boards</div></div>
+<div class="stat"><div class="stat-value">28</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">Rented</div></div>
+<div class="stat"><div class="stat-value">$1.2k</div><div class="stat-label">Today</div></div>
+</div>
+<div class="inventory" id="inventory"></div>
+<script>
+const boards=[
+{type:'Foam Longboard',size:'8\'0" - 9\'0"',icon:'🏄',total:15,available:8,hourly:15,halfday:35,fullday:50},
+{type:'Soft Top',size:'7\'0" - 8\'0"',icon:'🏄',total:12,available:10,hourly:12,halfday:30,fullday:45},
+{type:'Shortboard',size:'5\'8" - 6\'6"',icon:'🏄',total:10,available:4,hourly:20,halfday:45,fullday:65},
+{type:'Fish',size:'5\'6" - 6\'2"',icon:'🏄',total:6,available:2,hourly:22,halfday:50,fullday:70},
+{type:'Funboard',size:'7\'0" - 7\'6"',icon:'🏄',total:8,available:6,hourly:18,halfday:40,fullday:55},
+{type:'SUP',size:'10\'0" - 11\'0"',icon:'🏄',total:5,available:3,hourly:25,halfday:55,fullday:80}
+];
+document.getElementById('inventory').innerHTML=boards.map(b=>{
+const cls=b.available===0?'stock-out':b.available<3?'stock-low':'stock-good';
+return`<div class="board">
+<div class="board-icon">${b.icon}</div>
+<div class="board-type">${b.type}</div>
+<div class="board-size">${b.size}</div>
+<div class="board-stock"><div class="stock-item"><div class="stock-value ${cls}">${b.available}</div><div class="stock-label">Available</div></div><div class="stock-item"><div class="stock-value">${b.total-b.available}</div><div class="stock-label">Out</div></div></div>
+<div class="board-price"><div class="price-row"><span class="price-label">Hourly</span><span>$${b.hourly}</span></div><div class="price-row"><span class="price-label">Half Day</span><span>$${b.halfday}</span></div><div class="price-row"><span class="price-label">Full Day</span><span>$${b.fullday}</span></div></div>
+<button class="rent-btn" ${b.available===0?'disabled':''}>${b.available>0?'Rent Now':'Sold Out'}</button>
+</div>`;
+}).join('');
+</script>
+</body>
+</html>

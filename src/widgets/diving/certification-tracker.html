@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Certification Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"certification-tracker","name":"Certification Tracker","icon":"🤿","desc":"Track diving certifications","category":"diving","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0891b2;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0891b2}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.diver{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.diver-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.diver-info{display:flex;align-items:center;gap:15px}
+.diver-avatar{width:50px;height:50px;background:#0891b2;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.diver-name{font-weight:600}
+.diver-id{font-size:.875rem;color:#888}
+.certs{display:flex;flex-wrap:wrap;gap:10px}
+.cert{padding:10px 15px;background:#252525;border-radius:8px;display:flex;align-items:center;gap:10px}
+.cert-icon{font-size:1.25rem}
+.cert-info{display:flex;flex-direction:column}
+.cert-name{font-weight:500;font-size:.875rem}
+.cert-date{font-size:.7rem;color:#888}
+.cert-level{padding:4px 8px;border-radius:4px;font-size:.65rem}
+.level-ow{background:#22c55e33;color:#22c55e}
+.level-aow{background:#3b82f633;color:#3b82f6}
+.level-rescue{background:#f59e0b33;color:#f59e0b}
+.level-dm{background:#8b5cf633;color:#8b5cf6}
+</style>
+</head>
+<body>
+<div class="header"><h1>🤿 Certification Tracker</h1><button class="btn">+ Add Diver</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Certified Divers</div></div>
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">In Training</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Renewals Due</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Instructors</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const divers=[
+{name:'Michael Chen',id:'PADI-1234567',certs:[{name:'Open Water',date:'Jun 2022',level:'ow'},{name:'Advanced OW',date:'Sep 2022',level:'aow'},{name:'Rescue Diver',date:'Mar 2023',level:'rescue'}]},
+{name:'Sarah Johnson',id:'PADI-2345678',certs:[{name:'Open Water',date:'Aug 2023',level:'ow'},{name:'Advanced OW',date:'Dec 2023',level:'aow'}]},
+{name:'David Park',id:'PADI-3456789',certs:[{name:'Open Water',date:'May 2024',level:'ow'}]},
+{name:'Emily Wilson',id:'PADI-4567890',certs:[{name:'Open Water',date:'Jan 2021',level:'ow'},{name:'Advanced OW',date:'Apr 2021',level:'aow'},{name:'Rescue Diver',date:'Aug 2021',level:'rescue'},{name:'Divemaster',date:'Feb 2022',level:'dm'}]}
+];
+document.getElementById('list').innerHTML=divers.map(d=>`
+<div class="diver">
+<div class="diver-header"><div class="diver-info"><div class="diver-avatar">🤿</div><div><div class="diver-name">${d.name}</div><div class="diver-id">${d.id}</div></div></div></div>
+<div class="certs">${d.certs.map(c=>`
+<div class="cert"><span class="cert-icon">🎓</span><div class="cert-info"><span class="cert-name">${c.name}</span><span class="cert-date">${c.date}</span></div><span class="cert-level level-${c.level}">${c.level.toUpperCase()}</span></div>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

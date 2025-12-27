@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rental Fleet - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"rental-fleet","name":"Kayak Rental Fleet","icon":"🛶","desc":"Kayak rental management","category":"kayak","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0d9488;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0d9488}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.kayak{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.kayak-icon{font-size:3rem;margin-bottom:10px}
+.kayak-id{font-weight:bold;color:#0d9488;margin-bottom:5px}
+.kayak-type{font-size:.875rem;color:#888;margin-bottom:15px}
+.kayak-status{padding:6px 12px;border-radius:6px;font-size:.75rem;margin-bottom:15px;display:inline-block}
+.status-available{background:#22c55e33;color:#22c55e}
+.status-rented{background:#f59e0b33;color:#f59e0b}
+.status-maintenance{background:#ef444433;color:#ef4444}
+.kayak-info{font-size:.75rem;color:#888}
+.kayak-btn{width:100%;padding:10px;margin-top:15px;border:none;border-radius:6px;cursor:pointer}
+.btn-rent{background:#0d9488;color:#fff}
+.btn-return{background:#f59e0b;color:#000}
+.btn-disabled{background:#333;color:#888;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛶 Rental Fleet</h1><button class="btn">+ Add Kayak</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Total Kayaks</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">10</div><div class="stat-label">Rented Out</div></div>
+<div class="stat"><div class="stat-value">$840</div><div class="stat-label">Today's Revenue</div></div>
+</div>
+<div class="fleet" id="fleet"></div>
+<script>
+const kayaks=[
+{id:'K-01',type:'Single Sit-On',status:'available',rate:25},
+{id:'K-02',type:'Single Sit-On',status:'rented',rate:25,renter:'Johnson',time:'1:30'},
+{id:'K-03',type:'Tandem',status:'available',rate:45},
+{id:'K-04',type:'Single Touring',status:'rented',rate:35,renter:'Chen',time:'2:15'},
+{id:'K-05',type:'Tandem',status:'maintenance',rate:45},
+{id:'K-06',type:'Single Sit-In',status:'available',rate:30},
+{id:'K-07',type:'Fishing Kayak',status:'rented',rate:40,renter:'Wilson',time:'0:45'},
+{id:'K-08',type:'Single Sit-On',status:'available',rate:25}
+];
+document.getElementById('fleet').innerHTML=kayaks.map(k=>`
+<div class="kayak">
+<div class="kayak-icon">🛶</div>
+<div class="kayak-id">${k.id}</div>
+<div class="kayak-type">${k.type}</div>
+<span class="kayak-status status-${k.status}">${k.status.charAt(0).toUpperCase()+k.status.slice(1)}</span>
+<div class="kayak-info">${k.status==='rented'?`${k.renter} • ${k.time} elapsed`:`$${k.rate}/hour`}</div>
+<button class="kayak-btn ${k.status==='available'?'btn-rent':k.status==='rented'?'btn-return':'btn-disabled'}">${k.status==='available'?'Rent Out':k.status==='rented'?'Return':'In Maintenance'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>

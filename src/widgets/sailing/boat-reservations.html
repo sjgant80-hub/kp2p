@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Boat Reservations - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"boat-reservations","name":"Boat Reservations","icon":"⛵","desc":"Sailboat rental reservations","category":"sailing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0284c7;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0284c7}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.boats{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.boat{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.boat-header{padding:20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.boat-name{font-weight:600;font-size:1.125rem}
+.boat-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status-available{background:#22c55e33;color:#22c55e}
+.status-reserved{background:#f59e0b33;color:#f59e0b}
+.status-out{background:#3b82f633;color:#3b82f6}
+.boat-body{padding:20px}
+.boat-specs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
+.spec{text-align:center;padding:10px;background:#252525;border-radius:6px}
+.spec-value{font-weight:bold;color:#0284c7}
+.spec-label{font-size:.7rem;color:#888}
+.boat-price{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.price-value{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.price-label{font-size:.875rem;color:#888}
+.book-btn{width:100%;padding:12px;background:#0284c7;border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:600}
+.book-btn:disabled{background:#333;color:#888;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>⛵ Boat Reservations</h1><button class="btn">View Calendar</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Fleet Size</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Available Now</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Reservations Today</div></div>
+<div class="stat"><div class="stat-value">$4.2k</div><div class="stat-label">Today's Revenue</div></div>
+</div>
+<div class="boats" id="boats"></div>
+<script>
+const boats=[
+{name:'Sea Breeze',type:'Catalina 22',status:'available',length:'22 ft',capacity:4,skill:'Beginner',rate:150},
+{name:'Wind Dancer',type:'J/24',status:'out',length:'24 ft',capacity:5,skill:'Intermediate',rate:200,renter:'Johnson'},
+{name:'Ocean Spirit',type:'Beneteau 40',status:'reserved',length:'40 ft',capacity:8,skill:'Advanced',rate:450,time:'2:00 PM'},
+{name:'Blue Horizon',type:'Hunter 27',status:'available',length:'27 ft',capacity:5,skill:'Intermediate',rate:225},
+{name:'Pacific Star',type:'Catalina 30',status:'available',length:'30 ft',capacity:6,skill:'Intermediate',rate:275},
+{name:'Sunset Chaser',type:'Hobie Cat 16',status:'out',length:'16 ft',capacity:2,skill:'Beginner',rate:85,renter:'Chen'}
+];
+document.getElementById('boats').innerHTML=boats.map(b=>`
+<div class="boat">
+<div class="boat-header"><span class="boat-name">${b.name}</span><span class="boat-status status-${b.status}">${b.status==='out'?'Out: '+b.renter:b.status==='reserved'?'Reserved: '+b.time:'Available'}</span></div>
+<div class="boat-body">
+<div style="color:#888;font-size:.875rem;margin-bottom:15px">${b.type}</div>
+<div class="boat-specs">
+<div class="spec"><div class="spec-value">${b.length}</div><div class="spec-label">Length</div></div>
+<div class="spec"><div class="spec-value">${b.capacity}</div><div class="spec-label">Capacity</div></div>
+<div class="spec"><div class="spec-value">${b.skill}</div><div class="spec-label">Skill Level</div></div>
+</div>
+<div class="boat-price"><div><span class="price-value">$${b.rate}</span><span class="price-label"> / half day</span></div></div>
+<button class="book-btn" ${b.status!=='available'?'disabled':''}>${b.status==='available'?'Book Now':'Unavailable'}</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
