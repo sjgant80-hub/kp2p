@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<!--
+Widget Browser - KISS MySaaS Widget Index
+Browse, search, and preview all available widgets
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Widget Browser - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "widget-browser",
+    "name": "Widget Browser",
+    "category": "utility",
+    "version": "1.0.0",
+    "icon": "🗂️",
+    "desc": "Browse and search all KISS MySaaS widgets",
+    "body": "Dynamic widget index that loads metadata from all widgets. Search, filter by category, preview in modal. Self-updating from manifest.json.",
+    "kills": ["Manual widget lists", "Outdated indexes"],
+    "price": 0
+  }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+
+    /* Header */
+    .header { padding: 24px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-bottom: 1px solid #222; }
+    .header-content { max-width: 1400px; margin: 0 auto; }
+    .header h1 { font-size: 1.75rem; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .header h1 span { color: #e94560; }
+    .header p { color: #666; font-size: 14px; }
+
+    /* Stats bar */
+    .stats { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+    .stat { background: rgba(255,255,255,0.05); padding: 12px 20px; border-radius: 8px; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #e94560; }
+    .stat-label { font-size: 12px; color: #666; }
+
+    /* Search & Filter */
+    .controls { padding: 16px 24px; background: #111; border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 100; }
+    .controls-inner { max-width: 1400px; margin: 0 auto; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .search-box { flex: 1; min-width: 200px; position: relative; }
+    .search-box input { width: 100%; padding: 12px 16px 12px 44px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; }
+    .search-box input:focus { outline: none; border-color: #e94560; }
+    .search-box::before { content: '🔍'; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; }
+    .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { padding: 8px 16px; background: #1a1a1a; border: 1px solid #333; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .chip:hover { border-color: #e94560; }
+    .chip.active { background: #e94560; border-color: #e94560; color: #fff; }
+    .view-toggle { display: flex; gap: 4px; }
+    .view-btn { padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    .view-btn.active { background: #e94560; border-color: #e94560; }
+
+    /* Grid */
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .grid.list-view { grid-template-columns: 1fr; }
+
+    /* Card */
+    .card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; transition: all 0.2s; cursor: pointer; }
+    .card:hover { transform: translateY(-2px); border-color: #e94560; box-shadow: 0 8px 32px rgba(233,69,96,0.1); }
+    .card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .card-icon { font-size: 32px; line-height: 1; }
+    .card-title { flex: 1; }
+    .card-title h3 { font-size: 1.1rem; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
+    .card-title p { font-size: 12px; color: #666; }
+    .card-body { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 12px; }
+    .card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag { font-size: 10px; padding: 3px 8px; background: #1a1a1a; border-radius: 4px; color: #666; }
+    .tag.category { background: #16213e; color: #64b5f6; }
+    .badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+    .badge.new { background: #22c55e; color: #000; }
+    .badge.core { background: #7c3aed; color: #fff; }
+    .badge.kustom { background: linear-gradient(90deg, #f59e0b, #ec4899); color: #000; }
+
+    /* List view card */
+    .grid.list-view .card { display: flex; align-items: center; gap: 16px; padding: 16px 20px; }
+    .grid.list-view .card-header { margin-bottom: 0; }
+    .grid.list-view .card-body { flex: 1; margin-bottom: 0; }
+    .grid.list-view .card-meta { margin-left: auto; }
+
+    /* Modal */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; padding: 24px; overflow: auto; }
+    .modal.open { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: #111; border-radius: 16px; max-width: 1200px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 16px; }
+    .modal-header h2 { flex: 1; font-size: 1.25rem; display: flex; align-items: center; gap: 12px; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 8px; }
+    .modal-close:hover { color: #fff; }
+    .modal-body { flex: 1; min-height: 0; }
+    .modal-iframe { width: 100%; height: 600px; border: none; background: #fff; border-radius: 0 0 16px 16px; }
+    .modal-actions { padding: 16px 24px; border-top: 1px solid #222; display: flex; gap: 12px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; border: none; }
+    .btn-primary { background: #e94560; color: white; }
+    .btn-secondary { background: #222; color: white; }
+    .btn:hover { opacity: 0.9; }
+
+    /* Loading */
+    .loading { text-align: center; padding: 48px; color: #666; }
+    .loading-spinner { font-size: 32px; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 48px; color: #666; }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>🗂️ Widget <span>Browser</span></h1>
+      <p>Browse, search, and preview all KISS MySaaS widgets</p>
+      <div class="stats">
+        <div class="stat"><div class="stat-value" id="totalCount">0</div><div class="stat-label">Total Widgets</div></div>
+        <div class="stat"><div class="stat-value" id="categoryCount">0</div><div class="stat-label">Categories</div></div>
+        <div class="stat"><div class="stat-value" id="visibleCount">0</div><div class="stat-label">Showing</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="controls-inner">
+      <div class="search-box">
+        <input type="text" id="search" placeholder="Search widgets by name, description, or category...">
+      </div>
+      <div class="filter-chips" id="categoryFilters"></div>
+      <div class="view-toggle">
+        <button class="view-btn active" data-view="grid" title="Grid view">⊞</button>
+        <button class="view-btn" data-view="list" title="List view">☰</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="loading" id="loading">
+      <div class="loading-spinner">⟳</div>
+      <p>Loading widgets...</p>
+    </div>
+    <div class="grid" id="widgetGrid"></div>
+    <div class="empty" id="emptyState" style="display:none">
+      <div class="empty-icon">🔍</div>
+      <p>No widgets match your search</p>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle"><span id="modalIcon"></span> <span id="modalName"></span></h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <iframe class="modal-iframe" id="modalFrame"></iframe>
+      </div>
+      <div class="modal-actions">
+        <a id="modalOpen" href="#" target="_blank" class="btn btn-primary">Open Full Page</a>
+        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Widget Browser - Dynamic Widget Index
+    // =========================================================================
+
+    let allWidgets = [];
+    let categories = new Set();
+    let activeCategory = 'all';
+    let searchQuery = '';
+    let viewMode = 'grid';
+
+    // Category mappings for better display
+    const categoryLabels = {
+      'communication': '💬 Communication',
+      'productivity': '📋 Productivity',
+      'data': '🗄️ Data & Files',
+      'business': '💼 Business',
+      'dev': '💻 Developer Tools',
+      'industrial': '🏭 Industrial',
+      'ai': '🤖 AI & LLM',
+      'games': '🎮 Games',
+      'utility': '🔧 Utility',
+      'lifestyle': '🌟 Lifestyle',
+      'p2p': '🔗 P2P Core',
+      'unknown': '📦 Other'
+    };
+
+    // Load widgets from manifest
+    async function loadWidgets() {
+      try {
+        const manifestRes = await fetch('manifest.json');
+        const manifest = await manifestRes.json();
+
+        const loadPromises = manifest.widgets.map(async (file) => {
+          try {
+            const res = await fetch(file);
+            const html = await res.text();
+
+            // Extract embedded metadata
+            const metaMatch = html.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
+            if (metaMatch) {
+              const meta = JSON.parse(metaMatch[1]);
+              meta.file = file;
+              meta.category = meta.category || guessCategory(file, meta);
+              return meta;
+            }
+
+            // Fallback: extract from title/comments
+            const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+            const name = titleMatch ? titleMatch[1].split('-')[0].trim() : file.replace('.html', '');
+            return {
+              id: file.replace('.html', '').replace(/-/g, ''),
+              name: name,
+              icon: '📦',
+              desc: 'Widget',
+              body: '',
+              category: guessCategory(file, {}),
+              file: file
+            };
+          } catch (e) {
+            console.warn('Failed to load:', file, e);
+            return null;
+          }
+        });
+
+        const results = await Promise.all(loadPromises);
+        allWidgets = results.filter(w => w && w.id !== 'widgetBrowser');
+
+        // Collect categories
+        allWidgets.forEach(w => categories.add(w.category || 'unknown'));
+
+        document.getElementById('loading').style.display = 'none';
+        renderCategoryFilters();
+        renderWidgets();
+        updateStats();
+
+      } catch (error) {
+        console.error('Failed to load manifest:', error);
+        document.getElementById('loading').innerHTML = '<p>Failed to load widgets. Check console.</p>';
+      }
+    }
+
+    // Guess category from filename/metadata
+    function guessCategory(file, meta) {
+      const name = file.toLowerCase();
+      if (meta.category) return meta.category;
+
+      // AI/LLM
+      if (name.includes('llm') || name.includes('ai-') || name.includes('femto') || name.includes('pico') ||
+          name.includes('nano') || name.includes('micro') || name.includes('centi') || name.includes('deci') ||
+          name.includes('unity') || name.includes('evgpu') || name.includes('cube') || name.includes('block-array') ||
+          name.includes('k3-os')) return 'ai';
+
+      // Industrial
+      if (name.includes('kopc') || name.includes('kplc') || name.includes('khmi') || name.includes('ktag') ||
+          name.includes('kisa') || name.includes('kflow') || name.includes('kpipe') || name.includes('kci') ||
+          name.includes('ktest') || name.includes('koil') || name.includes('perspektive')) return 'industrial';
+
+      // Games
+      if (name.includes('mahjong') || name.includes('trivia') || name.includes('sisyphus') ||
+          name.includes('tales') || name.includes('lyrics') || name.includes('fighter')) return 'games';
+
+      // P2P Core
+      if (name.includes('p2p') || name.includes('mesh') || name.includes('webtorrent') ||
+          name.includes('presence') || name.includes('bridge')) return 'p2p';
+
+      // Communication
+      if (name.includes('chat') || name.includes('comment') || name.includes('support') ||
+          name.includes('notification') || name.includes('email') || name.includes('sms') ||
+          name.includes('mail') || name.includes('msg') || name.includes('vcard') ||
+          name.includes('voice')) return 'communication';
+
+      // Productivity
+      if (name.includes('kanban') || name.includes('calendar') || name.includes('wiki') ||
+          name.includes('timer') || name.includes('pomodoro') || name.includes('todo') ||
+          name.includes('docs') || name.includes('roadmap') || name.includes('habit') ||
+          name.includes('mood') || name.includes('stickies')) return 'productivity';
+
+      // Developer
+      if (name.includes('git') || name.includes('code') || name.includes('cli') || name.includes('mcp') ||
+          name.includes('json') || name.includes('regex') || name.includes('markdown') ||
+          name.includes('snippet') || name.includes('kode') || name.includes('terminal') ||
+          name.includes('kopilot') || name.includes('kompare') || name.includes('kron')) return 'dev';
+
+      // Business
+      if (name.includes('crm') || name.includes('checkout') || name.includes('invoice') ||
+          name.includes('waitlist') || name.includes('feedback') || name.includes('testimonial') ||
+          name.includes('kmarket') || name.includes('kold') || name.includes('kualify') ||
+          name.includes('kloser') || name.includes('kprospekt')) return 'business';
+
+      // Lifestyle
+      if (name.includes('weather') || name.includes('world-clock') || name.includes('donate') ||
+          name.includes('crypto') || name.includes('bookmark') || name.includes('links') ||
+          name.includes('color') || name.includes('password') || name.includes('qr') ||
+          name.includes('konvert') || name.includes('krypt')) return 'lifestyle';
+
+      // Data
+      if (name.includes('database') || name.includes('file') || name.includes('analytics') ||
+          name.includes('ksql') || name.includes('kqtt')) return 'data';
+
+      // Utility
+      if (name.includes('form') || name.includes('poll') || name.includes('faq') ||
+          name.includes('status') || name.includes('auth') || name.includes('iframe') ||
+          name.includes('kframe') || name.includes('kontainer') || name.includes('widget-')) return 'utility';
+
+      return 'unknown';
+    }
+
+    // Render category filter chips
+    function renderCategoryFilters() {
+      const container = document.getElementById('categoryFilters');
+      container.innerHTML = `<button class="chip active" data-category="all">All</button>`;
+
+      const sortedCategories = [...categories].sort();
+      sortedCategories.forEach(cat => {
+        const label = categoryLabels[cat] || cat;
+        container.innerHTML += `<button class="chip" data-category="${cat}">${label}</button>`;
+      });
+
+      // Add click handlers
+      container.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          activeCategory = chip.dataset.category;
+          renderWidgets();
+        });
+      });
+    }
+
+    // Render widget grid
+    function renderWidgets() {
+      const grid = document.getElementById('widgetGrid');
+      const emptyState = document.getElementById('emptyState');
+
+      // Filter widgets
+      let filtered = allWidgets.filter(w => {
+        // Category filter
+        if (activeCategory !== 'all' && w.category !== activeCategory) return false;
+
+        // Search filter
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          const searchable = `${w.name} ${w.desc} ${w.body} ${w.category} ${w.file}`.toLowerCase();
+          if (!searchable.includes(q)) return false;
+        }
+
+        return true;
+      });
+
+      // Sort by name
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Update visible count
+      document.getElementById('visibleCount').textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      grid.innerHTML = filtered.map(w => {
+        const badge = w.badge ? `<span class="badge ${w.badge.toLowerCase()}">${w.badge}</span>` : '';
+        const catLabel = categoryLabels[w.category] || w.category;
+
+        return `
+          <div class="card" onclick="openPreview('${w.file}', '${w.icon || '📦'}', '${escapeHtml(w.name)}')">
+            <div class="card-header">
+              <span class="card-icon">${w.icon || '📦'}</span>
+              <div class="card-title">
+                <h3>${w.name} ${badge}</h3>
+                <p>${w.desc || ''}</p>
+              </div>
+            </div>
+            <div class="card-body">${w.body || ''}</div>
+            <div class="card-meta">
+              <span class="tag category">${catLabel}</span>
+              ${w.kills ? w.kills.slice(0,2).map(k => `<span class="tag">${k}</span>`).join('') : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Update stats
+    function updateStats() {
+      document.getElementById('totalCount').textContent = allWidgets.length;
+      document.getElementById('categoryCount').textContent = categories.size;
+    }
+
+    // Open preview modal
+    function openPreview(file, icon, name) {
+      document.getElementById('modalIcon').textContent = icon;
+      document.getElementById('modalName').textContent = name;
+      document.getElementById('modalFrame').src = file;
+      document.getElementById('modalOpen').href = file;
+      document.getElementById('modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Close modal
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+      document.getElementById('modalFrame').src = '';
+      document.body.style.overflow = '';
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+      return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // Event listeners
+    document.getElementById('search').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderWidgets();
+    });
+
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        viewMode = btn.dataset.view;
+        document.getElementById('widgetGrid').className = viewMode === 'list' ? 'grid list-view' : 'grid';
+      });
+    });
+
+    // Close modal on escape or click outside
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target.id === 'modal') closeModal();
+    });
+
+    // Initialize
+    loadWidgets();
+  </script>
+</body>
+</html>

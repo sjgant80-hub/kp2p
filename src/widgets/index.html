@@ -11,652 +11,74 @@ MySaaS = Mesh Your Serverless Alternative App Suite
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>KISS MySaaS - Open Source P2P Widgets</title>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #000; color: #fff; min-height: 100vh; }
-    .hero { padding: 80px 24px; text-align: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
-    .hero h1 { font-size: 3rem; margin-bottom: 16px; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #000; color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Hero header */
+    .hero { padding: 48px 24px; text-align: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+    .hero h1 { font-size: 2.5rem; margin-bottom: 12px; }
     .hero h1 span { color: #e94560; }
-    .hero p { font-size: 1.25rem; color: #888; max-width: 600px; margin: 0 auto 32px; }
-    .hero-stats { display: flex; justify-content: center; gap: 48px; margin-top: 48px; flex-wrap: wrap; }
+    .hero p { font-size: 1.1rem; color: #888; max-width: 600px; margin: 0 auto 8px; }
+    .hero .tagline { color: #64748b; font-size: 14px; }
+
+    /* Stats */
+    .stats { display: flex; justify-content: center; gap: 48px; margin-top: 32px; flex-wrap: wrap; }
     .stat { text-align: center; }
-    .stat-value { font-size: 2.5rem; font-weight: 700; color: #e94560; }
-    .stat-label { font-size: 14px; color: #666; margin-top: 4px; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 64px 24px; }
-    h2 { font-size: 2rem; margin-bottom: 32px; text-align: center; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
-    .card { background: #111; border: 1px solid #222; border-radius: 16px; padding: 32px; transition: all 0.2s; }
-    .card:hover { transform: translateY(-4px); }
-    .card-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-    .card-icon { font-size: 48px; }
-    .card-title { flex: 1; }
-    .card-title h3 { font-size: 1.5rem; margin-bottom: 4px; }
-    .card-title p { font-size: 14px; color: #666; }
-    .card-body { margin-bottom: 24px; }
-    .card-body p { color: #888; line-height: 1.6; }
-    .kills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-    .kill-tag { font-size: 11px; padding: 4px 10px; background: #1a1a1a; border-radius: 100px; color: #666; text-decoration: line-through; }
-    .card-footer { display: flex; gap: 12px; }
-    .btn { flex: 1; padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-align: center; text-decoration: none; transition: all 0.2s; }
-    .btn-primary { background: #e94560; color: white; }
-    .btn-primary:hover { opacity: 0.9; }
-    .btn-secondary { background: #222; color: white; }
-    .btn-secondary:hover { background: #333; }
-    .comparison { background: #0a0a0a; padding: 64px 24px; }
-    .comparison h2 { margin-bottom: 48px; }
-    .comparison-table { max-width: 900px; margin: 0 auto; border: 1px solid #222; border-radius: 16px; overflow: hidden; }
-    .comparison-table table { width: 100%; border-collapse: collapse; }
-    .comparison-table th, .comparison-table td { padding: 16px 24px; text-align: left; border-bottom: 1px solid #222; }
-    .comparison-table th { background: #111; font-weight: 600; }
-    .comparison-table td:last-child { color: #22c55e; font-weight: 700; font-size: 1.25rem; }
-    .price-them { color: #ef4444; text-decoration: line-through; }
-    .cta { text-align: center; padding: 80px 24px; background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%); }
-    .cta h2 { margin-bottom: 16px; }
-    .cta p { color: #888; margin-bottom: 32px; }
-    .cta code { display: block; max-width: 600px; margin: 32px auto; padding: 24px; background: #000; border-radius: 12px; font-family: monospace; font-size: 14px; text-align: left; color: #22c55e; }
-    footer { padding: 32px 24px; text-align: center; color: #444; font-size: 14px; border-top: 1px solid #111; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: #e94560; }
+    .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
+
+    /* Widget browser frame */
+    .browser-container { flex: 1; display: flex; flex-direction: column; }
+    .browser-frame { flex: 1; width: 100%; border: none; min-height: 600px; }
+
+    /* Quick links */
+    .quick-links { display: flex; justify-content: center; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+    .quick-link { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid #333; border-radius: 8px; color: #fff; text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .quick-link:hover { background: #e94560; border-color: #e94560; }
+
+    /* Footer */
+    footer { padding: 24px; text-align: center; color: #444; font-size: 14px; border-top: 1px solid #111; background: #0a0a0a; }
     footer a { color: #e94560; text-decoration: none; }
-    .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 600; }
-    .badge.new { background: #22c55e; color: #000; }
-    .badge.core { background: #7c3aed; color: #fff; }
-    .badge.kustom { background: linear-gradient(90deg, #f59e0b, #ec4899); color: #000; }
   </style>
 </head>
 <body>
   <div class="hero">
-    <h1>KISS <span>MySaaS</span> 💋</h1>
+    <h1>KISS <span>MySaaS</span></h1>
     <p><strong>K</strong>onomi <strong>I</strong>nstant <strong>S</strong>erverless <strong>S</strong>olutions — <strong>M</strong>esh <strong>Y</strong>our <strong>S</strong>erverless <strong>A</strong>lternative <strong>A</strong>pp <strong>S</strong>uite</p>
-    <p style="color:#64748b;font-size:14px;margin-top:-16px">Open source P2P widgets. No servers. No subscriptions. Just works.</p>
-    <div class="hero-stats">
-      <div class="stat"><div class="stat-value" id="widgetCount">0</div><div class="stat-label">P2P Widgets</div></div>
+    <p class="tagline">Open source P2P widgets. No servers. No subscriptions. Just works.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-value" id="widgetCount">127+</div><div class="stat-label">P2P Widgets</div></div>
       <div class="stat"><div class="stat-value">$0</div><div class="stat-label">Cost Forever</div></div>
-      <div class="stat"><div class="stat-value" id="savedValue">$0</div><div class="stat-label">Saved per year</div></div>
+      <div class="stat"><div class="stat-value">100%</div><div class="stat-label">Open Source</div></div>
+    </div>
+
+    <div class="quick-links">
+      <a href="chat.html" class="quick-link">💬 Chat</a>
+      <a href="kanban.html" class="quick-link">📋 Kanban</a>
+      <a href="ai-chat.html" class="quick-link">🤖 AI Chat</a>
+      <a href="p2p-mail.html" class="quick-link">📧 P2P Mail</a>
+      <a href="os-desktop.html" class="quick-link">🖥️ OS Desktop</a>
+      <a href="widget-browser.html" class="quick-link">🗂️ Browse All</a>
     </div>
   </div>
 
-  <div class="container">
-    <h2>Available Widgets</h2>
-    <div class="grid" id="widgetGrid"></div>
-  </div>
-
-  <div class="cta">
-    <h2>KISS Your SaaS Bills Goodbye 💋</h2>
-    <p>One line embed. Zero config. Works on GitHub Pages, Netlify, anywhere.</p>
-    <code>
-&lt;!-- KISS MySaaS - Just embed and go --&gt;<br>
-&lt;iframe src="https://yoursite.com/widgets/chat.html?room=my-room"<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;style="width:100%;height:500px;border:none;"&gt;&lt;/iframe&gt;
-    </code>
+  <div class="browser-container">
+    <iframe src="widget-browser.html" class="browser-frame" id="browserFrame"></iframe>
   </div>
 
   <footer>
-    <p>💋 <strong>KISS MySaaS</strong> by <a href="../index.js">Konomi P2P</a> • Open Source • No Servers • No Tracking • Forever Free</p>
+    <p><strong>KISS MySaaS</strong> by <a href="../index.js">Konomi P2P</a> • Open Source • No Servers • No Tracking • Forever Free</p>
   </footer>
 
-  <script type="module">
-    // =========================================================================
-    // WIDGET REGISTRY - Auto-loads metadata from widget files
-    // =========================================================================
-
-    // Dynamic loader - loads metadata from each widget's embedded JSON
-    async function loadWidgetMetadata() {
-      try {
-        const manifestRes = await fetch('manifest.json');
-        const manifest = await manifestRes.json();
-
-        const loadPromises = manifest.widgets.map(async (file) => {
-          try {
-            const res = await fetch(file);
-            const html = await res.text();
-
-            // Extract embedded metadata
-            const metaMatch = html.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
-            if (metaMatch) {
-              const meta = JSON.parse(metaMatch[1]);
-              meta.file = file;
-              return meta;
-            }
-
-            // Fallback: extract from title/comments
-            const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-            const name = titleMatch ? titleMatch[1].split('-')[0].trim() : file.replace('.html', '');
-            return {
-              id: file.replace('.html', '').replace(/-/g, ''),
-              name: name,
-              icon: '📦',
-              desc: 'Widget',
-              body: '',
-              kills: [],
-              price: 0,
-              file: file
-            };
-          } catch (e) {
-            return null;
-          }
-        });
-
-        const results = await Promise.all(loadPromises);
-        return results.filter(w => w && w.id !== 'widgetContainer');
-      } catch (error) {
-        console.log('Manifest load failed, using fallback data');
-        return null;
-      }
-    }
-
-    // Fallback hardcoded data (will be used if dynamic load fails)
-    const FALLBACK_WIDGETS = [
-      // Communication
-      { id: 'chat', name: 'Chat', icon: '💬', desc: 'Real-time chat rooms', file: 'chat.html',
-        body: 'Full-featured chat with typing indicators, presence, and message sync. Works across tabs and browsers.',
-        kills: ['Stream $499/mo', 'SendBird $599/mo', 'Pusher $49/mo'], price: 499 },
-
-      { id: 'comments', name: 'Comments', icon: '💭', desc: 'Blog/site comments', file: 'comments.html',
-        body: 'Disqus alternative without ads or tracking. Embed on any page with one line. Comments sync P2P.',
-        kills: ['Disqus ads', 'Commento $10/mo', 'Hyvor $9/mo'], price: 10 },
-
-      { id: 'support', name: 'Support', icon: '💬', desc: 'Live chat widget', file: 'support.html',
-        body: 'Customer support chat widget. Floating bubble, admin inbox, quick replies. Intercom replacement.',
-        kills: ['Intercom $74/mo', 'Crisp $25/mo', 'Drift $50/mo'], price: 74, admin: true },
-
-      { id: 'notifications', name: 'Notifications', icon: '🔔', desc: 'In-app notifications', file: 'notifications.html',
-        body: 'Drop-in notification bell. Admin sends, users receive. Toast alerts, unread badges.',
-        kills: ['OneSignal $12/mo', 'Knock $25/mo', 'Novu $10/mo'], price: 12, admin: true },
-
-      // Productivity
-      { id: 'kanban', name: 'Kanban', icon: '📋', desc: 'Project boards', file: 'kanban.html',
-        body: 'Drag-and-drop kanban boards. Labels, due dates, card details. Full Trello replacement.',
-        kills: ['Trello $10/mo', 'Monday $8/seat', 'Asana $11/mo'], price: 10 },
-
-      { id: 'calendar', name: 'Calendar', icon: '📅', desc: 'Scheduling & booking', file: 'calendar.html',
-        body: 'Calendly-style booking pages. Set availability, accept bookings, get confirmations.',
-        kills: ['Calendly $10/mo', 'Cal.com $15/mo', 'Acuity $16/mo'], price: 16, admin: true },
-
-      { id: 'wiki', name: 'Wiki', icon: '📖', desc: 'Team knowledge base', file: 'wiki.html',
-        body: 'Rich text wiki with sidebar navigation. Create pages, format content, search.',
-        kills: ['Notion $8/mo', 'Confluence $6/mo', 'Slite $8/mo'], price: 8 },
-
-      { id: 'form', name: 'Forms', icon: '📝', desc: 'Form backend + responses', file: 'form.html',
-        body: 'Form submissions sync to your browser. No server needed. Export to CSV.',
-        kills: ['Typeform $25/mo', 'Formspree $10/mo', 'Tally Pro $29/mo'], price: 25 },
-
-      { id: 'polls', name: 'Polls', icon: '📊', desc: 'Voting & surveys', file: 'polls.html',
-        body: 'Create polls in seconds. Multiple choice or rating. Real-time results.',
-        kills: ['Slido $12/mo', 'Typeform $25/mo', 'SurveyMonkey'], price: 12 },
-
-      // Data & Files
-      { id: 'database', name: 'Database', icon: '🗄️', desc: 'Spreadsheet + API', file: 'database.html',
-        body: 'Airtable-style database. Tables, columns, sorting, filters. Card view, CSV export.',
-        kills: ['Airtable $20/mo', 'Coda $10/mo', 'Baserow $5/mo'], price: 20 },
-
-      { id: 'files', name: 'Files', icon: '📁', desc: 'File sharing', file: 'files.html',
-        body: 'Upload files, create folders, share links. Drag-and-drop, file preview.',
-        kills: ['Dropbox $12/mo', 'Google Drive $2/mo', 'Box $15/mo'], price: 12 },
-
-      { id: 'analytics', name: 'Analytics', icon: '📈', desc: 'Event tracking', file: 'analytics.html',
-        body: 'Track events, page views, custom data. Dashboard with charts.',
-        kills: ['Amplitude $49/mo', 'Mixpanel $25/mo', 'Heap $100/mo'], price: 49 },
-
-      // Business
-      { id: 'crm', name: 'CRM', icon: '💼', desc: 'Sales pipeline', file: 'crm.html',
-        body: 'Track contacts, deals, pipeline stages. Revenue tracking, contact management.',
-        kills: ['HubSpot $45/mo', 'Pipedrive $15/mo', 'Close $29/mo'], price: 45 },
-
-      { id: 'checkout', name: 'Checkout', icon: '💳', desc: 'Product sales', file: 'checkout.html',
-        body: 'Sell products with checkout pages. Product display, payment form, sales dashboard.',
-        kills: ['Gumroad 10% fee', 'Paddle 5-8%', 'Shopify $29/mo'], price: 29, admin: true },
-
-      { id: 'waitlist', name: 'Waitlist', icon: '🚀', desc: 'Viral launch waitlists', file: 'waitlist.html',
-        body: 'Capture emails with referral tracking. Users move up by sharing. Leaderboard.',
-        kills: ['LaunchList $30/mo', 'Waitlist.me $50/mo', 'Viral Loops'], price: 30, admin: true },
-
-      // Collaboration
-      { id: 'whiteboard', name: 'Whiteboard', icon: '🎨', desc: 'Collaborative canvas', file: 'whiteboard.html',
-        body: 'Infinite canvas with real-time collaboration. Draw, add shapes, see remote cursors.',
-        kills: ['Miro $8/seat', 'FigJam $3/seat', 'Excalidraw+'], price: 8 },
-
-      { id: 'video', name: 'Video', icon: '🎥', desc: 'Screen recording', file: 'video.html',
-        body: 'Record screen, camera, or both. Instant video library. Share links, download.',
-        kills: ['Loom $15/mo', 'Vidyard $19/mo', 'CloudApp $10/mo'], price: 15 },
-
-      // Infrastructure
-      { id: 'status', name: 'Status Page', icon: '🚦', desc: 'Service status & uptime', file: 'status.html',
-        body: 'Show service status, uptime history, incident reports. Admin dashboard included.',
-        kills: ['Statuspage $29/mo', 'BetterStack $25/mo', 'Instatus $20/mo'], price: 29, admin: true },
-
-      { id: 'auth', name: 'Auth', icon: '🔐', desc: 'User authentication', file: 'auth.html',
-        body: 'Login, register, password reset. Social login buttons. Admin user management.',
-        kills: ['Auth0 $23/mo', 'Clerk $25/mo', 'Okta $2/user'], price: 23, admin: true },
-
-      { id: 'links', name: 'Links', icon: '🔗', desc: 'Bio link pages', file: 'links.html',
-        body: 'Beautiful link-in-bio pages. Multiple themes, custom links, analytics.',
-        kills: ['Linktree $5/mo', 'Lnk.Bio $1/mo', 'Taplink $3/mo'], price: 5 },
-
-      // P2P Core (highlighted)
-      { id: 'p2pMesh', name: 'P2P Mesh', icon: '🔗', desc: 'WebRTC mesh network', file: 'p2p-mesh.html',
-        body: 'Full WebRTC mesh with data channels. Peer discovery, auto-reconnect, broadcast messaging.',
-        kills: ['PubNub $99/mo', 'Ably $49/mo', 'Firebase $25/mo'], price: 99, color: '#00d9ff', badge: 'CORE' },
-
-      { id: 'tracker', name: 'WebTorrent Tracker', icon: '🌐', desc: 'P2P signaling layer', file: 'webtorrent-tracker.html',
-        body: 'Low-level WebTorrent tracker client. Offer/answer signaling, peer discovery.',
-        kills: ['PeerJS Cloud', 'Signaling servers', 'TURN $$$'], price: 49, color: '#7c3aed', badge: 'CORE' },
-
-      { id: 'presence', name: 'Presence', icon: '👥', desc: "Who's online widget", file: 'presence.html',
-        body: "Real-time presence for any room. See who's online, away, or busy. Activity feed.",
-        kills: ['Pusher Presence', 'Ably $49/mo', 'Firebase $25/mo'], price: 49, color: '#eab308', badge: 'NEW' },
-
-      { id: 'p2pBridge', name: 'P2P Bridge', icon: '🌉', desc: 'Secure link exchange', file: 'p2p-bridge.html',
-        body: 'Peer-to-peer secure channel. Room codes, key exchange, share links/auth tokens. No server in the middle.',
-        kills: ['Pastebin', 'URL shorteners', 'Auth handshake servers'], price: 0, color: '#f59e0b', badge: 'NEW' },
-
-      // AI & Advanced
-      { id: 'aiComm', name: 'AI FreeComm', icon: '🤖', desc: 'AI-Powered Free Communication', file: 'ai-comm-v3.html',
-        body: 'Local LLM + P2P mesh + SMS gateway. AI assists with composing, translation, smart replies.',
-        kills: ['Twilio $0.0085/msg', 'OpenAI API $$$', 'Carriers $60+/mo'], price: 60, color: '#9b59b6', badge: 'NEW' },
-
-      { id: 'aiChat', name: 'AI Chat', icon: '🤖', desc: 'Browser LLM assistant', file: 'ai-chat.html',
-        body: 'Local AI chat using WebLLM. Runs 100% in browser - no API keys, no cloud, complete privacy.',
-        kills: ['ChatGPT $20/mo', 'Claude Pro $20/mo', 'API costs $$$'], price: 20, color: '#f97316', badge: 'NEW' },
-
-      { id: 'osDesktop', name: 'OS Desktop', icon: '🖥️', desc: 'Embeddable operating system', file: 'os-desktop.html',
-        body: 'Full KonomiOS desktop as widget. Windows, taskbar, start menu, extensible apps.',
-        kills: ['Electron', 'Tauri', 'Native apps'], price: 0, color: '#ec4899', badge: 'NEW' },
-
-      { id: 'terminal', name: 'Terminal', icon: '💻', desc: 'P2P shared terminal', file: 'terminal.html',
-        body: 'Browser terminal with P2P mesh. Share commands, chat in terminal. Join rooms, see peers.',
-        kills: ['Terminal.io', 'Tmate $15/mo', 'SSH servers'], price: 15, color: '#10b981', badge: 'NEW' },
-
-      // SaaS Killers - New batch
-      { id: 'feedback', name: 'Feedback', icon: '💡', desc: 'Feature requests & voting', file: 'feedback.html',
-        body: 'Collect feature requests, let users vote. Status tracking, categories, search. Full Canny replacement.',
-        kills: ['Canny $400/mo', 'ProductBoard $20/mo', 'Frill $25/mo'], price: 400, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'changelog', name: 'Changelog', icon: '📋', desc: 'Product updates feed', file: 'changelog.html',
-        body: 'Beautiful product changelog. Version tags, reactions, subscriptions. Keep users informed.',
-        kills: ['Beamer $49/mo', 'LaunchNotes $50/mo', 'Headway $29/mo'], price: 49, color: '#6366f1', badge: 'NEW' },
-
-      { id: 'testimonials', name: 'Testimonials', icon: '⭐', desc: 'Review collector & display', file: 'testimonials.html',
-        body: 'Collect and showcase customer reviews. Star ratings, masonry layout, filtering. Social proof.',
-        kills: ['Testimonial.to $50/mo', 'Senja $29/mo', 'Shoutout $19/mo'], price: 50, color: '#eab308', badge: 'NEW' },
-
-      { id: 'timer', name: 'Timer', icon: '⏱️', desc: 'Time tracking', file: 'timer.html',
-        body: 'Track time on tasks and projects. Weekly charts, project breakdown, export. Full Toggl replacement.',
-        kills: ['Toggl $9/mo', 'Clockify $5/mo', 'Harvest $12/mo'], price: 9, color: '#14b8a6', badge: 'NEW' },
-
-      { id: 'pomodoro', name: 'Pomodoro', icon: '🍅', desc: 'Focus timer sessions', file: 'pomodoro.html',
-        body: 'Pomodoro technique timer. Focus sessions, short/long breaks, sound notifications, session stats. Stay productive.',
-        kills: ['Pomofocus', 'Forest $4/mo', 'Focus Keeper'], price: 0, color: '#ef4444', badge: 'NEW' },
-
-      { id: 'qrcode', name: 'QR Code', icon: '📱', desc: 'Generate QR codes', file: 'qrcode.html',
-        body: 'Create QR codes for URLs, WiFi, contacts, emails. Custom colors, sizes, download PNG/SVG. No limits.',
-        kills: ['QR Code Generator Pro', 'QRCode Monkey', 'Beaconstac $5/mo'], price: 0, color: '#8b5cf6', badge: 'NEW' },
-
-      { id: 'regex', name: 'Regex Tester', icon: '🔍', desc: 'Test regex patterns', file: 'regex.html',
-        body: 'Real-time regex testing with highlighting. Capture groups, flags, replace mode. Quick reference cheatsheet.',
-        kills: ['Regex101', 'RegExr', 'Debuggex'], price: 0, color: '#22c55e', badge: 'NEW' },
-
-      { id: 'json', name: 'JSON Formatter', icon: '{ }', desc: 'Format & validate JSON', file: 'json.html',
-        body: 'Pretty print, minify, validate JSON. Syntax highlighting, tree view, stats. Find errors instantly.',
-        kills: ['JSONLint', 'JSON Editor Online', 'JSON Formatter'], price: 0, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'password', name: 'Password Gen', icon: '🔐', desc: 'Secure password generator', file: 'password.html',
-        body: 'Generate strong passwords. Customize length, character types. Strength meter, history, one-click copy.',
-        kills: ['LastPass Gen', '1Password Gen', 'Random.org'], price: 0, color: '#ec4899', badge: 'NEW' },
-
-      { id: 'markdown', name: 'Markdown', icon: '📝', desc: 'Live preview editor', file: 'markdown.html',
-        body: 'Write Markdown with instant preview. Toolbar, export, word count. Split or full-screen views.',
-        kills: ['StackEdit', 'Dillinger', 'HackMD'], price: 0, color: '#3b82f6', badge: 'NEW' },
-
-      { id: 'color', name: 'Color Picker', icon: '🎨', desc: 'Advanced color tools', file: 'color.html',
-        body: 'Full-featured color picker. RGB/HSL sliders, hex input, color harmonies, EyeDropper API. Save palettes, export CSS.',
-        kills: ['Coolors Pro $3/mo', 'Adobe Color', 'Color Hunt'], price: 0, color: '#ec4899', badge: 'NEW' },
-
-      { id: 'donate', name: 'Donations', icon: '💝', desc: 'Accept donations widget', file: 'donate.html',
-        body: 'Accept donations via PayPal, Ko-fi, GitHub Sponsors, or crypto. QR codes, preset amounts, goal tracking, supporters wall.',
-        kills: ['Ko-fi Gold $6/mo', 'Buy Me a Coffee', 'Patreon fees'], price: 0, color: '#f43f5e', badge: 'NEW' },
-
-      { id: 'cryptoWallet', name: 'Crypto Wallet', icon: '💰', desc: 'Portfolio tracker', file: 'crypto-wallet.html',
-        body: 'Track any cryptocurrency. CoinGecko API for live prices. Portfolio value, 24h changes, price ticker. Search 10,000+ coins.',
-        kills: ['CoinMarketCap Pro', 'Delta Pro $6/mo', 'Blockfolio Premium'], price: 0, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'kudt', name: 'KUDT', icon: '🪙', desc: 'Nervos CKB UDT Manager', file: 'kudt.html',
-        body: 'Create and manage User Defined Tokens on Nervos CKB. sUDT and xUDT standards, token creation, transfers, lookups. Cell structure preview.',
-        kills: ['Token Factory $99', 'MintEngine Pro', 'Custom dev $5k+'], price: 0, color: '#00d4aa', badge: 'NEW' },
-
-      { id: 'kisa', name: 'KISA', icon: '🏭', desc: 'ISA-95 UDT Manager', file: 'kisa.html',
-        body: 'Industrial automation UDTs for ISA-95 hierarchy, PackML states, Sparkplug messaging, alarms. Full enterprise equipment modeling.',
-        kills: ['Ignition $2k/yr', 'FactoryTalk $5k+', 'Custom SCADA'], price: 0, color: '#0ea5e9', badge: 'NEW' },
-
-      { id: 'kopc', name: 'KOPC', icon: '🔌', desc: 'OPC-UA Server Manager', file: 'kopc.html',
-        body: 'OPC-UA server with address space browser, node monitoring, subscriptions, historical data, methods, and security. Full industrial connectivity.',
-        kills: ['KEPServerEX $2k+', 'Matrikon OPC', 'Prosys OPC'], price: 0, color: '#10b981', badge: 'NEW' },
-
-      { id: 'kqtt', name: 'KQTT', icon: '📡', desc: 'P2P MQTT Protocol', file: 'kqtt.html',
-        body: 'Serverless MQTT over WebRTC P2P mesh. Topic pub/sub, QoS levels, retained messages, E2E encryption. No broker required.',
-        kills: ['HiveMQ $99/mo', 'EMQX Cloud', 'Mosquitto hosting'], price: 0, color: '#a855f7', badge: 'NEW' },
-
-      { id: 'ksql', name: 'KSQL', icon: '🗃️', desc: 'In-Browser SQL Database', file: 'ksql.html',
-        body: 'Full SQL database in your browser with sql.js (SQLite). Query editor, table browser, results, CSV export. No server needed.',
-        kills: ['DBaaS $30/mo', 'Firebase $25/mo', 'Supabase $25/mo'], price: 30, color: '#3b82f6', badge: 'NEW' },
-
-      { id: 'kplc', name: 'KPLC', icon: '⚡', desc: 'PLC Ladder Logic Editor', file: 'kplc.html',
-        body: 'Visual PLC ladder logic programming. Contacts, coils, timers, counters. I/O monitor, simulation mode. Industrial automation in browser.',
-        kills: ['RSLogix $3K', 'TIA Portal $2K', 'Connected Components'], price: 0, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'khmi', name: 'KHMI', icon: '🖥️', desc: 'HMI Runtime Display', file: 'khmi.html',
-        body: 'Browser-based HMI/SCADA display. Tanks, pumps, valves, gauges. Real-time process view, alarms, trends. Industrial visualization.',
-        kills: ['FactoryTalk View $5K', 'WinCC $3K', 'Ignition $2K/yr'], price: 0, color: '#22c55e', badge: 'NEW' },
-
-      { id: 'ktag', name: 'KTAG', icon: '📊', desc: 'Tag Historian', file: 'ktag.html',
-        body: 'Industrial tag historian. Real-time trending, statistics, data tables, CSV export. Tag browser with configurable samples.',
-        kills: ['OSIsoft PI $50K', 'Historian $10K', 'Wonderware $20K'], price: 0, color: '#14b8a6', badge: 'NEW' },
-
-      // =========================================================================
-      // INDUSTRY 4.0 - AI + Industrial Automation
-      // =========================================================================
-      { id: 'kflow', name: 'KFLOW', icon: '🔀', desc: 'AI Workflow Builder', file: 'kflow.html',
-        body: 'Visual workflow builder with AI optimization. Drag-drop nodes for triggers, logic, AI analysis, actions. Industrial automation pipelines.',
-        kills: ['Node-RED Pro', 'Ignition Pipelines $2K', 'Custom workflow engines'], price: 0, color: '#8b5cf6', badge: 'NEW' },
-
-      { id: 'kci', name: 'KCI', icon: '🔄', desc: 'Industrial CI/CD', file: 'kci.html',
-        body: 'CI/CD for PLC code with AI code review. Build pipelines, test automation, deploy to PLCs. IEC 61131-3 lint, safety checks.',
-        kills: ['Jenkins + custom', 'GitLab CI $99/mo', 'Azure DevOps'], price: 0, color: '#22c55e', badge: 'NEW' },
-
-      { id: 'ktest', name: 'KTEST', icon: '🧪', desc: 'Industrial Test Automation', file: 'ktest.html',
-        body: 'AI-powered test automation for industrial systems. Unit tests, integration, hardware-in-loop. Generate tests with AI.',
-        kills: ['NI TestStand $5K', 'Custom test frameworks', 'Manual testing'], price: 0, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'kpipe', name: 'KPIPE', icon: '🔗', desc: 'Data Pipeline Builder', file: 'kpipe.html',
-        body: 'Visual ETL/ELT pipelines with AI transforms. Connect PLCs, OPC-UA, MQTT to historians, SQL, Kafka. Real-time streaming.',
-        kills: ['Apache NiFi', 'Fivetran $120/mo', 'Informatica $$$'], price: 0, color: '#06b6d4', badge: 'NEW' },
-
-      { id: 'docs', name: 'Docs', icon: '📄', desc: 'Rich text document editor', file: 'docs.html',
-        body: 'Create and edit documents. Rich formatting, multiple docs, export. Your own Google Docs.',
-        kills: ['Google Docs', 'Notion $8/mo', 'Dropbox Paper'], price: 8, color: '#3b82f6', badge: 'NEW' },
-
-      { id: 'bookmarks', name: 'Bookmarks', icon: '🔖', desc: 'Link saving & organization', file: 'bookmarks.html',
-        body: 'Save and organize links with tags. Search, filter, favorites. Grid and list views. Full Pocket replacement.',
-        kills: ['Pocket $5/mo', 'Raindrop $3/mo', 'Pinboard $22/yr'], price: 5, color: '#8b5cf6', badge: 'NEW' },
-
-      { id: 'invoices', name: 'Invoices', icon: '🧾', desc: 'Invoice generator & tracker', file: 'invoices.html',
-        body: 'Create professional invoices. Track payments, mark paid, print/export. Full accounting solution.',
-        kills: ['Wave $0*', 'FreshBooks $17/mo', 'QuickBooks $30/mo'], price: 17, color: '#22c55e', badge: 'NEW' },
-
-      { id: 'roadmap', name: 'Roadmap', icon: '🗺️', desc: 'Product roadmap & timeline', file: 'roadmap.html',
-        body: 'Kanban board + timeline view. Drag and drop, priorities, target dates. Keep your team aligned.',
-        kills: ['ProductBoard $20/mo', 'Linear $8/mo', 'Productfolio $15/mo'], price: 20, color: '#06b6d4', badge: 'NEW' },
-
-      { id: 'faq', name: 'FAQ', icon: '❓', desc: 'Knowledge base & help center', file: 'faq.html',
-        body: 'Searchable FAQ with categories. Voting, helpful counts. Reduce support tickets.',
-        kills: ['HelpScout $20/mo', 'Intercom $74/mo', 'Zendesk $49/mo'], price: 49, color: '#a855f7', badge: 'NEW' },
-
-      { id: 'snippets', name: 'Snippets', icon: '✂️', desc: 'Code snippet manager', file: 'snippets.html',
-        body: 'Save and organize code snippets. Syntax highlighting, tags, search. Your personal Gists.',
-        kills: ['GitHub Gists', 'CodePen Pro $12/mo', 'Cacher $6/mo'], price: 6, color: '#ef4444', badge: 'NEW' },
-
-      { id: 'cli', name: 'CLI Builder', icon: '⚡', desc: 'Visual CLI API designer', file: 'cli.html',
-        body: 'Design CLI commands visually. Define args, options, handlers. Test in terminal, export to Commander.js.',
-        kills: ['Oclif', 'Commander.js boilerplate', 'Manual CLI code'], price: 0, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'mcp', name: 'MCP Builder', icon: '🔌', desc: 'Model Context Protocol server', file: 'mcp.html',
-        body: 'Build MCP servers visually. Define tools, resources, prompts. Test handlers, export production code.',
-        kills: ['MCP boilerplate', 'Manual SDK code', 'Server setup'], price: 0, color: '#8b5cf6', badge: 'NEW' },
-
-      { id: 'kontainer', name: 'Kontainer', icon: '📦', desc: 'P2P lightweight runtime', file: 'kontainer.html',
-        body: 'Browser-based container runtime. Virtual filesystem, live preview, P2P sync, deploy anywhere.',
-        kills: ['Docker', 'GitHub Pages', 'Netlify', 'Vercel'], price: 0, color: '#0d9488', badge: 'NEW' },
-
-      { id: 'konomiKode', name: 'Konomi Kode', icon: '🤖', desc: 'Browser AI coding agent', file: 'konomi-kode.html',
-        body: 'AI coding assistant in your browser. WebLLM powered, tool calling, file editing, terminal. Claude Code alternative.',
-        kills: ['Claude Code', 'GitHub Copilot $10/mo', 'Cursor $20/mo'], price: 20, color: '#ec4899', badge: 'NEW' },
-
-      { id: 'iframe', name: 'iFrame+', icon: '🖼️', desc: 'Enhanced iframe widget', file: 'iframe.html',
-        body: 'Browser with tabs, bookmarks, responsive modes, console. Multi-tab iframe management with postMessage bridge.',
-        kills: ['Basic iframes', 'Manual frame code'], price: 0, color: '#64748b', badge: 'NEW' },
-
-      { id: 'kframe', name: 'K-Frame', icon: '🔗', desc: 'Iframe restriction bypass', file: 'kframe.html',
-        body: 'Break through X-Frame-Options and CORS. Proxy mode, popup bridge, message passing. Frame anything.',
-        kills: ['X-Frame-Options', 'CORS restrictions', 'Blocked embeds'], price: 0, color: '#0ea5e9', badge: 'NEW' },
-
-      { id: 'claudeCode', name: 'Claude Code', icon: '🤖', desc: 'Claude API coding agent', file: 'claude-code.html',
-        body: 'Full agentic coding assistant powered by Claude API. Native tool calling, multi-step execution, token tracking. Bring your own API key.',
-        kills: ['Manual coding', 'Context switching'], price: 0, color: '#d97706', badge: 'NEW' },
-
-      { id: 'widgetAgent', name: 'Widget Agent', icon: '🔍', desc: 'Widget monitoring & alerts', file: 'widget-agent.html',
-        body: 'Monitors all widgets for errors. Loads in sandbox, catches runtime errors, flags for human review. Alert dashboard.',
-        kills: ['Manual testing', 'Error blindness', 'Silent failures'], price: 0, color: '#0d9488', badge: 'NEW' },
-
-      { id: 'aiFighter', name: 'AI Fighter', icon: '🥊', desc: 'AI vs AI Street Fighter', file: 'ai-fighter.html',
-        body: 'Two WebLLM models battle it out! Classic fighting game with punch, kick, block, special moves. Watch AI strategies emerge.',
-        kills: ['Boredom', 'Model comparison guesswork'], price: 0, color: '#ef4444', badge: 'NEW' },
-
-      { id: 'mahjong', name: "Dee's Nuts Mahjong", icon: '🀄', desc: 'Classic tile matching game', file: 'mahjong.html',
-        body: "Match pairs to clear the board! Classic Mahjong solitaire with Dee's special nut tiles. Hints, shuffle, score tracking.",
-        kills: ['Boredom', 'Paid puzzle games'], price: 0, color: '#1a472a', badge: 'NEW' },
-
-      { id: 'trivia', name: 'Trivial Pursuit', icon: '🎯', desc: 'Classic trivia game', file: 'trivia.html',
-        body: 'Collect all 6 wedges by answering trivia questions! Geography, Entertainment, History, Arts, Science, Sports. Timer and scoring.',
-        kills: ['Boredom', 'Trivia apps with ads'], price: 0, color: '#312e81', badge: 'NEW' },
-
-      { id: 'sisyphus', name: 'Sisyphusian Pursuit', icon: '🪨', desc: 'AI-generated infinite trivia', file: 'sisyphus.html',
-        body: 'WebLLM generates endless unique questions! Philosophy, Science, Mythology, Absurdism, Literature, Cosmos. Push the boulder to the summit!',
-        kills: ['Finite question pools', 'Repetitive trivia'], price: 0, color: '#1a1a2e', badge: 'NEW' },
-
-      { id: 'tales150', name: 'Tales 150', icon: '💬', desc: '150 conversation cards', file: 'tales150.html',
-        body: 'Party game with 150 conversation starters! Icebreakers, deep talks, funny, hypothetical, memories, spicy. Swipe through cards, save favorites.',
-        kills: ['Awkward silences', 'Boring small talk'], price: 0, color: '#fbbf24', badge: 'NEW' },
-
-      { id: 'lyrics', name: 'Lyrically Correct', icon: '🎵', desc: '90s & 2000s lyrics trivia', file: 'lyrics.html',
-        body: 'Guess the song from lyrics! 90s and 2000s hits. Three modes: Name That Tune, Fill the Blank, Who Sang It. Timer and streak scoring.',
-        kills: ['Boring music quizzes', 'Nostalgia cravings'], price: 0, color: '#2d1b4e', badge: 'NEW' },
-
-      { id: 'elleen', name: 'Elleen', icon: '📚', desc: 'AI Grammar Guardian', file: 'elleen.html',
-        body: 'Pushy AI grammar checker powered by WebLLM. "There is never a vacation from good grammar!" Get your text reviewed with dramatic flair.',
-        kills: ['Grammarly $12/mo', 'ProWritingAid $20/mo', 'Bad grammar everywhere'], price: 12, color: '#8b4513', badge: 'NEW' },
-
-      { id: 'usc', name: 'USC Browser', icon: '📜', desc: 'United States Code lookup', file: 'usc.html',
-        body: 'Browse any Title, Chapter, Section of the US Code. Parse citations like "26 USC § 501(c)(3)". Quick links to popular sections. Favorites.',
-        kills: ['LexisNexis $200/mo', 'Westlaw $100/mo', 'Legal research fees'], price: 200, color: '#0f3460', badge: 'NEW' },
-
-      { id: 'widgetContainer', name: 'Widget Container', icon: '📦', desc: 'Downloadable widget wrapper', file: 'widget-container.html',
-        body: 'Embed any widget in a standalone HTML page. Download to host anywhere. URL params for easy linking. Toolbar with fullscreen mode.',
-        kills: ['Manual iframe code', 'Embed complexity'], price: 0, color: '#6366f1', badge: 'NEW' },
-
-      // =========================================================================
-      // KONOMI KUSTOM - Konomi Systems Custom AI Infrastructure
-      // =========================================================================
-      { id: 'evgpu', name: 'eVGPU', icon: '⚡', desc: 'CPU-based virtual GPU', file: 'evgpu.html',
-        body: 'Electronic Virtual GPU. Tensor operations (matmul, add, relu, transpose) running on CPU. No GPU needed. Cache-optimized algorithms.',
-        kills: ['GPU requirements', 'CUDA setup', 'WebGL fallbacks'], price: 0, color: '#f59e0b', badge: 'KUSTOM' },
-
-      { id: 'femtoLlm', name: 'FemtoLLM', icon: '🧬', desc: 'Tiny model builder', file: 'femto-llm.html',
-        body: 'Build real nano-scale transformers. 16-dim models with attention, FFN, embeddings. Train and export custom micro-models.',
-        kills: ['Large model requirements', 'GPU training', 'API costs'], price: 0, color: '#8b5cf6', badge: 'KUSTOM' },
-
-      { id: 'blockArray', name: 'BlockArray', icon: '🧊', desc: '1000³ compute grid', file: 'block-array.html',
-        body: 'Sparse 3D compute grid. Navigate billion-cell space, place LLMs at coordinates. Face/edge/vertex interlock patterns.',
-        kills: ['Limited compute grids', 'Static architectures'], price: 0, color: '#06b6d4', badge: 'KUSTOM' },
-
-      { id: 'cube', name: 'Cube', icon: '🔮', desc: '9-node LLM constellation', file: 'cube.html',
-        body: '8 vertices + 1 central node. FemtoLLM at each position. Single, broadcast, chain, consensus routing modes. 3D visualization.',
-        kills: ['Single model limits', 'Centralized inference'], price: 0, color: '#a855f7', badge: 'KUSTOM' },
-
-      // LLM Hierarchy - Femto → Pico → Nano → Micro → Centi → Deci → Unity
-      { id: 'picoLlm', name: 'PicoLLM', icon: '⚡', desc: '9 FemtoLLMs unified', file: 'pico-llm.html',
-        body: '9 FemtoLLMs in cube formation. 64-dim, 2 layers. Aggregation modes: concat, mean, attention, hierarchical.',
-        kills: ['Small model limits', 'Single-node inference'], price: 0, color: '#06b6d4', badge: 'KUSTOM' },
-
-      { id: 'nanoLlm', name: 'NanoLLM', icon: '🧬', desc: '81 FemtoLLMs unified', file: 'nano-llm.html',
-        body: '9 PicoLLMs = 81 FemtoLLMs. 256-dim, 4 layers. Hierarchical processing through nested cubes.',
-        kills: ['Model size constraints', 'Limited parallelism'], price: 0, color: '#22c55e', badge: 'KUSTOM' },
-
-      { id: 'microLlm', name: 'MicroLLM', icon: '🔬', desc: '729 FemtoLLMs unified', file: 'micro-llm.html',
-        body: '9 NanoLLMs = 729 FemtoLLMs. 1024-dim, 8 layers. ~50M parameters simulated.',
-        kills: ['Hardware requirements', 'Training costs'], price: 0, color: '#ec4899', badge: 'KUSTOM' },
-
-      { id: 'centiLlm', name: 'CentiLLM', icon: '💫', desc: '6,561 FemtoLLMs unified', file: 'centi-llm.html',
-        body: '9 MicroLLMs = 6,561 FemtoLLMs. 4096-dim, 16 layers. ~500M parameters.',
-        kills: ['Large model training', 'GPU clusters'], price: 0, color: '#eab308', badge: 'KUSTOM' },
-
-      { id: 'deciLlm', name: 'DeciLLM', icon: '🌀', desc: '59,049 FemtoLLMs unified', file: 'deci-llm.html',
-        body: '9 CentiLLMs = 59,049 FemtoLLMs. 16384-dim, 32 layers. ~5B parameters.',
-        kills: ['Enterprise ML costs', 'Data center requirements'], price: 0, color: '#14b8a6', badge: 'KUSTOM' },
-
-      { id: 'unityLlm', name: 'UnityLLM', icon: '✨', desc: '531,441 FemtoLLMs unified', file: 'unity-llm.html',
-        body: 'The Ultimate Convergence. 9 DeciLLMs = 531,441 FemtoLLMs. 65536-dim, 64 layers. ~50B parameters. Unity consciousness.',
-        kills: ['AGI compute costs', 'Hyperscaler dependencies'], price: 0, color: '#8b5cf6', badge: 'KUSTOM' },
-
-      { id: 'llmExplorer', name: 'LLM Explorer', icon: '🔭', desc: 'Compare all LLM levels', file: 'llm-explorer.html',
-        body: 'Interactive explorer to test all 7 hierarchy levels simultaneously. Parallel/cascade modes, performance comparison, live metrics.',
-        kills: ['Manual model testing', 'Capability guesswork'], price: 0, color: '#f97316', badge: 'NEW' },
-
-      { id: 'llmNlpExplorer', name: 'NLP Explorer', icon: '📝', desc: 'Real text generation', file: 'llm-nlp-explorer.html',
-        body: 'Watch all 7 levels generate actual text in real-time. Top-K sampling, temperature control, quality metrics, token streaming.',
-        kills: ['Black-box models', 'Output uncertainty'], price: 0, color: '#22c55e', badge: 'NEW' },
-
-      { id: 'k3Os', name: 'K³ OS', icon: '🎛️', desc: 'Konomi Kustom Kernel', file: 'k3-os.html',
-        body: 'Full OS layer with FemtoLLM router + WebLLM backend. MCP server integration, API bridging, intelligent request routing. The Konomi operating system.',
-        kills: ['Complex AI orchestration', 'Manual routing', 'MCP boilerplate'], price: 0, color: '#ec4899', badge: 'KUSTOM' },
-
-      { id: 'koil', name: 'Koil', icon: '🔌', desc: 'Universal PLC UDT system', file: 'koil.html',
-        body: 'Git-based PLC version control. Convert between AB, Siemens, Codesys, Beckhoff, Omron. ISA-88/95 hierarchy, UDT editor, simulator.',
-        kills: ['Rockwell $3K/seat', 'TIA Portal $2K', 'Vendor lock-in'], price: 0, color: '#f59e0b', badge: 'KUSTOM' },
-
-      { id: 'komfy', name: 'Komfy', icon: '🎨', desc: 'ComfyUI interface', file: 'comfyui.html',
-        body: 'Connect to ComfyUI backends. Visual node editor, workflow management, queue system, image gallery. Run Stable Diffusion from browser.',
-        kills: ['ComfyUI desktop only', 'Manual workflow JSON'], price: 0, color: '#a855f7', badge: 'NEW' },
-
-      { id: 'gits', name: 'Gits', icon: '📂', desc: 'Git browser & editor', file: 'git.html',
-        body: 'Browse GitHub repos, edit files, commit changes. File tree, tabs, markdown preview, branch switching. Lightweight GitHub client.',
-        kills: ['GitHub Pro $4/mo', 'GitLab Premium $29/mo', 'Desktop Git clients'], price: 4, color: '#58a6ff', badge: 'NEW' },
-
-      { id: 'perspektive', name: 'Perspektive', icon: 'P', desc: 'Widget to Ignition converter', file: 'perspektive.html',
-        body: 'Convert HTML widgets to Ignition Perspective JSON views and tags. Element mapping, tag generation, live preview. ISA-88/95 ready.',
-        kills: ['Ignition Designer $2K', 'Manual JSON authoring', 'Tag configuration'], price: 0, color: '#e94560', badge: 'KUSTOM' },
-
-      { id: 'kopilot', name: 'Kopilot', icon: 'K', desc: 'AI-powered Git editor', file: 'kopilot.html',
-        body: 'Git browser with WebLLM AI assistant. Browse repos, edit files, get AI help. Explain, review, refactor code - all in browser.',
-        kills: ['GitHub Copilot $10/mo', 'Cursor $20/mo', 'TabNine $12/mo'], price: 20, color: '#8b5cf6', badge: 'NEW' },
-
-      { id: 'kopilotPro', name: 'Kopilot Pro', icon: 'K+', desc: 'Dual AI code editor', file: 'kopilot-pro.html',
-        body: 'WebLLM + GitHub Copilot in one! Inline completions, ghost text, Tab to accept. Switch between local AI (private) and Copilot API (powerful).',
-        kills: ['GitHub Copilot $10/mo', 'Cursor $20/mo', 'Codeium Pro $12/mo', 'Supermaven $10/mo'], price: 20, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'konnect', name: 'Konnect', icon: '🔗', desc: 'API testing tool', file: 'konnect.html',
-        body: 'Full API client like Postman. GET/POST/PUT/DELETE, headers, auth, params. Save collections, view history. Export/import configs.',
-        kills: ['Postman $12/mo', 'Insomnia $5/mo', 'Hoppscotch Pro'], price: 12, color: '#f59e0b', badge: 'NEW' },
-
-      { id: 'kompare', name: 'Kompare', icon: '⚖️', desc: 'Diff & compare tool', file: 'kompare.html',
-        body: 'Compare text and code side-by-side. Split, unified, or inline views. Line-by-line and character-level diffs. Export patches.',
-        kills: ['DiffChecker Pro $9/mo', 'Kaleidoscope $70', 'Beyond Compare $60'], price: 9, color: '#22c55e', badge: 'NEW' },
-
-      { id: 'krawl', name: 'Krawl', icon: '🕷️', desc: 'Web scraper', file: 'krawl.html',
-        body: 'Scrape websites with CSS/XPath selectors. Extract text, links, images, meta tags. Export to JSON or CSV. No coding required.',
-        kills: ['Octoparse $89/mo', 'ParseHub $149/mo', 'Scrapy Cloud $9/mo'], price: 89, color: '#8b5cf6', badge: 'NEW' },
-
-      { id: 'krypt', name: 'Krypt', icon: '🔐', desc: 'Encryption toolkit', file: 'krypt.html',
-        body: 'AES-256 encryption, hash functions (SHA/MD5), password generator, Base64, file encryption. All processing in browser - nothing uploaded.',
-        kills: ['1Password $3/mo', 'CryptoTool Pro', 'HashCalc'], price: 0, color: '#ef4444', badge: 'NEW' },
-
-      { id: 'kode', name: 'Kode', icon: '💻', desc: 'Code playground', file: 'kode.html',
-        body: 'Browser code editor with live execution. JavaScript, Python (Pyodide), HTML/CSS, JSON, Markdown. Templates, sharing, console output.',
-        kills: ['CodePen Pro $12/mo', 'JSFiddle', 'Replit'], price: 12, color: '#007acc', badge: 'NEW' },
-
-      { id: 'konvert', name: 'Konvert', icon: '🔄', desc: 'Universal converter', file: 'konvert.html',
-        body: 'Convert length, weight, temperature, area, volume, speed, time, data sizes, currency. Quick presets, history, instant results.',
-        kills: ['Unit converters', 'Google conversions'], price: 0, color: '#10b981', badge: 'NEW' },
-
-      { id: 'kards', name: 'Kards', icon: '🎴', desc: 'Flashcard study app', file: 'kards.html',
-        body: 'Spaced repetition flashcards. Create decks, study with SM-2 algorithm, track streaks. Import/export, keyboard shortcuts.',
-        kills: ['Anki $25', 'Quizlet $8/mo', 'Brainscape $10/mo'], price: 8, color: '#ec4899', badge: 'NEW' },
-
-      { id: 'kron', name: 'Kron', icon: '⏰', desc: 'Cron expression builder', file: 'kron.html',
-        body: 'Visual cron builder. Click to set minute/hour/day/month/weekday. See next 5 runs, human-readable descriptions, presets.',
-        kills: ['Crontab.guru', 'Cronitor $20/mo'], price: 0, color: '#06b6d4', badge: 'NEW' },
-
-      { id: 'kmarket', name: 'Kmarket', icon: '📊', desc: 'Market analysis tool', file: 'kmarket.html',
-        body: 'Market analysis & customer discovery. TAM/SAM/SOM sizing, lead scoring, competitor analysis, ROI calculator, outreach templates.',
-        kills: ['HubSpot $800/mo', 'Salesforce $300/mo', 'Market research $5K'], price: 800, color: '#00d4aa', badge: 'NEW' },
-
-      { id: 'kold', name: 'Kold', icon: '🧊', desc: 'AI cold outreach generator', file: 'kold.html',
-        body: 'WebLLM-powered cold outreach. Generate personalized emails, LinkedIn messages, follow-ups. Tone variations, templates, history.',
-        kills: ['Lavender $29/mo', 'Lemlist $59/mo', 'Apollo $49/mo'], price: 59, color: '#3b82f6', badge: 'NEW' },
-
-      { id: 'kualify', name: 'Kualify', icon: '🎯', desc: 'AI lead qualification', file: 'kualify.html',
-        body: 'AI-powered lead scoring with BANT analysis. Paste any lead info - LinkedIn, emails, CRM notes. Get instant qualification scores.',
-        kills: ['Clearbit $99/mo', 'ZoomInfo $250/mo', 'Lead scoring tools'], price: 99, color: '#22c55e', badge: 'NEW' },
-
-      { id: 'kloser', name: 'Kloser', icon: '🤝', desc: 'AI sales closing assistant', file: 'kloser.html',
-        body: 'Handle objections with AI. Get responses for any objection, practice with role-play simulator, closing playbook and techniques.',
-        kills: ['Gong $100/mo', 'Chorus $100/mo', 'Sales training $500'], price: 100, color: '#ef4444', badge: 'NEW' },
-
-      { id: 'kprospekt', name: 'Kprospekt', icon: '🔍', desc: 'AI prospect research', file: 'kprospekt.html',
-        body: 'Research any company with AI. Get buying triggers, pain points, talking points, fit scores. Find similar companies automatically.',
-        kills: ['LinkedIn Sales Nav $80/mo', 'Crunchbase $29/mo', 'ZoomInfo $250/mo'], price: 80, color: '#a855f7', badge: 'NEW' },
-
-      // Legacy versions (hidden from main grid but still accessible)
-      { id: 'phone', name: 'Phone', icon: '📞', desc: 'Basic phone UI', file: 'phone.html', hidden: true },
-      { id: 'phoneV2', name: 'Phone v2', icon: '📞', desc: 'FreeComm phone', file: 'phone-v2.html', hidden: true },
-      { id: 'aiCommV2', name: 'AI FreeComm v2', icon: '🤖', desc: 'AI Comm v2', file: 'ai-comm-v2.html', hidden: true },
-    ];
-
-    // =========================================================================
-    // RENDER
-    // =========================================================================
-    async function renderWidgets() {
-      const grid = document.getElementById('widgetGrid');
-      const comparison = document.getElementById('comparisonBody');
-      let totalPrice = 0;
-
-      // Try to load from embedded metadata, fall back to hardcoded
-      let WIDGETS = await loadWidgetMetadata();
-      if (!WIDGETS || WIDGETS.length === 0) {
-        WIDGETS = FALLBACK_WIDGETS;
-      }
-
-      const visibleWidgets = WIDGETS.filter(w => !w.hidden);
-      document.getElementById('widgetCount').textContent = visibleWidgets.length;
-
-      visibleWidgets.forEach(w => {
-      const style = w.color ? `border-color:${w.color};background:linear-gradient(135deg,#111,${w.color}22)` : '';
-      const btnStyle = w.color ? `background:${w.color}${w.color === '#eab308' ? ';color:#000' : ''}` : '';
-      const badgeClass = w.badge === 'NEW' ? 'new' : (w.badge === 'KUSTOM' ? 'kustom' : 'core');
-      const badge = w.badge ? `<span class="badge ${badgeClass}">${w.badge}</span>` : '';
-      const adminBtn = w.admin ? `<a href="${w.file}?admin=true" class="btn btn-secondary">Admin</a>` : `<a href="#embed-${w.id}" class="btn btn-secondary">Embed</a>`;
-
-      grid.innerHTML += `
-        <div class="card" style="${style}">
-          <div class="card-header">
-            <span class="card-icon">${w.icon}</span>
-            <div class="card-title">
-              <h3>${w.name}${badge}</h3>
-              <p>${w.desc}</p>
-            </div>
-          </div>
-          <div class="card-body">
-            <p>${w.body}</p>
-            <div class="kills">${w.kills.map(k => `<span class="kill-tag">${k}</span>`).join('')}</div>
-          </div>
-          <div class="card-footer">
-            <a href="${w.file}" class="btn btn-primary" style="${btnStyle}">Try Demo</a>
-            ${adminBtn}
-          </div>
-        </div>
-      `;
-
-      // Add to comparison table
-      if (w.price > 0) {
-        totalPrice += w.price;
-        comparison.innerHTML += `<tr><td>${w.name}</td><td><span class="price-them">$${w.price}</span></td><td>$0</td></tr>`;
-      }
-    });
-
-      // Total row
-      const yearlyTotal = totalPrice * 12;
-      comparison.innerHTML += `<tr><td><strong>Total / Year</strong></td><td><span class="price-them"><strong>$${yearlyTotal.toLocaleString()}</strong></span></td><td><strong>$0</strong></td></tr>`;
-      document.getElementById('savedValue').textContent = `$${Math.round(yearlyTotal / 1000)}K+`;
-    }
-
-    // Initialize
-    renderWidgets();
+  <script>
+    // Update widget count from manifest
+    fetch('manifest.json')
+      .then(r => r.json())
+      .then(m => {
+        document.getElementById('widgetCount').textContent = m.count + '+';
+      })
+      .catch(() => {});
   </script>
 </body>
 </html>

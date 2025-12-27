@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<!--
+SMTP Client - Email via SMTP
+Configure SMTP server and send emails directly from browser
+Supports: Direct SMTP proxy, SMTP.js, custom endpoints
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SMTP Client - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "smtp",
+    "name": "SMTP Client",
+    "category": "communication",
+    "version": "1.0.0",
+    "icon": "📤",
+    "desc": "Send emails via SMTP server",
+    "body": "Configure SMTP credentials and send emails directly. Supports SMTP.js, custom proxies, or self-hosted relays. Secure credential storage.",
+    "kills": ["SendGrid $20/mo", "Mailgun $35/mo", "AWS SES setup"],
+    "price": 0
+  }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; padding: 24px; }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    h1 { font-size: 1.75rem; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .subtitle { color: #666; margin-bottom: 24px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid #222; }
+    .tab { padding: 12px 24px; background: none; border: none; color: #666; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab:hover { color: #fff; }
+    .tab.active { color: #e94560; border-bottom-color: #e94560; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Form */
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-size: 13px; color: #888; margin-bottom: 6px; }
+    input, select, textarea { width: 100%; padding: 12px 16px; background: #111; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #e94560; }
+    textarea { min-height: 150px; resize: vertical; font-family: inherit; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .row-3 { grid-template-columns: 2fr 1fr 1fr; }
+
+    /* Cards */
+    .card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .card h3 { font-size: 1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .card p { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 12px; }
+
+    /* Provider options */
+    .providers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .provider { padding: 16px; background: #0a0a0a; border: 2px solid #222; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+    .provider:hover { border-color: #444; }
+    .provider.selected { border-color: #e94560; background: rgba(233,69,96,0.1); }
+    .provider h4 { font-size: 14px; margin-bottom: 4px; }
+    .provider p { font-size: 11px; color: #666; }
+
+    /* Buttons */
+    .btn { padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-primary { background: #e94560; color: white; }
+    .btn-secondary { background: #222; color: white; }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-row { display: flex; gap: 12px; margin-top: 24px; }
+
+    /* Status */
+    .status { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .status.success { display: block; background: rgba(34,197,94,0.1); border: 1px solid #22c55e; color: #22c55e; }
+    .status.error { display: block; background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; }
+    .status.info { display: block; background: rgba(59,130,246,0.1); border: 1px solid #3b82f6; color: #3b82f6; }
+
+    /* Log */
+    .log { background: #000; border: 1px solid #222; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
+    .log-entry { margin-bottom: 4px; }
+    .log-entry.success { color: #22c55e; }
+    .log-entry.error { color: #ef4444; }
+    .log-entry.info { color: #3b82f6; }
+
+    /* History */
+    .history-list { max-height: 300px; overflow-y: auto; }
+    .history-item { padding: 12px; background: #0a0a0a; border-radius: 8px; margin-bottom: 8px; }
+    .history-item h4 { font-size: 13px; margin-bottom: 4px; }
+    .history-item p { font-size: 11px; color: #666; }
+    .history-item .meta { display: flex; gap: 12px; margin-top: 8px; font-size: 10px; color: #444; }
+
+    /* Warning */
+    .warning { padding: 16px; background: rgba(251,191,36,0.1); border: 1px solid #fbbf24; border-radius: 8px; margin-bottom: 20px; }
+    .warning h4 { color: #fbbf24; font-size: 14px; margin-bottom: 8px; }
+    .warning p { font-size: 12px; color: #888; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📤 SMTP Client</h1>
+    <p class="subtitle">Send emails via SMTP server</p>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="compose">Compose</button>
+      <button class="tab" data-tab="config">Configuration</button>
+      <button class="tab" data-tab="history">History</button>
+      <button class="tab" data-tab="test">Test Connection</button>
+    </div>
+
+    <!-- Compose Panel -->
+    <div class="panel active" id="compose">
+      <div id="configWarning" class="warning" style="display:none">
+        <h4>⚠️ SMTP Not Configured</h4>
+        <p>Please configure your SMTP settings in the Configuration tab before sending emails.</p>
+      </div>
+
+      <div class="status" id="sendStatus"></div>
+
+      <div class="card">
+        <div class="form-group">
+          <label>To</label>
+          <input type="email" id="emailTo" placeholder="recipient@example.com">
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>From Name</label>
+            <input type="text" id="emailFromName" placeholder="Your Name">
+          </div>
+          <div class="form-group">
+            <label>From Email</label>
+            <input type="email" id="emailFrom" placeholder="you@example.com">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Subject</label>
+          <input type="text" id="emailSubject" placeholder="Email subject">
+        </div>
+
+        <div class="form-group">
+          <label>Message</label>
+          <textarea id="emailBody" placeholder="Write your message here..."></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="sendEmail()">Send Email</button>
+          <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuration Panel -->
+    <div class="panel" id="config">
+      <div class="card">
+        <h3>📡 Provider</h3>
+        <p>Choose how to send emails. Each method has different requirements.</p>
+
+        <div class="providers">
+          <div class="provider" data-provider="smtpjs" onclick="selectProvider('smtpjs')">
+            <h4>SMTP.js</h4>
+            <p>Free service, requires signup at smtpjs.com</p>
+          </div>
+          <div class="provider" data-provider="proxy" onclick="selectProvider('proxy')">
+            <h4>SMTP Proxy</h4>
+            <p>Self-hosted proxy endpoint</p>
+          </div>
+          <div class="provider" data-provider="api" onclick="selectProvider('api')">
+            <h4>REST API</h4>
+            <p>Custom email API endpoint</p>
+          </div>
+          <div class="provider" data-provider="mailto" onclick="selectProvider('mailto')">
+            <h4>Mailto (Fallback)</h4>
+            <p>Opens default email client</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SMTP.js Config -->
+      <div class="card provider-config" id="config-smtpjs" style="display:none">
+        <h3>🔑 SMTP.js Configuration</h3>
+        <p>Get your secure token from <a href="https://smtpjs.com" target="_blank" style="color:#e94560">smtpjs.com</a> (free tier available)</p>
+
+        <div class="form-group">
+          <label>Secure Token</label>
+          <input type="password" id="smtpjsToken" placeholder="Your SMTP.js secure token">
+        </div>
+      </div>
+
+      <!-- Proxy Config -->
+      <div class="card provider-config" id="config-proxy" style="display:none">
+        <h3>🔌 SMTP Proxy Configuration</h3>
+        <p>Configure connection to your SMTP proxy server</p>
+
+        <div class="form-group">
+          <label>Proxy Endpoint URL</label>
+          <input type="url" id="proxyUrl" placeholder="https://your-proxy.com/send">
+        </div>
+
+        <div class="row-3">
+          <div class="form-group">
+            <label>SMTP Host</label>
+            <input type="text" id="smtpHost" placeholder="smtp.gmail.com">
+          </div>
+          <div class="form-group">
+            <label>Port</label>
+            <input type="number" id="smtpPort" placeholder="587" value="587">
+          </div>
+          <div class="form-group">
+            <label>Security</label>
+            <select id="smtpSecurity">
+              <option value="tls">STARTTLS</option>
+              <option value="ssl">SSL/TLS</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="smtpUser" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="smtpPass" placeholder="App password">
+          </div>
+        </div>
+      </div>
+
+      <!-- API Config -->
+      <div class="card provider-config" id="config-api" style="display:none">
+        <h3>🌐 REST API Configuration</h3>
+        <p>Configure a custom email API endpoint (SendGrid, Mailgun, etc.)</p>
+
+        <div class="form-group">
+          <label>API Endpoint</label>
+          <input type="url" id="apiUrl" placeholder="https://api.sendgrid.com/v3/mail/send">
+        </div>
+
+        <div class="form-group">
+          <label>API Key / Bearer Token</label>
+          <input type="password" id="apiKey" placeholder="Your API key">
+        </div>
+
+        <div class="form-group">
+          <label>Request Headers (JSON)</label>
+          <textarea id="apiHeaders" placeholder='{"Content-Type": "application/json"}' style="min-height:80px;font-family:monospace"></textarea>
+        </div>
+      </div>
+
+      <!-- Mailto Config -->
+      <div class="card provider-config" id="config-mailto" style="display:none">
+        <h3>📧 Mailto Fallback</h3>
+        <p>This method opens your default email client. No configuration needed.</p>
+        <p style="color:#fbbf24;margin-top:12px">Note: Emails won't be sent from this widget - they'll open in your email app.</p>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+        <button class="btn btn-secondary" onclick="clearConfig()">Clear All</button>
+      </div>
+    </div>
+
+    <!-- History Panel -->
+    <div class="panel" id="history">
+      <div class="card">
+        <h3>📜 Sent Emails</h3>
+        <div class="history-list" id="historyList">
+          <p style="color:#666;font-size:13px">No emails sent yet</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="clearHistory()">Clear History</button>
+          <button class="btn btn-secondary" onclick="exportHistory()">Export CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Panel -->
+    <div class="panel" id="test">
+      <div class="card">
+        <h3>🔧 Connection Test</h3>
+        <p>Test your SMTP configuration before sending emails.</p>
+
+        <div class="btn-row" style="margin-bottom:20px">
+          <button class="btn btn-primary" onclick="testConnection()">Test Connection</button>
+          <button class="btn btn-secondary" onclick="sendTestEmail()">Send Test Email</button>
+        </div>
+
+        <div class="log" id="testLog">
+          <div class="log-entry info">Ready to test...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SMTP.js library -->
+  <script src="https://smtpjs.com/v3/smtp.js"></script>
+
+  <script>
+    // =========================================================================
+    // SMTP Client
+    // =========================================================================
+
+    let config = loadConfig();
+    let history = loadHistory();
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Load config from localStorage
+    function loadConfig() {
+      try {
+        return JSON.parse(localStorage.getItem('smtp_config')) || { provider: 'mailto' };
+      } catch {
+        return { provider: 'mailto' };
+      }
+    }
+
+    // Save config to localStorage
+    function saveConfig() {
+      const provider = document.querySelector('.provider.selected')?.dataset.provider || 'mailto';
+
+      config = {
+        provider,
+        smtpjs: {
+          token: document.getElementById('smtpjsToken').value
+        },
+        proxy: {
+          url: document.getElementById('proxyUrl').value,
+          host: document.getElementById('smtpHost').value,
+          port: document.getElementById('smtpPort').value,
+          security: document.getElementById('smtpSecurity').value,
+          user: document.getElementById('smtpUser').value,
+          pass: document.getElementById('smtpPass').value
+        },
+        api: {
+          url: document.getElementById('apiUrl').value,
+          key: document.getElementById('apiKey').value,
+          headers: document.getElementById('apiHeaders').value
+        },
+        defaults: {
+          fromName: document.getElementById('emailFromName').value,
+          fromEmail: document.getElementById('emailFrom').value
+        }
+      };
+
+      localStorage.setItem('smtp_config', JSON.stringify(config));
+      showStatus('sendStatus', 'Configuration saved!', 'success');
+      updateConfigWarning();
+    }
+
+    // Load config into form
+    function loadConfigIntoForm() {
+      if (config.provider) {
+        selectProvider(config.provider);
+      }
+      if (config.smtpjs) {
+        document.getElementById('smtpjsToken').value = config.smtpjs.token || '';
+      }
+      if (config.proxy) {
+        document.getElementById('proxyUrl').value = config.proxy.url || '';
+        document.getElementById('smtpHost').value = config.proxy.host || '';
+        document.getElementById('smtpPort').value = config.proxy.port || '587';
+        document.getElementById('smtpSecurity').value = config.proxy.security || 'tls';
+        document.getElementById('smtpUser').value = config.proxy.user || '';
+        document.getElementById('smtpPass').value = config.proxy.pass || '';
+      }
+      if (config.api) {
+        document.getElementById('apiUrl').value = config.api.url || '';
+        document.getElementById('apiKey').value = config.api.key || '';
+        document.getElementById('apiHeaders').value = config.api.headers || '';
+      }
+      if (config.defaults) {
+        document.getElementById('emailFromName').value = config.defaults.fromName || '';
+        document.getElementById('emailFrom').value = config.defaults.fromEmail || '';
+      }
+    }
+
+    // Select provider
+    function selectProvider(provider) {
+      document.querySelectorAll('.provider').forEach(p => p.classList.remove('selected'));
+      document.querySelectorAll('.provider-config').forEach(c => c.style.display = 'none');
+
+      const selected = document.querySelector(`[data-provider="${provider}"]`);
+      if (selected) selected.classList.add('selected');
+
+      const configPanel = document.getElementById(`config-${provider}`);
+      if (configPanel) configPanel.style.display = 'block';
+
+      config.provider = provider;
+    }
+
+    // Clear config
+    function clearConfig() {
+      if (confirm('Clear all SMTP configuration?')) {
+        localStorage.removeItem('smtp_config');
+        config = { provider: 'mailto' };
+        location.reload();
+      }
+    }
+
+    // Update config warning
+    function updateConfigWarning() {
+      const warning = document.getElementById('configWarning');
+      const isConfigured = config.provider && config.provider !== 'mailto';
+      warning.style.display = isConfigured ? 'none' : 'block';
+    }
+
+    // Show status message
+    function showStatus(id, message, type) {
+      const el = document.getElementById(id);
+      el.textContent = message;
+      el.className = 'status ' + type;
+      setTimeout(() => el.className = 'status', 5000);
+    }
+
+    // Send email
+    async function sendEmail() {
+      const to = document.getElementById('emailTo').value;
+      const from = document.getElementById('emailFrom').value;
+      const fromName = document.getElementById('emailFromName').value;
+      const subject = document.getElementById('emailSubject').value;
+      const body = document.getElementById('emailBody').value;
+
+      if (!to || !subject || !body) {
+        showStatus('sendStatus', 'Please fill in To, Subject, and Message fields', 'error');
+        return;
+      }
+
+      try {
+        let result;
+
+        switch (config.provider) {
+          case 'smtpjs':
+            result = await sendViaSMTPJS(to, from, fromName, subject, body);
+            break;
+          case 'proxy':
+            result = await sendViaProxy(to, from, fromName, subject, body);
+            break;
+          case 'api':
+            result = await sendViaAPI(to, from, fromName, subject, body);
+            break;
+          case 'mailto':
+          default:
+            sendViaMailto(to, subject, body);
+            result = { success: true, message: 'Opened in email client' };
+        }
+
+        if (result.success) {
+          showStatus('sendStatus', 'Email sent successfully!', 'success');
+          addToHistory({ to, from, subject, body, timestamp: new Date().toISOString(), status: 'sent' });
+          clearForm();
+        } else {
+          showStatus('sendStatus', result.message || 'Failed to send email', 'error');
+        }
+      } catch (error) {
+        showStatus('sendStatus', 'Error: ' + error.message, 'error');
+      }
+    }
+
+    // Send via SMTP.js
+    async function sendViaSMTPJS(to, from, fromName, subject, body) {
+      if (!config.smtpjs?.token) {
+        return { success: false, message: 'SMTP.js token not configured' };
+      }
+
+      try {
+        const response = await Email.send({
+          SecureToken: config.smtpjs.token,
+          To: to,
+          From: from || 'noreply@example.com',
+          Subject: subject,
+          Body: body
+        });
+
+        return { success: response === 'OK', message: response };
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
+
+    // Send via proxy
+    async function sendViaProxy(to, from, fromName, subject, body) {
+      if (!config.proxy?.url) {
+        return { success: false, message: 'Proxy URL not configured' };
+      }
+
+      try {
+        const response = await fetch(config.proxy.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            smtp: {
+              host: config.proxy.host,
+              port: parseInt(config.proxy.port),
+              secure: config.proxy.security === 'ssl',
+              auth: {
+                user: config.proxy.user,
+                pass: config.proxy.pass
+              }
+            },
+            message: {
+              from: fromName ? `${fromName} <${from}>` : from,
+              to: to,
+              subject: subject,
+              text: body
+            }
+          })
+        });
+
+        const result = await response.json();
+        return { success: response.ok, message: result.message || 'Sent' };
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
+
+    // Send via REST API
+    async function sendViaAPI(to, from, fromName, subject, body) {
+      if (!config.api?.url || !config.api?.key) {
+        return { success: false, message: 'API not configured' };
+      }
+
+      try {
+        let headers = { 'Authorization': `Bearer ${config.api.key}` };
+        if (config.api.headers) {
+          try {
+            headers = { ...headers, ...JSON.parse(config.api.headers) };
+          } catch {}
+        }
+
+        const response = await fetch(config.api.url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: to }] }],
+            from: { email: from || 'noreply@example.com', name: fromName },
+            subject: subject,
+            content: [{ type: 'text/plain', value: body }]
+          })
+        });
+
+        return { success: response.ok, message: response.ok ? 'Sent' : await response.text() };
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
+
+    // Send via mailto (fallback)
+    function sendViaMailto(to, subject, body) {
+      const mailto = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+    }
+
+    // Clear form
+    function clearForm() {
+      document.getElementById('emailTo').value = '';
+      document.getElementById('emailSubject').value = '';
+      document.getElementById('emailBody').value = '';
+    }
+
+    // History functions
+    function loadHistory() {
+      try {
+        return JSON.parse(localStorage.getItem('smtp_history')) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function addToHistory(email) {
+      history.unshift(email);
+      if (history.length > 100) history = history.slice(0, 100);
+      localStorage.setItem('smtp_history', JSON.stringify(history));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      if (history.length === 0) {
+        list.innerHTML = '<p style="color:#666;font-size:13px">No emails sent yet</p>';
+        return;
+      }
+
+      list.innerHTML = history.map(h => `
+        <div class="history-item">
+          <h4>${h.subject}</h4>
+          <p>To: ${h.to}</p>
+          <div class="meta">
+            <span>${new Date(h.timestamp).toLocaleString()}</span>
+            <span style="color:#22c55e">${h.status}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearHistory() {
+      if (confirm('Clear email history?')) {
+        history = [];
+        localStorage.removeItem('smtp_history');
+        renderHistory();
+      }
+    }
+
+    function exportHistory() {
+      const csv = 'Date,To,Subject,Status\n' + history.map(h =>
+        `"${h.timestamp}","${h.to}","${h.subject}","${h.status}"`
+      ).join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'email_history.csv';
+      a.click();
+    }
+
+    // Test functions
+    function log(message, type = 'info') {
+      const logEl = document.getElementById('testLog');
+      logEl.innerHTML += `<div class="log-entry ${type}">[${new Date().toLocaleTimeString()}] ${message}</div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function testConnection() {
+      const logEl = document.getElementById('testLog');
+      logEl.innerHTML = '';
+
+      log('Starting connection test...');
+      log(`Provider: ${config.provider}`);
+
+      switch (config.provider) {
+        case 'smtpjs':
+          log(config.smtpjs?.token ? 'SMTP.js token configured ✓' : 'SMTP.js token missing ✗', config.smtpjs?.token ? 'success' : 'error');
+          break;
+        case 'proxy':
+          log(config.proxy?.url ? `Proxy URL: ${config.proxy.url} ✓` : 'Proxy URL missing ✗', config.proxy?.url ? 'success' : 'error');
+          log(config.proxy?.host ? `SMTP Host: ${config.proxy.host}:${config.proxy.port} ✓` : 'SMTP Host missing ✗', config.proxy?.host ? 'success' : 'error');
+          break;
+        case 'api':
+          log(config.api?.url ? `API URL: ${config.api.url} ✓` : 'API URL missing ✗', config.api?.url ? 'success' : 'error');
+          log(config.api?.key ? 'API Key configured ✓' : 'API Key missing ✗', config.api?.key ? 'success' : 'error');
+          break;
+        case 'mailto':
+          log('Using mailto fallback - no server connection needed', 'info');
+          break;
+      }
+
+      log('Test complete');
+    }
+
+    async function sendTestEmail() {
+      const testEmail = prompt('Enter your email to receive a test message:');
+      if (!testEmail) return;
+
+      document.getElementById('emailTo').value = testEmail;
+      document.getElementById('emailSubject').value = 'SMTP Test - ' + new Date().toLocaleString();
+      document.getElementById('emailBody').value = 'This is a test email from KISS MySaaS SMTP Client.';
+
+      // Switch to compose tab
+      document.querySelector('[data-tab="compose"]').click();
+    }
+
+    // Initialize
+    loadConfigIntoForm();
+    updateConfigWarning();
+    renderHistory();
+  </script>
+</body>
+</html>
