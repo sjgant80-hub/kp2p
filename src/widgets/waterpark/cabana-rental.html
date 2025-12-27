@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cabana Rental - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"cabana-rental","name":"Cabana Rental","icon":"🏖️","desc":"Book waterpark cabanas","category":"waterpark","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#06b6d4;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.cabanas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.cabana{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.cabana.booked{opacity:.6}
+.cabana-banner{padding:25px;background:linear-gradient(135deg,#06b6d4 0%,#0891b2 100%);position:relative}
+.cabana-type{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.cabana-location{font-size:.875rem;opacity:.9}
+.cabana-badge{position:absolute;top:15px;right:15px;padding:5px 12px;background:rgba(0,0,0,.3);border-radius:4px;font-size:.75rem}
+.cabana-body{padding:20px}
+.cabana-features{margin-bottom:15px}
+.feature{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.875rem}
+.cabana-amenities{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.amenity{padding:4px 10px;background:#252525;border-radius:4px;font-size:.75rem}
+.cabana-footer{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+.cabana-price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.cabana-price span{font-size:.75rem;color:#888;font-weight:normal}
+.book-btn{padding:10px 20px;background:#06b6d4;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.book-btn:disabled{background:#333;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏖️ Cabana Rental</h1><button class="btn">My Reservations</button></div>
+<div class="cabanas" id="cabanas"></div>
+<script>
+const cabanas=[
+{type:'Standard Cabana',location:'Wave Pool Area',capacity:'4 guests',features:['Shaded seating','Locker','Mini fridge'],amenities:['Chairs','Table','Towels'],price:149,available:true},
+{type:'Premium Cabana',location:'Lazy River View',capacity:'6 guests',features:['Shaded lounge area','Large locker','Full fridge'],amenities:['Lounge Chairs','Table','Towels','Fan'],price:249,available:true},
+{type:'VIP Cabana',location:'Private Beach',capacity:'8 guests',features:['Private space','Dedicated server','Premium amenities'],amenities:['Daybeds','Bar','Towels','TV','Misting'],price:399,available:false,bookedBy:'Johnson Family'},
+{type:'Family Cabana',location:'Kids Cove',capacity:'6 guests',features:['Near kids area','Toddler-friendly','Shaded'],amenities:['High Chair','Toys','Towels','Fan'],price:179,available:true},
+{type:'Thrill Seekers Cabana',location:'Slide Complex',capacity:'4 guests',features:['Near big slides','Fast access','Storage'],amenities:['Chairs','Locker','Towels'],price:199,available:true}
+];
+document.getElementById('cabanas').innerHTML=cabanas.map(c=>`
+<div class="cabana${c.available?'':' booked'}">
+<div class="cabana-banner">
+<div class="cabana-type">${c.type}</div>
+<div class="cabana-location">📍 ${c.location}</div>
+<span class="cabana-badge">${c.capacity}</span>
+</div>
+<div class="cabana-body">
+<div class="cabana-features">${c.features.map(f=>`<div class="feature">✓ ${f}</div>`).join('')}</div>
+<div class="cabana-amenities">${c.amenities.map(a=>`<span class="amenity">${a}</span>`).join('')}</div>
+<div class="cabana-footer">
+<span class="cabana-price">$${c.price} <span>/day</span></span>
+<button class="book-btn"${c.available?'':" disabled"}>${c.available?'Reserve':'Booked'}</button>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

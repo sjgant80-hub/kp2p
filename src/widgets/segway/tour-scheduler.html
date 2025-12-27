@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Segway Tours - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"segway-tours","name":"Segway Tours","icon":"🛴","desc":"Book segway tours","category":"segway","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.tours{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.tour{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.tour-banner{padding:25px;background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%)}
+.tour-name{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.tour-route{font-size:.875rem;opacity:.9}
+.tour-body{padding:20px}
+.tour-details{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:15px;text-align:center}
+.detail-value{font-weight:bold;color:#6366f1}
+.detail-label{font-size:.7rem;color:#888}
+.tour-highlights{margin-bottom:15px}
+.highlight{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.875rem;color:#888}
+.tour-footer{display:flex;justify-content:space-between;align-items:center}
+.tour-price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.book-btn{padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.schedule{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-top:20px}
+.schedule h3{margin-bottom:15px}
+.time-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.time-slot{padding:12px;background:#252525;border-radius:6px;text-align:center;cursor:pointer}
+.time-slot:hover{background:#6366f133}
+.time-slot.full{opacity:.5;cursor:not-allowed}
+.slot-time{font-weight:bold}
+.slot-spots{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛴 Segway Tours</h1><button class="btn">My Tours</button></div>
+<div class="tours" id="tours"></div>
+<div class="schedule">
+<h3>🕐 Today's Downtown Tour Schedule</h3>
+<div class="time-grid" id="schedule"></div>
+</div>
+<script>
+const tours=[
+{name:'Downtown Discovery',route:'City Center Loop',duration:'2 hrs',distance:'5 mi',stops:8,highlights:['Historic landmarks','City Hall','Waterfront views','Local art district'],price:65},
+{name:'Waterfront Adventure',route:'Harbor & Beach',duration:'2.5 hrs',distance:'6 mi',stops:10,highlights:['Marina views','Lighthouse','Beach boardwalk','Seafood district'],price:79},
+{name:'Park & Nature',route:'Central Park Circuit',duration:'1.5 hrs',distance:'4 mi',stops:6,highlights:['Botanical gardens','Wildlife viewing','Hidden trails','Scenic overlooks'],price:55},
+{name:'Sunset Tour',route:'Scenic Highlights',duration:'2 hrs',distance:'5 mi',stops:5,highlights:['Golden hour views','Photo opportunities','Rooftop finish','Champagne toast'],price:89}
+];
+document.getElementById('tours').innerHTML=tours.map(t=>`
+<div class="tour">
+<div class="tour-banner"><div class="tour-name">${t.name}</div><div class="tour-route">📍 ${t.route}</div></div>
+<div class="tour-body">
+<div class="tour-details">
+<div><div class="detail-value">${t.duration}</div><div class="detail-label">Duration</div></div>
+<div><div class="detail-value">${t.distance}</div><div class="detail-label">Distance</div></div>
+<div><div class="detail-value">${t.stops}</div><div class="detail-label">Stops</div></div>
+</div>
+<div class="tour-highlights">${t.highlights.map(h=>`<div class="highlight">📍 ${h}</div>`).join('')}</div>
+<div class="tour-footer"><span class="tour-price">$${t.price}/person</span><button class="book-btn">Book</button></div>
+</div>
+</div>`).join('');
+
+const schedule=[
+{time:'9:00 AM',spots:2,total:8},
+{time:'10:30 AM',spots:0,total:8},
+{time:'12:00 PM',spots:5,total:8},
+{time:'1:30 PM',spots:3,total:8},
+{time:'3:00 PM',spots:8,total:8},
+{time:'4:30 PM',spots:6,total:8},
+{time:'6:00 PM',spots:1,total:8}
+];
+document.getElementById('schedule').innerHTML=schedule.map(s=>`
+<div class="time-slot${s.spots===0?' full':''}">
+<div class="slot-time">${s.time}</div>
+<div class="slot-spots">${s.spots===0?'Full':`${s.spots} spots`}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

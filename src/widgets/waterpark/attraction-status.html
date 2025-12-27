@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attraction Status - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"waterpark-status","name":"Attraction Status","icon":"🎢","desc":"Monitor water attractions","category":"waterpark","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.park-status{padding:10px 20px;border-radius:6px;font-weight:600;background:#22c55e33;color:#22c55e}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.attractions{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.attraction{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.attraction-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.attraction-name{font-size:1.125rem;font-weight:bold;display:flex;align-items:center;gap:8px}
+.attraction-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-open{background:#22c55e33;color:#22c55e}
+.status-closed{background:#ef444433;color:#ef4444}
+.status-maintenance{background:#f59e0b33;color:#f59e0b}
+.attraction-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem}
+.info-item{display:flex;align-items:center;gap:8px}
+.info-label{color:#888}
+.wait-time{padding:10px;background:#252525;border-radius:6px;text-align:center;margin-top:15px}
+.wait-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.wait-label{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎢 Attraction Status</h1><span class="park-status">🌊 PARK OPEN</span></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12/14</div><div class="stat-label">Attractions Open</div></div>
+<div class="stat"><div class="stat-value">4,250</div><div class="stat-label">Guests Today</div></div>
+<div class="stat"><div class="stat-value">85°F</div><div class="stat-label">Water Temp</div></div>
+<div class="stat"><div class="stat-value">92°F</div><div class="stat-label">Air Temp</div></div>
+</div>
+<div class="attractions" id="attractions"></div>
+<script>
+const attractions=[
+{name:'Tsunami Tower',icon:'🌊',status:'open',height:'65 ft',speed:'35 mph',capacity:'120/hr',wait:25},
+{name:'Thunder Rapids',icon:'🚣',status:'open',height:'N/A',speed:'Varies',capacity:'400/hr',wait:15},
+{name:'Mega Slide',icon:'🛝',status:'open',height:'85 ft',speed:'45 mph',capacity:'80/hr',wait:45},
+{name:'Wave Pool',icon:'🏊',status:'open',height:'N/A',speed:'N/A',capacity:'500',wait:0},
+{name:'Lazy River',icon:'🛟',status:'open',height:'N/A',speed:'2 mph',capacity:'300',wait:5},
+{name:'Kids Cove',icon:'👶',status:'open',height:'< 4 ft',speed:'Safe',capacity:'150',wait:0},
+{name:'Black Hole',icon:'🕳️',status:'maintenance',height:'70 ft',speed:'40 mph',capacity:'60/hr',wait:null},
+{name:'Aqua Coaster',icon:'🎢',status:'open',height:'50 ft',speed:'30 mph',capacity:'200/hr',wait:35},
+{name:'Splash Mountain',icon:'⛰️',status:'closed',height:'40 ft',speed:'25 mph',capacity:'150/hr',wait:null}
+];
+document.getElementById('attractions').innerHTML=attractions.map(a=>`
+<div class="attraction">
+<div class="attraction-header">
+<div class="attraction-name">${a.icon} ${a.name}</div>
+<span class="attraction-status status-${a.status}">${a.status.toUpperCase()}</span>
+</div>
+<div class="attraction-info">
+<div class="info-item"><span class="info-label">Height:</span>${a.height}</div>
+<div class="info-item"><span class="info-label">Speed:</span>${a.speed}</div>
+<div class="info-item"><span class="info-label">Capacity:</span>${a.capacity}</div>
+</div>
+${a.status==='open'?`<div class="wait-time"><div class="wait-value">${a.wait} min</div><div class="wait-label">Current Wait</div></div>`:''}
+</div>`).join('');
+</script>
+</body>
+</html>

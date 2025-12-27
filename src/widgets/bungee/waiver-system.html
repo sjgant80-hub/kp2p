@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Waiver System - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"bungee-waivers","name":"Bungee Waivers","icon":"📝","desc":"Manage jump waivers","category":"bungee","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#dc2626}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.queue{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.queue-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.queue-title{font-weight:bold}
+.queue-filter{display:flex;gap:10px}
+.filter-btn{padding:6px 12px;background:#333;border:none;color:#888;border-radius:4px;cursor:pointer;font-size:.875rem}
+.filter-btn.active{background:#dc2626;color:#fff}
+.waiver-list{padding:15px}
+.waiver{display:grid;grid-template-columns:1fr auto auto;gap:15px;align-items:center;padding:15px;background:#252525;border-radius:8px;margin-bottom:10px}
+.waiver:last-child{margin-bottom:0}
+.waiver-info h4{margin-bottom:5px}
+.waiver-meta{font-size:.875rem;color:#888;display:flex;gap:15px}
+.waiver-status{padding:6px 15px;border-radius:6px;font-size:.75rem;font-weight:600}
+.status-verified{background:#22c55e33;color:#22c55e}
+.status-pending{background:#f59e0b33;color:#f59e0b}
+.status-issue{background:#ef444433;color:#ef4444}
+.waiver-actions{display:flex;gap:8px}
+.action-btn{padding:8px 15px;background:#333;border:none;color:#e0e0e0;border-radius:4px;cursor:pointer;font-size:.875rem}
+.action-btn.primary{background:#dc2626}
+</style>
+</head>
+<body>
+<div class="header"><h1>📝 Waiver System</h1><button class="btn">+ New Waiver</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">28</div><div class="stat-label">Today's Jumpers</div></div>
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Verified</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">Pending</div></div>
+<div class="stat"><div class="stat-value">1</div><div class="stat-label">Issues</div></div>
+</div>
+<div class="queue">
+<div class="queue-header">
+<span class="queue-title">Today's Queue</span>
+<div class="queue-filter">
+<button class="filter-btn active">All</button>
+<button class="filter-btn">Pending</button>
+<button class="filter-btn">Issues</button>
+</div>
+</div>
+<div class="waiver-list" id="waivers"></div>
+</div>
+<script>
+const waivers=[
+{name:'Mike Thompson',jump:'Mega Drop - 400ft',time:'2:30 PM',age:24,weight:'185 lbs',status:'verified'},
+{name:'Sarah Chen',jump:'Tower Dive - 230ft',time:'2:30 PM',age:28,weight:'135 lbs',status:'verified'},
+{name:'James Wilson',jump:'Bridge Jump - 160ft',time:'3:00 PM',age:17,weight:'160 lbs',status:'pending',note:'Awaiting parent signature'},
+{name:'Emily Davis',jump:'Tower Dive - 230ft',time:'3:00 PM',age:32,weight:'145 lbs',status:'verified'},
+{name:'Robert Brown',jump:'Mega Drop - 400ft',time:'3:30 PM',age:45,weight:'275 lbs',status:'issue',note:'Exceeds weight limit'},
+{name:'Lisa Martinez',jump:'First Timer - 80ft',time:'3:30 PM',age:19,weight:'120 lbs',status:'pending',note:'ID verification needed'}
+];
+document.getElementById('waivers').innerHTML=waivers.map(w=>`
+<div class="waiver">
+<div class="waiver-info">
+<h4>${w.name}</h4>
+<div class="waiver-meta">
+<span>🎢 ${w.jump}</span>
+<span>🕐 ${w.time}</span>
+<span>👤 ${w.age} yrs, ${w.weight}</span>
+${w.note?`<span style="color:${w.status==='issue'?'#ef4444':'#f59e0b'}">⚠️ ${w.note}</span>`:''}
+</div>
+</div>
+<span class="waiver-status status-${w.status}">${w.status.toUpperCase()}</span>
+<div class="waiver-actions">
+<button class="action-btn">View</button>
+${w.status!=='verified'?`<button class="action-btn primary">${w.status==='issue'?'Resolve':'Verify'}</button>`:''}
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

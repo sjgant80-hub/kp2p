@@ -660,6 +660,26 @@ const categoryMap = {
   // Laser Tag
   'lasertag-booking': { category: 'lasertag', subcategory: 'booking', badge: 'ENT' },
   'lasertag-scores': { category: 'lasertag', subcategory: 'scoring', badge: 'ENT' },
+
+  // Zipline
+  'zipline-booking': { category: 'zipline', subcategory: 'booking', badge: 'ENT' },
+  'zipline-safety': { category: 'zipline', subcategory: 'safety', badge: 'ENT' },
+
+  // Segway
+  'segway-tours': { category: 'segway', subcategory: 'tours', badge: 'ENT' },
+  'segway-fleet': { category: 'segway', subcategory: 'fleet', badge: 'ENT' },
+
+  // Paragliding
+  'paragliding-booking': { category: 'paragliding', subcategory: 'booking', badge: 'ENT' },
+  'paragliding-weather': { category: 'paragliding', subcategory: 'weather', badge: 'ENT' },
+
+  // Bungee
+  'bungee-booking': { category: 'bungee', subcategory: 'booking', badge: 'ENT' },
+  'bungee-waivers': { category: 'bungee', subcategory: 'waivers', badge: 'ENT' },
+
+  // Waterpark
+  'waterpark-status': { category: 'waterpark', subcategory: 'status', badge: 'ENT' },
+  'cabana-rental': { category: 'waterpark', subcategory: 'rentals', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -926,7 +946,12 @@ const widgetDirs = [
   'minigolf',
   'gokart',
   'paintball',
-  'lasertag'
+  'lasertag',
+  'zipline',
+  'segway',
+  'paragliding',
+  'bungee',
+  'waterpark'
 ];
 
 // Process all widgets in all directories

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Weather Monitor - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"paragliding-weather","name":"Flight Weather","icon":"🌤️","desc":"Monitor flying conditions","category":"paragliding","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.status{padding:10px 20px;border-radius:6px;font-weight:600}
+.status-flyable{background:#22c55e33;color:#22c55e}
+.status-marginal{background:#f59e0b33;color:#f59e0b}
+.status-no-fly{background:#ef444433;color:#ef4444}
+.current{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:25px;margin-bottom:20px}
+.current-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.current-title{font-size:1.25rem;font-weight:bold}
+.current-time{color:#888}
+.conditions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:20px}
+.condition{text-align:center;padding:20px;background:#252525;border-radius:8px}
+.condition-icon{font-size:2rem;margin-bottom:10px}
+.condition-value{font-size:1.5rem;font-weight:bold;color:#0ea5e9;margin-bottom:5px}
+.condition-label{font-size:.75rem;color:#888}
+.forecast{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.forecast h3{margin-bottom:15px}
+.forecast-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px}
+.hour{padding:15px;background:#252525;border-radius:8px;text-align:center}
+.hour-time{font-size:.875rem;color:#888;margin-bottom:5px}
+.hour-icon{font-size:1.5rem;margin-bottom:5px}
+.hour-wind{font-weight:bold}
+.hour-status{width:10px;height:10px;border-radius:50%;margin:10px auto 0;display:block}
+.hour-status.good{background:#22c55e}
+.hour-status.ok{background:#f59e0b}
+.hour-status.bad{background:#ef4444}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌤️ Weather Monitor</h1><span class="status status-flyable">✓ FLYABLE</span></div>
+<div class="current">
+<div class="current-header"><span class="current-title">Current Conditions - Launch Site</span><span class="current-time">Updated 5 min ago</span></div>
+<div class="conditions">
+<div class="condition"><div class="condition-icon">💨</div><div class="condition-value">8 mph</div><div class="condition-label">Wind Speed</div></div>
+<div class="condition"><div class="condition-icon">🧭</div><div class="condition-value">NW</div><div class="condition-label">Wind Direction</div></div>
+<div class="condition"><div class="condition-icon">📊</div><div class="condition-value">12 mph</div><div class="condition-label">Gusts</div></div>
+<div class="condition"><div class="condition-icon">🌡️</div><div class="condition-value">75°F</div><div class="condition-label">Temperature</div></div>
+<div class="condition"><div class="condition-icon">☁️</div><div class="condition-value">15%</div><div class="condition-label">Cloud Cover</div></div>
+<div class="condition"><div class="condition-icon">⬆️</div><div class="condition-value">+3.2</div><div class="condition-label">Thermals (m/s)</div></div>
+</div>
+</div>
+<div class="forecast">
+<h3>📅 Today's Forecast</h3>
+<div class="forecast-grid" id="forecast"></div>
+</div>
+<script>
+const hours=[
+{time:'8 AM',icon:'🌅',wind:'5 mph',status:'good'},
+{time:'9 AM',icon:'☀️',wind:'6 mph',status:'good'},
+{time:'10 AM',icon:'☀️',wind:'8 mph',status:'good'},
+{time:'11 AM',icon:'☀️',wind:'10 mph',status:'good'},
+{time:'12 PM',icon:'⛅',wind:'12 mph',status:'ok'},
+{time:'1 PM',icon:'⛅',wind:'14 mph',status:'ok'},
+{time:'2 PM',icon:'🌤️',wind:'16 mph',status:'ok'},
+{time:'3 PM',icon:'☁️',wind:'18 mph',status:'bad'},
+{time:'4 PM',icon:'☁️',wind:'15 mph',status:'ok'},
+{time:'5 PM',icon:'🌅',wind:'10 mph',status:'good'}
+];
+document.getElementById('forecast').innerHTML=hours.map(h=>`
+<div class="hour">
+<div class="hour-time">${h.time}</div>
+<div class="hour-icon">${h.icon}</div>
+<div class="hour-wind">${h.wind}</div>
+<span class="hour-status ${h.status}"></span>
+</div>`).join('');
+</script>
+</body>
+</html>
