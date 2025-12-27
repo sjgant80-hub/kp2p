@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Food Safety - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"food-safety","name":"Food Safety","icon":"🛡️","desc":"Track HACCP compliance and safety inspections","category":"food","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.stat.danger .stat-value{color:#ef4444}
+.section{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.section h3{font-size:1rem;margin-bottom:15px;display:flex;align-items:center;gap:10px}
+.checks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.check-card{background:#252525;padding:15px;border-radius:8px;border:1px solid #333}
+.check-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.check-name{font-weight:500}
+.check-status{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.check-status.pass{background:#10b98133;color:#10b981}
+.check-status.fail{background:#ef444433;color:#ef4444}
+.check-status.pending{background:#f59e0b33;color:#f59e0b}
+.check-details{font-size:.875rem;color:#888}
+.check-time{font-size:.75rem;color:#666;margin-top:8px}
+.temp-log{display:flex;flex-direction:column;gap:10px}
+.temp-item{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#252525;border-radius:8px}
+.temp-location{font-weight:500}
+.temp-reading{font-size:1.25rem;font-weight:bold}
+.temp-reading.ok{color:#10b981}
+.temp-reading.warning{color:#f59e0b}
+.temp-reading.danger{color:#ef4444}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🛡️ Food Safety</h1>
+<button class="btn btn-primary" onclick="alert('Log inspection')">+ Log Inspection</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="complianceRate">0%</div><div class="stat-label">Compliance Rate</div></div>
+<div class="stat"><div class="stat-value" id="checksToday">0</div><div class="stat-label">Checks Today</div></div>
+<div class="stat warning"><div class="stat-value" id="pendingActions">0</div><div class="stat-label">Pending Actions</div></div>
+<div class="stat"><div class="stat-value" id="daysSinceIssue">0</div><div class="stat-label">Days Since Issue</div></div>
+</div>
+
+<div class="section">
+<h3>🌡️ Temperature Monitoring</h3>
+<div class="temp-log" id="tempLog"></div>
+</div>
+
+<div class="section">
+<h3>✅ Daily HACCP Checks</h3>
+<div class="checks-grid" id="checksGrid"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_food_safety';
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getTempClass(temp, min, max) {
+  if (temp >= min && temp <= max) return 'ok';
+  if (Math.abs(temp - min) <= 2 || Math.abs(temp - max) <= 2) return 'warning';
+  return 'danger';
+}
+
+function updateStats() {
+  const checks = data.checks || [];
+  const passed = checks.filter(c => c.status === 'pass').length;
+  const rate = checks.length > 0 ? Math.round((passed / checks.length) * 100) : 100;
+  const pending = checks.filter(c => c.status === 'pending').length;
+
+  document.getElementById('complianceRate').textContent = rate + '%';
+  document.getElementById('checksToday').textContent = checks.length;
+  document.getElementById('pendingActions').textContent = pending;
+  document.getElementById('daysSinceIssue').textContent = data.daysSinceIssue || 14;
+}
+
+function render() {
+  const tempLog = document.getElementById('tempLog');
+  const temps = data.temperatures || [];
+
+  tempLog.innerHTML = temps.map(t => {
+    const cls = getTempClass(t.current, t.min, t.max);
+    return `
+      <div class="temp-item">
+        <div>
+          <div class="temp-location">${t.location}</div>
+          <div style="font-size:.75rem;color:#888">Range: ${t.min}°C - ${t.max}°C</div>
+        </div>
+        <div class="temp-reading ${cls}">${t.current}°C</div>
+      </div>
+    `;
+  }).join('');
+
+  const checksGrid = document.getElementById('checksGrid');
+  const checks = data.checks || [];
+
+  checksGrid.innerHTML = checks.map(c => `
+    <div class="check-card">
+      <div class="check-header">
+        <span class="check-name">${c.name}</span>
+        <span class="check-status ${c.status}">${c.status}</span>
+      </div>
+      <div class="check-details">${c.details}</div>
+      <div class="check-time">Last checked: ${c.lastChecked}</div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (!data.temperatures) {
+  data = {
+    daysSinceIssue: 14,
+    temperatures: [
+      { location: 'Walk-in Cooler', current: 3.2, min: 0, max: 4 },
+      { location: 'Freezer Unit A', current: -18.5, min: -22, max: -18 },
+      { location: 'Hot Holding', current: 63.8, min: 60, max: 74 },
+      { location: 'Cold Prep Area', current: 5.1, min: 0, max: 4 }
+    ],
+    checks: [
+      { id: '1', name: 'Hand Washing Stations', status: 'pass', details: 'All stations stocked with soap and paper towels', lastChecked: '08:00 AM' },
+      { id: '2', name: 'Food Storage Labels', status: 'pass', details: 'All items properly labeled with dates', lastChecked: '08:15 AM' },
+      { id: '3', name: 'Cleaning Schedule', status: 'pending', details: 'Awaiting afternoon deep clean verification', lastChecked: 'Pending' },
+      { id: '4', name: 'Pest Control Log', status: 'pass', details: 'Monthly inspection completed, no issues', lastChecked: '07:30 AM' },
+      { id: '5', name: 'Employee Health Check', status: 'pass', details: 'All staff cleared for food handling', lastChecked: '06:00 AM' },
+      { id: '6', name: 'Equipment Calibration', status: 'pass', details: 'Thermometers calibrated and accurate', lastChecked: '06:30 AM' }
+    ]
+  };
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

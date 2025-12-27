@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Material Safety - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"material-safety","name":"Material Safety","icon":"⚠️","desc":"Manage SDS sheets and chemical hazards","category":"chemical","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:400px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.stat.danger .stat-value{color:#ef4444}
+.materials-list{display:flex;flex-direction:column;gap:15px}
+.material-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.material-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid #333}
+.material-name{font-weight:600;display:flex;align-items:center;gap:10px}
+.hazard-level{padding:4px 10px;border-radius:4px;font-size:.75rem;font-weight:500}
+.hazard-level.high{background:#ef444433;color:#ef4444}
+.hazard-level.medium{background:#f59e0b33;color:#f59e0b}
+.hazard-level.low{background:#10b98133;color:#10b981}
+.material-body{padding:20px}
+.hazard-icons{display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap}
+.hazard-icon{width:40px;height:40px;background:#252525;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;border:1px solid #333}
+.material-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;font-size:.875rem}
+.info-item span{display:block;color:#888;font-size:.75rem}
+.material-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-warning{background:#f59e0b;color:#000}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>⚠️ Material Safety</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search materials..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add material')">+ Add Material</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalMaterials">0</div><div class="stat-label">Total Materials</div></div>
+<div class="stat danger"><div class="stat-value" id="highHazard">0</div><div class="stat-label">High Hazard</div></div>
+<div class="stat warning"><div class="stat-value" id="expiringSDS">0</div><div class="stat-label">SDS Expiring</div></div>
+<div class="stat"><div class="stat-value" id="compliant">0%</div><div class="stat-label">Compliant</div></div>
+</div>
+
+<div class="materials-list" id="materialsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_material_safety';
+let materials = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const hazardIcons = {
+  flammable: '🔥',
+  corrosive: '⚗️',
+  toxic: '☠️',
+  oxidizer: '🌀',
+  compressed: '💨',
+  irritant: '⚠️',
+  environmental: '🌍',
+  health: '🏥'
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(materials));
+}
+
+function updateStats() {
+  const high = materials.filter(m => m.hazardLevel === 'high').length;
+  const expiring = materials.filter(m => {
+    const days = Math.ceil((new Date(m.sdsExpiry) - new Date()) / (1000*60*60*24));
+    return days < 90 && days >= 0;
+  }).length;
+  const compliant = materials.length > 0 ? Math.round((materials.filter(m => m.compliant).length / materials.length) * 100) : 100;
+
+  document.getElementById('totalMaterials').textContent = materials.length;
+  document.getElementById('highHazard').textContent = high;
+  document.getElementById('expiringSDS').textContent = expiring;
+  document.getElementById('compliant').textContent = compliant + '%';
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = materials.filter(m =>
+    m.name.toLowerCase().includes(search) ||
+    m.casNumber.toLowerCase().includes(search)
+  );
+
+  const list = document.getElementById('materialsList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No materials found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(m => `
+    <div class="material-card">
+      <div class="material-header">
+        <span class="material-name">⚗️ ${m.name}</span>
+        <span class="hazard-level ${m.hazardLevel}">${m.hazardLevel.toUpperCase()}</span>
+      </div>
+      <div class="material-body">
+        <div class="hazard-icons">
+          ${m.hazards.map(h => `<div class="hazard-icon" title="${h}">${hazardIcons[h] || '⚠️'}</div>`).join('')}
+        </div>
+        <div class="material-info">
+          <div class="info-item"><span>CAS Number</span><strong>${m.casNumber}</strong></div>
+          <div class="info-item"><span>Location</span><strong>${m.location}</strong></div>
+          <div class="info-item"><span>Stock</span><strong>${m.stock} ${m.unit}</strong></div>
+          <div class="info-item"><span>SDS Expires</span><strong>${new Date(m.sdsExpiry).toLocaleDateString()}</strong></div>
+        </div>
+      </div>
+      <div class="material-footer">
+        <button class="btn btn-warning" onclick="alert('View SDS')">📄 View SDS</button>
+        <button class="btn btn-secondary" onclick="alert('Emergency info')">🚨 Emergency</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (materials.length === 0) {
+  const future = d => { const x = new Date(); x.setMonth(x.getMonth() + d); return x.toISOString().split('T')[0]; };
+  materials = [
+    { id: '1', name: 'Sulfuric Acid (98%)', casNumber: '7664-93-9', hazardLevel: 'high', hazards: ['corrosive', 'toxic'], location: 'Chemical Storage A', stock: 200, unit: 'L', sdsExpiry: future(8), compliant: true },
+    { id: '2', name: 'Sodium Hydroxide', casNumber: '1310-73-2', hazardLevel: 'high', hazards: ['corrosive', 'irritant'], location: 'Chemical Storage A', stock: 150, unit: 'kg', sdsExpiry: future(14), compliant: true },
+    { id: '3', name: 'Acetone', casNumber: '67-64-1', hazardLevel: 'medium', hazards: ['flammable', 'irritant'], location: 'Solvent Cabinet', stock: 50, unit: 'L', sdsExpiry: future(2), compliant: true },
+    { id: '4', name: 'Hydrogen Peroxide (30%)', casNumber: '7722-84-1', hazardLevel: 'medium', hazards: ['oxidizer', 'corrosive'], location: 'Oxidizer Storage', stock: 25, unit: 'L', sdsExpiry: future(10), compliant: true }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

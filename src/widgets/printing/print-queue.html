@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Print Queue - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"print-queue","name":"Print Queue","icon":"🖨️","desc":"Manage commercial print job queue","category":"printing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.queue-list{display:flex;flex-direction:column;gap:10px}
+.job-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.job-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px}
+.job-id{font-family:monospace;font-weight:600;display:flex;align-items:center;gap:10px}
+.job-priority{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.job-priority.rush{background:#ef444433;color:#ef4444}
+.job-priority.high{background:#f59e0b33;color:#f59e0b}
+.job-priority.normal{background:#3b82f633;color:#3b82f6}
+.job-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.job-status.queued{background:#33333;color:#888}
+.job-status.printing{background:#10b98133;color:#10b981}
+.job-status.paused{background:#f59e0b33;color:#f59e0b}
+.job-body{padding:0 20px 20px}
+.job-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;font-size:.875rem}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.progress-section{margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.875rem}
+.progress-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:#10b981;border-radius:4px}
+.job-actions{display:flex;gap:10px;margin-top:15px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-sm{padding:6px 12px;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🖨️ Print Queue</h1>
+<button class="btn btn-primary" onclick="alert('Add job')">+ Add Job</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="queuedJobs">0</div><div class="stat-label">In Queue</div></div>
+<div class="stat"><div class="stat-value" id="printingNow">0</div><div class="stat-label">Printing</div></div>
+<div class="stat warning"><div class="stat-value" id="rushJobs">0</div><div class="stat-label">Rush Jobs</div></div>
+<div class="stat"><div class="stat-value" id="totalPages">0</div><div class="stat-label">Total Pages</div></div>
+</div>
+
+<div class="queue-list" id="queueList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_print_queue';
+let jobs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+}
+
+function updateStats() {
+  const queued = jobs.filter(j => j.status === 'queued').length;
+  const printing = jobs.filter(j => j.status === 'printing').length;
+  const rush = jobs.filter(j => j.priority === 'rush').length;
+  const totalPages = jobs.reduce((s, j) => s + (j.pages * j.copies), 0);
+
+  document.getElementById('queuedJobs').textContent = queued;
+  document.getElementById('printingNow').textContent = printing;
+  document.getElementById('rushJobs').textContent = rush;
+  document.getElementById('totalPages').textContent = totalPages.toLocaleString();
+}
+
+function render() {
+  const list = document.getElementById('queueList');
+
+  if (jobs.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No jobs in queue</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...jobs].sort((a, b) => {
+    const priorityOrder = { rush: 0, high: 1, normal: 2 };
+    if (a.status === 'printing' && b.status !== 'printing') return -1;
+    if (b.status === 'printing' && a.status !== 'printing') return 1;
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+
+  list.innerHTML = sorted.map(j => `
+    <div class="job-card">
+      <div class="job-header">
+        <div class="job-id">
+          🖨️ ${j.jobId}
+          <span class="job-priority ${j.priority}">${j.priority}</span>
+        </div>
+        <span class="job-status ${j.status}">${j.status}</span>
+      </div>
+      <div class="job-body">
+        <div class="job-details">
+          <div class="detail-item"><span>Customer</span><strong>${j.customer}</strong></div>
+          <div class="detail-item"><span>Document</span><strong>${j.document}</strong></div>
+          <div class="detail-item"><span>Pages</span><strong>${j.pages}</strong></div>
+          <div class="detail-item"><span>Copies</span><strong>${j.copies}</strong></div>
+          <div class="detail-item"><span>Paper</span><strong>${j.paper}</strong></div>
+          <div class="detail-item"><span>Color</span><strong>${j.color ? 'Color' : 'B&W'}</strong></div>
+        </div>
+        ${j.status === 'printing' ? `
+          <div class="progress-section">
+            <div class="progress-header">
+              <span>Print Progress</span>
+              <span>${j.printed}/${j.pages * j.copies} pages (${Math.round((j.printed / (j.pages * j.copies)) * 100)}%)</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${(j.printed / (j.pages * j.copies)) * 100}%"></div>
+            </div>
+          </div>
+        ` : ''}
+        <div class="job-actions">
+          ${j.status === 'queued' ? `
+            <button class="btn btn-primary btn-sm" onclick="startJob('${j.id}')">▶️ Start</button>
+            <button class="btn btn-secondary btn-sm" onclick="moveUp('${j.id}')">⬆️ Priority</button>
+          ` : ''}
+          ${j.status === 'printing' ? `
+            <button class="btn btn-secondary btn-sm" onclick="pauseJob('${j.id}')">⏸️ Pause</button>
+          ` : ''}
+          ${j.status === 'paused' ? `
+            <button class="btn btn-primary btn-sm" onclick="resumeJob('${j.id}')">▶️ Resume</button>
+          ` : ''}
+          <button class="btn btn-danger btn-sm" onclick="cancelJob('${j.id}')">✕ Cancel</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function startJob(id) {
+  const j = jobs.find(x => x.id === id);
+  if (j) { j.status = 'printing'; j.printed = 0; save(); render(); }
+}
+
+function pauseJob(id) {
+  const j = jobs.find(x => x.id === id);
+  if (j) { j.status = 'paused'; save(); render(); }
+}
+
+function resumeJob(id) {
+  const j = jobs.find(x => x.id === id);
+  if (j) { j.status = 'printing'; save(); render(); }
+}
+
+function cancelJob(id) {
+  if (confirm('Cancel this print job?')) {
+    jobs = jobs.filter(j => j.id !== id);
+    save();
+    render();
+  }
+}
+
+function moveUp(id) {
+  const j = jobs.find(x => x.id === id);
+  if (j && j.priority === 'normal') j.priority = 'high';
+  else if (j && j.priority === 'high') j.priority = 'rush';
+  save();
+  render();
+}
+
+if (jobs.length === 0) {
+  jobs = [
+    { id: '1', jobId: 'PRN-4521', customer: 'Marketing Dept', document: 'Q4 Sales Report.pdf', pages: 48, copies: 50, paper: 'Letter Gloss', color: true, priority: 'rush', status: 'printing', printed: 1200 },
+    { id: '2', jobId: 'PRN-4522', customer: 'Legal Team', document: 'Contract_v3.pdf', pages: 24, copies: 10, paper: 'Legal', color: false, priority: 'high', status: 'queued', printed: 0 },
+    { id: '3', jobId: 'PRN-4523', customer: 'HR Department', document: 'Employee Handbook 2024.pdf', pages: 86, copies: 200, paper: 'Letter', color: true, priority: 'normal', status: 'queued', printed: 0 },
+    { id: '4', jobId: 'PRN-4524', customer: 'Events Team', document: 'Conference Brochure.pdf', pages: 8, copies: 500, paper: 'A4 Matte', color: true, priority: 'high', status: 'queued', printed: 0 }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

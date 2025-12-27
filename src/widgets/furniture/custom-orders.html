@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Custom Orders - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"custom-orders","name":"Custom Orders","icon":"🛠️","desc":"Manage custom furniture orders","category":"furniture","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.orders-list{display:flex;flex-direction:column;gap:15px}
+.order-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.order-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.order-id{font-family:monospace;font-weight:600}
+.order-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.order-status.design{background:#8b5cf633;color:#8b5cf6}
+.order-status.materials{background:#f59e0b33;color:#f59e0b}
+.order-status.production{background:#3b82f633;color:#3b82f6}
+.order-status.finishing{background:#ec489933;color:#ec4899}
+.order-status.delivery{background:#10b98133;color:#10b981}
+.order-body{padding:20px}
+.customer-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px}
+.customer-info h4{font-weight:500;margin-bottom:5px}
+.customer-info span{font-size:.875rem;color:#888}
+.order-total{text-align:right}
+.order-total strong{font-size:1.25rem;color:#10b981}
+.item-card{background:#252525;border-radius:8px;padding:15px;margin-bottom:10px}
+.item-header{display:flex;justify-content:space-between;margin-bottom:10px}
+.item-name{font-weight:500}
+.item-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;font-size:.875rem}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.timeline{display:flex;gap:5px;margin-top:15px}
+.timeline-dot{flex:1;height:4px;border-radius:2px;background:#333}
+.timeline-dot.completed{background:#10b981}
+.timeline-dot.active{background:#3b82f6}
+.order-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🛠️ Custom Orders</h1>
+<button class="btn btn-primary" onclick="alert('New order')">+ New Order</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeOrders">0</div><div class="stat-label">Active Orders</div></div>
+<div class="stat"><div class="stat-value" id="inProduction">0</div><div class="stat-label">In Production</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Order Value</div></div>
+<div class="stat"><div class="stat-value" id="avgLeadTime">0</div><div class="stat-label">Avg Lead (weeks)</div></div>
+</div>
+
+<div class="orders-list" id="ordersList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_custom_orders';
+let orders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const stages = ['design', 'materials', 'production', 'finishing', 'delivery'];
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+}
+
+function getStageIndex(status) {
+  return stages.indexOf(status);
+}
+
+function updateStats() {
+  const active = orders.filter(o => o.status !== 'delivery').length;
+  const inProd = orders.filter(o => o.status === 'production').length;
+  const totalValue = orders.filter(o => o.status !== 'delivery').reduce((s, o) => s + o.total, 0);
+  const avgLead = orders.length > 0 ? Math.round(orders.reduce((s, o) => s + o.leadWeeks, 0) / orders.length) : 0;
+
+  document.getElementById('activeOrders').textContent = active;
+  document.getElementById('inProduction').textContent = inProd;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+  document.getElementById('avgLeadTime').textContent = avgLead;
+}
+
+function render() {
+  const list = document.getElementById('ordersList');
+
+  if (orders.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No custom orders</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = orders.map(o => {
+    const currentStage = getStageIndex(o.status);
+
+    return `
+      <div class="order-card">
+        <div class="order-header">
+          <span class="order-id">🛠️ ${o.orderId}</span>
+          <span class="order-status ${o.status}">${o.status}</span>
+        </div>
+        <div class="order-body">
+          <div class="customer-row">
+            <div class="customer-info">
+              <h4>${o.customer}</h4>
+              <span>Due: ${new Date(o.dueDate).toLocaleDateString()}</span>
+            </div>
+            <div class="order-total">
+              <div style="font-size:.75rem;color:#888">Order Total</div>
+              <strong>$${o.total.toLocaleString()}</strong>
+            </div>
+          </div>
+          ${o.items.map(i => `
+            <div class="item-card">
+              <div class="item-header">
+                <span class="item-name">${i.name}</span>
+                <span style="color:#888">Qty: ${i.qty}</span>
+              </div>
+              <div class="item-details">
+                <div class="detail-item"><span>Material</span><strong>${i.material}</strong></div>
+                <div class="detail-item"><span>Finish</span><strong>${i.finish}</strong></div>
+                <div class="detail-item"><span>Dimensions</span><strong>${i.dimensions}</strong></div>
+              </div>
+            </div>
+          `).join('')}
+          <div class="timeline">
+            ${stages.map((s, idx) => `
+              <div class="timeline-dot ${idx < currentStage ? 'completed' : idx === currentStage ? 'active' : ''}"></div>
+            `).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:.7rem;color:#666">
+            ${stages.map(s => `<span>${s}</span>`).join('')}
+          </div>
+        </div>
+        <div class="order-footer">
+          <button class="btn btn-primary" onclick="advanceOrder('${o.id}')">⏭️ Advance</button>
+          <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function advanceOrder(id) {
+  const o = orders.find(x => x.id === id);
+  if (o) {
+    const idx = getStageIndex(o.status);
+    if (idx < stages.length - 1) {
+      o.status = stages[idx + 1];
+      save();
+      render();
+    }
+  }
+}
+
+if (orders.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  orders = [
+    { id: '1', orderId: 'CUS-2024-0156', customer: 'Smith Residence', status: 'production', dueDate: future(21), leadWeeks: 6, total: 18500, items: [{name:'Custom Dining Table',qty:1,material:'Live Edge Walnut',finish:'Natural Oil',dimensions:'96x42x30"'},{name:'Matching Bench',qty:2,material:'Walnut',finish:'Natural Oil',dimensions:'60x14x18"'}] },
+    { id: '2', orderId: 'CUS-2024-0157', customer: 'Corporate HQ - TechCorp', status: 'materials', dueDate: future(35), leadWeeks: 8, total: 45000, items: [{name:'Executive Desk',qty:4,material:'White Oak',finish:'Matte Lacquer',dimensions:'72x36x30"'},{name:'Credenza',qty:4,material:'White Oak',finish:'Matte Lacquer',dimensions:'72x18x30"'}] },
+    { id: '3', orderId: 'CUS-2024-0155', customer: 'Mountain View Hotel', status: 'finishing', dueDate: future(7), leadWeeks: 10, total: 82000, items: [{name:'Lobby Console Table',qty:2,material:'Reclaimed Timber',finish:'Hand-Rubbed Wax',dimensions:'84x18x32"'},{name:'Accent Chair',qty:8,material:'Maple/Leather',finish:'Natural',dimensions:'28x30x34"'}] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

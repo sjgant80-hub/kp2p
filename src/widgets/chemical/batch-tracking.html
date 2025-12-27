@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Batch Tracking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"batch-tracking","name":"Batch Tracking","icon":"🧪","desc":"Track chemical batch production and QC","category":"chemical","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.batches-list{display:flex;flex-direction:column;gap:15px}
+.batch-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.batch-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.batch-id{font-family:monospace;font-weight:600}
+.batch-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.batch-status.in-progress{background:#3b82f633;color:#3b82f6}
+.batch-status.qc-pending{background:#f59e0b33;color:#f59e0b}
+.batch-status.approved{background:#10b98133;color:#10b981}
+.batch-status.rejected{background:#ef444433;color:#ef4444}
+.batch-body{padding:20px}
+.batch-product{font-size:1.125rem;font-weight:500;margin-bottom:10px}
+.batch-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:15px}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.progress-section{padding-top:15px;border-top:1px solid #333}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.875rem}
+.progress-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#10b981,#3b82f6);border-radius:4px}
+.batch-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🧪 Batch Tracking</h1>
+<button class="btn btn-primary" onclick="alert('Start batch')">+ New Batch</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeBatches">0</div><div class="stat-label">Active Batches</div></div>
+<div class="stat"><div class="stat-value" id="pendingQC">0</div><div class="stat-label">Pending QC</div></div>
+<div class="stat"><div class="stat-value" id="totalVolume">0</div><div class="stat-label">Total Volume (L)</div></div>
+<div class="stat"><div class="stat-value" id="yieldRate">0%</div><div class="stat-label">Avg Yield Rate</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-status="all">All</div>
+<div class="tab" data-status="in-progress">In Progress</div>
+<div class="tab" data-status="qc-pending">QC Pending</div>
+<div class="tab" data-status="approved">Approved</div>
+</div>
+
+<div class="batches-list" id="batchesList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_batch_tracking';
+let batches = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(batches));
+}
+
+function updateStats() {
+  const active = batches.filter(b => b.status === 'in-progress').length;
+  const pending = batches.filter(b => b.status === 'qc-pending').length;
+  const totalVol = batches.reduce((s, b) => s + b.actualVolume, 0);
+  const yields = batches.filter(b => b.yieldRate > 0);
+  const avgYield = yields.length > 0 ? Math.round(yields.reduce((s, b) => s + b.yieldRate, 0) / yields.length) : 0;
+
+  document.getElementById('activeBatches').textContent = active;
+  document.getElementById('pendingQC').textContent = pending;
+  document.getElementById('totalVolume').textContent = totalVol.toLocaleString();
+  document.getElementById('yieldRate').textContent = avgYield + '%';
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? batches : batches.filter(b => b.status === currentFilter);
+  const list = document.getElementById('batchesList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No batches found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(b => {
+    const pct = Math.round((b.currentStep / b.totalSteps) * 100);
+    return `
+      <div class="batch-card">
+        <div class="batch-header">
+          <span class="batch-id">${b.batchId}</span>
+          <span class="batch-status ${b.status}">${b.status.replace('-', ' ')}</span>
+        </div>
+        <div class="batch-body">
+          <div class="batch-product">${b.product}</div>
+          <div class="batch-details">
+            <div class="detail-item"><span>Target Volume</span><strong>${b.targetVolume.toLocaleString()} L</strong></div>
+            <div class="detail-item"><span>Actual Volume</span><strong>${b.actualVolume.toLocaleString()} L</strong></div>
+            <div class="detail-item"><span>Started</span><strong>${new Date(b.startedAt).toLocaleDateString()}</strong></div>
+            <div class="detail-item"><span>Yield Rate</span><strong>${b.yieldRate}%</strong></div>
+          </div>
+          ${b.status === 'in-progress' ? `
+            <div class="progress-section">
+              <div class="progress-header">
+                <span>Production Progress</span>
+                <span>Step ${b.currentStep}/${b.totalSteps} (${pct}%)</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:${pct}%"></div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+        <div class="batch-footer">
+          <button class="btn btn-primary" onclick="alert('View details')">📊 Details</button>
+          ${b.status === 'qc-pending' ? `<button class="btn btn-secondary" onclick="alert('QC Results')">🔬 QC Results</button>` : ''}
+          ${b.status === 'in-progress' ? `<button class="btn btn-secondary" onclick="alert('Update step')">⏭️ Next Step</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.status;
+    render();
+  });
+});
+
+if (batches.length === 0) {
+  batches = [
+    { id: '1', batchId: 'BCH-2024-0142', product: 'Industrial Solvent Grade A', status: 'in-progress', targetVolume: 5000, actualVolume: 3200, currentStep: 4, totalSteps: 6, yieldRate: 0, startedAt: new Date(Date.now() - 24*60*60*1000).toISOString() },
+    { id: '2', batchId: 'BCH-2024-0141', product: 'Polyurethane Catalyst', status: 'qc-pending', targetVolume: 2000, actualVolume: 1920, currentStep: 6, totalSteps: 6, yieldRate: 96, startedAt: new Date(Date.now() - 3*24*60*60*1000).toISOString() },
+    { id: '3', batchId: 'BCH-2024-0140', product: 'Cleaning Agent Formula B', status: 'approved', targetVolume: 10000, actualVolume: 9750, currentStep: 6, totalSteps: 6, yieldRate: 97.5, startedAt: new Date(Date.now() - 5*24*60*60*1000).toISOString() },
+    { id: '4', batchId: 'BCH-2024-0139', product: 'Adhesive Resin', status: 'in-progress', targetVolume: 3000, actualVolume: 1500, currentStep: 3, totalSteps: 5, yieldRate: 0, startedAt: new Date(Date.now() - 12*60*60*1000).toISOString() }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fabric Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fabric-inventory","name":"Fabric Inventory","icon":"🧵","desc":"Manage fabric stock and specifications","category":"textile","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:400px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.fabrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.fabric-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.fabric-swatch{height:80px;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.fabric-body{padding:20px}
+.fabric-name{font-size:1.125rem;font-weight:500;margin-bottom:5px}
+.fabric-sku{font-family:monospace;font-size:.75rem;color:#888;margin-bottom:15px}
+.fabric-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem;margin-bottom:15px}
+.spec-item span{display:block;color:#888;font-size:.75rem}
+.stock-bar{margin-top:15px}
+.stock-header{display:flex;justify-content:space-between;margin-bottom:5px;font-size:.75rem;color:#888}
+.stock-track{height:6px;background:#333;border-radius:3px;overflow:hidden}
+.stock-fill{height:100%;border-radius:3px}
+.stock-fill.good{background:#10b981}
+.stock-fill.low{background:#f59e0b}
+.stock-fill.critical{background:#ef4444}
+.fabric-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🧵 Fabric Inventory</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search fabrics..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add fabric')">+ Add Fabric</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalFabrics">0</div><div class="stat-label">Total SKUs</div></div>
+<div class="stat"><div class="stat-value" id="totalYards">0</div><div class="stat-label">Total Yards</div></div>
+<div class="stat warning"><div class="stat-value" id="lowStock">0</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Inventory Value</div></div>
+</div>
+
+<div class="fabrics-grid" id="fabricsGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_fabric_inventory';
+let fabrics = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(fabrics));
+}
+
+function getStockClass(current, min) {
+  const pct = (current / min) * 100;
+  if (pct <= 50) return 'critical';
+  if (pct <= 100) return 'low';
+  return 'good';
+}
+
+function updateStats() {
+  const totalYards = fabrics.reduce((s, f) => s + f.yards, 0);
+  const lowStock = fabrics.filter(f => f.yards <= f.minStock).length;
+  const totalValue = fabrics.reduce((s, f) => s + (f.yards * f.pricePerYard), 0);
+
+  document.getElementById('totalFabrics').textContent = fabrics.length;
+  document.getElementById('totalYards').textContent = totalYards.toLocaleString();
+  document.getElementById('lowStock').textContent = lowStock;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = fabrics.filter(f =>
+    f.name.toLowerCase().includes(search) ||
+    f.sku.toLowerCase().includes(search) ||
+    f.composition.toLowerCase().includes(search)
+  );
+
+  const grid = document.getElementById('fabricsGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No fabrics found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(f => {
+    const stockPct = Math.min(100, (f.yards / (f.minStock * 2)) * 100);
+    const stockClass = getStockClass(f.yards, f.minStock);
+
+    return `
+      <div class="fabric-card">
+        <div class="fabric-swatch" style="background:${f.swatchColor || '#252525'}">${f.pattern || '🧵'}</div>
+        <div class="fabric-body">
+          <div class="fabric-name">${f.name}</div>
+          <div class="fabric-sku">${f.sku}</div>
+          <div class="fabric-specs">
+            <div class="spec-item"><span>Composition</span><strong>${f.composition}</strong></div>
+            <div class="spec-item"><span>Width</span><strong>${f.width}"</strong></div>
+            <div class="spec-item"><span>Weight</span><strong>${f.weight} oz/yd²</strong></div>
+            <div class="spec-item"><span>Price</span><strong>$${f.pricePerYard}/yd</strong></div>
+          </div>
+          <div class="stock-bar">
+            <div class="stock-header">
+              <span>Stock Level</span>
+              <span>${f.yards} yards (min: ${f.minStock})</span>
+            </div>
+            <div class="stock-track">
+              <div class="stock-fill ${stockClass}" style="width:${stockPct}%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="fabric-footer">
+          <button class="btn btn-primary" onclick="alert('Order fabric')">📦 Reorder</button>
+          <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+if (fabrics.length === 0) {
+  fabrics = [
+    { id: '1', sku: 'FAB-COT-001', name: 'Premium Cotton Twill', composition: '100% Cotton', width: 58, weight: 7.5, yards: 450, minStock: 200, pricePerYard: 8.50, swatchColor: '#d4b896', pattern: '' },
+    { id: '2', sku: 'FAB-POLY-015', name: 'Performance Polyester', composition: '100% Polyester', width: 60, weight: 4.2, yards: 85, minStock: 150, pricePerYard: 6.25, swatchColor: '#1e3a5f', pattern: '' },
+    { id: '3', sku: 'FAB-DENIM-008', name: 'Indigo Selvedge Denim', composition: '99% Cotton, 1% Elastane', width: 32, weight: 12.5, yards: 320, minStock: 100, pricePerYard: 18.00, swatchColor: '#1a237e', pattern: '' },
+    { id: '4', sku: 'FAB-LINEN-003', name: 'European Linen', composition: '100% Linen', width: 54, weight: 5.8, yards: 180, minStock: 100, pricePerYard: 22.50, swatchColor: '#f5f5dc', pattern: '' },
+    { id: '5', sku: 'FAB-SILK-021', name: 'Charmeuse Silk', composition: '100% Silk', width: 45, weight: 2.5, yards: 65, minStock: 50, pricePerYard: 45.00, swatchColor: '#c41e3a', pattern: '' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

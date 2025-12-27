@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design Catalog - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"design-catalog","name":"Design Catalog","icon":"🪑","desc":"Browse furniture designs and specifications","category":"furniture","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:400px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888;font-size:.875rem}
+.filter.active{background:#10b981;color:#fff;border-color:#10b981}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.design-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.design-preview{height:160px;background:#252525;display:flex;align-items:center;justify-content:center;font-size:4rem}
+.design-body{padding:20px}
+.design-name{font-size:1.125rem;font-weight:500;margin-bottom:5px}
+.design-sku{font-family:monospace;font-size:.75rem;color:#888;margin-bottom:15px}
+.design-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem;margin-bottom:15px}
+.spec-item span{display:block;color:#888;font-size:.75rem}
+.design-price{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+.price-value{font-size:1.25rem;font-weight:bold;color:#10b981}
+.category-badge{padding:4px 8px;border-radius:4px;font-size:.75rem;background:#3b82f633;color:#3b82f6}
+.design-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🪑 Design Catalog</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search designs..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add design')">+ Add Design</button>
+</div>
+
+<div class="filters">
+<div class="filter active" data-category="all">All</div>
+<div class="filter" data-category="seating">Seating</div>
+<div class="filter" data-category="tables">Tables</div>
+<div class="filter" data-category="storage">Storage</div>
+<div class="filter" data-category="bedroom">Bedroom</div>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalDesigns">0</div><div class="stat-label">Total Designs</div></div>
+<div class="stat"><div class="stat-value" id="activeDesigns">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value" id="materials">0</div><div class="stat-label">Materials Used</div></div>
+<div class="stat"><div class="stat-value" id="avgPrice">$0</div><div class="stat-label">Avg Price</div></div>
+</div>
+
+<div class="catalog-grid" id="catalogGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_furniture_catalog';
+let designs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentCategory = 'all';
+
+const icons = { seating: '🪑', tables: '🪵', storage: '🗄️', bedroom: '🛏️' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(designs));
+}
+
+function updateStats() {
+  const active = designs.filter(d => d.status === 'active').length;
+  const materials = [...new Set(designs.map(d => d.material))].length;
+  const avgPrice = designs.length > 0 ? Math.round(designs.reduce((s, d) => s + d.price, 0) / designs.length) : 0;
+
+  document.getElementById('totalDesigns').textContent = designs.length;
+  document.getElementById('activeDesigns').textContent = active;
+  document.getElementById('materials').textContent = materials;
+  document.getElementById('avgPrice').textContent = '$' + avgPrice.toLocaleString();
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = designs.filter(d =>
+    d.name.toLowerCase().includes(search) ||
+    d.sku.toLowerCase().includes(search)
+  );
+
+  if (currentCategory !== 'all') {
+    filtered = filtered.filter(d => d.category === currentCategory);
+  }
+
+  const grid = document.getElementById('catalogGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No designs found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(d => `
+    <div class="design-card">
+      <div class="design-preview">${icons[d.category] || '🪑'}</div>
+      <div class="design-body">
+        <div class="design-name">${d.name}</div>
+        <div class="design-sku">${d.sku}</div>
+        <div class="design-specs">
+          <div class="spec-item"><span>Material</span><strong>${d.material}</strong></div>
+          <div class="spec-item"><span>Dimensions</span><strong>${d.dimensions}</strong></div>
+          <div class="spec-item"><span>Weight</span><strong>${d.weight} lbs</strong></div>
+          <div class="spec-item"><span>Lead Time</span><strong>${d.leadTime} weeks</strong></div>
+        </div>
+        <div class="design-price">
+          <span class="category-badge">${d.category}</span>
+          <span class="price-value">$${d.price.toLocaleString()}</span>
+        </div>
+      </div>
+      <div class="design-footer">
+        <button class="btn btn-primary" onclick="alert('View specs')">📐 Specs</button>
+        <button class="btn btn-secondary" onclick="alert('Create order')">📦 Order</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+document.querySelectorAll('.filter').forEach(f => {
+  f.addEventListener('click', () => {
+    document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
+    f.classList.add('active');
+    currentCategory = f.dataset.category;
+    render();
+  });
+});
+
+if (designs.length === 0) {
+  designs = [
+    { id: '1', sku: 'FRN-CHR-001', name: 'Executive Office Chair', category: 'seating', material: 'Leather/Steel', dimensions: '26x26x48"', weight: 45, price: 850, leadTime: 2, status: 'active' },
+    { id: '2', sku: 'FRN-TBL-015', name: 'Conference Table (12-seat)', category: 'tables', material: 'Walnut/Steel', dimensions: '144x48x30"', weight: 320, price: 4500, leadTime: 6, status: 'active' },
+    { id: '3', sku: 'FRN-STR-008', name: 'Modular Bookcase System', category: 'storage', material: 'Oak Veneer', dimensions: '36x12x72"', weight: 85, price: 1200, leadTime: 3, status: 'active' },
+    { id: '4', sku: 'FRN-BED-003', name: 'Platform Bed Frame (King)', category: 'bedroom', material: 'Maple/Steel', dimensions: '80x76x14"', weight: 180, price: 2200, leadTime: 4, status: 'active' },
+    { id: '5', sku: 'FRN-CHR-022', name: 'Ergonomic Task Chair', category: 'seating', material: 'Mesh/Aluminum', dimensions: '24x24x42"', weight: 35, price: 650, leadTime: 1, status: 'active' },
+    { id: '6', sku: 'FRN-TBL-028', name: 'Standing Desk', category: 'tables', material: 'Bamboo/Steel', dimensions: '60x30x50"', weight: 95, price: 1100, leadTime: 2, status: 'active' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

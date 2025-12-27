@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Job Estimator - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"job-estimator","name":"Job Estimator","icon":"📊","desc":"Calculate print job costs and quotes","category":"printing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.container{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:768px){.container{grid-template-columns:1fr}}
+.panel{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.panel h2{font-size:1rem;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.checkbox-group{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.checkbox-group input{width:auto}
+.estimate-summary{margin-top:20px;padding-top:20px;border-top:1px solid #333}
+.summary-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #252525}
+.summary-row.total{border-top:2px solid #333;border-bottom:none;font-size:1.25rem;font-weight:bold;padding-top:15px}
+.summary-row.total .value{color:#10b981}
+.btn{padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;width:100%;margin-top:15px}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.saved-quotes{margin-top:20px}
+.quote-card{background:#252525;padding:15px;border-radius:8px;margin-bottom:10px}
+.quote-header{display:flex;justify-content:space-between;margin-bottom:10px}
+.quote-id{font-family:monospace;font-weight:600}
+.quote-total{color:#10b981;font-weight:bold}
+.quote-details{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📊 Job Estimator</h1>
+</div>
+
+<div class="container">
+<div class="panel">
+<h2>🖨️ Job Specifications</h2>
+<div class="form-group">
+<label>Customer Name</label>
+<input type="text" id="customerName" placeholder="Enter customer name">
+</div>
+<div class="form-group">
+<label>Job Description</label>
+<input type="text" id="jobDesc" placeholder="e.g., Annual Report, Brochures">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Number of Pages</label>
+<input type="number" id="pages" min="1" value="1" oninput="calculate()">
+</div>
+<div class="form-group">
+<label>Number of Copies</label>
+<input type="number" id="copies" min="1" value="100" oninput="calculate()">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Paper Size</label>
+<select id="paperSize" onchange="calculate()">
+<option value="letter">Letter (8.5x11)</option>
+<option value="legal">Legal (8.5x14)</option>
+<option value="tabloid">Tabloid (11x17)</option>
+<option value="a4">A4</option>
+<option value="a3">A3</option>
+</select>
+</div>
+<div class="form-group">
+<label>Paper Type</label>
+<select id="paperType" onchange="calculate()">
+<option value="standard">Standard (20lb)</option>
+<option value="premium">Premium (24lb)</option>
+<option value="cardstock">Cardstock (80lb)</option>
+<option value="gloss">Gloss Coated</option>
+<option value="matte">Matte Coated</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Print Options</label>
+<div class="checkbox-group">
+<input type="checkbox" id="color" onchange="calculate()">
+<label for="color">Color Printing (+$0.08/page)</label>
+</div>
+<div class="checkbox-group">
+<input type="checkbox" id="duplex" onchange="calculate()">
+<label for="duplex">Double-Sided (-10%)</label>
+</div>
+<div class="checkbox-group">
+<input type="checkbox" id="bleed" onchange="calculate()">
+<label for="bleed">Full Bleed (+$0.02/page)</label>
+</div>
+</div>
+<div class="form-group">
+<label>Finishing</label>
+<select id="finishing" onchange="calculate()">
+<option value="none">None</option>
+<option value="staple">Stapled (+$0.05/set)</option>
+<option value="spiral">Spiral Bound (+$2.50/set)</option>
+<option value="perfect">Perfect Bound (+$5.00/set)</option>
+<option value="saddle">Saddle Stitch (+$1.00/set)</option>
+</select>
+</div>
+</div>
+
+<div class="panel">
+<h2>💰 Estimate</h2>
+<div class="estimate-summary">
+<div class="summary-row"><span>Base Print Cost</span><span class="value" id="baseCost">$0.00</span></div>
+<div class="summary-row"><span>Paper Upgrade</span><span class="value" id="paperCost">$0.00</span></div>
+<div class="summary-row"><span>Color Printing</span><span class="value" id="colorCost">$0.00</span></div>
+<div class="summary-row"><span>Finishing</span><span class="value" id="finishingCost">$0.00</span></div>
+<div class="summary-row"><span>Duplex Discount</span><span class="value" id="duplexDiscount">-$0.00</span></div>
+<div class="summary-row total"><span>Total Estimate</span><span class="value" id="totalCost">$0.00</span></div>
+<div style="font-size:.75rem;color:#888;margin-top:10px">Cost per copy: <span id="perCopy">$0.00</span></div>
+</div>
+<button class="btn btn-primary" onclick="saveQuote()">💾 Save Quote</button>
+<button class="btn btn-secondary" onclick="printQuote()">🖨️ Print Quote</button>
+
+<div class="saved-quotes" id="savedQuotes"></div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_print_quotes';
+let quotes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const pricing = {
+  base: 0.03,
+  paper: { standard: 0, premium: 0.02, cardstock: 0.05, gloss: 0.04, matte: 0.03 },
+  size: { letter: 1, legal: 1.2, tabloid: 1.8, a4: 1, a3: 1.7 },
+  color: 0.08,
+  bleed: 0.02,
+  finishing: { none: 0, staple: 0.05, spiral: 2.50, perfect: 5.00, saddle: 1.00 }
+};
+
+function calculate() {
+  const pages = parseInt(document.getElementById('pages').value) || 1;
+  const copies = parseInt(document.getElementById('copies').value) || 1;
+  const paperSize = document.getElementById('paperSize').value;
+  const paperType = document.getElementById('paperType').value;
+  const isColor = document.getElementById('color').checked;
+  const isDuplex = document.getElementById('duplex').checked;
+  const hasBleed = document.getElementById('bleed').checked;
+  const finishing = document.getElementById('finishing').value;
+
+  const totalPages = pages * copies;
+  const sizeMultiplier = pricing.size[paperSize];
+
+  let baseCost = totalPages * pricing.base * sizeMultiplier;
+  let paperCost = totalPages * pricing.paper[paperType];
+  let colorCost = isColor ? totalPages * pricing.color : 0;
+  let bleedCost = hasBleed ? totalPages * pricing.bleed : 0;
+  let finishingCost = copies * pricing.finishing[finishing];
+
+  let subtotal = baseCost + paperCost + colorCost + bleedCost + finishingCost;
+  let duplexDiscount = isDuplex ? subtotal * 0.10 : 0;
+  let total = subtotal - duplexDiscount;
+
+  document.getElementById('baseCost').textContent = '$' + baseCost.toFixed(2);
+  document.getElementById('paperCost').textContent = '$' + paperCost.toFixed(2);
+  document.getElementById('colorCost').textContent = '$' + (colorCost + bleedCost).toFixed(2);
+  document.getElementById('finishingCost').textContent = '$' + finishingCost.toFixed(2);
+  document.getElementById('duplexDiscount').textContent = '-$' + duplexDiscount.toFixed(2);
+  document.getElementById('totalCost').textContent = '$' + total.toFixed(2);
+  document.getElementById('perCopy').textContent = '$' + (total / copies).toFixed(2);
+
+  return total;
+}
+
+function saveQuote() {
+  const customer = document.getElementById('customerName').value || 'Unknown Customer';
+  const desc = document.getElementById('jobDesc').value || 'Print Job';
+  const total = calculate();
+
+  quotes.unshift({
+    id: 'QTE-' + Date.now().toString(36).toUpperCase(),
+    customer,
+    description: desc,
+    total,
+    createdAt: new Date().toISOString()
+  });
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+  renderQuotes();
+  alert('Quote saved!');
+}
+
+function printQuote() {
+  alert('Printing quote...');
+}
+
+function renderQuotes() {
+  const container = document.getElementById('savedQuotes');
+  if (quotes.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <h3 style="font-size:.875rem;color:#888;margin:15px 0 10px">Recent Quotes</h3>
+    ${quotes.slice(0, 5).map(q => `
+      <div class="quote-card">
+        <div class="quote-header">
+          <span class="quote-id">${q.id}</span>
+          <span class="quote-total">$${q.total.toFixed(2)}</span>
+        </div>
+        <div class="quote-details">${q.customer} - ${q.description}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+calculate();
+renderQuotes();
+</script>
+</body>
+</html>

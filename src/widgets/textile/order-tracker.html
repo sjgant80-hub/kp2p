@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"order-tracker","name":"Order Tracker","icon":"📦","desc":"Track textile production orders","category":"textile","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.orders-list{display:flex;flex-direction:column;gap:15px}
+.order-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.order-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid #333}
+.order-id{font-family:monospace;font-weight:600;display:flex;align-items:center;gap:10px}
+.order-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.order-status.cutting{background:#8b5cf633;color:#8b5cf6}
+.order-status.sewing{background:#3b82f633;color:#3b82f6}
+.order-status.finishing{background:#f59e0b33;color:#f59e0b}
+.order-status.shipped{background:#10b98133;color:#10b981}
+.order-status.pending{background:#33333;color:#888}
+.order-body{padding:20px}
+.order-info{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px}
+.customer-info h4{font-weight:500;margin-bottom:5px}
+.customer-info span{font-size:.875rem;color:#888}
+.order-value{text-align:right}
+.order-value strong{font-size:1.25rem;color:#10b981}
+.order-items{margin-bottom:15px}
+.order-items h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.item-row{display:flex;justify-content:space-between;padding:8px 12px;background:#252525;border-radius:6px;margin-bottom:5px;font-size:.875rem}
+.timeline{display:flex;justify-content:space-between;padding:15px 0;border-top:1px solid #333}
+.timeline-step{flex:1;text-align:center;position:relative}
+.timeline-step::before{content:'';position:absolute;top:10px;left:50%;right:-50%;height:2px;background:#333}
+.timeline-step:last-child::before{display:none}
+.step-dot{width:20px;height:20px;border-radius:50%;background:#333;margin:0 auto 8px;position:relative;z-index:1;display:flex;align-items:center;justify-content:center;font-size:.6rem}
+.step-dot.completed{background:#10b981}
+.step-dot.active{background:#3b82f6;box-shadow:0 0 0 3px #3b82f633}
+.step-label{font-size:.7rem;color:#888}
+.order-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📦 Order Tracker</h1>
+<button class="btn btn-primary" onclick="alert('New order')">+ New Order</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeOrders">0</div><div class="stat-label">Active Orders</div></div>
+<div class="stat"><div class="stat-value" id="totalUnits">0</div><div class="stat-label">Total Units</div></div>
+<div class="stat warning"><div class="stat-value" id="dueThisWeek">0</div><div class="stat-label">Due This Week</div></div>
+<div class="stat"><div class="stat-value" id="orderValue">$0</div><div class="stat-label">Order Value</div></div>
+</div>
+
+<div class="orders-list" id="ordersList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_textile_orders';
+let orders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const stages = ['pending', 'cutting', 'sewing', 'finishing', 'shipped'];
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+}
+
+function getStageIndex(status) {
+  return stages.indexOf(status);
+}
+
+function updateStats() {
+  const active = orders.filter(o => o.status !== 'shipped').length;
+  const totalUnits = orders.reduce((s, o) => s + o.items.reduce((is, i) => is + i.qty, 0), 0);
+  const weekFromNow = Date.now() + 7*24*60*60*1000;
+  const dueThisWeek = orders.filter(o => new Date(o.dueDate) <= weekFromNow && o.status !== 'shipped').length;
+  const orderValue = orders.filter(o => o.status !== 'shipped').reduce((s, o) => s + o.total, 0);
+
+  document.getElementById('activeOrders').textContent = active;
+  document.getElementById('totalUnits').textContent = totalUnits.toLocaleString();
+  document.getElementById('dueThisWeek').textContent = dueThisWeek;
+  document.getElementById('orderValue').textContent = '$' + orderValue.toLocaleString();
+}
+
+function render() {
+  const list = document.getElementById('ordersList');
+
+  if (orders.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No orders found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = orders.map(o => {
+    const currentStage = getStageIndex(o.status);
+
+    return `
+      <div class="order-card">
+        <div class="order-header">
+          <span class="order-id">📦 ${o.orderId}</span>
+          <span class="order-status ${o.status}">${o.status}</span>
+        </div>
+        <div class="order-body">
+          <div class="order-info">
+            <div class="customer-info">
+              <h4>${o.customer}</h4>
+              <span>Due: ${new Date(o.dueDate).toLocaleDateString()}</span>
+            </div>
+            <div class="order-value">
+              <div style="font-size:.75rem;color:#888">Order Total</div>
+              <strong>$${o.total.toLocaleString()}</strong>
+            </div>
+          </div>
+          <div class="order-items">
+            <h4>Items</h4>
+            ${o.items.map(i => `
+              <div class="item-row">
+                <span>${i.name}</span>
+                <span>${i.qty} units</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="timeline">
+            ${stages.map((s, idx) => `
+              <div class="timeline-step">
+                <div class="step-dot ${idx < currentStage ? 'completed' : idx === currentStage ? 'active' : ''}">${idx < currentStage ? '✓' : ''}</div>
+                <div class="step-label">${s.charAt(0).toUpperCase() + s.slice(1)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="order-footer">
+          <button class="btn btn-primary" onclick="advanceOrder('${o.id}')">⏭️ Advance</button>
+          <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function advanceOrder(id) {
+  const o = orders.find(x => x.id === id);
+  if (o) {
+    const idx = getStageIndex(o.status);
+    if (idx < stages.length - 1) {
+      o.status = stages[idx + 1];
+      save();
+      render();
+    }
+  }
+}
+
+if (orders.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  orders = [
+    { id: '1', orderId: 'ORD-2024-0892', customer: 'Fashion Forward Inc', status: 'sewing', dueDate: future(5), total: 45000, items: [{name:'Cotton Blazer',qty:200},{name:'Linen Pants',qty:300}] },
+    { id: '2', orderId: 'ORD-2024-0893', customer: 'Urban Style Co', status: 'cutting', dueDate: future(8), total: 28500, items: [{name:'Denim Jacket',qty:150},{name:'Cargo Shorts',qty:250}] },
+    { id: '3', orderId: 'ORD-2024-0894', customer: 'Luxe Boutique', status: 'finishing', dueDate: future(2), total: 62000, items: [{name:'Silk Blouse',qty:100},{name:'Cashmere Sweater',qty:80}] },
+    { id: '4', orderId: 'ORD-2024-0890', customer: 'Department Store Chain', status: 'shipped', dueDate: future(-2), total: 125000, items: [{name:'Basic T-Shirt',qty:2000},{name:'Polo Shirt',qty:1500}] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

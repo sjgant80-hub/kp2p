@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recipe Management - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"recipe-management","name":"Recipe Management","icon":"📋","desc":"Manage commercial recipes and formulations","category":"food","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:400px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.recipes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.recipe-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.recipe-header{padding:20px;border-bottom:1px solid #333}
+.recipe-name{font-size:1.125rem;font-weight:500;margin-bottom:5px}
+.recipe-code{font-family:monospace;font-size:.75rem;color:#888}
+.recipe-body{padding:20px}
+.ingredients-list{margin-bottom:15px}
+.ingredients-list h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.ingredient{display:flex;justify-content:space-between;padding:8px;background:#252525;border-radius:6px;margin-bottom:5px;font-size:.875rem}
+.recipe-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem}
+.meta-item span{display:block;color:#888;font-size:.75rem}
+.recipe-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.category-badge{padding:4px 8px;border-radius:4px;font-size:.75rem;background:#3b82f633;color:#3b82f6}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📋 Recipe Management</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search recipes..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add recipe')">+ New Recipe</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalRecipes">0</div><div class="stat-label">Total Recipes</div></div>
+<div class="stat"><div class="stat-value" id="activeRecipes">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value" id="avgYield">0</div><div class="stat-label">Avg Yield (kg)</div></div>
+<div class="stat"><div class="stat-value" id="categories">0</div><div class="stat-label">Categories</div></div>
+</div>
+
+<div class="recipes-grid" id="recipesGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_recipes';
+let recipes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
+}
+
+function updateStats() {
+  const active = recipes.filter(r => r.status === 'active').length;
+  const avgYield = recipes.length > 0 ? Math.round(recipes.reduce((s, r) => s + r.yield, 0) / recipes.length) : 0;
+  const cats = [...new Set(recipes.map(r => r.category))].length;
+
+  document.getElementById('totalRecipes').textContent = recipes.length;
+  document.getElementById('activeRecipes').textContent = active;
+  document.getElementById('avgYield').textContent = avgYield;
+  document.getElementById('categories').textContent = cats;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = recipes.filter(r =>
+    r.name.toLowerCase().includes(search) ||
+    r.code.toLowerCase().includes(search) ||
+    r.category.toLowerCase().includes(search)
+  );
+
+  const grid = document.getElementById('recipesGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No recipes found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(r => `
+    <div class="recipe-card">
+      <div class="recipe-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="recipe-name">${r.name}</div>
+            <div class="recipe-code">${r.code}</div>
+          </div>
+          <span class="category-badge">${r.category}</span>
+        </div>
+      </div>
+      <div class="recipe-body">
+        <div class="ingredients-list">
+          <h4>Key Ingredients</h4>
+          ${r.ingredients.slice(0, 4).map(i => `
+            <div class="ingredient">
+              <span>${i.name}</span>
+              <span>${i.amount} ${i.unit}</span>
+            </div>
+          `).join('')}
+          ${r.ingredients.length > 4 ? `<div style="text-align:center;color:#888;font-size:.75rem">+${r.ingredients.length - 4} more</div>` : ''}
+        </div>
+        <div class="recipe-meta">
+          <div class="meta-item"><span>Yield</span><strong>${r.yield} kg</strong></div>
+          <div class="meta-item"><span>Cost/Unit</span><strong>$${r.costPerUnit.toFixed(2)}</strong></div>
+        </div>
+      </div>
+      <div class="recipe-footer">
+        <button class="btn btn-primary" onclick="alert('View recipe')">📖 View</button>
+        <button class="btn btn-secondary" onclick="alert('Scale recipe')">⚖️ Scale</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (recipes.length === 0) {
+  recipes = [
+    { id: '1', code: 'RCP-001', name: 'Classic Chocolate Chip Cookie', category: 'Bakery', status: 'active', yield: 50, costPerUnit: 0.45, ingredients: [{name:'All-Purpose Flour',amount:500,unit:'g'},{name:'Butter',amount:250,unit:'g'},{name:'Brown Sugar',amount:200,unit:'g'},{name:'Chocolate Chips',amount:300,unit:'g'},{name:'Eggs',amount:2,unit:'pcs'},{name:'Vanilla Extract',amount:10,unit:'ml'}] },
+    { id: '2', code: 'RCP-015', name: 'Artisan Sourdough Bread', category: 'Bakery', status: 'active', yield: 25, costPerUnit: 1.20, ingredients: [{name:'Bread Flour',amount:1000,unit:'g'},{name:'Water',amount:700,unit:'ml'},{name:'Sourdough Starter',amount:200,unit:'g'},{name:'Salt',amount:20,unit:'g'}] },
+    { id: '3', code: 'RCP-042', name: 'BBQ Sauce Premium', category: 'Condiments', status: 'active', yield: 100, costPerUnit: 0.85, ingredients: [{name:'Tomato Paste',amount:2000,unit:'g'},{name:'Brown Sugar',amount:500,unit:'g'},{name:'Apple Cider Vinegar',amount:300,unit:'ml'},{name:'Worcestershire',amount:100,unit:'ml'},{name:'Spice Blend',amount:50,unit:'g'}] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

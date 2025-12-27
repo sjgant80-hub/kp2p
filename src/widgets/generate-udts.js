@@ -320,6 +320,26 @@ const categoryMap = {
   // Security
   'access-control': { category: 'security', subcategory: 'access', badge: 'ENT' },
   'incident-reporter': { category: 'security', subcategory: 'incidents', badge: 'ENT' },
+
+  // Food
+  'recipe-management': { category: 'food', subcategory: 'recipes', badge: 'ENT' },
+  'food-safety': { category: 'food', subcategory: 'compliance', badge: 'ENT' },
+
+  // Chemical
+  'material-safety': { category: 'chemical', subcategory: 'safety', badge: 'ENT' },
+  'batch-tracking': { category: 'chemical', subcategory: 'production', badge: 'ENT' },
+
+  // Textile
+  'fabric-inventory': { category: 'textile', subcategory: 'inventory', badge: 'ENT' },
+  'order-tracker': { category: 'textile', subcategory: 'orders', badge: 'ENT' },
+
+  // Furniture
+  'design-catalog': { category: 'furniture', subcategory: 'catalog', badge: 'ENT' },
+  'custom-orders': { category: 'furniture', subcategory: 'orders', badge: 'ENT' },
+
+  // Printing
+  'print-queue': { category: 'printing', subcategory: 'queue', badge: 'ENT' },
+  'job-estimator': { category: 'printing', subcategory: 'estimating', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -501,7 +521,12 @@ const widgetDirs = [
   'mining',
   'pharma',
   'banking',
-  'security'
+  'security',
+  'food',
+  'chemical',
+  'textile',
+  'furniture',
+  'printing'
 ];
 
 // Process all widgets in all directories
