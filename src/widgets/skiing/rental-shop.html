@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rental Shop - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"ski-rental","name":"Ski Rental Shop","icon":"🎿","desc":"Rent ski equipment","category":"skiing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.tab.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+.packages{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.package{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.package.popular{border-color:#3b82f6}
+.popular-badge{background:#3b82f6;color:#fff;text-align:center;padding:5px;font-size:.75rem;font-weight:600}
+.package-header{padding:20px;text-align:center;background:#252525}
+.package-icon{font-size:3rem;margin-bottom:10px}
+.package-name{font-size:1.25rem;font-weight:bold}
+.package-type{font-size:.875rem;color:#888}
+.package-body{padding:20px}
+.package-includes{margin-bottom:20px}
+.include-item{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:.875rem;border-bottom:1px solid #333}
+.include-item:last-child{border-bottom:none}
+.package-pricing{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.price-option{text-align:center;padding:10px;background:#252525;border-radius:6px}
+.price-amount{font-size:1.25rem;font-weight:bold;color:#3b82f6}
+.price-period{font-size:.7rem;color:#888}
+.reserve-btn{width:100%;padding:12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎿 Rental Shop</h1><button class="btn">My Reservations</button></div>
+<div class="tabs">
+<button class="tab active">Ski Packages</button>
+<button class="tab">Snowboard</button>
+<button class="tab">Accessories</button>
+<button class="tab">Clothing</button>
+</div>
+<div class="packages" id="packages"></div>
+<script>
+const packages=[
+{name:'Sport Package',type:'Beginner - Intermediate',icon:'🎿',includes:['All-mountain skis','Adjustable boots','Poles','Helmet'],daily:45,multiday:35,popular:false},
+{name:'Performance Package',type:'Intermediate - Advanced',icon:'⛷️',includes:['High-performance skis','Custom-fit boots','Carbon poles','Helmet','Goggles'],daily:75,multiday:60,popular:true},
+{name:'Demo Package',type:'Expert Level',icon:'🏔️',includes:['Latest model skis','Race boots','Racing poles','Helmet','Premium goggles'],daily:110,multiday:90,popular:false},
+{name:'Kids Package',type:'Ages 5-12',icon:'👶',includes:['Youth skis','Junior boots','Poles','Helmet','Bib rental'],daily:35,multiday:28,popular:false}
+];
+document.getElementById('packages').innerHTML=packages.map(p=>`
+<div class="package${p.popular?' popular':''}">
+${p.popular?'<div class="popular-badge">MOST POPULAR</div>':''}
+<div class="package-header"><div class="package-icon">${p.icon}</div><div class="package-name">${p.name}</div><div class="package-type">${p.type}</div></div>
+<div class="package-body">
+<div class="package-includes">${p.includes.map(i=>`<div class="include-item">✓ ${i}</div>`).join('')}</div>
+<div class="package-pricing">
+<div class="price-option"><div class="price-amount">$${p.daily}</div><div class="price-period">per day</div></div>
+<div class="price-option"><div class="price-amount">$${p.multiday}</div><div class="price-period">3+ days/day</div></div>
+</div>
+<button class="reserve-btn">Reserve Now</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

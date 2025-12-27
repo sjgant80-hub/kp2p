@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>License Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"license-tracker","name":"Hunting Licenses","icon":"🎫","desc":"Track hunting licenses and tags","category":"hunting","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#92400e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.season{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.season-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.season-title{font-size:1.125rem;font-weight:bold}
+.season-dates{font-size:.875rem;color:#888}
+.licenses{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.license{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.license-header{padding:15px 20px;background:linear-gradient(135deg,#92400e 0%,#78350f 100%);display:flex;justify-content:space-between;align-items:center}
+.license-type{font-weight:bold}
+.license-number{font-size:.875rem;opacity:.8}
+.license-body{padding:20px}
+.license-details{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.detail-label{font-size:.75rem;color:#888}
+.detail-value{font-weight:500}
+.license-status{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+.status-badge{padding:5px 12px;border-radius:4px;font-size:.75rem}
+.status-active{background:#22c55e33;color:#22c55e}
+.status-pending{background:#f59e0b33;color:#f59e0b}
+.status-expired{background:#ef444433;color:#ef4444}
+.tags-used{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎫 Hunting Licenses</h1><button class="btn">+ Apply for License</button></div>
+<div class="season">
+<div class="season-header"><span class="season-title">🦌 2024-2025 Hunting Season</span><span class="season-dates">Sep 1, 2024 - Feb 28, 2025</span></div>
+</div>
+<div class="licenses" id="licenses"></div>
+<script>
+const licenses=[
+{type:'Deer License',number:'DL-2024-45892',state:'Texas',zone:'Zone 3',valid:'Sep 1 - Jan 15',status:'active',tagsTotal:2,tagsUsed:1},
+{type:'Turkey License',number:'TL-2024-12458',state:'Texas',zone:'All Zones',valid:'Apr 1 - May 15',status:'pending',tagsTotal:3,tagsUsed:0},
+{type:'Waterfowl Stamp',number:'WS-2024-78451',state:'Federal',zone:'Nationwide',valid:'Oct 1 - Jan 31',status:'active',tagsTotal:0,tagsUsed:0},
+{type:'Elk License',number:'EL-2024-00124',state:'Colorado',zone:'Unit 61',valid:'Oct 15 - Nov 15',status:'active',tagsTotal:1,tagsUsed:0},
+{type:'Upland Game',number:'UG-2024-55124',state:'Texas',zone:'All Zones',valid:'Nov 1 - Feb 28',status:'expired',tagsTotal:0,tagsUsed:0}
+];
+document.getElementById('licenses').innerHTML=licenses.map(l=>`
+<div class="license">
+<div class="license-header"><span class="license-type">${l.type}</span><span class="license-number">${l.number}</span></div>
+<div class="license-body">
+<div class="license-details">
+<div><div class="detail-label">State</div><div class="detail-value">${l.state}</div></div>
+<div><div class="detail-label">Zone</div><div class="detail-value">${l.zone}</div></div>
+<div><div class="detail-label">Valid Period</div><div class="detail-value">${l.valid}</div></div>
+<div><div class="detail-label">Tags</div><div class="detail-value">${l.tagsTotal>0?`${l.tagsUsed}/${l.tagsTotal} used`:'N/A'}</div></div>
+</div>
+<div class="license-status"><span class="status-badge status-${l.status}">${l.status.charAt(0).toUpperCase()+l.status.slice(1)}</span>${l.tagsTotal>0?`<span class="tags-used">${l.tagsTotal-l.tagsUsed} tags remaining</span>`:''}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

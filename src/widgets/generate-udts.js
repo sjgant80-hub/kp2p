@@ -620,6 +620,26 @@ const categoryMap = {
   // Camping
   'campsite-finder': { category: 'camping', subcategory: 'booking', badge: 'ENT' },
   'gear-checklist': { category: 'camping', subcategory: 'gear', badge: 'ENT' },
+
+  // Hunting
+  'license-tracker': { category: 'hunting', subcategory: 'licenses', badge: 'ENT' },
+  'harvest-log': { category: 'hunting', subcategory: 'logging', badge: 'ENT' },
+
+  // Rafting
+  'trip-booking': { category: 'rafting', subcategory: 'booking', badge: 'ENT' },
+  'raft-equipment': { category: 'rafting', subcategory: 'rentals', badge: 'ENT' },
+
+  // Skiing
+  'lift-tickets': { category: 'skiing', subcategory: 'tickets', badge: 'ENT' },
+  'ski-rental': { category: 'skiing', subcategory: 'rentals', badge: 'ENT' },
+
+  // Skydiving
+  'jump-booking': { category: 'skydiving', subcategory: 'booking', badge: 'ENT' },
+  'jump-logbook': { category: 'skydiving', subcategory: 'logging', badge: 'ENT' },
+
+  // Bingo
+  'game-caller': { category: 'bingo', subcategory: 'hosting', badge: 'ENT' },
+  'card-manager': { category: 'bingo', subcategory: 'cards', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -876,7 +896,12 @@ const widgetDirs = [
   'tennis',
   'equestrian',
   'fishing',
-  'camping'
+  'camping',
+  'hunting',
+  'rafting',
+  'skiing',
+  'skydiving',
+  'bingo'
 ];
 
 // Process all widgets in all directories

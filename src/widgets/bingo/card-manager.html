@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Card Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"card-manager","name":"Bingo Cards","icon":"🎫","desc":"Manage bingo cards","category":"bingo","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#dc2626}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:15px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.card-id{font-weight:bold;color:#dc2626}
+.card-status{padding:4px 8px;border-radius:4px;font-size:.7rem}
+.status-active{background:#22c55e33;color:#22c55e}
+.status-winner{background:#f59e0b33;color:#f59e0b}
+.bingo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:10px}
+.grid-header{background:#dc2626;color:#fff;text-align:center;padding:5px;font-weight:bold;font-size:.75rem;border-radius:2px}
+.grid-cell{background:#252525;text-align:center;padding:6px 3px;font-size:.75rem;border-radius:2px}
+.grid-cell.free{background:#dc262633;color:#dc2626}
+.grid-cell.marked{background:#22c55e33;color:#22c55e}
+.card-player{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎫 Bingo Cards</h1><button class="btn">+ Generate Cards</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Cards in Play</div></div>
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">Players</div></div>
+<div class="stat"><div class="stat-value">0</div><div class="stat-label">Winners</div></div>
+<div class="stat"><div class="stat-value">$240</div><div class="stat-label">Prize Pool</div></div>
+</div>
+<div class="cards" id="cards"></div>
+<script>
+function genCard(){
+const card=[];
+const ranges=[[1,15],[16,30],[31,45],[46,60],[61,75]];
+for(let c=0;c<5;c++){
+const col=[];
+const [min,max]=ranges[c];
+while(col.length<5){
+const n=Math.floor(Math.random()*(max-min+1))+min;
+if(!col.includes(n))col.push(n);
+}
+card.push(col.sort((a,b)=>a-b));
+}
+return card;
+}
+
+const players=[
+{id:'#0042',name:'Mary J.',card:genCard(),marked:[[0,1],[1,3],[2,2],[3,1],[4,4]],status:'active'},
+{id:'#0043',name:'Bob S.',card:genCard(),marked:[[0,0],[1,1],[2,2],[3,3],[4,4]],status:'active'},
+{id:'#0044',name:'Linda R.',card:genCard(),marked:[[0,2],[2,2],[4,2]],status:'active'},
+{id:'#0045',name:'James T.',card:genCard(),marked:[[1,1],[2,2],[3,3]],status:'winner'}
+];
+
+document.getElementById('cards').innerHTML=players.map(p=>{
+let grid='';
+['B','I','N','G','O'].forEach(l=>grid+=`<div class="grid-header">${l}</div>`);
+for(let r=0;r<5;r++){
+for(let c=0;c<5;c++){
+const isFree=r===2&&c===2;
+const isMarked=p.marked.some(m=>m[0]===c&&m[1]===r)||isFree;
+grid+=`<div class="grid-cell${isFree?' free':''}${isMarked?' marked':''}">${isFree?'★':p.card[c][r]}</div>`;
+}
+}
+return `
+<div class="card">
+<div class="card-header"><span class="card-id">${p.id}</span><span class="card-status status-${p.status}">${p.status.toUpperCase()}</span></div>
+<div class="bingo-grid">${grid}</div>
+<div class="card-player">👤 ${p.name}</div>
+</div>`;
+}).join('');
+</script>
+</body>
+</html>

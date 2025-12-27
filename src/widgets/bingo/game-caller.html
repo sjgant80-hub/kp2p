@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bingo Caller - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"game-caller","name":"Bingo Caller","icon":"🎱","desc":"Host bingo games","category":"bingo","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.current-call{background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);border-radius:16px;padding:30px;margin-bottom:20px;text-align:center}
+.current-label{font-size:.875rem;opacity:.8;margin-bottom:10px}
+.current-ball{font-size:5rem;font-weight:bold;margin-bottom:10px}
+.current-number{font-size:1.5rem;opacity:.9}
+.call-btn{padding:15px 40px;background:#fff;color:#dc2626;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:1.125rem;margin-top:15px}
+.called{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;justify-content:center}
+.called-ball{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:.875rem}
+.ball-b{background:#3b82f6}
+.ball-i{background:#22c55e}
+.ball-n{background:#a855f7}
+.ball-g{background:#f59e0b}
+.ball-o{background:#dc2626}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:15px}
+.board-header{background:#252525;padding:10px;text-align:center;font-weight:bold;border-radius:4px}
+.board-cell{background:#252525;padding:8px;text-align:center;border-radius:4px;font-size:.875rem;color:#666}
+.board-cell.called{background:#dc262633;color:#dc2626}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎱 Bingo Caller</h1><button class="btn">New Game</button></div>
+<div class="current-call">
+<div class="current-label">Current Call</div>
+<div class="current-ball">G-52</div>
+<div class="current-number">Twenty-two calls made</div>
+<button class="call-btn" onclick="callNext()">Call Next Number</button>
+</div>
+<div class="called" id="called"></div>
+<div class="board" id="board"></div>
+<script>
+const called=['B-4','I-17','N-32','G-52','O-68','B-12','I-24','N-44','G-59','O-71','B-7','I-19','N-38','G-48','O-65','B-1','I-28','N-31','G-55','O-73','B-15','I-22'];
+const letters=['B','I','N','G','O'];
+const ranges=[[1,15],[16,30],[31,45],[46,60],[61,75]];
+
+document.getElementById('called').innerHTML=called.map(c=>{
+const letter=c.charAt(0);
+const cls='ball-'+letter.toLowerCase();
+return `<div class="called-ball ${cls}">${c.substring(2)}</div>`;
+}).join('');
+
+let board='';
+letters.forEach(l=>board+=`<div class="board-header">${l}</div>`);
+for(let row=0;row<15;row++){
+letters.forEach((l,i)=>{
+const num=ranges[i][0]+row;
+const full=l+'-'+num;
+const isCalled=called.includes(full);
+board+=`<div class="board-cell${isCalled?' called':''}">${num}</div>`;
+});
+}
+document.getElementById('board').innerHTML=board;
+
+function callNext(){
+const remaining=[];
+letters.forEach((l,i)=>{
+for(let n=ranges[i][0];n<=ranges[i][1];n++){
+const full=l+'-'+n;
+if(!called.includes(full))remaining.push(full);
+}
+});
+if(remaining.length){
+const next=remaining[Math.floor(Math.random()*remaining.length)];
+called.push(next);
+location.reload();
+}
+}
+</script>
+</body>
+</html>
