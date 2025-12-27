@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trip Planner - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"trip-planner","name":"Fishing Trip Planner","icon":"🎣","desc":"Plan fishing trips","category":"fishing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.upcoming{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.upcoming-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.upcoming-title{font-size:1.125rem;font-weight:bold}
+.countdown{padding:6px 12px;background:#0ea5e933;color:#0ea5e9;border-radius:6px;font-size:.875rem}
+.trip-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:20px}
+.trip-detail{text-align:center}
+.trip-detail-icon{font-size:2rem;margin-bottom:5px}
+.trip-detail-value{font-weight:bold}
+.trip-detail-label{font-size:.75rem;color:#888}
+.trips{display:flex;flex-direction:column;gap:15px}
+.trip{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.trip-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px}
+.trip-name{font-size:1.125rem;font-weight:bold}
+.trip-date{font-size:.875rem;color:#888}
+.trip-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status-planned{background:#f59e0b33;color:#f59e0b}
+.status-completed{background:#22c55e33;color:#22c55e}
+.trip-info{display:flex;flex-wrap:wrap;gap:15px;font-size:.875rem;color:#888}
+.trip-info span{display:flex;align-items:center;gap:5px}
+.checklist{margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.checklist-title{font-size:.875rem;margin-bottom:10px;color:#888}
+.checklist-items{display:flex;flex-wrap:wrap;gap:8px}
+.checklist-item{padding:5px 10px;background:#252525;border-radius:4px;font-size:.75rem}
+.checklist-item.checked{background:#22c55e33;color:#22c55e}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎣 Trip Planner</h1><button class="btn">+ Plan Trip</button></div>
+<div class="upcoming">
+<div class="upcoming-header"><span class="upcoming-title">🗓️ Next Trip: Lake Tahoe Adventure</span><span class="countdown">In 3 days</span></div>
+<div class="trip-details">
+<div class="trip-detail"><div class="trip-detail-icon">📅</div><div class="trip-detail-value">Dec 30-31</div><div class="trip-detail-label">Dates</div></div>
+<div class="trip-detail"><div class="trip-detail-icon">📍</div><div class="trip-detail-value">Lake Tahoe</div><div class="trip-detail-label">Location</div></div>
+<div class="trip-detail"><div class="trip-detail-icon">👥</div><div class="trip-detail-value">4 People</div><div class="trip-detail-label">Group Size</div></div>
+<div class="trip-detail"><div class="trip-detail-icon">🐟</div><div class="trip-detail-value">Trout</div><div class="trip-detail-label">Target Species</div></div>
+<div class="trip-detail"><div class="trip-detail-icon">☀️</div><div class="trip-detail-value">45°F/Clear</div><div class="trip-detail-label">Forecast</div></div>
+</div>
+</div>
+<h2 style="font-size:1rem;margin-bottom:15px">All Trips</h2>
+<div class="trips" id="trips"></div>
+<script>
+const trips=[
+{name:'Lake Tahoe Adventure',date:'Dec 30-31',location:'Lake Tahoe, CA',people:4,target:'Rainbow Trout',status:'planned',checklist:['License','Rod & Reels','Tackle Box','Cooler','Snacks','Sunscreen']},
+{name:'Bass Tournament Prep',date:'Jan 5',location:'Lake Fork, TX',people:2,target:'Largemouth Bass',status:'planned',checklist:['License','Tournament Gear','Boat Prep','Live Bait']},
+{name:'Winter Steelhead Run',date:'Dec 15',location:'Salmon River, NY',people:3,target:'Steelhead',status:'completed',checklist:['License','Waders','Fly Gear','Hand Warmers']}
+];
+document.getElementById('trips').innerHTML=trips.map(t=>`
+<div class="trip">
+<div class="trip-header">
+<div><div class="trip-name">${t.name}</div><div class="trip-date">${t.date}</div></div>
+<span class="trip-status status-${t.status}">${t.status.charAt(0).toUpperCase()+t.status.slice(1)}</span>
+</div>
+<div class="trip-info">
+<span>📍 ${t.location}</span>
+<span>👥 ${t.people} people</span>
+<span>🎯 ${t.target}</span>
+</div>
+<div class="checklist">
+<div class="checklist-title">Checklist</div>
+<div class="checklist-items">${t.checklist.map((c,i)=>`<span class="checklist-item${t.status==='completed'||i<3?' checked':''}">${t.status==='completed'||i<3?'✓':''} ${c}</span>`).join('')}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

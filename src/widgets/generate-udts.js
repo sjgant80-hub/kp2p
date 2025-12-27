@@ -600,6 +600,26 @@ const categoryMap = {
   // Surf
   'lesson-bookings': { category: 'surf', subcategory: 'lessons', badge: 'ENT' },
   'board-rentals': { category: 'surf', subcategory: 'rentals', badge: 'ENT' },
+
+  // Golf
+  'tee-times': { category: 'golf', subcategory: 'scheduling', badge: 'ENT' },
+  'scorecard': { category: 'golf', subcategory: 'scoring', badge: 'ENT' },
+
+  // Tennis
+  'court-booking': { category: 'tennis', subcategory: 'scheduling', badge: 'ENT' },
+  'match-tracker': { category: 'tennis', subcategory: 'matches', badge: 'ENT' },
+
+  // Equestrian
+  'stable-manager': { category: 'equestrian', subcategory: 'stables', badge: 'ENT' },
+  'riding-lessons': { category: 'equestrian', subcategory: 'lessons', badge: 'ENT' },
+
+  // Fishing
+  'catch-log': { category: 'fishing', subcategory: 'logging', badge: 'ENT' },
+  'trip-planner': { category: 'fishing', subcategory: 'planning', badge: 'ENT' },
+
+  // Camping
+  'campsite-finder': { category: 'camping', subcategory: 'booking', badge: 'ENT' },
+  'gear-checklist': { category: 'camping', subcategory: 'gear', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -851,7 +871,12 @@ const widgetDirs = [
   'diving',
   'sailing',
   'kayak',
-  'surf'
+  'surf',
+  'golf',
+  'tennis',
+  'equestrian',
+  'fishing',
+  'camping'
 ];
 
 // Process all widgets in all directories

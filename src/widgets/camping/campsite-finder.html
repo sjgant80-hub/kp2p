@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campsite Finder - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"campsite-finder","name":"Campsite Finder","icon":"🏕️","desc":"Find and book campsites","category":"camping","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.search{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.search input,.search select{padding:12px 15px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;flex:1;min-width:150px}
+.search button{padding:12px 25px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.campsite{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.campsite-image{height:150px;background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);display:flex;align-items:center;justify-content:center;font-size:4rem}
+.campsite-body{padding:20px}
+.campsite-name{font-size:1.125rem;font-weight:bold;margin-bottom:5px}
+.campsite-location{font-size:.875rem;color:#888;margin-bottom:15px}
+.campsite-rating{display:flex;align-items:center;gap:5px;font-size:.875rem;margin-bottom:15px}
+.campsite-features{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.feature{padding:4px 10px;background:#252525;border-radius:4px;font-size:.75rem}
+.campsite-footer{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+.campsite-price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.campsite-price span{font-size:.75rem;color:#888;font-weight:normal}
+.reserve-btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏕️ Campsite Finder</h1><button class="btn">My Reservations</button></div>
+<div class="search">
+<input type="text" placeholder="Location or park name...">
+<input type="date">
+<select><option>Any type</option><option>Tent</option><option>RV</option><option>Cabin</option><option>Glamping</option></select>
+<button>🔍 Search</button>
+</div>
+<div class="results" id="results"></div>
+<script>
+const sites=[
+{name:'Riverside Camp',park:'Yellowstone NP',type:'Tent',rating:4.8,reviews:234,features:['River Access','Fire Pit','Restrooms','Bear Box'],price:35,available:true},
+{name:'Pine Ridge Cabin',park:'Yosemite NP',type:'Cabin',rating:4.9,reviews:156,features:['Electricity','Heating','Kitchen','Sleeps 6'],price:150,available:true},
+{name:'Meadow View RV',park:'Grand Canyon NP',type:'RV',rating:4.6,reviews:89,features:['Full Hookups','Dump Station','WiFi','Showers'],price:55,available:false},
+{name:'Lakeside Glamping',park:'Lake Tahoe',type:'Glamping',rating:4.9,reviews:67,features:['Queen Bed','Deck','Lake View','Breakfast'],price:250,available:true},
+{name:'Backcountry Site',park:'Rocky Mountain NP',type:'Tent',rating:4.7,reviews:45,features:['Primitive','Permit Required','Bear Country','Scenic'],price:20,available:true}
+];
+document.getElementById('results').innerHTML=sites.map(s=>`
+<div class="campsite">
+<div class="campsite-image">${s.type==='Cabin'?'🏠':s.type==='RV'?'🚐':s.type==='Glamping'?'⛺':'🏕️'}</div>
+<div class="campsite-body">
+<div class="campsite-name">${s.name}</div>
+<div class="campsite-location">📍 ${s.park}</div>
+<div class="campsite-rating">⭐ ${s.rating} <span style="color:#888">(${s.reviews} reviews)</span></div>
+<div class="campsite-features">${s.features.map(f=>`<span class="feature">${f}</span>`).join('')}</div>
+<div class="campsite-footer">
+<div class="campsite-price">$${s.price} <span>/night</span></div>
+<button class="reserve-btn" ${s.available?'':`disabled style="background:#333;cursor:not-allowed"`}>${s.available?'Reserve':'Unavailable'}</button>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

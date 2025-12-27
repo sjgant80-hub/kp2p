@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Court Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"court-booking","name":"Tennis Court Booking","icon":"🎾","desc":"Reserve tennis courts","category":"tennis","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#84cc16;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.date-picker{display:flex;gap:10px;margin-bottom:20px;overflow-x:auto;padding-bottom:10px}
+.date-btn{padding:15px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:8px;cursor:pointer;text-align:center;min-width:80px}
+.date-btn.active{background:#84cc16;color:#000;border-color:#84cc16}
+.date-day{font-size:.75rem;color:#888}
+.date-btn.active .date-day{color:#000}
+.date-num{font-size:1.25rem;font-weight:bold}
+.courts{display:flex;flex-direction:column;gap:20px}
+.court{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.court-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.court-name{font-weight:bold;display:flex;align-items:center;gap:10px}
+.court-type{font-size:.75rem;padding:4px 8px;background:#84cc1633;color:#84cc16;border-radius:4px}
+.court-slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;padding:15px}
+.slot{padding:12px;text-align:center;background:#252525;border-radius:6px;cursor:pointer;font-size:.875rem;border:1px solid transparent}
+.slot:hover{border-color:#84cc16}
+.slot.booked{background:#333;color:#666;cursor:not-allowed}
+.slot.booked:hover{border-color:transparent}
+.slot.mine{background:#84cc1633;color:#84cc16;border-color:#84cc16}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎾 Court Booking</h1><button class="btn">My Bookings</button></div>
+<div class="date-picker">
+<button class="date-btn active"><div class="date-day">SAT</div><div class="date-num">28</div></button>
+<button class="date-btn"><div class="date-day">SUN</div><div class="date-num">29</div></button>
+<button class="date-btn"><div class="date-day">MON</div><div class="date-num">30</div></button>
+<button class="date-btn"><div class="date-day">TUE</div><div class="date-num">31</div></button>
+<button class="date-btn"><div class="date-day">WED</div><div class="date-num">1</div></button>
+<button class="date-btn"><div class="date-day">THU</div><div class="date-num">2</div></button>
+<button class="date-btn"><div class="date-day">FRI</div><div class="date-num">3</div></button>
+</div>
+<div class="courts" id="courts"></div>
+<script>
+const courts=[
+{name:'Court 1',type:'Hard',slots:['6 AM','7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','1 PM','2 PM','3 PM','4 PM','5 PM','6 PM','7 PM','8 PM'],booked:['8 AM','9 AM','2 PM','3 PM'],mine:['10 AM']},
+{name:'Court 2',type:'Hard',slots:['6 AM','7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','1 PM','2 PM','3 PM','4 PM','5 PM','6 PM','7 PM','8 PM'],booked:['7 AM','8 AM','11 AM','4 PM','5 PM'],mine:[]},
+{name:'Court 3',type:'Clay',slots:['7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','1 PM','2 PM','3 PM','4 PM','5 PM','6 PM','7 PM'],booked:['9 AM','10 AM','1 PM'],mine:[]},
+{name:'Court 4',type:'Indoor',slots:['6 AM','7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','1 PM','2 PM','3 PM','4 PM','5 PM','6 PM','7 PM','8 PM','9 PM'],booked:['8 AM','12 PM','6 PM','7 PM','8 PM'],mine:['9 PM']}
+];
+document.getElementById('courts').innerHTML=courts.map(c=>`
+<div class="court">
+<div class="court-header"><span class="court-name">🎾 ${c.name}</span><span class="court-type">${c.type}</span></div>
+<div class="court-slots">${c.slots.map(s=>`<div class="slot${c.booked.includes(s)?' booked':''}${c.mine.includes(s)?' mine':''}">${s}</div>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

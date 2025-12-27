@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gear Checklist - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"gear-checklist","name":"Camping Gear Checklist","icon":"🎒","desc":"Pack for camping trips","category":"camping","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.progress{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.progress-title{font-weight:bold}
+.progress-count{color:#16a34a}
+.progress-bar{height:10px;background:#333;border-radius:5px;overflow:hidden}
+.progress-fill{height:100%;background:#16a34a;transition:width .3s}
+.categories{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.category{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.category-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.category-name{font-weight:bold;display:flex;align-items:center;gap:10px}
+.category-count{font-size:.875rem;color:#888}
+.items{padding:15px}
+.item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:6px;cursor:pointer;transition:background .2s}
+.item:hover{background:#252525}
+.checkbox{width:22px;height:22px;border:2px solid #333;border-radius:4px;display:flex;align-items:center;justify-content:center}
+.item.checked .checkbox{background:#16a34a;border-color:#16a34a}
+.item-name{flex:1}
+.item.checked .item-name{text-decoration:line-through;color:#666}
+.item-qty{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎒 Gear Checklist</h1><button class="btn">+ Add Item</button></div>
+<div class="progress">
+<div class="progress-header"><span class="progress-title">Packing Progress</span><span class="progress-count" id="count">15/32 items packed</span></div>
+<div class="progress-bar"><div class="progress-fill" id="bar" style="width:47%"></div></div>
+</div>
+<div class="categories" id="categories"></div>
+<script>
+const categories=[
+{name:'Shelter',icon:'⛺',items:[{name:'Tent',qty:1,packed:true},{name:'Ground tarp',qty:1,packed:true},{name:'Sleeping bag',qty:2,packed:true},{name:'Sleeping pad',qty:2,packed:false},{name:'Pillow',qty:2,packed:false}]},
+{name:'Cooking',icon:'🍳',items:[{name:'Camp stove',qty:1,packed:true},{name:'Fuel canister',qty:2,packed:true},{name:'Cookware set',qty:1,packed:true},{name:'Utensils',qty:1,packed:true},{name:'Cooler',qty:1,packed:false},{name:'Water filter',qty:1,packed:false}]},
+{name:'Clothing',icon:'👕',items:[{name:'Base layers',qty:2,packed:true},{name:'Insulation layer',qty:1,packed:true},{name:'Rain jacket',qty:1,packed:true},{name:'Hiking boots',qty:1,packed:true},{name:'Extra socks',qty:4,packed:false},{name:'Hat/beanie',qty:1,packed:false}]},
+{name:'Safety',icon:'🩹',items:[{name:'First aid kit',qty:1,packed:true},{name:'Headlamp',qty:2,packed:true},{name:'Fire starter',qty:1,packed:false},{name:'Knife/multitool',qty:1,packed:true},{name:'Map/compass',qty:1,packed:false},{name:'Emergency whistle',qty:1,packed:false}]},
+{name:'Food',icon:'🥫',items:[{name:'Meals (freeze-dried)',qty:6,packed:true},{name:'Snacks',qty:1,packed:false},{name:'Coffee/tea',qty:1,packed:false},{name:'Water bottles',qty:2,packed:true}]}
+];
+function render(){
+let total=0,packed=0;
+categories.forEach(c=>c.items.forEach(i=>{total++;if(i.packed)packed++}));
+document.getElementById('count').textContent=`${packed}/${total} items packed`;
+document.getElementById('bar').style.width=`${(packed/total)*100}%`;
+document.getElementById('categories').innerHTML=categories.map((c,ci)=>`
+<div class="category">
+<div class="category-header"><span class="category-name">${c.icon} ${c.name}</span><span class="category-count">${c.items.filter(i=>i.packed).length}/${c.items.length}</span></div>
+<div class="items">${c.items.map((item,ii)=>`
+<div class="item${item.packed?' checked':''}" onclick="toggle(${ci},${ii})">
+<div class="checkbox">${item.packed?'✓':''}</div>
+<span class="item-name">${item.name}</span>
+<span class="item-qty">×${item.qty}</span>
+</div>`).join('')}</div>
+</div>`).join('');
+}
+function toggle(ci,ii){categories[ci].items[ii].packed=!categories[ci].items[ii].packed;render()}
+render();
+</script>
+</body>
+</html>

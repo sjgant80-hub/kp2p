@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tee Times - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"tee-times","name":"Tee Time Booking","icon":"⛳","desc":"Golf tee time reservations","category":"golf","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.date-nav{display:flex;align-items:center;gap:15px;margin-bottom:20px}
+.date-nav button{padding:8px 15px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.current-date{font-size:1.125rem;font-weight:600}
+.course-info{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px}
+.course-name{font-size:1.25rem;font-weight:bold}
+.course-details{display:flex;gap:20px;font-size:.875rem;color:#888}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.time-slot{background:#1a1a1a;border-radius:8px;border:1px solid #333;padding:15px;cursor:pointer;transition:all .2s}
+.time-slot:hover{border-color:#22c55e}
+.time-slot.booked{opacity:.5;cursor:not-allowed}
+.time-slot.booked:hover{border-color:#333}
+.slot-time{font-size:1.125rem;font-weight:bold;color:#22c55e;margin-bottom:5px}
+.slot-holes{font-size:.875rem;margin-bottom:5px}
+.slot-spots{font-size:.75rem;color:#888}
+.slot-price{font-size:.875rem;font-weight:600;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>⛳ Tee Times</h1><button class="btn">+ Book Tee Time</button></div>
+<div class="date-nav">
+<button>← Prev</button>
+<span class="current-date">Saturday, December 28</span>
+<button>Next →</button>
+</div>
+<div class="course-info">
+<div><div class="course-name">Pine Valley Golf Club</div><div class="course-details"><span>Par 72</span><span>6,800 yards</span><span>Rating: 73.2</span></div></div>
+<div style="font-size:.875rem;color:#22c55e">☀️ 72°F - Perfect conditions</div>
+</div>
+<div class="times" id="times"></div>
+<script>
+const slots=[
+{time:'6:30 AM',holes:18,spots:4,available:4,price:75},
+{time:'7:00 AM',holes:18,spots:4,available:2,price:85},
+{time:'7:30 AM',holes:18,spots:4,available:0,price:85},
+{time:'8:00 AM',holes:18,spots:4,available:1,price:95},
+{time:'8:30 AM',holes:18,spots:4,available:4,price:95},
+{time:'9:00 AM',holes:18,spots:4,available:0,price:105},
+{time:'9:30 AM',holes:9,spots:4,available:3,price:55},
+{time:'10:00 AM',holes:18,spots:4,available:4,price:105},
+{time:'10:30 AM',holes:18,spots:4,available:2,price:95},
+{time:'11:00 AM',holes:9,spots:4,available:4,price:50},
+{time:'11:30 AM',holes:18,spots:4,available:0,price:85},
+{time:'12:00 PM',holes:18,spots:4,available:4,price:85}
+];
+document.getElementById('times').innerHTML=slots.map(s=>`
+<div class="time-slot${s.available===0?' booked':''}">
+<div class="slot-time">${s.time}</div>
+<div class="slot-holes">${s.holes} Holes</div>
+<div class="slot-spots">${s.available===0?'Fully Booked':`${s.available} of ${s.spots} spots open`}</div>
+<div class="slot-price">$${s.price}/player</div>
+</div>`).join('');
+</script>
+</body>
+</html>
