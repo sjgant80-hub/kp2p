@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guest Rooms - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"guest-rooms","name":"Guest Rooms","icon":"🛏️","desc":"Manage guest accommodations","category":"monastery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#7c3aed}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.buildings{display:flex;gap:10px;margin-bottom:20px}
+.building{padding:10px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.building.active{background:#7c3aed;border-color:#7c3aed}
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.room{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.room-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.room-number{font-size:1.125rem;font-weight:bold}
+.room-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#22c55e33;color:#22c55e}
+.status-occupied{background:#f59e0b33;color:#f59e0b}
+.status-cleaning{background:#3b82f633;color:#3b82f6}
+.room-type{font-size:.875rem;color:#888;margin-bottom:15px}
+.room-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+.room-guest{background:#252525;padding:12px;border-radius:6px}
+.guest-name{font-weight:500;margin-bottom:3px}
+.guest-dates{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛏️ Guest Rooms</h1><button class="btn">New Booking</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">TOTAL ROOMS</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">OCCUPIED</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">CLEANING</div></div>
+</div>
+<div class="buildings">
+<button class="building active">St. Francis Wing</button>
+<button class="building">St. Clare Wing</button>
+<button class="building">Hermitages</button>
+</div>
+<div class="rooms" id="rooms"></div>
+<script>
+const rooms=[
+{number:'101',type:'Single Room',beds:1,bath:'Shared',view:'Garden',status:'occupied',guest:'Fr. Michael Thompson',checkIn:'Jan 20',checkOut:'Jan 27',rate:75},
+{number:'102',type:'Single Room',beds:1,bath:'Shared',view:'Courtyard',status:'available',guest:null,checkIn:null,checkOut:null,rate:75},
+{number:'103',type:'Double Room',beds:2,bath:'Private',view:'Mountains',status:'occupied',guest:'Sarah & John Williams',checkIn:'Jan 18',checkOut:'Jan 25',rate:120},
+{number:'104',type:'Single Room',beds:1,bath:'Shared',view:'Garden',status:'cleaning',guest:null,checkIn:null,checkOut:null,rate:75},
+{number:'105',type:'Accessible Room',beds:1,bath:'Private',view:'Courtyard',status:'occupied',guest:'Sr. Margaret Chen',checkIn:'Jan 15',checkOut:'Jan 30',rate:95},
+{number:'106',type:'Double Room',beds:2,bath:'Private',view:'Garden',status:'available',guest:null,checkIn:null,checkOut:null,rate:120}
+];
+document.getElementById('rooms').innerHTML=rooms.map(r=>`
+<div class="room">
+<div class="room-header">
+<span class="room-number">Room ${r.number}</span>
+<span class="room-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="room-type">${r.type}</div>
+<div class="room-details">
+<div class="detail"><div class="detail-label">BEDS</div><div class="detail-value">${r.beds}</div></div>
+<div class="detail"><div class="detail-label">BATH</div><div class="detail-value">${r.bath}</div></div>
+<div class="detail"><div class="detail-label">VIEW</div><div class="detail-value">${r.view}</div></div>
+<div class="detail"><div class="detail-label">RATE</div><div class="detail-value">$${r.rate}/night</div></div>
+</div>
+${r.guest?`<div class="room-guest"><div class="guest-name">${r.guest}</div><div class="guest-dates">${r.checkIn} - ${r.checkOut}</div></div>`:'<button class="btn" style="width:100%">Book Room</button>'}
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Community Events - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"community-events","name":"Community Events","icon":"📅","desc":"Mosque events and programs","category":"mosque","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#047857;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.categories{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.category{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.category.active{background:#047857;border-color:#047857}
+.events{display:flex;flex-direction:column;gap:15px}
+.event{background:#1a1a1a;border-radius:12px;border:1px solid #333;display:grid;grid-template-columns:100px 1fr auto;overflow:hidden}
+.event-date{padding:20px;background:#252525;text-align:center;display:flex;flex-direction:column;justify-content:center}
+.date-day{font-size:1.75rem;font-weight:bold}
+.date-month{font-size:.75rem;color:#888}
+.date-time{font-size:.875rem;color:#047857;margin-top:10px}
+.event-info{padding:20px}
+.event-type{font-size:.7rem;color:#047857;margin-bottom:5px}
+.event-title{font-size:1.125rem;font-weight:bold;margin-bottom:5px}
+.event-desc{font-size:.875rem;color:#888;margin-bottom:10px}
+.event-meta{display:flex;gap:15px;font-size:.75rem;color:#888}
+.event-actions{padding:20px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:10px;border-left:1px solid #333}
+.register-btn{padding:10px 20px;background:#047857;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.spots{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>📅 Events</h1><button class="btn">Add Event</button></div>
+<div class="categories">
+<button class="category active">All Events</button>
+<button class="category">Classes</button>
+<button class="category">Community</button>
+<button class="category">Youth</button>
+<button class="category">Sisters</button>
+</div>
+<div class="events" id="events"></div>
+<script>
+const events=[
+{day:'25',month:'JAN',time:'7:00 PM',type:'CLASS',title:'Quran Tafsir Class',desc:'Weekly Quran study and interpretation with Sheikh Ahmad',location:'Main Hall',capacity:100,registered:67},
+{day:'26',month:'JAN',time:'10:00 AM',type:'YOUTH',title:'Youth Basketball Tournament',desc:'Annual community basketball event for ages 13-18',location:'Sports Hall',capacity:60,registered:48},
+{day:'27',month:'JAN',time:'11:00 AM',type:'COMMUNITY',title:'Community Potluck Lunch',desc:'Monthly gathering after Dhuhr prayer. All families welcome!',location:'Community Center',capacity:200,registered:145},
+{day:'28',month:'JAN',time:'6:30 PM',type:'SISTERS',title:'Sisters Halaqa',desc:'Weekly gathering for sisters with discussion and support',location:'Sisters Room',capacity:40,registered:28},
+{day:'30',month:'JAN',time:'7:30 PM',type:'CLASS',title:'Arabic Language Course',desc:'Beginner Arabic for understanding Quran',location:'Classroom B',capacity:25,registered:22}
+];
+document.getElementById('events').innerHTML=events.map(e=>`
+<div class="event">
+<div class="event-date">
+<div class="date-day">${e.day}</div>
+<div class="date-month">${e.month}</div>
+<div class="date-time">${e.time}</div>
+</div>
+<div class="event-info">
+<div class="event-type">${e.type}</div>
+<div class="event-title">${e.title}</div>
+<div class="event-desc">${e.desc}</div>
+<div class="event-meta">
+<span>📍 ${e.location}</span>
+<span>👥 ${e.registered}/${e.capacity} registered</span>
+</div>
+</div>
+<div class="event-actions">
+<button class="register-btn"${e.registered>=e.capacity?' disabled style="background:#333"':''}>${e.registered>=e.capacity?'Full':'Register'}</button>
+<span class="spots">${e.registered>=e.capacity?'Waitlist available':e.capacity-e.registered+' spots left'}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

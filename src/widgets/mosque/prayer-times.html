@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prayer Times - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"prayer-times","name":"Prayer Times","icon":"🕌","desc":"Daily prayer schedule","category":"mosque","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#047857;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.next-prayer{background:linear-gradient(135deg,#047857 0%,#065f46 100%);border-radius:12px;padding:25px;margin-bottom:20px;text-align:center}
+.next-label{font-size:.75rem;opacity:.8;margin-bottom:5px}
+.next-name{font-size:2rem;font-weight:bold;margin-bottom:5px}
+.next-time{font-size:1.5rem;opacity:.9}
+.next-countdown{margin-top:15px;font-size:1.125rem;opacity:.8}
+.prayers{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:25px}
+.prayer{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.prayer.current{border-color:#047857;background:#04785722}
+.prayer-name{font-size:1rem;font-weight:bold;margin-bottom:5px}
+.prayer-arabic{font-size:.75rem;color:#888;margin-bottom:10px}
+.prayer-time{font-size:1.5rem;font-weight:bold;color:#047857}
+.prayer-iqama{font-size:.75rem;color:#888;margin-top:5px}
+.jumaa{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.jumaa-header{font-size:1rem;font-weight:bold;margin-bottom:15px;display:flex;align-items:center;gap:10px}
+.jumaa-times{display:flex;gap:20px}
+.jumaa-item{flex:1;background:#252525;padding:15px;border-radius:8px;text-align:center}
+.jumaa-label{font-size:.75rem;color:#888;margin-bottom:5px}
+.jumaa-time{font-size:1.125rem;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="header"><h1>🕌 Prayer Times</h1><button class="btn">Settings</button></div>
+<div class="next-prayer">
+<div class="next-label">NEXT PRAYER</div>
+<div class="next-name">Dhuhr</div>
+<div class="next-time">12:30 PM</div>
+<div class="next-countdown">in 2 hours 15 minutes</div>
+</div>
+<div class="prayers" id="prayers"></div>
+<div class="jumaa">
+<div class="jumaa-header">🕋 Friday (Jumu'ah) Prayer</div>
+<div class="jumaa-times">
+<div class="jumaa-item"><div class="jumaa-label">FIRST KHUTBAH</div><div class="jumaa-time">12:30 PM</div></div>
+<div class="jumaa-item"><div class="jumaa-label">SECOND KHUTBAH</div><div class="jumaa-time">1:30 PM</div></div>
+</div>
+</div>
+<script>
+const prayers=[
+{name:'Fajr',arabic:'الفجر',adhan:'5:45 AM',iqama:'6:00 AM',current:false},
+{name:'Sunrise',arabic:'الشروق',adhan:'7:15 AM',iqama:'-',current:false},
+{name:'Dhuhr',arabic:'الظهر',adhan:'12:30 PM',iqama:'12:45 PM',current:true},
+{name:'Asr',arabic:'العصر',adhan:'3:45 PM',iqama:'4:00 PM',current:false},
+{name:'Maghrib',arabic:'المغرب',adhan:'5:30 PM',iqama:'5:35 PM',current:false},
+{name:'Isha',arabic:'العشاء',adhan:'7:00 PM',iqama:'7:15 PM',current:false}
+];
+document.getElementById('prayers').innerHTML=prayers.map(p=>`
+<div class="prayer${p.current?' current':''}">
+<div class="prayer-name">${p.name}</div>
+<div class="prayer-arabic">${p.arabic}</div>
+<div class="prayer-time">${p.adhan}</div>
+${p.iqama!=='-'?`<div class="prayer-iqama">Iqama: ${p.iqama}</div>`:''}
+</div>`).join('');
+</script>
+</body>
+</html>

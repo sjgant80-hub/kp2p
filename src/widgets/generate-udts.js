@@ -800,6 +800,26 @@ const categoryMap = {
   // Shelter
   'animal-adoption': { category: 'shelter', subcategory: 'adoption', badge: 'ENT' },
   'volunteer-schedule': { category: 'shelter', subcategory: 'volunteers', badge: 'ENT' },
+
+  // Church
+  'service-schedule': { category: 'church', subcategory: 'services', badge: 'ENT' },
+  'member-directory': { category: 'church', subcategory: 'members', badge: 'ENT' },
+
+  // Mosque
+  'prayer-times': { category: 'mosque', subcategory: 'prayer', badge: 'ENT' },
+  'community-events': { category: 'mosque', subcategory: 'community', badge: 'ENT' },
+
+  // Synagogue
+  'shabbat-services': { category: 'synagogue', subcategory: 'services', badge: 'ENT' },
+  'hebrew-school': { category: 'synagogue', subcategory: 'education', badge: 'ENT' },
+
+  // Temple
+  'meditation-schedule': { category: 'temple', subcategory: 'meditation', badge: 'ENT' },
+  'dharma-teachings': { category: 'temple', subcategory: 'teachings', badge: 'ENT' },
+
+  // Monastery
+  'retreat-booking': { category: 'monastery', subcategory: 'retreats', badge: 'ENT' },
+  'guest-rooms': { category: 'monastery', subcategory: 'accommodations', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1101,7 +1121,12 @@ const widgetDirs = [
   'incubator',
   'makerspace',
   'hangar',
-  'shelter'
+  'shelter',
+  'church',
+  'mosque',
+  'synagogue',
+  'temple',
+  'monastery'
 ];
 
 // Process all widgets in all directories
