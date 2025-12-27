@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<!--
+KONOMI VOICE MEMO - Record & Share Voice Messages
+Web Audio API. No server needed. $0 forever.
+Kills: Voice Memos app, Audio messaging apps
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "voice-memo",
+    "name": "Voice Memo",
+    "icon": "🎙️",
+    "desc": "Record & share voice messages",
+    "body": "Record voice memos using your microphone. Save locally, download as MP3, or share via link. Built with Web Audio API.",
+    "kills": ["Voice Memos app", "Otter.ai $17/mo", "Audio messaging"],
+    "price": 0,
+    "color": "#ef4444",
+    "badge": "NEW"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Voice Memo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #252525;
+      --accent: #ef4444;
+      --text: #fff;
+      --text-dim: #888;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .recorder {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 40px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .record-btn {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .record-btn::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+
+    .record-btn.recording::before {
+      opacity: 1;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.5; }
+    }
+
+    .record-btn .icon {
+      font-size: 48px;
+    }
+
+    .record-btn.recording {
+      background: #dc2626;
+    }
+
+    .timer {
+      font-size: 2.5rem;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 16px;
+    }
+
+    .status {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+
+    .status.recording {
+      color: var(--accent);
+    }
+
+    .visualizer {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin: 24px 0;
+    }
+
+    .bar {
+      width: 4px;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: height 0.1s;
+    }
+
+    .memos-section {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .memos-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .memos-header h2 {
+      font-size: 1rem;
+    }
+
+    .memos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .memo-item {
+      background: var(--surface2);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .memo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .memo-title {
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .memo-title:hover {
+      color: var(--accent);
+    }
+
+    .memo-date {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .memo-player {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .play-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: #333;
+      border-radius: 3px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.1s;
+    }
+
+    .memo-duration {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      min-width: 50px;
+      text-align: right;
+    }
+
+    .memo-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+
+    .action-btn {
+      background: none;
+      border: 1px solid #444;
+      color: var(--text-dim);
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .action-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .rename-input {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: inherit;
+      font-family: inherit;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎙️ Voice Memo</h1>
+    </div>
+
+    <div class="recorder">
+      <button class="record-btn" id="record-btn" onclick="toggleRecording()">
+        <span class="icon">🎤</span>
+      </button>
+
+      <div class="timer" id="timer">00:00</div>
+
+      <div class="visualizer" id="visualizer">
+        ${Array(20).fill('<div class="bar" style="height: 10px;"></div>').join('')}
+      </div>
+
+      <div class="status" id="status">Tap to record</div>
+    </div>
+
+    <div class="memos-section">
+      <div class="memos-header">
+        <h2>Your Memos</h2>
+        <span id="memo-count">0 memos</span>
+      </div>
+      <div class="memos-list" id="memos-list"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'konomi_voice_memos';
+
+    let memos = [];
+    let isRecording = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let timerInterval = null;
+    let startTime = null;
+    let audioContext = null;
+    let analyser = null;
+    let currentlyPlaying = null;
+
+    function load() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        memos = JSON.parse(saved);
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(memos));
+    }
+
+    async function toggleRecording() {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        await startRecording();
+      }
+    }
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Set up audio context for visualization
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 64;
+
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          saveMemo(blob);
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        startTime = Date.now();
+
+        updateUI();
+        startTimer();
+        startVisualization();
+
+      } catch (err) {
+        alert('Could not access microphone: ' + err.message);
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      isRecording = false;
+      stopTimer();
+      updateUI();
+    }
+
+    function saveMemo(blob) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const memo = {
+          id: Date.now(),
+          name: `Memo ${memos.length + 1}`,
+          data: reader.result,
+          duration: Math.floor((Date.now() - startTime) / 1000),
+          createdAt: new Date().toISOString()
+        };
+        memos.unshift(memo);
+        save();
+        renderMemos();
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        document.getElementById('timer').textContent = `${mins}:${secs}`;
+      }, 100);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      document.getElementById('timer').textContent = '00:00';
+    }
+
+    function startVisualization() {
+      const bars = document.querySelectorAll('.bar');
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      function animate() {
+        if (!isRecording) {
+          bars.forEach(bar => bar.style.height = '10px');
+          return;
+        }
+
+        analyser.getByteFrequencyData(dataArray);
+
+        bars.forEach((bar, i) => {
+          const value = dataArray[i] || 0;
+          const height = Math.max(10, (value / 255) * 50);
+          bar.style.height = `${height}px`;
+        });
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    }
+
+    function updateUI() {
+      const btn = document.getElementById('record-btn');
+      const status = document.getElementById('status');
+
+      btn.classList.toggle('recording', isRecording);
+      btn.querySelector('.icon').textContent = isRecording ? '⏹️' : '🎤';
+
+      status.textContent = isRecording ? 'Recording...' : 'Tap to record';
+      status.classList.toggle('recording', isRecording);
+    }
+
+    function formatDuration(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function renderMemos() {
+      const list = document.getElementById('memos-list');
+      document.getElementById('memo-count').textContent = `${memos.length} memo${memos.length !== 1 ? 's' : ''}`;
+
+      if (memos.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎙️</div>
+            <p>No recordings yet</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = memos.map(memo => {
+        const date = new Date(memo.createdAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        return `
+          <div class="memo-item" data-id="${memo.id}">
+            <div class="memo-header">
+              <span class="memo-title" onclick="renameMemo(${memo.id})">${memo.name}</span>
+              <span class="memo-date">${date}</span>
+            </div>
+            <div class="memo-player">
+              <button class="play-btn" onclick="togglePlay(${memo.id})">▶</button>
+              <div class="progress-bar" onclick="seek(event, ${memo.id})">
+                <div class="progress-fill" id="progress-${memo.id}"></div>
+              </div>
+              <span class="memo-duration">${formatDuration(memo.duration)}</span>
+            </div>
+            <div class="memo-actions">
+              <button class="action-btn" onclick="downloadMemo(${memo.id})">💾 Download</button>
+              <button class="action-btn" onclick="shareMemo(${memo.id})">📤 Share</button>
+              <button class="action-btn" onclick="deleteMemo(${memo.id})">🗑️ Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function togglePlay(id) {
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+
+      // Stop current if playing something else
+      if (currentlyPlaying && currentlyPlaying.id !== id) {
+        currentlyPlaying.audio.pause();
+        currentlyPlaying = null;
+      }
+
+      if (currentlyPlaying && currentlyPlaying.id === id) {
+        if (currentlyPlaying.audio.paused) {
+          currentlyPlaying.audio.play();
+          updatePlayButton(id, '⏸');
+        } else {
+          currentlyPlaying.audio.pause();
+          updatePlayButton(id, '▶');
+        }
+      } else {
+        const audio = new Audio(memo.data);
+        audio.onended = () => {
+          updatePlayButton(id, '▶');
+          document.getElementById(`progress-${id}`).style.width = '0%';
+          currentlyPlaying = null;
+        };
+        audio.ontimeupdate = () => {
+          const progress = (audio.currentTime / audio.duration) * 100;
+          document.getElementById(`progress-${id}`).style.width = `${progress}%`;
+        };
+        audio.play();
+        currentlyPlaying = { id, audio };
+        updatePlayButton(id, '⏸');
+      }
+    }
+
+    function updatePlayButton(id, symbol) {
+      const item = document.querySelector(`[data-id="${id}"]`);
+      if (item) {
+        item.querySelector('.play-btn').textContent = symbol;
+      }
+    }
+
+    function seek(event, id) {
+      if (!currentlyPlaying || currentlyPlaying.id !== id) return;
+
+      const rect = event.target.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const percent = x / rect.width;
+      currentlyPlaying.audio.currentTime = currentlyPlaying.audio.duration * percent;
+    }
+
+    function renameMemo(id) {
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+
+      const newName = prompt('Enter new name:', memo.name);
+      if (newName && newName.trim()) {
+        memo.name = newName.trim();
+        save();
+        renderMemos();
+      }
+    }
+
+    function downloadMemo(id) {
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+
+      const link = document.createElement('a');
+      link.href = memo.data;
+      link.download = `${memo.name}.webm`;
+      link.click();
+    }
+
+    async function shareMemo(id) {
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+
+      if (navigator.share) {
+        try {
+          const blob = await fetch(memo.data).then(r => r.blob());
+          const file = new File([blob], `${memo.name}.webm`, { type: 'audio/webm' });
+
+          await navigator.share({
+            title: memo.name,
+            files: [file]
+          });
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            alert('Could not share: ' + err.message);
+          }
+        }
+      } else {
+        // Fallback: copy data URL
+        navigator.clipboard.writeText(memo.data);
+        alert('Audio data copied to clipboard');
+      }
+    }
+
+    function deleteMemo(id) {
+      if (!confirm('Delete this memo?')) return;
+
+      if (currentlyPlaying && currentlyPlaying.id === id) {
+        currentlyPlaying.audio.pause();
+        currentlyPlaying = null;
+      }
+
+      memos = memos.filter(m => m.id !== id);
+      save();
+      renderMemos();
+    }
+
+    // Init visualizer bars
+    document.getElementById('visualizer').innerHTML = Array(20)
+      .fill('<div class="bar" style="height: 10px;"></div>')
+      .join('');
+
+    // Init
+    load();
+    renderMemos();
+  </script>
+</body>
+</html>

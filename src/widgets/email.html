@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<!--
+KONOMI EMAIL - Serverless Email Composer
+Mailto + EmailJS integration. No server needed. $0 forever.
+Kills: Email clients, Mailchimp forms
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "email",
+    "name": "Email",
+    "icon": "📧",
+    "desc": "Serverless email composer",
+    "body": "Beautiful email composer with templates. Uses mailto: or EmailJS for sending. No backend required. Template library included.",
+    "kills": ["Mailchimp $13/mo", "SendGrid $15/mo", "Email clients"],
+    "price": 15,
+    "color": "#3b82f6",
+    "badge": "NEW"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Email</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #252525;
+      --accent: #3b82f6;
+      --text: #fff;
+      --text-dim: #888;
+      --success: #22c55e;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mode-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .mode-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .compose-card {
+      background: var(--surface);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .compose-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--surface2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .compose-title {
+      font-weight: 600;
+    }
+
+    .template-btn {
+      background: var(--surface2);
+      border: none;
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .compose-body {
+      padding: 20px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid #333;
+      color: var(--text);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 1rem;
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .field textarea {
+      min-height: 200px;
+      resize: vertical;
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder {
+      color: var(--text-dim);
+    }
+
+    .attachments {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .attachment {
+      background: var(--surface2);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .attachment button {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--surface2);
+      justify-content: space-between;
+    }
+
+    .toolbar-left {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tool-btn {
+      background: var(--surface2);
+      border: none;
+      color: var(--text);
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .tool-btn:hover {
+      background: #333;
+    }
+
+    .send-btn {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 12px 32px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .send-btn:hover {
+      background: #2563eb;
+    }
+
+    .templates-panel {
+      display: none;
+      background: var(--surface);
+      border-radius: 16px;
+      margin-top: 16px;
+      padding: 20px;
+    }
+
+    .templates-panel.show {
+      display: block;
+    }
+
+    .templates-panel h3 {
+      margin-bottom: 16px;
+      font-size: 1rem;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .template-card {
+      background: var(--surface2);
+      padding: 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    .template-card:hover {
+      border-color: var(--accent);
+    }
+
+    .template-card .name {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .template-card .preview {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .config-panel {
+      background: var(--surface);
+      border-radius: 16px;
+      margin-top: 16px;
+      padding: 20px;
+    }
+
+    .config-panel h3 {
+      margin-bottom: 16px;
+      font-size: 1rem;
+    }
+
+    .config-note {
+      background: var(--surface2);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-top: 12px;
+    }
+
+    .success-msg {
+      background: var(--success);
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .success-msg.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📧 Email</h1>
+      <div class="mode-toggle">
+        <button class="mode-btn active" onclick="setMode('mailto')">Mailto</button>
+        <button class="mode-btn" onclick="setMode('emailjs')">EmailJS</button>
+      </div>
+    </div>
+
+    <div class="success-msg" id="success-msg">
+      ✓ Email sent successfully!
+    </div>
+
+    <div class="compose-card">
+      <div class="compose-header">
+        <span class="compose-title">New Message</span>
+        <button class="template-btn" onclick="toggleTemplates()">📋 Templates</button>
+      </div>
+      <div class="compose-body">
+        <div class="field">
+          <label>To</label>
+          <input type="email" id="to" placeholder="recipient@example.com">
+        </div>
+        <div class="field">
+          <label>Subject</label>
+          <input type="text" id="subject" placeholder="Email subject">
+        </div>
+        <div class="field">
+          <label>Message</label>
+          <textarea id="body" placeholder="Write your message..."></textarea>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <button class="tool-btn" onclick="formatBold()" title="Bold">𝐁</button>
+          <button class="tool-btn" onclick="formatItalic()" title="Italic">𝐼</button>
+          <button class="tool-btn" onclick="insertLink()" title="Link">🔗</button>
+          <button class="tool-btn" onclick="clearForm()" title="Clear">🗑️</button>
+        </div>
+        <button class="send-btn" onclick="sendEmail()">
+          <span>Send</span>
+          <span>→</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="templates-panel" id="templates-panel">
+      <h3>Email Templates</h3>
+      <div class="template-grid" id="template-grid"></div>
+    </div>
+
+    <div class="config-panel" id="emailjs-config" style="display: none;">
+      <h3>EmailJS Configuration</h3>
+      <div class="field">
+        <label>Public Key</label>
+        <input type="text" id="emailjs-key" placeholder="Your EmailJS public key">
+      </div>
+      <div class="field">
+        <label>Service ID</label>
+        <input type="text" id="emailjs-service" placeholder="Your service ID">
+      </div>
+      <div class="field">
+        <label>Template ID</label>
+        <input type="text" id="emailjs-template" placeholder="Your template ID">
+      </div>
+      <button class="send-btn" onclick="saveConfig()" style="margin-top: 8px;">Save Config</button>
+      <div class="config-note">
+        Get your free EmailJS account at <a href="https://emailjs.com" target="_blank" style="color: var(--accent);">emailjs.com</a>.
+        Free tier: 200 emails/month.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TEMPLATES = [
+      {
+        name: 'Meeting Request',
+        subject: 'Meeting Request: [Topic]',
+        body: `Hi [Name],
+
+I hope this email finds you well. I would like to schedule a meeting to discuss [topic].
+
+Would you be available [suggested times]?
+
+Please let me know what works best for you.
+
+Best regards,
+[Your name]`
+      },
+      {
+        name: 'Follow Up',
+        subject: 'Following Up: [Previous Topic]',
+        body: `Hi [Name],
+
+I wanted to follow up on our previous conversation about [topic].
+
+[Your follow-up content]
+
+Looking forward to hearing from you.
+
+Best regards,
+[Your name]`
+      },
+      {
+        name: 'Thank You',
+        subject: 'Thank You!',
+        body: `Hi [Name],
+
+I wanted to take a moment to thank you for [reason].
+
+[Additional thoughts]
+
+Thanks again!
+
+Best regards,
+[Your name]`
+      },
+      {
+        name: 'Introduction',
+        subject: 'Introduction: [Your Name]',
+        body: `Hi [Name],
+
+My name is [Your name], and I'm reaching out because [reason].
+
+[Brief background about yourself]
+
+I would love to connect and [desired outcome].
+
+Best regards,
+[Your name]`
+      },
+      {
+        name: 'Project Update',
+        subject: 'Project Update: [Project Name]',
+        body: `Hi Team,
+
+Here's a quick update on [Project Name]:
+
+**Completed:**
+- [Item 1]
+- [Item 2]
+
+**In Progress:**
+- [Item 1]
+- [Item 2]
+
+**Next Steps:**
+- [Item 1]
+- [Item 2]
+
+Let me know if you have any questions.
+
+Best regards,
+[Your name]`
+      },
+      {
+        name: 'Cold Outreach',
+        subject: '[Personalized Subject]',
+        body: `Hi [Name],
+
+I noticed [observation about them/their company] and thought I'd reach out.
+
+[Value proposition - how you can help]
+
+Would you be open to a quick chat this week?
+
+Best,
+[Your name]`
+      }
+    ];
+
+    let mode = 'mailto';
+    let config = {};
+
+    function loadConfig() {
+      const saved = localStorage.getItem('konomi_email_config');
+      if (saved) config = JSON.parse(saved);
+
+      if (config.key) document.getElementById('emailjs-key').value = config.key;
+      if (config.service) document.getElementById('emailjs-service').value = config.service;
+      if (config.template) document.getElementById('emailjs-template').value = config.template;
+    }
+
+    function saveConfig() {
+      config = {
+        key: document.getElementById('emailjs-key').value,
+        service: document.getElementById('emailjs-service').value,
+        template: document.getElementById('emailjs-template').value
+      };
+      localStorage.setItem('konomi_email_config', JSON.stringify(config));
+      alert('Configuration saved!');
+    }
+
+    function setMode(m) {
+      mode = m;
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(m));
+      });
+      document.getElementById('emailjs-config').style.display = m === 'emailjs' ? 'block' : 'none';
+    }
+
+    function toggleTemplates() {
+      const panel = document.getElementById('templates-panel');
+      panel.classList.toggle('show');
+    }
+
+    function renderTemplates() {
+      const grid = document.getElementById('template-grid');
+      grid.innerHTML = TEMPLATES.map((t, i) => `
+        <div class="template-card" onclick="useTemplate(${i})">
+          <div class="name">${t.name}</div>
+          <div class="preview">${t.subject}</div>
+        </div>
+      `).join('');
+    }
+
+    function useTemplate(index) {
+      const template = TEMPLATES[index];
+      document.getElementById('subject').value = template.subject;
+      document.getElementById('body').value = template.body;
+      toggleTemplates();
+    }
+
+    function formatBold() {
+      const textarea = document.getElementById('body');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const selected = text.substring(start, end);
+
+      textarea.value = text.substring(0, start) + `**${selected}**` + text.substring(end);
+      textarea.focus();
+    }
+
+    function formatItalic() {
+      const textarea = document.getElementById('body');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const selected = text.substring(start, end);
+
+      textarea.value = text.substring(0, start) + `_${selected}_` + text.substring(end);
+      textarea.focus();
+    }
+
+    function insertLink() {
+      const url = prompt('Enter URL:');
+      if (!url) return;
+
+      const textarea = document.getElementById('body');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const selected = text.substring(start, end) || 'link text';
+
+      textarea.value = text.substring(0, start) + `[${selected}](${url})` + text.substring(end);
+      textarea.focus();
+    }
+
+    function clearForm() {
+      if (!confirm('Clear the form?')) return;
+      document.getElementById('to').value = '';
+      document.getElementById('subject').value = '';
+      document.getElementById('body').value = '';
+    }
+
+    async function sendEmail() {
+      const to = document.getElementById('to').value;
+      const subject = document.getElementById('subject').value;
+      const body = document.getElementById('body').value;
+
+      if (!to || !subject || !body) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      if (mode === 'mailto') {
+        // Use mailto link
+        const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.location.href = mailtoUrl;
+        showSuccess();
+      } else {
+        // Use EmailJS
+        if (!config.key || !config.service || !config.template) {
+          alert('Please configure EmailJS settings first');
+          return;
+        }
+
+        try {
+          // Load EmailJS SDK if not loaded
+          if (!window.emailjs) {
+            await loadEmailJS();
+          }
+
+          emailjs.init(config.key);
+          await emailjs.send(config.service, config.template, {
+            to_email: to,
+            subject: subject,
+            message: body
+          });
+
+          showSuccess();
+          clearForm();
+        } catch (err) {
+          alert('Failed to send email: ' + err.message);
+        }
+      }
+    }
+
+    function loadEmailJS() {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    function showSuccess() {
+      const msg = document.getElementById('success-msg');
+      msg.classList.add('show');
+      setTimeout(() => msg.classList.remove('show'), 3000);
+    }
+
+    // Init
+    loadConfig();
+    renderTemplates();
+  </script>
+</body>
+</html>

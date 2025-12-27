@@ -89,6 +89,17 @@ const categoryMap = {
   'feedback': { category: 'productivity', subcategory: 'customer-service', badge: 'NEW' },
   'testimonials': { category: 'productivity', subcategory: 'social-proof', badge: 'NEW' },
   'konnect': { category: 'productivity', subcategory: 'messaging', badge: 'P2P' },
+  'email': { category: 'productivity', subcategory: 'communication', badge: 'NEW' },
+  'sms': { category: 'productivity', subcategory: 'communication', badge: 'NEW' },
+  'voice-memo': { category: 'productivity', subcategory: 'communication', badge: 'NEW' },
+  'vcard': { category: 'productivity', subcategory: 'networking', badge: 'NEW' },
+
+  // Lifestyle
+  'weather': { category: 'utility', subcategory: 'information', badge: 'NEW' },
+  'habits': { category: 'productivity', subcategory: 'tracking', badge: 'NEW' },
+  'world-clock': { category: 'utility', subcategory: 'time', badge: 'NEW' },
+  'stickies': { category: 'productivity', subcategory: 'notes', badge: 'NEW' },
+  'mood': { category: 'productivity', subcategory: 'tracking', badge: 'NEW' },
 
   // Tools
   'terminal': { category: 'tool', subcategory: 'development', badge: 'NEW' },
