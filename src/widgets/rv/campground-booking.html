@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campground Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"campground-booking","name":"Campground Booking","icon":"🏕️","desc":"RV campsite reservations","category":"rv","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#854d0e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#854d0e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.site{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.site-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.site-name{font-size:1.125rem;font-weight:bold}
+.site-type{font-size:.75rem;color:#854d0e}
+.site-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-occupied{background:#854d0e33;color:#854d0e}
+.status-reserved{background:#0369a133;color:#0369a1}
+.site-amenities{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:15px}
+.amenity{padding:4px 8px;background:#252525;border-radius:4px;font-size:.7rem}
+.site-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+.site-rate{font-size:1rem;font-weight:bold;color:#854d0e}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏕️ Campground</h1><button class="btn">New Reservation</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">TOTAL SITES</div></div>
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">OCCUPIED</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">RESERVED</div></div>
+</div>
+<div class="sites" id="sites"></div>
+<script>
+const sites=[
+{name:'Site A-1',type:'PULL-THROUGH',status:'occupied',hookups:['50A','Water','Sewer','WiFi'],length:'65 ft',guest:'Johnson Family',checkIn:'Jan 25',checkOut:'Jan 30',rate:'$65/night'},
+{name:'Site A-5',type:'BACK-IN',status:'available',hookups:['30A','Water','Sewer'],length:'45 ft',guest:'--',checkIn:'--',checkOut:'--',rate:'$55/night'},
+{name:'Site B-3',type:'PULL-THROUGH',status:'reserved',hookups:['50A','Water','Sewer','WiFi','Cable'],length:'70 ft',guest:'Williams RV',checkIn:'Jan 28',checkOut:'Feb 3',rate:'$75/night'},
+{name:'Site C-2',type:'TENT/SMALL RV',status:'occupied',hookups:['20A','Water'],length:'30 ft',guest:'Martinez',checkIn:'Jan 26',checkOut:'Jan 28',rate:'$40/night'},
+{name:'Site D-1',type:'PREMIUM LAKEFRONT',status:'occupied',hookups:['50A','Water','Sewer','WiFi','Cable'],length:'60 ft',guest:'Thompson',checkIn:'Jan 20',checkOut:'Feb 1',rate:'$95/night'},
+{name:'Site E-4',type:'BACK-IN',status:'available',hookups:['30A','Water'],length:'40 ft',guest:'--',checkIn:'--',checkOut:'--',rate:'$45/night'}
+];
+document.getElementById('sites').innerHTML=sites.map(s=>`
+<div class="site">
+<div class="site-header">
+<div>
+<div class="site-name">${s.name}</div>
+<div class="site-type">${s.type}</div>
+</div>
+<span class="site-status status-${s.status}">${s.status.toUpperCase()}</span>
+</div>
+<div class="site-amenities">${s.hookups.map(h=>`<span class="amenity">${h}</span>`).join('')}</div>
+<div class="site-details">
+<div class="detail"><div class="detail-label">MAX LENGTH</div><div class="detail-value">${s.length}</div></div>
+<div class="detail"><div class="detail-label">GUEST</div><div class="detail-value">${s.guest}</div></div>
+<div class="detail"><div class="detail-label">CHECK IN</div><div class="detail-value">${s.checkIn}</div></div>
+<div class="detail"><div class="detail-label">CHECK OUT</div><div class="detail-value">${s.checkOut}</div></div>
+</div>
+<div class="site-rate">${s.rate}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

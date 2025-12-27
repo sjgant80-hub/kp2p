@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RV Rental Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"rental-inventory","name":"Rental Inventory","icon":"🚐","desc":"RV rental fleet","category":"rv","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#854d0e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.rvs{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px}
+.rv{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.rv-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.rv-name{font-size:1.125rem;font-weight:bold}
+.rv-class{font-size:.75rem;color:#854d0e}
+.rv-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-rented{background:#854d0e33;color:#854d0e}
+.status-maintenance{background:#dc262633;color:#dc2626}
+.rv-specs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
+.spec{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.spec-value{font-size:1rem;font-weight:bold}
+.spec-label{font-size:.6rem;color:#888}
+.rv-features{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:15px}
+.feature{padding:4px 8px;background:#252525;border-radius:4px;font-size:.7rem}
+.rv-footer{display:flex;justify-content:space-between;align-items:center}
+.rv-rate{font-size:1rem;font-weight:bold;color:#854d0e}
+.rv-mileage{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚐 RV Inventory</h1><button class="btn">Add RV</button></div>
+<div class="rvs" id="rvs"></div>
+<script>
+const rvs=[
+{name:'Winnebago Vista 31BE',class:'CLASS A',status:'available',length:'32 ft',sleeps:6,year:2023,mileage:'12,450',features:['Full Kitchen','King Bed','Slideout','Generator'],rate:'$275/night'},
+{name:'Thor Four Winds 28A',class:'CLASS C',status:'rented',length:'29 ft',sleeps:8,year:2022,mileage:'28,300',features:['Bunk Beds','Kitchen','Bathroom','TV'],rate:'$195/night'},
+{name:'Airstream Interstate 24',class:'CLASS B',status:'available',length:'24 ft',sleeps:2,year:2024,mileage:'5,200',features:['Compact','Fuel Efficient','Bathroom','Kitchenette'],rate:'$225/night'},
+{name:'Forest River Georgetown',class:'CLASS A',status:'rented',length:'36 ft',sleeps:8,year:2021,mileage:'35,800',features:['2 Slideouts','Washer/Dryer','King Bed','Outdoor Kitchen'],rate:'$325/night'},
+{name:'Coachmen Leprechaun 260DS',class:'CLASS C',status:'maintenance',length:'27 ft',sleeps:6,year:2020,mileage:'42,100',features:['Cab-over Bed','Kitchen','Bathroom'],rate:'$165/night'},
+{name:'Keystone Cougar 29BHS',class:'TRAVEL TRAILER',status:'available',length:'33 ft',sleeps:10,year:2023,mileage:'N/A',features:['Bunkhouse','Kitchen','Outdoor Kitchen','Slideout'],rate:'$125/night'}
+];
+document.getElementById('rvs').innerHTML=rvs.map(r=>`
+<div class="rv">
+<div class="rv-header">
+<div>
+<div class="rv-name">${r.name}</div>
+<div class="rv-class">${r.class}</div>
+</div>
+<span class="rv-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="rv-specs">
+<div class="spec"><div class="spec-value">${r.length}</div><div class="spec-label">LENGTH</div></div>
+<div class="spec"><div class="spec-value">${r.sleeps}</div><div class="spec-label">SLEEPS</div></div>
+<div class="spec"><div class="spec-value">${r.year}</div><div class="spec-label">YEAR</div></div>
+</div>
+<div class="rv-features">${r.features.map(f=>`<span class="feature">${f}</span>`).join('')}</div>
+<div class="rv-footer">
+<span class="rv-rate">${r.rate}</span>
+<span class="rv-mileage">🛣️ ${r.mileage} mi</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

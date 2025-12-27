@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Motorcycle Service - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"service-tracker","name":"Service Tracker","icon":"🏍️","desc":"Motorcycle service records","category":"motorcycle","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#b91c1c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#b91c1c}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.services{display:flex;flex-direction:column;gap:15px}
+.service{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.service-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.service-bike{font-size:1.125rem;font-weight:bold}
+.service-owner{font-size:.75rem;color:#b91c1c}
+.service-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-inprogress{background:#eab30833;color:#eab308}
+.status-complete{background:#15803d33;color:#15803d}
+.status-waiting{background:#0369a133;color:#0369a1}
+.service-work{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.work-item{padding:6px 12px;background:#252525;border-radius:4px;font-size:.75rem}
+.service-details{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.detail-value{font-size:.9rem;font-weight:bold}
+.detail-label{font-size:.6rem;color:#888}
+.service-footer{display:flex;justify-content:space-between;align-items:center}
+.service-cost{font-size:1.125rem;font-weight:bold;color:#b91c1c}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏍️ Service</h1><button class="btn">New Service</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">IN SHOP</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">WAITING PARTS</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">COMPLETED TODAY</div></div>
+<div class="stat"><div class="stat-value">$3,850</div><div class="stat-label">TODAY'S REVENUE</div></div>
+</div>
+<div class="services" id="services"></div>
+<script>
+const services=[
+{bike:'2022 Harley Street Glide',owner:'Mike Thompson',status:'inprogress',mileage:'18,500',tech:'Jake',promise:'Today 3PM',work:['Oil Change','Brake Fluid','Tire Rotation','Chain Adjust'],cost:'$285'},
+{bike:'2021 Yamaha MT-09',owner:'Sarah Chen',status:'inprogress',mileage:'12,300',tech:'Dave',promise:'Today 5PM',work:['Fork Seal Replace','Fluid Change'],cost:'$425'},
+{bike:'2019 BMW R1250GS',owner:'John Davis',status:'waiting',mileage:'35,200',tech:'Pending',promise:'Jan 30',work:['Valve Adjust','Spark Plugs','Air Filter','Final Drive Service'],cost:'$850'},
+{bike:'2023 Ducati Panigale V4',owner:'Tom Wilson',status:'complete',mileage:'3,200',tech:'Jake',promise:'Ready',work:['First Service','Break-in Complete'],cost:'$395'},
+{bike:'2020 Honda Gold Wing',owner:'Robert Brown',status:'inprogress',mileage:'28,400',tech:'Mike',promise:'Tomorrow',work:['Transmission Service','Coolant Flush','Brake Pads'],cost:'$675'}
+];
+document.getElementById('services').innerHTML=services.map(s=>`
+<div class="service">
+<div class="service-header">
+<div>
+<div class="service-bike">${s.bike}</div>
+<div class="service-owner">👤 ${s.owner}</div>
+</div>
+<span class="service-status status-${s.status}">${s.status==='inprogress'?'IN PROGRESS':s.status.toUpperCase()}</span>
+</div>
+<div class="service-work">${s.work.map(w=>`<span class="work-item">${w}</span>`).join('')}</div>
+<div class="service-details">
+<div class="detail"><div class="detail-value">${s.mileage}</div><div class="detail-label">MILEAGE</div></div>
+<div class="detail"><div class="detail-value">${s.tech}</div><div class="detail-label">TECH</div></div>
+<div class="detail"><div class="detail-value">${s.promise}</div><div class="detail-label">PROMISE</div></div>
+<div class="detail"><div class="detail-value">${s.cost}</div><div class="detail-label">ESTIMATE</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

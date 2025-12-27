@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bike Repair Queue - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"repair-queue","name":"Repair Queue","icon":"🔧","desc":"Bicycle repair management","category":"bicycle","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#16a34a}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.repairs{display:flex;flex-direction:column;gap:15px}
+.repair{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.repair-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.repair-bike{font-size:1.125rem;font-weight:bold}
+.repair-customer{font-size:.75rem;color:#16a34a}
+.repair-priority{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.priority-rush{background:#dc262633;color:#dc2626}
+.priority-normal{background:#16a34a33;color:#16a34a}
+.priority-low{background:#64748b33;color:#64748b}
+.repair-work{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.work-item{padding:6px 12px;background:#252525;border-radius:4px;font-size:.75rem}
+.repair-details{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.detail{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.detail-value{font-size:.9rem;font-weight:bold}
+.detail-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔧 Repairs</h1><button class="btn">New Repair</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">IN QUEUE</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">IN PROGRESS</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">COMPLETED TODAY</div></div>
+<div class="stat"><div class="stat-value">2.5 hrs</div><div class="stat-label">AVG TURNAROUND</div></div>
+</div>
+<div class="repairs" id="repairs"></div>
+<script>
+const repairs=[
+{bike:'Specialized Diverge',customer:'John Smith',priority:'rush',dropoff:'Today 8AM',promise:'Today 12PM',tech:'Mike',status:'In Progress',work:['Flat Repair','Brake Adjust','Derailleur Tune'],estimate:'$85'},
+{bike:'Trek Domane',customer:'Sarah Johnson',priority:'normal',dropoff:'Yesterday',promise:'Today 5PM',tech:'Dave',status:'In Progress',work:['Full Tune-Up','New Chain','Cassette Replace'],estimate:'$225'},
+{bike:'Giant Defy',customer:'Mike Davis',priority:'normal',dropoff:'Today 9AM',promise:'Tomorrow',tech:'Queue',status:'Waiting',work:['Wheel True','Hub Service'],estimate:'$75'},
+{bike:'Cannondale CAAD13',customer:'Lisa Chen',priority:'rush',dropoff:'Today 10AM',promise:'Today 2PM',tech:'Jake',status:'In Progress',work:['Brake Bleed','New Pads'],estimate:'$95'},
+{bike:'Santa Cruz Blur',customer:'Tom Wilson',priority:'low',dropoff:'Jan 25',promise:'Jan 30',tech:'Queue',status:'Waiting Parts',work:['Suspension Service','Pivot Bearings'],estimate:'$350'},
+{bike:'Cervelo R5',customer:'Amy Brown',priority:'normal',dropoff:'Today 11AM',promise:'Tomorrow',tech:'Queue',status:'Waiting',work:['Ultegra Tune','Cable Replace','Bar Tape'],estimate:'$145'}
+];
+document.getElementById('repairs').innerHTML=repairs.map(r=>`
+<div class="repair">
+<div class="repair-header">
+<div>
+<div class="repair-bike">${r.bike}</div>
+<div class="repair-customer">👤 ${r.customer}</div>
+</div>
+<span class="repair-priority priority-${r.priority}">${r.priority.toUpperCase()}</span>
+</div>
+<div class="repair-work">${r.work.map(w=>`<span class="work-item">${w}</span>`).join('')}</div>
+<div class="repair-details">
+<div class="detail"><div class="detail-value">${r.status}</div><div class="detail-label">STATUS</div></div>
+<div class="detail"><div class="detail-value">${r.tech}</div><div class="detail-label">TECH</div></div>
+<div class="detail"><div class="detail-value">${r.promise}</div><div class="detail-label">PROMISE</div></div>
+<div class="detail"><div class="detail-value">${r.estimate}</div><div class="detail-label">ESTIMATE</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

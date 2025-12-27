@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ride Analytics - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"ride-analytics","name":"Ride Analytics","icon":"📊","desc":"Scooter usage analytics","category":"scooter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.metric{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.metric-value{font-size:2rem;font-weight:bold;color:#7c3aed}
+.metric-change{font-size:.75rem;margin-top:5px}
+.metric-up{color:#15803d}
+.metric-down{color:#dc2626}
+.metric-label{font-size:.75rem;color:#888;margin-top:5px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.chart{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.chart-title{font-size:1rem;font-weight:bold;margin-bottom:15px}
+.bar-chart{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-label{width:80px;font-size:.75rem;color:#888}
+.bar-container{flex:1;background:#333;border-radius:4px;height:20px;overflow:hidden}
+.bar-fill{height:100%;background:#7c3aed;border-radius:4px}
+.bar-value{width:50px;font-size:.75rem;text-align:right}
+.top-routes{display:flex;flex-direction:column;gap:10px}
+.route{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#252525;border-radius:6px}
+.route-path{font-size:.875rem}
+.route-count{font-size:.875rem;color:#7c3aed;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="header"><h1>📊 Analytics</h1><button class="btn">Export</button></div>
+<div class="metrics">
+<div class="metric"><div class="metric-value">1,247</div><div class="metric-change metric-up">↑ 12%</div><div class="metric-label">RIDES TODAY</div></div>
+<div class="metric"><div class="metric-value">8.2 min</div><div class="metric-change metric-down">↓ 3%</div><div class="metric-label">AVG DURATION</div></div>
+<div class="metric"><div class="metric-value">1.4 mi</div><div class="metric-change metric-up">↑ 5%</div><div class="metric-label">AVG DISTANCE</div></div>
+<div class="metric"><div class="metric-value">$4.85</div><div class="metric-change metric-up">↑ 8%</div><div class="metric-label">AVG FARE</div></div>
+<div class="metric"><div class="metric-value">$6,048</div><div class="metric-change metric-up">↑ 15%</div><div class="metric-label">TODAY'S REVENUE</div></div>
+</div>
+<div class="charts">
+<div class="chart">
+<div class="chart-title">Rides by Hour</div>
+<div class="bar-chart" id="hourlyChart"></div>
+</div>
+<div class="chart">
+<div class="chart-title">Top Routes</div>
+<div class="top-routes" id="topRoutes"></div>
+</div>
+</div>
+<script>
+const hourlyData=[
+{hour:'6 AM',rides:45,pct:15},{hour:'8 AM',rides:187,pct:62},{hour:'10 AM',rides:124,pct:41},
+{hour:'12 PM',rides:203,pct:68},{hour:'2 PM',rides:156,pct:52},{hour:'4 PM',rides:245,pct:82},
+{hour:'6 PM',rides:298,pct:99},{hour:'8 PM',rides:178,pct:59},{hour:'10 PM',rides:89,pct:30}
+];
+document.getElementById('hourlyChart').innerHTML=hourlyData.map(h=>`
+<div class="bar-row">
+<span class="bar-label">${h.hour}</span>
+<div class="bar-container"><div class="bar-fill" style="width:${h.pct}%"></div></div>
+<span class="bar-value">${h.rides}</span>
+</div>`).join('');
+
+const routes=[
+{from:'Downtown Hub',to:'University',count:342},
+{from:'Train Station',to:'Business District',count:287},
+{from:'Waterfront',to:'Downtown Hub',count:234},
+{from:'University',to:'Shopping Center',count:198},
+{from:'Park District',to:'Train Station',count:167}
+];
+document.getElementById('topRoutes').innerHTML=routes.map(r=>`
+<div class="route">
+<span class="route-path">${r.from} → ${r.to}</span>
+<span class="route-count">${r.count} rides</span>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -840,6 +840,26 @@ const categoryMap = {
   // Snowmobile
   'snowmobile-rental': { category: 'snowmobile', subcategory: 'rentals', badge: 'ENT' },
   'trail-conditions': { category: 'snowmobile', subcategory: 'conditions', badge: 'ENT' },
+
+  // Boat
+  'charter-booking': { category: 'boat', subcategory: 'charters', badge: 'ENT' },
+  'fleet-management': { category: 'boat', subcategory: 'fleet', badge: 'ENT' },
+
+  // RV
+  'campground-booking': { category: 'rv', subcategory: 'campgrounds', badge: 'ENT' },
+  'rental-inventory': { category: 'rv', subcategory: 'rentals', badge: 'ENT' },
+
+  // Motorcycle
+  'service-tracker': { category: 'motorcycle', subcategory: 'service', badge: 'ENT' },
+  'inventory-sales': { category: 'motorcycle', subcategory: 'sales', badge: 'ENT' },
+
+  // Bicycle
+  'shop-inventory': { category: 'bicycle', subcategory: 'inventory', badge: 'ENT' },
+  'repair-queue': { category: 'bicycle', subcategory: 'repairs', badge: 'ENT' },
+
+  // Scooter
+  'scooter-fleet-status': { category: 'scooter', subcategory: 'fleet', badge: 'ENT' },
+  'ride-analytics': { category: 'scooter', subcategory: 'analytics', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1151,7 +1171,12 @@ const widgetDirs = [
   'greenhouse',
   'mechanic',
   'atv',
-  'snowmobile'
+  'snowmobile',
+  'boat',
+  'rv',
+  'motorcycle',
+  'bicycle',
+  'scooter'
 ];
 
 // Process all widgets in all directories

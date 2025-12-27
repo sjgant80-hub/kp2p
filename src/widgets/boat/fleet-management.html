@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fleet Management - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fleet-management","name":"Fleet Management","icon":"🚤","desc":"Boat fleet tracking","category":"boat","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0284c7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.vessel{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.vessel-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.vessel-name{font-size:1.125rem;font-weight:bold}
+.vessel-type{font-size:.75rem;color:#0284c7}
+.vessel-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-charter{background:#0284c733;color:#0284c7}
+.status-maintenance{background:#dc262633;color:#dc2626}
+.vessel-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.spec{background:#252525;padding:10px;border-radius:6px}
+.spec-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.spec-value{font-size:.875rem}
+.vessel-footer{display:flex;justify-content:space-between;align-items:center;font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚤 Fleet</h1><button class="btn">Add Vessel</button></div>
+<div class="fleet" id="fleet"></div>
+<script>
+const fleet=[
+{name:'Sea Breeze 42',type:'SAILING YACHT',status:'charter',length:'42 ft',capacity:8,year:2020,engine:'Yanmar 54HP',location:'Dock A-1',lastService:'Jan 10',nextService:'Apr 10'},
+{name:'Ocean Runner',type:'FISHING BOAT',status:'charter',length:'36 ft',capacity:10,year:2019,engine:'Twin Mercury 300',location:'Dock B-3',lastService:'Jan 5',nextService:'Mar 5'},
+{name:'Sunset Cruiser',type:'PARTY BOAT',status:'available',length:'55 ft',capacity:30,year:2021,engine:'Cat C12',location:'Dock A-4',lastService:'Dec 20',nextService:'Mar 20'},
+{name:'Wind Dancer',type:'CATAMARAN',status:'available',length:'45 ft',capacity:14,year:2022,engine:'Twin Volvo',location:'Dock C-2',lastService:'Jan 15',nextService:'Apr 15'},
+{name:'Blue Marlin',type:'SPORT FISHER',status:'maintenance',length:'38 ft',capacity:6,year:2018,engine:'Twin Yamaha 350',location:'Dry Dock',lastService:'Today',nextService:'Feb 1'},
+{name:'Island Hopper',type:'PONTOON',status:'available',length:'28 ft',capacity:12,year:2023,engine:'Mercury 150',location:'Dock D-1',lastService:'Jan 8',nextService:'Apr 8'}
+];
+document.getElementById('fleet').innerHTML=fleet.map(v=>`
+<div class="vessel">
+<div class="vessel-header">
+<div>
+<div class="vessel-name">${v.name}</div>
+<div class="vessel-type">${v.type}</div>
+</div>
+<span class="vessel-status status-${v.status}">${v.status.toUpperCase()}</span>
+</div>
+<div class="vessel-specs">
+<div class="spec"><div class="spec-label">LENGTH</div><div class="spec-value">${v.length}</div></div>
+<div class="spec"><div class="spec-label">CAPACITY</div><div class="spec-value">${v.capacity} guests</div></div>
+<div class="spec"><div class="spec-label">YEAR</div><div class="spec-value">${v.year}</div></div>
+<div class="spec"><div class="spec-label">ENGINE</div><div class="spec-value">${v.engine}</div></div>
+</div>
+<div class="vessel-footer">
+<span>📍 ${v.location}</span>
+<span>🔧 Next: ${v.nextService}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

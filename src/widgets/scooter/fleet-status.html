@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scooter Fleet Status - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fleet-status","name":"Fleet Status","icon":"🛴","desc":"Scooter fleet tracking","category":"scooter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#7c3aed}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.zones{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.zone{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.zone.active{background:#7c3aed;border-color:#7c3aed}
+.scooters{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:15px}
+.scooter{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.scooter-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.scooter-id{font-size:1.125rem;font-weight:bold}
+.scooter-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-inuse{background:#7c3aed33;color:#7c3aed}
+.status-charging{background:#eab30833;color:#eab308}
+.status-maintenance{background:#dc262633;color:#dc2626}
+.scooter-battery{margin-bottom:15px}
+.battery-bar{background:#333;border-radius:4px;height:8px;overflow:hidden}
+.battery-fill{height:100%;border-radius:4px}
+.battery-high{background:#15803d}
+.battery-medium{background:#eab308}
+.battery-low{background:#dc2626}
+.battery-text{display:flex;justify-content:space-between;font-size:.75rem;color:#888;margin-top:5px}
+.scooter-info{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info{background:#252525;padding:8px;border-radius:6px;text-align:center}
+.info-value{font-size:.875rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛴 Fleet</h1><button class="btn">Dispatch</button></div>
+<div class="overview">
+<div class="stat"><div class="stat-value">250</div><div class="stat-label">TOTAL FLEET</div></div>
+<div class="stat"><div class="stat-value">185</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">45</div><div class="stat-label">IN USE</div></div>
+<div class="stat"><div class="stat-value">20</div><div class="stat-label">CHARGING</div></div>
+</div>
+<div class="zones">
+<button class="zone active">All Zones</button>
+<button class="zone">Downtown</button>
+<button class="zone">Midtown</button>
+<button class="zone">Uptown</button>
+<button class="zone">University</button>
+<button class="zone">Waterfront</button>
+</div>
+<div class="scooters" id="scooters"></div>
+<script>
+const scooters=[
+{id:'SC-001',status:'available',battery:95,zone:'Downtown',location:'Main & 1st',rides:1247,lastRide:'10 min ago'},
+{id:'SC-042',status:'inuse',battery:68,zone:'Midtown',location:'Park Ave',rides:892,lastRide:'Active'},
+{id:'SC-103',status:'available',battery:82,zone:'University',location:'Campus Center',rides:2103,lastRide:'25 min ago'},
+{id:'SC-087',status:'charging',battery:35,zone:'Depot',location:'Charging Hub',rides:1567,lastRide:'2 hours ago'},
+{id:'SC-156',status:'inuse',battery:54,zone:'Waterfront',location:'Pier 5',rides:743,lastRide:'Active'},
+{id:'SC-234',status:'maintenance',battery:12,zone:'Depot',location:'Service Bay',rides:2890,lastRide:'Yesterday'},
+{id:'SC-178',status:'available',battery:100,zone:'Uptown',location:'5th & Elm',rides:456,lastRide:'1 hour ago'},
+{id:'SC-092',status:'charging',battery:22,zone:'Depot',location:'Charging Hub',rides:1834,lastRide:'3 hours ago'}
+];
+document.getElementById('scooters').innerHTML=scooters.map(s=>{
+const batteryClass=s.battery>60?'battery-high':s.battery>30?'battery-medium':'battery-low';
+return`
+<div class="scooter">
+<div class="scooter-header">
+<span class="scooter-id">${s.id}</span>
+<span class="scooter-status status-${s.status}">${s.status==='inuse'?'IN USE':s.status.toUpperCase()}</span>
+</div>
+<div class="scooter-battery">
+<div class="battery-bar"><div class="battery-fill ${batteryClass}" style="width:${s.battery}%"></div></div>
+<div class="battery-text"><span>${s.battery}%</span><span>${s.zone}</span></div>
+</div>
+<div class="scooter-info">
+<div class="info"><div class="info-value">${s.rides}</div><div class="info-label">TOTAL RIDES</div></div>
+<div class="info"><div class="info-value">${s.lastRide}</div><div class="info-label">LAST RIDE</div></div>
+</div>
+</div>`}).join('');
+</script>
+</body>
+</html>

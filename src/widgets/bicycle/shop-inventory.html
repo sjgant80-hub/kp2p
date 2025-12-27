@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bike Shop Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"shop-inventory","name":"Shop Inventory","icon":"🚴","desc":"Bicycle shop inventory","category":"bicycle","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.categories{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.category{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.category.active{background:#16a34a;border-color:#16a34a}
+.bikes{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.bike{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.bike-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.bike-name{font-size:1.125rem;font-weight:bold}
+.bike-brand{font-size:.75rem;color:#16a34a}
+.bike-stock{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.stock-instock{background:#16a34a33;color:#16a34a}
+.stock-low{background:#eab30833;color:#eab308}
+.stock-out{background:#dc262633;color:#dc2626}
+.bike-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.spec{background:#252525;padding:10px;border-radius:6px}
+.spec-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.spec-value{font-size:.875rem}
+.bike-sizes{display:flex;gap:6px;margin-bottom:15px}
+.size{padding:4px 8px;background:#252525;border-radius:4px;font-size:.7rem}
+.size.available{border:1px solid #16a34a}
+.size.unavailable{opacity:.4}
+.bike-price{font-size:1.125rem;font-weight:bold;color:#16a34a}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚴 Bikes</h1><button class="btn">Add Bike</button></div>
+<div class="categories">
+<button class="category active">All Bikes</button>
+<button class="category">Road</button>
+<button class="category">Mountain</button>
+<button class="category">Hybrid</button>
+<button class="category">E-Bike</button>
+<button class="category">Kids</button>
+</div>
+<div class="bikes" id="bikes"></div>
+<script>
+const bikes=[
+{name:'Specialized Tarmac SL7',brand:'SPECIALIZED',type:'Road',stock:'instock',qty:3,frame:'Carbon',groupset:'Shimano Ultegra',sizes:[{s:'52',a:true},{s:'54',a:true},{s:'56',a:true},{s:'58',a:false}],price:'$4,500'},
+{name:'Trek Fuel EX 8',brand:'TREK',type:'Mountain',stock:'instock',qty:4,frame:'Aluminum',groupset:'SRAM GX Eagle',sizes:[{s:'S',a:true},{s:'M',a:true},{s:'L',a:true},{s:'XL',a:true}],price:'$3,200'},
+{name:'Giant Escape 3',brand:'GIANT',type:'Hybrid',stock:'low',qty:1,frame:'Aluminum',groupset:'Shimano Altus',sizes:[{s:'S',a:false},{s:'M',a:true},{s:'L',a:false}],price:'$480'},
+{name:'Cannondale Synapse',brand:'CANNONDALE',type:'E-Bike',stock:'instock',qty:2,frame:'Carbon',groupset:'Shimano 105 + Fazua',sizes:[{s:'51',a:true},{s:'54',a:true}],price:'$5,800'},
+{name:'Trek Precaliber 20',brand:'TREK',type:'Kids',stock:'instock',qty:6,frame:'Aluminum',groupset:'Single Speed',sizes:[{s:'20"',a:true}],price:'$290'},
+{name:'Santa Cruz Hightower',brand:'SANTA CRUZ',type:'Mountain',stock:'out',qty:0,frame:'Carbon',groupset:'SRAM X01',sizes:[{s:'M',a:false},{s:'L',a:false}],price:'$6,800'}
+];
+document.getElementById('bikes').innerHTML=bikes.map(b=>`
+<div class="bike">
+<div class="bike-header">
+<div>
+<div class="bike-name">${b.name}</div>
+<div class="bike-brand">${b.brand} • ${b.type}</div>
+</div>
+<span class="bike-stock stock-${b.stock}">${b.qty} IN STOCK</span>
+</div>
+<div class="bike-specs">
+<div class="spec"><div class="spec-label">FRAME</div><div class="spec-value">${b.frame}</div></div>
+<div class="spec"><div class="spec-label">GROUPSET</div><div class="spec-value">${b.groupset}</div></div>
+</div>
+<div class="bike-sizes">${b.sizes.map(s=>`<span class="size ${s.a?'available':'unavailable'}">${s.s}</span>`).join('')}</div>
+<div class="bike-price">${b.price}</div>
+</div>`).join('');
+</script>
+</body>
+</html>
