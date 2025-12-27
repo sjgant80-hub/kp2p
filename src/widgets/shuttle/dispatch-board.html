@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shuttle Dispatch - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"dispatch-board","name":"Dispatch Board","icon":"🚐","desc":"Shuttle dispatch management","category":"shuttle","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#7c3aed}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.shuttles{display:flex;flex-direction:column;gap:15px}
+.shuttle{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.shuttle-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.shuttle-id{font-size:1.125rem;font-weight:bold}
+.shuttle-route{font-size:.75rem;color:#7c3aed}
+.shuttle-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-enroute{background:#7c3aed33;color:#7c3aed;animation:pulse 2s infinite}
+.status-loading{background:#eab30833;color:#eab308}
+.status-available{background:#15803d33;color:#15803d}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.shuttle-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚐 Dispatch</h1><button class="btn">New Trip</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">ACTIVE SHUTTLES</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">EN ROUTE</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">TODAY'S TRIPS</div></div>
+<div class="stat"><div class="stat-value">892</div><div class="stat-label">PASSENGERS</div></div>
+</div>
+<div class="shuttles" id="shuttles"></div>
+<script>
+const shuttles=[
+{id:'SH-01',route:'AIRPORT',status:'enroute',from:'Terminal 2',to:'Downtown Marriott',passengers:12,capacity:14,eta:'18 min',driver:'M. Johnson'},
+{id:'SH-02',route:'AIRPORT',status:'loading',from:'Terminal 1',to:'Convention Center',passengers:8,capacity:14,eta:'Loading...',driver:'K. Williams'},
+{id:'SH-03',route:'HOTEL',status:'enroute',from:'Hilton',to:'Airport Terminal 3',passengers:6,capacity:14,eta:'25 min',driver:'R. Davis'},
+{id:'SH-04',route:'CORPORATE',status:'enroute',from:'Tech Campus',to:'Downtown Office',passengers:14,capacity:14,eta:'12 min',driver:'S. Miller'},
+{id:'SH-05',route:'HOTEL',status:'available',from:'Staging Area',to:'--',passengers:0,capacity:14,eta:'Ready',driver:'T. Brown'}
+];
+document.getElementById('shuttles').innerHTML=shuttles.map(s=>`
+<div class="shuttle">
+<div class="shuttle-header">
+<div>
+<div class="shuttle-id">${s.id}</div>
+<div class="shuttle-route">${s.route} SHUTTLE</div>
+</div>
+<span class="shuttle-status status-${s.status}">${s.status.toUpperCase()}</span>
+</div>
+<div class="shuttle-info">
+<div class="info"><div class="info-value">${s.from} → ${s.to}</div><div class="info-label">ROUTE</div></div>
+<div class="info"><div class="info-value">${s.passengers}/${s.capacity}</div><div class="info-label">PASSENGERS</div></div>
+<div class="info"><div class="info-value">${s.eta}</div><div class="info-label">ETA</div></div>
+<div class="info"><div class="info-value">${s.driver}</div><div class="info-label">DRIVER</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

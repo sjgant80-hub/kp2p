@@ -899,7 +899,31 @@ const categoryMap = {
 
   // Ferry
   'vessel-tracker': { category: 'ferry', subcategory: 'tracking', badge: 'ENT' },
-  'booking-system': { category: 'ferry', subcategory: 'booking', badge: 'ENT' },
+  'ferry-booking': { category: 'ferry', subcategory: 'booking', badge: 'ENT' },
+
+  // Tram
+  'route-schedule': { category: 'tram', subcategory: 'scheduling', badge: 'ENT' },
+  'tram-fleet': { category: 'tram', subcategory: 'fleet', badge: 'ENT' },
+
+  // Shuttle
+  'dispatch-board': { category: 'shuttle', subcategory: 'dispatch', badge: 'ENT' },
+  'reservation-system': { category: 'shuttle', subcategory: 'reservations', badge: 'ENT' },
+
+  // Limousine
+  'fleet-manager': { category: 'limousine', subcategory: 'fleet', badge: 'ENT' },
+  'limo-booking': { category: 'limousine', subcategory: 'booking', badge: 'ENT' },
+
+  // Pedicab
+  'driver-dispatch': { category: 'pedicab', subcategory: 'dispatch', badge: 'ENT' },
+  'route-zones': { category: 'pedicab', subcategory: 'zones', badge: 'ENT' },
+
+  // Rickshaw
+  'rickshaw-booking': { category: 'rickshaw', subcategory: 'booking', badge: 'ENT' },
+  'driver-tracker': { category: 'rickshaw', subcategory: 'tracking', badge: 'ENT' },
+
+  // Cablecar
+  'lift-status': { category: 'cablecar', subcategory: 'monitoring', badge: 'ENT' },
+  'ticket-counter': { category: 'cablecar', subcategory: 'sales', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1226,7 +1250,13 @@ const widgetDirs = [
   'gondola',
   'funicular',
   'monorail',
-  'ferry'
+  'ferry',
+  'tram',
+  'shuttle',
+  'limousine',
+  'pedicab',
+  'rickshaw',
+  'cablecar'
 ];
 
 // Process all widgets in all directories

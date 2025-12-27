@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cable Car Status - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"lift-status","name":"Lift Status","icon":"🚡","desc":"Cable car lift monitoring","category":"cablecar","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0891b2;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0891b2}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.lifts{display:flex;flex-direction:column;gap:15px}
+.lift{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.lift-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.lift-name{font-size:1.125rem;font-weight:bold}
+.lift-route{font-size:.75rem;color:#0891b2}
+.lift-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-running{background:#15803d33;color:#15803d;animation:pulse 2s infinite}
+.status-paused{background:#eab30833;color:#eab308}
+.status-closed{background:#dc262633;color:#dc2626}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.lift-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚡 Status</h1><button class="btn">Control Panel</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">🟢</div><div class="stat-label">SYSTEM</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">ACTIVE LINES</div></div>
+<div class="stat"><div class="stat-value">2,456</div><div class="stat-label">TODAY'S RIDERS</div></div>
+<div class="stat"><div class="stat-value">12 km/h</div><div class="stat-label">WIND SPEED</div></div>
+</div>
+<div class="lifts" id="lifts"></div>
+<script>
+const lifts=[
+{name:'Summit Express',route:'Valley Station → Peak Station',status:'running',cabins:24,capacity:8,speed:'6 m/s',travelTime:'12 min',riders:890,wait:'5 min'},
+{name:'Panorama Line',route:'Town Center → Viewpoint',status:'running',cabins:18,capacity:6,speed:'5 m/s',travelTime:'8 min',riders:645,wait:'3 min'},
+{name:'Mountain Connector',route:'Peak Station → Alpine Lodge',status:'paused',cabins:12,capacity:4,speed:'0 m/s',travelTime:'--',riders:0,wait:'Wind Hold'},
+{name:'Valley Link',route:'Parking → Valley Station',status:'running',cabins:16,capacity:8,speed:'4 m/s',travelTime:'6 min',riders:421,wait:'2 min'}
+];
+document.getElementById('lifts').innerHTML=lifts.map(l=>`
+<div class="lift">
+<div class="lift-header">
+<div>
+<div class="lift-name">${l.name}</div>
+<div class="lift-route">${l.route}</div>
+</div>
+<span class="lift-status status-${l.status}">${l.status.toUpperCase()}</span>
+</div>
+<div class="lift-info">
+<div class="info"><div class="info-value">${l.cabins} × ${l.capacity}</div><div class="info-label">CABINS</div></div>
+<div class="info"><div class="info-value">${l.speed}</div><div class="info-label">SPEED</div></div>
+<div class="info"><div class="info-value">${l.travelTime}</div><div class="info-label">TRAVEL TIME</div></div>
+<div class="info"><div class="info-value">${l.riders}</div><div class="info-label">TODAY'S RIDERS</div></div>
+<div class="info"><div class="info-value">${l.wait}</div><div class="info-label">WAIT TIME</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

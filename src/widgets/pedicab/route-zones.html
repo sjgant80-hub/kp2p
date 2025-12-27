@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pedicab Zones - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"route-zones","name":"Route Zones","icon":"🗺️","desc":"Pedicab zone management","category":"pedicab","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.zone{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.zone-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.zone-name{font-size:1.125rem;font-weight:bold}
+.zone-demand{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.demand-high{background:#dc262633;color:#dc2626}
+.demand-medium{background:#eab30833;color:#eab308}
+.demand-low{background:#15803d33;color:#15803d}
+.zone-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.stat{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.stat-value{font-size:1rem;font-weight:bold;color:#16a34a}
+.stat-label{font-size:.65rem;color:#888}
+.zone-hotspots{font-size:.75rem;color:#888}
+.hotspot{display:inline-block;padding:2px 8px;background:#252525;border-radius:4px;margin:2px;font-size:.7rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🗺️ Zones</h1><button class="btn">Edit Zones</button></div>
+<div class="zones" id="zones"></div>
+<script>
+const zones=[
+{name:'Downtown Core',demand:'high',drivers:8,rides:45,avgFare:'$12',peakTime:'12-2 PM',hotspots:['Central Square','City Hall','Transit Hub','Shopping District']},
+{name:'Waterfront',demand:'high',drivers:6,rides:38,avgFare:'$15',peakTime:'5-8 PM',hotspots:['Pier 39','Marina','Ferry Terminal','Seafood Row']},
+{name:'Historic District',demand:'medium',drivers:4,rides:22,avgFare:'$10',peakTime:'11 AM-3 PM',hotspots:['Cathedral','Old Town','Museum Mile','Art Gallery']},
+{name:'Park Loop',demand:'medium',drivers:3,rides:18,avgFare:'$18',peakTime:'10 AM-4 PM',hotspots:['Central Park','Botanical Garden','Zoo Entrance','Lake Shore']},
+{name:'University Area',demand:'low',drivers:2,rides:12,avgFare:'$8',peakTime:'Evening',hotspots:['Main Campus','Student Union','Library','Stadium']},
+{name:'Convention Center',demand:'medium',drivers:4,rides:25,avgFare:'$14',peakTime:'Event Hours',hotspots:['Exhibit Hall','Hotel Row','Restaurant District','Arena']}
+];
+document.getElementById('zones').innerHTML=zones.map(z=>`
+<div class="zone">
+<div class="zone-header">
+<span class="zone-name">${z.name}</span>
+<span class="zone-demand demand-${z.demand}">${z.demand.toUpperCase()} DEMAND</span>
+</div>
+<div class="zone-stats">
+<div class="stat"><div class="stat-value">${z.drivers}</div><div class="stat-label">ACTIVE DRIVERS</div></div>
+<div class="stat"><div class="stat-value">${z.rides}</div><div class="stat-label">TODAY'S RIDES</div></div>
+<div class="stat"><div class="stat-value">${z.avgFare}</div><div class="stat-label">AVG FARE</div></div>
+<div class="stat"><div class="stat-value">${z.peakTime}</div><div class="stat-label">PEAK TIME</div></div>
+</div>
+<div class="zone-hotspots">📍 ${z.hotspots.map(h=>`<span class="hotspot">${h}</span>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shuttle Reservations - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"reservation-system","name":"Reservation System","icon":"📅","desc":"Shuttle booking management","category":"shuttle","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.reservations{display:flex;flex-direction:column;gap:15px}
+.reservation{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.res-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.res-id{font-size:1.125rem;font-weight:bold}
+.res-guest{font-size:.75rem;color:#7c3aed}
+.res-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-confirmed{background:#15803d33;color:#15803d}
+.status-pending{background:#eab30833;color:#eab308}
+.status-cancelled{background:#dc262633;color:#dc2626}
+.res-info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+.res-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:15px}
+.action-btn{padding:6px 12px;border-radius:4px;font-size:.75rem;border:none;cursor:pointer}
+.btn-modify{background:#333;color:#fff}
+.btn-cancel{background:#dc262633;color:#dc2626}
+</style>
+</head>
+<body>
+<div class="header"><h1>📅 Reservations</h1><button class="btn">New Booking</button></div>
+<div class="reservations" id="reservations"></div>
+<script>
+const reservations=[
+{id:'RES-2847',guest:'Sarah Johnson',status:'confirmed',pickup:'Airport Terminal 1',dropoff:'Grand Hyatt',date:'Today',time:'3:30 PM',passengers:2,type:'Airport'},
+{id:'RES-2848',guest:'Corporate Group',status:'confirmed',pickup:'Tech Campus',dropoff:'Convention Center',date:'Today',time:'5:00 PM',passengers:14,type:'Corporate'},
+{id:'RES-2849',guest:'Michael Chen',status:'pending',pickup:'Downtown Marriott',dropoff:'Airport Terminal 2',date:'Tomorrow',time:'6:00 AM',passengers:1,type:'Airport'},
+{id:'RES-2850',guest:'Wedding Party',status:'confirmed',pickup:'Hilton Garden',dropoff:'Rose Garden Venue',date:'Saturday',time:'2:00 PM',passengers:12,type:'Event'},
+{id:'RES-2851',guest:'James Wilson',status:'cancelled',pickup:'Airport Terminal 3',dropoff:'Beach Resort',date:'Today',time:'1:00 PM',passengers:3,type:'Airport'}
+];
+document.getElementById('reservations').innerHTML=reservations.map(r=>`
+<div class="reservation">
+<div class="res-header">
+<div>
+<div class="res-id">${r.id}</div>
+<div class="res-guest">${r.guest} • ${r.type}</div>
+</div>
+<span class="res-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="res-info">
+<div class="info"><div class="info-value">${r.pickup}</div><div class="info-label">PICKUP</div></div>
+<div class="info"><div class="info-value">${r.dropoff}</div><div class="info-label">DROP-OFF</div></div>
+<div class="info"><div class="info-value">${r.date} ${r.time}</div><div class="info-label">SCHEDULE</div></div>
+<div class="info"><div class="info-value">${r.passengers}</div><div class="info-label">PASSENGERS</div></div>
+</div>
+<div class="res-footer">
+<button class="action-btn btn-modify">Modify</button>
+<button class="action-btn btn-cancel">Cancel</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

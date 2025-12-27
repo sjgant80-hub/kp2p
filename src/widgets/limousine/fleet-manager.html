@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Limo Fleet - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fleet-manager","name":"Fleet Manager","icon":"🚗","desc":"Limousine fleet management","category":"limousine","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ca8a04;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#ca8a04}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.vehicles{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.vehicle{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.vehicle-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.vehicle-name{font-size:1.125rem;font-weight:bold}
+.vehicle-plate{font-size:.75rem;color:#ca8a04}
+.vehicle-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-booked{background:#ca8a0433;color:#ca8a04}
+.status-service{background:#64748b33;color:#64748b}
+.vehicle-details{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚗 Fleet</h1><button class="btn">Add Vehicle</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">TOTAL VEHICLES</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">BOOKED</div></div>
+<div class="stat"><div class="stat-value">1</div><div class="stat-label">IN SERVICE</div></div>
+</div>
+<div class="vehicles" id="vehicles"></div>
+<script>
+const vehicles=[
+{name:'Lincoln Continental',plate:'LUX-001',status:'available',type:'Sedan',capacity:4,year:2023,mileage:'12,450 mi',driver:'J. Martinez'},
+{name:'Cadillac Escalade ESV',plate:'LUX-002',status:'booked',type:'SUV',capacity:7,year:2024,mileage:'8,200 mi',driver:'R. Thompson'},
+{name:'Mercedes S-Class',plate:'LUX-003',status:'available',type:'Sedan',capacity:4,year:2023,mileage:'15,800 mi',driver:'Available'},
+{name:'Chrysler 300 Stretch',plate:'LUX-004',status:'booked',type:'Stretch Limo',capacity:10,year:2022,mileage:'34,200 mi',driver:'K. Washington'},
+{name:'Rolls Royce Phantom',plate:'LUX-005',status:'available',type:'Luxury Sedan',capacity:4,year:2024,mileage:'3,100 mi',driver:'Available'},
+{name:'Party Bus',plate:'LUX-006',status:'service',type:'Party Bus',capacity:20,year:2021,mileage:'45,600 mi',driver:'In Maintenance'}
+];
+document.getElementById('vehicles').innerHTML=vehicles.map(v=>`
+<div class="vehicle">
+<div class="vehicle-header">
+<div>
+<div class="vehicle-name">${v.name}</div>
+<div class="vehicle-plate">${v.plate} • ${v.type}</div>
+</div>
+<span class="vehicle-status status-${v.status}">${v.status.toUpperCase()}</span>
+</div>
+<div class="vehicle-details">
+<div class="detail"><div class="detail-label">CAPACITY</div><div class="detail-value">${v.capacity} passengers</div></div>
+<div class="detail"><div class="detail-label">YEAR</div><div class="detail-value">${v.year}</div></div>
+<div class="detail"><div class="detail-label">MILEAGE</div><div class="detail-value">${v.mileage}</div></div>
+<div class="detail"><div class="detail-label">DRIVER</div><div class="detail-value">${v.driver}</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

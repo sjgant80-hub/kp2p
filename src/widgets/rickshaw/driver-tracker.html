@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rickshaw Drivers - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"driver-tracker","name":"Driver Tracker","icon":"📍","desc":"Rickshaw driver tracking","category":"rickshaw","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ea580c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.drivers{display:flex;flex-direction:column;gap:15px}
+.driver{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.driver-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.driver-name{font-size:1.125rem;font-weight:bold}
+.driver-vehicle{font-size:.75rem;color:#ea580c}
+.driver-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-online{background:#15803d33;color:#15803d}
+.status-busy{background:#ea580c33;color:#ea580c;animation:pulse 2s infinite}
+.status-offline{background:#64748b33;color:#64748b}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.driver-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>📍 Drivers</h1><button class="btn">Broadcast</button></div>
+<div class="drivers" id="drivers"></div>
+<script>
+const drivers=[
+{name:'Rajan Kumar',vehicle:'Auto #RK-201',status:'busy',location:'Old City Loop',trips:8,earnings:'$125',rating:4.9,joined:'2019'},
+{name:'Amit Singh',vehicle:'Auto #RK-205',status:'busy',location:'Spice Market',trips:6,earnings:'$92',rating:4.7,joined:'2020'},
+{name:'Vikram Das',vehicle:'E-Rick #ER-112',status:'online',location:'Heritage Area',trips:5,earnings:'$78',rating:4.8,joined:'2021'},
+{name:'Suresh Patel',vehicle:'Auto #RK-189',status:'online',location:'Central Station',trips:9,earnings:'$145',rating:5.0,joined:'2018'},
+{name:'Mohan Rao',vehicle:'E-Rick #ER-108',status:'offline',location:'Last: Bazaar',trips:4,earnings:'$56',rating:4.6,joined:'2022'},
+{name:'Prakash Sharma',vehicle:'Auto #RK-215',status:'busy',location:'Temple Circuit',trips:7,earnings:'$108',rating:4.8,joined:'2020'}
+];
+document.getElementById('drivers').innerHTML=drivers.map(d=>`
+<div class="driver">
+<div class="driver-header">
+<div>
+<div class="driver-name">${d.name}</div>
+<div class="driver-vehicle">${d.vehicle}</div>
+</div>
+<span class="driver-status status-${d.status}">${d.status.toUpperCase()}</span>
+</div>
+<div class="driver-info">
+<div class="info"><div class="info-value">${d.location}</div><div class="info-label">LOCATION</div></div>
+<div class="info"><div class="info-value">${d.trips}</div><div class="info-label">TODAY'S TRIPS</div></div>
+<div class="info"><div class="info-value">${d.earnings}</div><div class="info-label">EARNINGS</div></div>
+<div class="info"><div class="info-value">⭐ ${d.rating}</div><div class="info-label">RATING</div></div>
+<div class="info"><div class="info-value">${d.joined}</div><div class="info-label">SINCE</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

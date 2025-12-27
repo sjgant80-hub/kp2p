@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pedicab Dispatch - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"driver-dispatch","name":"Driver Dispatch","icon":"🚲","desc":"Pedicab driver dispatch","category":"pedicab","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#16a34a}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.drivers{display:flex;flex-direction:column;gap:15px}
+.driver{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.driver-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.driver-name{font-size:1.125rem;font-weight:bold}
+.driver-id{font-size:.75rem;color:#16a34a}
+.driver-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-busy{background:#16a34a33;color:#16a34a;animation:pulse 2s infinite}
+.status-break{background:#eab30833;color:#eab308}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.driver-info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚲 Dispatch</h1><button class="btn">Add Driver</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">ACTIVE DRIVERS</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">TODAY'S RIDES</div></div>
+<div class="stat"><div class="stat-value">$2,340</div><div class="stat-label">TODAY'S REVENUE</div></div>
+</div>
+<div class="drivers" id="drivers"></div>
+<script>
+const drivers=[
+{name:'Carlos Rodriguez',id:'PC-101',status:'busy',zone:'Downtown',trips:12,earnings:'$145',rating:4.9,currentRide:'Market → Pier'},
+{name:'Mike Chen',id:'PC-102',status:'available',zone:'Waterfront',trips:8,earnings:'$95',rating:4.8,currentRide:'--'},
+{name:'Sarah Johnson',id:'PC-103',status:'busy',zone:'Historic District',trips:15,earnings:'$178',rating:5.0,currentRide:'Cathedral → Plaza'},
+{name:'David Kim',id:'PC-104',status:'break',zone:'Tourist Area',trips:10,earnings:'$120',rating:4.7,currentRide:'On Break (15 min)'},
+{name:'Emma Wilson',id:'PC-105',status:'available',zone:'Park Loop',trips:7,earnings:'$82',rating:4.9,currentRide:'--'}
+];
+document.getElementById('drivers').innerHTML=drivers.map(d=>`
+<div class="driver">
+<div class="driver-header">
+<div>
+<div class="driver-name">${d.name}</div>
+<div class="driver-id">${d.id} • ${d.zone}</div>
+</div>
+<span class="driver-status status-${d.status}">${d.status.toUpperCase()}</span>
+</div>
+<div class="driver-info">
+<div class="info"><div class="info-value">${d.trips}</div><div class="info-label">TODAY'S TRIPS</div></div>
+<div class="info"><div class="info-value">${d.earnings}</div><div class="info-label">EARNINGS</div></div>
+<div class="info"><div class="info-value">⭐ ${d.rating}</div><div class="info-label">RATING</div></div>
+<div class="info"><div class="info-value">${d.currentRide}</div><div class="info-label">CURRENT</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

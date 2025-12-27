@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tram Routes - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"route-schedule","name":"Route Schedule","icon":"🚊","desc":"City tram route schedules","category":"tram","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.routes{display:flex;flex-direction:column;gap:15px}
+.route{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.route-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.route-line{font-size:1.25rem;font-weight:bold;display:flex;align-items:center;gap:10px}
+.line-badge{padding:4px 12px;border-radius:4px;font-size:.875rem}
+.route-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-running{background:#15803d33;color:#15803d}
+.status-delayed{background:#eab30833;color:#eab308}
+.route-stops{display:flex;align-items:center;gap:8px;font-size:.875rem;color:#888;margin-bottom:10px;flex-wrap:wrap}
+.route-info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚊 Routes</h1><button class="btn">Edit Schedule</button></div>
+<div class="routes" id="routes"></div>
+<script>
+const routes=[
+{line:'Line 1',color:'#dc2626',name:'Downtown Express',status:'running',stops:['Central','Museum','Park','University','Hospital','Airport'],freq:'8 min',hours:'5:30 AM - 11:30 PM',trams:8,riders:4500},
+{line:'Line 2',color:'#2563eb',name:'Waterfront Loop',status:'running',stops:['Harbor','Marina','Beach','Pier','Downtown','Harbor'],freq:'12 min',hours:'6:00 AM - 10:00 PM',trams:5,riders:2800},
+{line:'Line 3',color:'#059669',name:'Historic District',status:'delayed',stops:['Old Town','Market','Cathedral','Plaza','Theater','Old Town'],freq:'15 min',hours:'7:00 AM - 9:00 PM',trams:4,riders:1900},
+{line:'Line 4',color:'#7c3aed',name:'Tech Corridor',status:'running',stops:['Central','Innovation','Campus','Tech Park','Convention','Central'],freq:'10 min',hours:'6:00 AM - 11:00 PM',trams:6,riders:3600}
+];
+document.getElementById('routes').innerHTML=routes.map(r=>`
+<div class="route">
+<div class="route-header">
+<div class="route-line"><span class="line-badge" style="background:${r.color}33;color:${r.color}">${r.line}</span> ${r.name}</div>
+<span class="route-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="route-stops">${r.stops.map((s,i)=>`<span>${s}</span>${i<r.stops.length-1?'→':''}`).join(' ')}</div>
+<div class="route-info">
+<div class="info"><div class="info-value">${r.freq}</div><div class="info-label">FREQUENCY</div></div>
+<div class="info"><div class="info-value">${r.hours}</div><div class="info-label">OPERATING HOURS</div></div>
+<div class="info"><div class="info-value">${r.trams}</div><div class="info-label">ACTIVE TRAMS</div></div>
+<div class="info"><div class="info-value">${r.riders.toLocaleString()}</div><div class="info-label">DAILY RIDERS</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

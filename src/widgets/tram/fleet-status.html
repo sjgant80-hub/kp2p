@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tram Fleet - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fleet-status","name":"Fleet Status","icon":"🚃","desc":"Tram fleet monitoring","category":"tram","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#059669}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.trams{display:flex;flex-direction:column;gap:15px}
+.tram{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.tram-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.tram-id{font-size:1.125rem;font-weight:bold}
+.tram-line{font-size:.75rem;padding:2px 8px;border-radius:4px}
+.tram-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-active{background:#15803d33;color:#15803d;animation:pulse 2s infinite}
+.status-depot{background:#64748b33;color:#64748b}
+.status-maintenance{background:#eab30833;color:#eab308}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.tram-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚃 Fleet</h1><button class="btn">Dispatch</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">TOTAL TRAMS</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">IN SERVICE</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">IN DEPOT</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">MAINTENANCE</div></div>
+</div>
+<div class="trams" id="trams"></div>
+<script>
+const trams=[
+{id:'TM-101',line:'Line 1',lineColor:'#dc2626',status:'active',location:'University → Hospital',passengers:78,capacity:120,speed:'25 km/h',nextStop:'Hospital (3 min)'},
+{id:'TM-102',line:'Line 1',lineColor:'#dc2626',status:'active',location:'Park → University',passengers:95,capacity:120,speed:'28 km/h',nextStop:'University (5 min)'},
+{id:'TM-201',line:'Line 2',lineColor:'#2563eb',status:'active',location:'Marina → Beach',passengers:45,capacity:100,speed:'22 km/h',nextStop:'Beach (2 min)'},
+{id:'TM-301',line:'Line 3',lineColor:'#059669',status:'depot',location:'Depot A',passengers:0,capacity:100,speed:'--',nextStop:'Scheduled 2:00 PM'},
+{id:'TM-401',line:'Line 4',lineColor:'#7c3aed',status:'maintenance',location:'Maintenance Bay',passengers:0,capacity:120,speed:'--',nextStop:'Est. completion: Tomorrow'}
+];
+document.getElementById('trams').innerHTML=trams.map(t=>`
+<div class="tram">
+<div class="tram-header">
+<div>
+<div class="tram-id">${t.id}</div>
+<span class="tram-line" style="background:${t.lineColor}33;color:${t.lineColor}">${t.line}</span>
+</div>
+<span class="tram-status status-${t.status}">${t.status.toUpperCase()}</span>
+</div>
+<div class="tram-info">
+<div class="info"><div class="info-value">${t.location}</div><div class="info-label">LOCATION</div></div>
+<div class="info"><div class="info-value">${t.passengers}/${t.capacity}</div><div class="info-label">PASSENGERS</div></div>
+<div class="info"><div class="info-value">${t.speed}</div><div class="info-label">SPEED</div></div>
+<div class="info"><div class="info-value">${t.nextStop}</div><div class="info-label">NEXT</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
