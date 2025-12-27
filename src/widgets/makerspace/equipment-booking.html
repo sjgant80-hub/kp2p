@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equipment Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"equipment-booking","name":"Equipment Booking","icon":"🔧","desc":"Reserve tools and machines","category":"makerspace","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ea580c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.categories{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.category{padding:10px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.category.active{background:#ea580c;border-color:#ea580c}
+.equipment{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.machine{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.machine-header{padding:20px;background:#252525;display:flex;justify-content:space-between;align-items:start}
+.machine-icon{font-size:2rem}
+.machine-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#22c55e33;color:#22c55e}
+.status-in-use{background:#f59e0b33;color:#f59e0b}
+.status-maintenance{background:#ef444433;color:#ef4444}
+.machine-body{padding:20px}
+.machine-name{font-size:1.125rem;font-weight:bold;margin-bottom:5px}
+.machine-desc{font-size:.875rem;color:#888;margin-bottom:15px}
+.machine-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.spec{background:#1f1f1f;padding:10px;border-radius:6px}
+.spec-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.spec-value{font-size:.875rem}
+.machine-next{font-size:.75rem;color:#888;margin-bottom:15px}
+.book-btn{width:100%;padding:12px;background:#ea580c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.book-btn:disabled{background:#333;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔧 Equipment</h1><button class="btn">My Bookings</button></div>
+<div class="categories">
+<button class="category active">All Equipment</button>
+<button class="category">3D Printing</button>
+<button class="category">Laser Cutting</button>
+<button class="category">CNC</button>
+<button class="category">Woodworking</button>
+<button class="category">Electronics</button>
+</div>
+<div class="equipment" id="equipment"></div>
+<script>
+const equipment=[
+{icon:'🖨️',name:'Prusa i3 MK3S+',desc:'High-quality FDM 3D printer with auto-leveling',category:'3D Printing',status:'available',rate:'$5/hr',next:'Available now',build:'250x210x210mm'},
+{icon:'⚡',name:'Epilog Fusion Pro',desc:'48" CO2 laser cutter/engraver',category:'Laser Cutting',status:'in-use',rate:'$15/hr',next:'Free at 3:00 PM',power:'120W'},
+{icon:'🔩',name:'Shapeoko 4 XXL',desc:'Large format CNC router',category:'CNC',status:'available',rate:'$10/hr',next:'Available now',work:'33x33"'},
+{icon:'🪚',name:'SawStop Table Saw',desc:'Professional cabinet saw with flesh detection',category:'Woodworking',status:'available',rate:'$8/hr',next:'Available now',blade:'10"'},
+{icon:'🔬',name:'Resin Printer',desc:'Formlabs Form 3+ SLA printer',category:'3D Printing',status:'maintenance',rate:'$8/hr',next:'Back Monday',volume:'145x145x185mm'},
+{icon:'⚙️',name:'Electronics Station',desc:'Soldering, oscilloscope, power supplies',category:'Electronics',status:'available',rate:'$3/hr',next:'Available now',tools:'Full kit'}
+];
+document.getElementById('equipment').innerHTML=equipment.map(e=>`
+<div class="machine">
+<div class="machine-header">
+<span class="machine-icon">${e.icon}</span>
+<span class="machine-status status-${e.status.replace(' ','-')}">${e.status.toUpperCase()}</span>
+</div>
+<div class="machine-body">
+<div class="machine-name">${e.name}</div>
+<div class="machine-desc">${e.desc}</div>
+<div class="machine-specs">
+<div class="spec"><div class="spec-label">CATEGORY</div><div class="spec-value">${e.category}</div></div>
+<div class="spec"><div class="spec-label">RATE</div><div class="spec-value">${e.rate}</div></div>
+</div>
+<div class="machine-next">⏰ ${e.next}</div>
+<button class="book-btn"${e.status!=='available'?' disabled':''}>Book Now</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workshop Calendar - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"workshop-calendar","name":"Workshop Calendar","icon":"📚","desc":"Browse classes and events","category":"makerspace","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ea580c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.date-nav{display:flex;align-items:center;gap:15px;margin-bottom:20px}
+.nav-btn{padding:8px 15px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.current-week{font-size:1.125rem;font-weight:bold}
+.levels{display:flex;gap:10px;margin-bottom:20px}
+.level{padding:6px 12px;background:#252525;border-radius:4px;font-size:.75rem;cursor:pointer}
+.level.active{background:#ea580c33;color:#ea580c}
+.workshops{display:flex;flex-direction:column;gap:15px}
+.workshop{background:#1a1a1a;border-radius:12px;border:1px solid #333;display:grid;grid-template-columns:120px 1fr auto;overflow:hidden}
+.workshop-date{padding:20px;background:#252525;text-align:center;display:flex;flex-direction:column;justify-content:center}
+.date-day{font-size:1.5rem;font-weight:bold}
+.date-month{font-size:.75rem;color:#888}
+.date-time{font-size:.875rem;margin-top:10px}
+.workshop-info{padding:20px}
+.workshop-level{font-size:.7rem;padding:3px 8px;background:#ea580c33;color:#ea580c;border-radius:4px;display:inline-block;margin-bottom:8px}
+.workshop-title{font-size:1.125rem;font-weight:bold;margin-bottom:5px}
+.workshop-desc{font-size:.875rem;color:#888;margin-bottom:10px}
+.workshop-meta{display:flex;gap:15px;font-size:.75rem;color:#888}
+.workshop-actions{padding:20px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:8px;border-left:1px solid #333}
+.workshop-price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.workshop-spots{font-size:.75rem;color:#888}
+.register-btn{padding:10px 20px;background:#ea580c;color:#fff;border:none;border-radius:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header"><h1>📚 Workshops</h1><button class="btn">My Classes</button></div>
+<div class="date-nav">
+<button class="nav-btn">← Prev</button>
+<span class="current-week">January 20 - 26, 2025</span>
+<button class="nav-btn">Next →</button>
+</div>
+<div class="levels">
+<span class="level active">All Levels</span>
+<span class="level">Beginner</span>
+<span class="level">Intermediate</span>
+<span class="level">Advanced</span>
+<span class="level">Certification</span>
+</div>
+<div class="workshops" id="workshops"></div>
+<script>
+const workshops=[
+{day:'21',month:'JAN',time:'6:00 PM',level:'BEGINNER',title:'Intro to 3D Printing',desc:'Learn the basics of FDM printing, from design to finished print.',instructor:'Mike Chen',duration:'2 hours',spots:8,enrolled:6,price:45},
+{day:'22',month:'JAN',time:'7:00 PM',level:'INTERMEDIATE',title:'Advanced Laser Techniques',desc:'Master cutting, engraving, and living hinges on the laser cutter.',instructor:'Sarah Kim',duration:'3 hours',spots:6,enrolled:4,price:75},
+{day:'23',month:'JAN',time:'10:00 AM',level:'BEGINNER',title:'Woodworking Fundamentals',desc:'Safe operation of table saws, jointers, and hand tools.',instructor:'Tom Wilson',duration:'4 hours',spots:8,enrolled:8,price:85},
+{day:'24',month:'JAN',time:'6:30 PM',level:'ADVANCED',title:'CNC Milling Masterclass',desc:'Complex toolpaths, fixtures, and multi-sided machining.',instructor:'Alex Torres',duration:'3 hours',spots:4,enrolled:3,price:120},
+{day:'25',month:'JAN',time:'1:00 PM',level:'CERTIFICATION',title:'Laser Cutter Certification',desc:'Get certified to use laser cutters independently.',instructor:'Staff',duration:'2 hours',spots:6,enrolled:5,price:35},
+{day:'26',month:'JAN',time:'11:00 AM',level:'BEGINNER',title:'Electronics 101',desc:'Soldering, basic circuits, and Arduino introduction.',instructor:'Lisa Park',duration:'3 hours',spots:10,enrolled:7,price:55}
+];
+document.getElementById('workshops').innerHTML=workshops.map(w=>`
+<div class="workshop">
+<div class="workshop-date">
+<div class="date-day">${w.day}</div>
+<div class="date-month">${w.month}</div>
+<div class="date-time">${w.time}</div>
+</div>
+<div class="workshop-info">
+<span class="workshop-level">${w.level}</span>
+<div class="workshop-title">${w.title}</div>
+<div class="workshop-desc">${w.desc}</div>
+<div class="workshop-meta">
+<span>👤 ${w.instructor}</span>
+<span>⏱️ ${w.duration}</span>
+</div>
+</div>
+<div class="workshop-actions">
+<div class="workshop-price">$${w.price}</div>
+<div class="workshop-spots">${w.enrolled>=w.spots?'FULL':w.spots-w.enrolled+' spots left'}</div>
+<button class="register-btn"${w.enrolled>=w.spots?' disabled style="background:#333"':''}>${w.enrolled>=w.spots?'Waitlist':'Register'}</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

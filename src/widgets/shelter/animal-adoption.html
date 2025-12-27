@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Animal Adoption - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"animal-adoption","name":"Animal Adoption","icon":"🐾","desc":"Browse adoptable pets","category":"shelter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#ec4899;border-color:#ec4899}
+.animals{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.animal{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.animal-photo{height:150px;background:#252525;display:flex;align-items:center;justify-content:center;font-size:4rem}
+.animal-body{padding:20px}
+.animal-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:10px}
+.animal-name{font-size:1.25rem;font-weight:bold}
+.animal-new{padding:4px 8px;background:#ec489933;color:#ec4899;border-radius:4px;font-size:.7rem}
+.animal-breed{font-size:.875rem;color:#888;margin-bottom:15px}
+.animal-details{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:8px;border-radius:6px;text-align:center}
+.detail-label{font-size:.6rem;color:#888}
+.detail-value{font-size:.8rem;font-weight:500}
+.animal-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:15px}
+.tag{padding:4px 8px;background:#252525;border-radius:4px;font-size:.7rem}
+.adopt-btn{width:100%;padding:12px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<div class="header"><h1>🐾 Adoptable Pets</h1><button class="btn">Donate</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">47</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">23</div><div class="stat-label">DOGS</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">CATS</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">ADOPTED YTD</div></div>
+</div>
+<div class="filters">
+<button class="filter active">All Pets</button>
+<button class="filter">🐕 Dogs</button>
+<button class="filter">🐈 Cats</button>
+<button class="filter">🐰 Small Animals</button>
+<button class="filter">New Arrivals</button>
+</div>
+<div class="animals" id="animals"></div>
+<script>
+const animals=[
+{emoji:'🐕',name:'Buddy',breed:'Golden Retriever Mix',age:'3 years',gender:'Male',size:'Large',tags:['Good with kids','House trained','Vaccinated'],isNew:true},
+{emoji:'🐈',name:'Luna',breed:'Domestic Shorthair',age:'2 years',gender:'Female',size:'Medium',tags:['Indoor only','Shy','Spayed'],isNew:false},
+{emoji:'🐕',name:'Max',breed:'German Shepherd',age:'5 years',gender:'Male',size:'Large',tags:['Trained','Loyal','Needs yard'],isNew:false},
+{emoji:'🐈',name:'Oliver',breed:'Orange Tabby',age:'1 year',gender:'Male',size:'Medium',tags:['Playful','Good with cats','Neutered'],isNew:true},
+{emoji:'🐕',name:'Daisy',breed:'Beagle Mix',age:'4 years',gender:'Female',size:'Medium',tags:['Friendly','Walks well','Spayed'],isNew:false},
+{emoji:'🐰',name:'Cinnamon',breed:'Holland Lop',age:'1 year',gender:'Female',size:'Small',tags:['Gentle','Litter trained'],isNew:true}
+];
+document.getElementById('animals').innerHTML=animals.map(a=>`
+<div class="animal">
+<div class="animal-photo">${a.emoji}</div>
+<div class="animal-body">
+<div class="animal-header">
+<span class="animal-name">${a.name}</span>
+${a.isNew?'<span class="animal-new">NEW</span>':''}
+</div>
+<div class="animal-breed">${a.breed}</div>
+<div class="animal-details">
+<div class="detail"><div class="detail-label">AGE</div><div class="detail-value">${a.age}</div></div>
+<div class="detail"><div class="detail-label">GENDER</div><div class="detail-value">${a.gender}</div></div>
+<div class="detail"><div class="detail-label">SIZE</div><div class="detail-value">${a.size}</div></div>
+</div>
+<div class="animal-tags">${a.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+<button class="adopt-btn">Meet ${a.name}</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

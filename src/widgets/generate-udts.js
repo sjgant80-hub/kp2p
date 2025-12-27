@@ -780,6 +780,26 @@ const categoryMap = {
   // Coworking
   'desk-booking': { category: 'coworking', subcategory: 'desks', badge: 'ENT' },
   'meeting-rooms': { category: 'coworking', subcategory: 'meetings', badge: 'ENT' },
+
+  // Datacenter
+  'rack-status': { category: 'datacenter', subcategory: 'infrastructure', badge: 'ENT' },
+  'power-monitor': { category: 'datacenter', subcategory: 'power', badge: 'ENT' },
+
+  // Incubator
+  'startup-directory': { category: 'incubator', subcategory: 'portfolio', badge: 'ENT' },
+  'mentor-matching': { category: 'incubator', subcategory: 'mentorship', badge: 'ENT' },
+
+  // Makerspace
+  'equipment-booking': { category: 'makerspace', subcategory: 'equipment', badge: 'ENT' },
+  'workshop-calendar': { category: 'makerspace', subcategory: 'education', badge: 'ENT' },
+
+  // Hangar
+  'aircraft-storage': { category: 'hangar', subcategory: 'storage', badge: 'ENT' },
+  'flight-school': { category: 'hangar', subcategory: 'training', badge: 'ENT' },
+
+  // Shelter
+  'animal-adoption': { category: 'shelter', subcategory: 'adoption', badge: 'ENT' },
+  'volunteer-schedule': { category: 'shelter', subcategory: 'volunteers', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1076,7 +1096,12 @@ const widgetDirs = [
   'marina',
   'stable',
   'kennel',
-  'coworking'
+  'coworking',
+  'datacenter',
+  'incubator',
+  'makerspace',
+  'hangar',
+  'shelter'
 ];
 
 // Process all widgets in all directories

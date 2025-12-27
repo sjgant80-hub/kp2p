@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rack Status - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"rack-status","name":"Rack Status","icon":"🖥️","desc":"Monitor server racks","category":"datacenter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#059669}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat-value.warning{color:#f59e0b}
+.stat-value.critical{color:#ef4444}
+.racks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.rack{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.rack-header{padding:15px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.rack-id{font-weight:bold}
+.rack-status{width:10px;height:10px;border-radius:50%}
+.status-healthy{background:#22c55e}
+.status-warning{background:#f59e0b}
+.status-critical{background:#ef4444}
+.rack-body{padding:15px}
+.rack-units{display:flex;flex-direction:column;gap:2px;margin-bottom:15px}
+.unit{height:8px;border-radius:2px;background:#333}
+.unit.used{background:#059669}
+.unit.hot{background:#f59e0b}
+.rack-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.75rem}
+.info-item{background:#252525;padding:8px;border-radius:4px;text-align:center}
+.info-label{color:#888;margin-bottom:2px}
+.info-value{font-weight:bold}
+</style>
+</head>
+<body>
+<div class="header"><h1>🖥️ Rack Status</h1><button class="btn">Add Alert</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">TOTAL RACKS</div></div>
+<div class="stat"><div class="stat-value">92%</div><div class="stat-label">CAPACITY USED</div></div>
+<div class="stat"><div class="stat-value warning">3</div><div class="stat-label">WARNINGS</div></div>
+<div class="stat"><div class="stat-value critical">1</div><div class="stat-label">CRITICAL</div></div>
+</div>
+<div class="racks" id="racks"></div>
+<script>
+const racks=[
+{id:'A-01',units:42,used:38,power:12.4,temp:68,status:'healthy'},
+{id:'A-02',units:42,used:42,power:14.2,temp:72,status:'healthy'},
+{id:'A-03',units:42,used:40,power:13.8,temp:78,status:'warning'},
+{id:'A-04',units:42,used:36,power:11.2,temp:66,status:'healthy'},
+{id:'B-01',units:42,used:41,power:15.1,temp:82,status:'critical'},
+{id:'B-02',units:42,used:39,power:12.8,temp:70,status:'healthy'},
+{id:'B-03',units:42,used:35,power:10.5,temp:65,status:'healthy'},
+{id:'B-04',units:42,used:40,power:14.0,temp:76,status:'warning'}
+];
+document.getElementById('racks').innerHTML=racks.map(r=>`
+<div class="rack">
+<div class="rack-header">
+<span class="rack-id">Rack ${r.id}</span>
+<span class="rack-status status-${r.status}"></span>
+</div>
+<div class="rack-body">
+<div class="rack-units">${Array(r.units).fill(0).map((_,i)=>`<div class="unit ${i<r.used?(i>=r.used-3&&r.status!=='healthy'?'hot':'used'):''}"></div>`).join('')}</div>
+<div class="rack-info">
+<div class="info-item"><div class="info-label">UNITS</div><div class="info-value">${r.used}/${r.units}U</div></div>
+<div class="info-item"><div class="info-label">POWER</div><div class="info-value">${r.power}kW</div></div>
+<div class="info-item"><div class="info-label">TEMP</div><div class="info-value">${r.temp}°F</div></div>
+<div class="info-item"><div class="info-label">STATUS</div><div class="info-value">${r.status.toUpperCase()}</div></div>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

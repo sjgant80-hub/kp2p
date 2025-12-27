@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aircraft Storage - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"aircraft-storage","name":"Aircraft Storage","icon":"✈️","desc":"Manage hangar spaces","category":"hangar","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.hangars{display:flex;gap:10px;margin-bottom:20px}
+.hangar-tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.hangar-tab.active{background:#0ea5e9;border-color:#0ea5e9}
+.aircraft{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.plane{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.plane-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.plane-tail{font-size:1.125rem;font-weight:bold}
+.plane-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-hangared{background:#22c55e33;color:#22c55e}
+.status-flying{background:#0ea5e933;color:#0ea5e9}
+.status-maintenance{background:#f59e0b33;color:#f59e0b}
+.plane-body{padding:20px}
+.plane-type{font-size:1rem;font-weight:500;margin-bottom:5px}
+.plane-owner{font-size:.875rem;color:#888;margin-bottom:15px}
+.plane-details{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:15px}
+.detail{background:#1f1f1f;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+.plane-services{display:flex;gap:8px;flex-wrap:wrap}
+.service{padding:4px 8px;background:#252525;border-radius:4px;font-size:.7rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>✈️ Aircraft Storage</h1><button class="btn">Add Aircraft</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">SPACES</div></div>
+<div class="stat"><div class="stat-value">21</div><div class="stat-label">OCCUPIED</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">$156K</div><div class="stat-label">MONTHLY REV</div></div>
+</div>
+<div class="hangars">
+<button class="hangar-tab active">Hangar A</button>
+<button class="hangar-tab">Hangar B</button>
+<button class="hangar-tab">T-Hangars</button>
+</div>
+<div class="aircraft" id="aircraft"></div>
+<script>
+const aircraft=[
+{tail:'N12345',type:'Cessna Citation CJ3',owner:'James Mitchell',spot:'A-1',wingspan:'53 ft',status:'hangared',services:['Fuel','Cleaning','GPU'],monthly:4500},
+{tail:'N67890',type:'Beechcraft King Air 350',owner:'Tech Aviation LLC',spot:'A-2',wingspan:'57 ft',status:'flying',services:['Fuel','Hangar','Concierge'],monthly:5200},
+{tail:'N24680',type:'Pilatus PC-12',owner:'Sarah Chen',spot:'A-3',wingspan:'53 ft',status:'hangared',services:['Fuel','Cleaning'],monthly:4800},
+{tail:'N13579',type:'Cirrus SF50 Vision Jet',owner:'Michael Torres',spot:'A-4',wingspan:'38 ft',status:'maintenance',services:['Annual Inspection'],monthly:3200},
+{tail:'N11111',type:'Cessna 172 Skyhawk',owner:'Flying Club Inc',spot:'T-1',wingspan:'36 ft',status:'hangared',services:['Tie-down','Fuel'],monthly:800},
+{tail:'N22222',type:'Piper PA-28 Cherokee',owner:'Robert Wilson',spot:'T-2',wingspan:'30 ft',status:'flying',services:['Tie-down'],monthly:650}
+];
+document.getElementById('aircraft').innerHTML=aircraft.map(a=>`
+<div class="plane">
+<div class="plane-header">
+<span class="plane-tail">${a.tail}</span>
+<span class="plane-status status-${a.status}">${a.status.toUpperCase()}</span>
+</div>
+<div class="plane-body">
+<div class="plane-type">${a.type}</div>
+<div class="plane-owner">👤 ${a.owner}</div>
+<div class="plane-details">
+<div class="detail"><div class="detail-label">SPOT</div><div class="detail-value">${a.spot}</div></div>
+<div class="detail"><div class="detail-label">WINGSPAN</div><div class="detail-value">${a.wingspan}</div></div>
+<div class="detail"><div class="detail-label">MONTHLY</div><div class="detail-value">$${a.monthly.toLocaleString()}</div></div>
+<div class="detail"><div class="detail-label">STATUS</div><div class="detail-value">${a.status}</div></div>
+</div>
+<div class="plane-services">${a.services.map(s=>`<span class="service">${s}</span>`).join('')}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

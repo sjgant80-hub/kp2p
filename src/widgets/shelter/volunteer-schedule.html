@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Volunteer Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"volunteer-schedule","name":"Volunteer Schedule","icon":"❤️","desc":"Manage volunteer shifts","category":"shelter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.date-nav{display:flex;align-items:center;gap:15px;margin-bottom:20px}
+.nav-btn{padding:8px 15px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.current-week{font-size:1.125rem;font-weight:bold}
+.shifts{display:flex;flex-direction:column;gap:15px}
+.shift{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.shift-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.shift-title{font-weight:bold}
+.shift-time{font-size:.875rem;color:#888}
+.shift-body{padding:20px}
+.shift-desc{font-size:.875rem;color:#888;margin-bottom:15px}
+.shift-slots{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.slot{padding:10px 15px;background:#252525;border-radius:6px;display:flex;align-items:center;gap:10px}
+.slot-filled{opacity:.6}
+.slot-avatar{width:30px;height:30px;background:#ec4899;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem}
+.slot-empty{background:transparent;border:2px dashed #333}
+.slot-name{font-size:.875rem}
+.shift-footer{display:flex;justify-content:space-between;align-items:center}
+.shift-needs{font-size:.75rem;color:#888}
+.signup-btn{padding:8px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header"><h1>❤️ Volunteer Schedule</h1><button class="btn">My Shifts</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">85</div><div class="stat-label">VOLUNTEERS</div></div>
+<div class="stat"><div class="stat-value">340</div><div class="stat-label">HOURS/MONTH</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">OPEN SHIFTS</div></div>
+<div class="stat"><div class="stat-value">94%</div><div class="stat-label">COVERAGE</div></div>
+</div>
+<div class="date-nav">
+<button class="nav-btn">← Prev</button>
+<span class="current-week">January 20 - 26, 2025</span>
+<button class="nav-btn">Next →</button>
+</div>
+<div class="shifts" id="shifts"></div>
+<script>
+const shifts=[
+{title:'Morning Dog Walking',day:'Monday',time:'8:00 AM - 10:00 AM',desc:'Walk dogs in the exercise yard. Experience with large dogs helpful.',slots:[{name:'Sarah M.'},{name:'James K.'},{name:null},{name:null}],needed:4},
+{title:'Cat Socialization',day:'Monday',time:'10:00 AM - 12:00 PM',desc:'Spend time with cats in the socialization room to prepare them for adoption.',slots:[{name:'Emma W.'},{name:'Lisa P.'},{name:'Mike T.'}],needed:3},
+{title:'Afternoon Dog Walking',day:'Monday',time:'3:00 PM - 5:00 PM',desc:'Second round of dog walking and exercise.',slots:[{name:'Alex R.'},{name:null},{name:null}],needed:3},
+{title:'Kennel Cleaning',day:'Tuesday',time:'7:00 AM - 9:00 AM',desc:'Help clean and sanitize kennels. Gloves and supplies provided.',slots:[{name:'Tom B.'},{name:'Anna S.'},{name:null},{name:null}],needed:4},
+{title:'Adoption Events',day:'Saturday',time:'11:00 AM - 3:00 PM',desc:'Help at our weekly adoption event. Great with people and pets!',slots:[{name:'Jennifer L.'},{name:null},{name:null},{name:null},{name:null}],needed:5}
+];
+document.getElementById('shifts').innerHTML=shifts.map(s=>`
+<div class="shift">
+<div class="shift-header">
+<span class="shift-title">${s.title}</span>
+<span class="shift-time">📅 ${s.day} • ${s.time}</span>
+</div>
+<div class="shift-body">
+<div class="shift-desc">${s.desc}</div>
+<div class="shift-slots">${s.slots.map(slot=>slot.name?`
+<div class="slot slot-filled">
+<div class="slot-avatar">${slot.name.split(' ').map(n=>n[0]).join('')}</div>
+<span class="slot-name">${slot.name}</span>
+</div>`:`
+<div class="slot slot-empty">
+<span class="slot-name">Open Slot</span>
+</div>`).join('')}</div>
+<div class="shift-footer">
+<span class="shift-needs">${s.slots.filter(sl=>!sl.name).length} of ${s.needed} slots open</span>
+${s.slots.filter(sl=>!sl.name).length>0?'<button class="signup-btn">Sign Up</button>':''}
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

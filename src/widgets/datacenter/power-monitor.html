@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Power Monitor - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"power-monitor","name":"Power Monitor","icon":"⚡","desc":"Track power usage","category":"datacenter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.overview{background:linear-gradient(135deg,#059669 0%,#047857 100%);border-radius:12px;padding:25px;margin-bottom:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:20px}
+.overview-item{text-align:center}
+.overview-value{font-size:2rem;font-weight:bold}
+.overview-label{font-size:.75rem;opacity:.8}
+.pdu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.pdu{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.pdu-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.pdu-name{font-weight:bold}
+.pdu-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-online{background:#22c55e33;color:#22c55e}
+.status-warning{background:#f59e0b33;color:#f59e0b}
+.pdu-body{padding:20px}
+.pdu-meter{margin-bottom:15px}
+.meter-label{display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:5px}
+.meter-bar{height:20px;background:#333;border-radius:4px;overflow:hidden}
+.meter-fill{height:100%;background:#059669;transition:width .3s}
+.meter-fill.high{background:#f59e0b}
+.meter-fill.critical{background:#ef4444}
+.pdu-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pdu-stat{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.pdu-stat-value{font-size:1rem;font-weight:bold}
+.pdu-stat-label{font-size:.65rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>⚡ Power Monitor</h1><button class="btn">Export Report</button></div>
+<div class="overview">
+<div class="overview-item"><div class="overview-value">2.4 MW</div><div class="overview-label">TOTAL LOAD</div></div>
+<div class="overview-item"><div class="overview-value">3.2 MW</div><div class="overview-label">CAPACITY</div></div>
+<div class="overview-item"><div class="overview-value">75%</div><div class="overview-label">UTILIZATION</div></div>
+<div class="overview-item"><div class="overview-value">1.42</div><div class="overview-label">PUE</div></div>
+</div>
+<div class="pdu-grid" id="pdus"></div>
+<script>
+const pdus=[
+{name:'PDU-A1',location:'Row A',capacity:150,load:112,voltage:480,current:135,status:'online'},
+{name:'PDU-A2',location:'Row A',capacity:150,load:128,voltage:480,current:154,status:'warning'},
+{name:'PDU-B1',location:'Row B',capacity:150,load:98,voltage:480,current:118,status:'online'},
+{name:'PDU-B2',location:'Row B',capacity:150,load:105,voltage:480,current:126,status:'online'},
+{name:'PDU-C1',location:'Row C',capacity:150,load:134,voltage:480,current:161,status:'warning'},
+{name:'PDU-C2',location:'Row C',capacity:150,load:88,voltage:480,current:106,status:'online'}
+];
+document.getElementById('pdus').innerHTML=pdus.map(p=>{
+const pct=Math.round(p.load/p.capacity*100);
+const fillClass=pct>90?'critical':pct>80?'high':'';
+return `
+<div class="pdu">
+<div class="pdu-header">
+<span class="pdu-name">${p.name}</span>
+<span class="pdu-status status-${p.status}">${p.status.toUpperCase()}</span>
+</div>
+<div class="pdu-body">
+<div class="pdu-meter">
+<div class="meter-label"><span>${p.location}</span><span>${pct}%</span></div>
+<div class="meter-bar"><div class="meter-fill ${fillClass}" style="width:${pct}%"></div></div>
+</div>
+<div class="pdu-stats">
+<div class="pdu-stat"><div class="pdu-stat-value">${p.load}kW</div><div class="pdu-stat-label">LOAD</div></div>
+<div class="pdu-stat"><div class="pdu-stat-value">${p.voltage}V</div><div class="pdu-stat-label">VOLTAGE</div></div>
+<div class="pdu-stat"><div class="pdu-stat-value">${p.current}A</div><div class="pdu-stat-label">CURRENT</div></div>
+</div>
+</div>
+</div>`}).join('');
+</script>
+</body>
+</html>
