@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zoo Map - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"zoo-map","name":"Zoo Map","icon":"🦁","desc":"Interactive zoo map","category":"zoo","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.search{display:flex;gap:10px;margin-bottom:20px}
+.search input{flex:1;padding:12px 15px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px}
+.search button{padding:12px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.zone{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.zone-header{padding:15px 20px;display:flex;justify-content:space-between;align-items:center}
+.zone-name{font-weight:bold;display:flex;align-items:center;gap:10px}
+.zone-status{font-size:.75rem;padding:4px 10px;border-radius:4px}
+.status-open{background:#22c55e33;color:#22c55e}
+.status-closed{background:#ef444433;color:#ef4444}
+.zone-animals{padding:15px}
+.animal{display:flex;align-items:center;gap:12px;padding:10px;background:#252525;border-radius:6px;margin-bottom:8px}
+.animal:last-child{margin-bottom:0}
+.animal-icon{font-size:1.5rem}
+.animal-name{font-weight:500}
+.animal-status{margin-left:auto;font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🦁 Zoo Map</h1><button class="btn">My Location</button></div>
+<div class="search">
+<input type="text" placeholder="Search animals or exhibits...">
+<button>🔍 Search</button>
+</div>
+<div class="zones" id="zones"></div>
+<script>
+const zones=[
+{name:'African Savanna',color:'#f59e0b',status:'open',animals:[{icon:'🦁',name:'African Lion',status:'Visible'},{icon:'🦒',name:'Giraffe',status:'Feeding 3PM'},{icon:'🦓',name:'Zebra',status:'Visible'},{icon:'🐘',name:'Elephant',status:'Pool area'}]},
+{name:'Asian Trail',color:'#ef4444',status:'open',animals:[{icon:'🐅',name:'Bengal Tiger',status:'Sleeping'},{icon:'🐼',name:'Red Panda',status:'Visible'},{icon:'🦧',name:'Orangutan',status:'Visible'}]},
+{name:'Arctic Adventure',color:'#0ea5e9',status:'open',animals:[{icon:'🐻‍❄️',name:'Polar Bear',status:'Swimming'},{icon:'🦭',name:'Harbor Seal',status:'Visible'},{icon:'🐧',name:'Penguin',status:'Feeding 2PM'}]},
+{name:'Rainforest',color:'#22c55e',status:'open',animals:[{icon:'🦜',name:'Macaw',status:'Free flight'},{icon:'🐒',name:'Spider Monkey',status:'Visible'},{icon:'🦥',name:'Sloth',status:'Sleeping'}]},
+{name:'Australia',color:'#a855f7',status:'open',animals:[{icon:'🦘',name:'Kangaroo',status:'Visible'},{icon:'🐨',name:'Koala',status:'Sleeping'},{icon:'🐊',name:'Crocodile',status:'Basking'}]},
+{name:'Nocturnal House',color:'#6366f1',status:'closed',animals:[{icon:'🦇',name:'Fruit Bat',status:'—'},{icon:'🦉',name:'Owl',status:'—'}]}
+];
+document.getElementById('zones').innerHTML=zones.map(z=>`
+<div class="zone">
+<div class="zone-header" style="background:${z.color}22;border-left:4px solid ${z.color}">
+<span class="zone-name"><span style="color:${z.color}">●</span> ${z.name}</span>
+<span class="zone-status status-${z.status}">${z.status.toUpperCase()}</span>
+</div>
+<div class="zone-animals">${z.animals.map(a=>`
+<div class="animal">
+<span class="animal-icon">${a.icon}</span>
+<span class="animal-name">${a.name}</span>
+<span class="animal-status">${a.status}</span>
+</div>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -680,6 +680,26 @@ const categoryMap = {
   // Waterpark
   'waterpark-status': { category: 'waterpark', subcategory: 'status', badge: 'ENT' },
   'cabana-rental': { category: 'waterpark', subcategory: 'rentals', badge: 'ENT' },
+
+  // Cinema
+  'showtimes': { category: 'cinema', subcategory: 'scheduling', badge: 'ENT' },
+  'concessions': { category: 'cinema', subcategory: 'pos', badge: 'ENT' },
+
+  // Casino
+  'gaming-floor': { category: 'casino', subcategory: 'management', badge: 'ENT' },
+  'player-rewards': { category: 'casino', subcategory: 'loyalty', badge: 'ENT' },
+
+  // Aquarium
+  'exhibit-guide': { category: 'aquarium', subcategory: 'exhibits', badge: 'ENT' },
+  'feeding-schedule': { category: 'aquarium', subcategory: 'care', badge: 'ENT' },
+
+  // Zoo
+  'zoo-map': { category: 'zoo', subcategory: 'navigation', badge: 'ENT' },
+  'animal-care': { category: 'zoo', subcategory: 'health', badge: 'ENT' },
+
+  // Museum
+  'exhibit-gallery': { category: 'museum', subcategory: 'exhibits', badge: 'ENT' },
+  'museum-tours': { category: 'museum', subcategory: 'tours', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -951,7 +971,12 @@ const widgetDirs = [
   'segway',
   'paragliding',
   'bungee',
-  'waterpark'
+  'waterpark',
+  'cinema',
+  'casino',
+  'aquarium',
+  'zoo',
+  'museum'
 ];
 
 // Process all widgets in all directories

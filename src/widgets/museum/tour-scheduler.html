@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tour Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"museum-tours","name":"Museum Tours","icon":"🎧","desc":"Book guided tours","category":"museum","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.tours{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.tour{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.tour-header{padding:20px;background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 100%)}
+.tour-name{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.tour-type{font-size:.875rem;opacity:.9}
+.tour-body{padding:20px}
+.tour-details{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.detail-label{font-size:.75rem;color:#888}
+.detail-value{font-weight:500}
+.tour-desc{font-size:.875rem;color:#888;margin-bottom:15px;line-height:1.5}
+.tour-times{margin-bottom:15px}
+.times-label{font-size:.75rem;color:#888;margin-bottom:8px}
+.time-slots{display:flex;flex-wrap:wrap;gap:8px}
+.time-slot{padding:8px 15px;background:#252525;border-radius:6px;font-size:.875rem;cursor:pointer}
+.time-slot:hover{background:#8b5cf633}
+.time-slot.full{opacity:.5;cursor:not-allowed}
+.tour-footer{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+.tour-price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.tour-price span{font-size:.75rem;color:#888;font-weight:normal}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎧 Guided Tours</h1><button class="btn">My Bookings</button></div>
+<div class="tours" id="tours"></div>
+<script>
+const tours=[
+{name:'Museum Highlights',type:'General Tour',duration:'90 min',group:'Up to 20',languages:'EN, ES, FR',desc:'Perfect introduction covering must-see masterpieces and popular exhibits across all galleries.',times:[{time:'10:00 AM',spots:5},{time:'1:00 PM',spots:0},{time:'3:00 PM',spots:12}],price:25},
+{name:'Ancient Civilizations',type:'Specialty Tour',duration:'2 hours',group:'Up to 15',languages:'EN',desc:'Deep dive into Egyptian, Greek, and Roman collections with expert historian.',times:[{time:'11:00 AM',spots:8},{time:'2:30 PM',spots:3}],price:35},
+{name:'Art Through the Ages',type:'Specialty Tour',duration:'2 hours',group:'Up to 12',languages:'EN, FR',desc:'Journey through art history from Renaissance to Contemporary with our art curator.',times:[{time:'10:30 AM',spots:4},{time:'2:00 PM',spots:10}],price:35},
+{name:'Family Adventure',type:'Family Tour',duration:'1 hour',group:'Up to 25',languages:'EN',desc:'Interactive tour designed for families with hands-on activities and scavenger hunts.',times:[{time:'11:00 AM',spots:15},{time:'1:30 PM',spots:8},{time:'3:30 PM',spots:20}],price:15},
+{name:'Behind the Scenes',type:'VIP Experience',duration:'3 hours',group:'Up to 8',languages:'EN',desc:'Exclusive access to restoration labs, storage vaults, and private collections.',times:[{time:'9:00 AM',spots:2}],price:99}
+];
+document.getElementById('tours').innerHTML=tours.map(t=>`
+<div class="tour">
+<div class="tour-header"><div class="tour-name">${t.name}</div><div class="tour-type">${t.type}</div></div>
+<div class="tour-body">
+<div class="tour-details">
+<div><div class="detail-label">Duration</div><div class="detail-value">${t.duration}</div></div>
+<div><div class="detail-label">Group Size</div><div class="detail-value">${t.group}</div></div>
+<div><div class="detail-label">Languages</div><div class="detail-value">${t.languages}</div></div>
+</div>
+<div class="tour-desc">${t.desc}</div>
+<div class="tour-times">
+<div class="times-label">AVAILABLE TIMES</div>
+<div class="time-slots">${t.times.map(s=>`<div class="time-slot${s.spots===0?' full':''}">${s.time}${s.spots>0?` (${s.spots})`:' FULL'}</div>`).join('')}</div>
+</div>
+<div class="tour-footer"><span class="tour-price">$${t.price} <span>/person</span></span></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

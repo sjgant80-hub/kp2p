@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Animal Care - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"animal-care","name":"Animal Care","icon":"🩺","desc":"Track animal health","category":"zoo","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#16a34a}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.animals{display:flex;flex-direction:column;gap:15px}
+.animal{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center}
+.animal-avatar{width:60px;height:60px;background:#252525;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.animal-info h4{margin-bottom:5px;display:flex;align-items:center;gap:10px}
+.animal-id{font-size:.75rem;color:#888;padding:2px 8px;background:#333;border-radius:4px}
+.animal-meta{font-size:.875rem;color:#888;display:flex;gap:15px}
+.animal-health{text-align:right}
+.health-status{padding:6px 15px;border-radius:6px;font-size:.75rem;margin-bottom:5px;display:inline-block}
+.health-good{background:#22c55e33;color:#22c55e}
+.health-monitor{background:#f59e0b33;color:#f59e0b}
+.health-critical{background:#ef444433;color:#ef4444}
+.last-check{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🩺 Animal Care</h1><button class="btn">+ New Checkup</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">247</div><div class="stat-label">Total Animals</div></div>
+<div class="stat"><div class="stat-value">235</div><div class="stat-label">Healthy</div></div>
+<div class="stat"><div class="stat-value">10</div><div class="stat-label">Monitoring</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Treatment</div></div>
+</div>
+<div class="animals" id="animals"></div>
+<script>
+const animals=[
+{icon:'🦁',name:'Leo',id:'AF-001',species:'African Lion',age:'8 years',zone:'African Savanna',health:'good',lastCheck:'Today, 8:00 AM'},
+{icon:'🐘',name:'Dumbo',id:'AF-015',species:'African Elephant',age:'12 years',zone:'African Savanna',health:'good',lastCheck:'Today, 9:30 AM'},
+{icon:'🐅',name:'Raja',id:'AS-003',species:'Bengal Tiger',age:'6 years',zone:'Asian Trail',health:'monitor',lastCheck:'Yesterday',note:'Slight limp - monitoring'},
+{icon:'🦒',name:'Stretch',id:'AF-022',species:'Giraffe',age:'5 years',zone:'African Savanna',health:'good',lastCheck:'Dec 26'},
+{icon:'🐻‍❄️',name:'Snow',id:'AR-001',species:'Polar Bear',age:'10 years',zone:'Arctic Adventure',health:'monitor',lastCheck:'Today, 7:00 AM',note:'Appetite check'},
+{icon:'🐼',name:'Mei Mei',id:'AS-008',species:'Red Panda',age:'4 years',zone:'Asian Trail',health:'critical',lastCheck:'Ongoing',note:'Under treatment - respiratory'}
+];
+document.getElementById('animals').innerHTML=animals.map(a=>`
+<div class="animal">
+<div class="animal-avatar">${a.icon}</div>
+<div class="animal-info">
+<h4>${a.name} <span class="animal-id">${a.id}</span></h4>
+<div class="animal-meta">
+<span>${a.species}</span>
+<span>Age: ${a.age}</span>
+<span>📍 ${a.zone}</span>
+</div>
+${a.note?`<div style="font-size:.8rem;color:${a.health==='critical'?'#ef4444':'#f59e0b'};margin-top:5px">⚠️ ${a.note}</div>`:''}
+</div>
+<div class="animal-health">
+<span class="health-status health-${a.health}">${a.health.toUpperCase()}</span>
+<div class="last-check">Last: ${a.lastCheck}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

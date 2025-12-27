@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Movie Showtimes - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"movie-showtimes","name":"Movie Showtimes","icon":"🎬","desc":"Browse and book movie tickets","category":"cinema","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.dates{display:flex;gap:10px;margin-bottom:20px;overflow-x:auto;padding-bottom:10px}
+.date-btn{padding:15px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:8px;cursor:pointer;text-align:center;min-width:80px}
+.date-btn.active{background:#dc2626;border-color:#dc2626}
+.date-day{font-size:.75rem;color:#888}
+.date-btn.active .date-day{color:#fff}
+.date-num{font-size:1.25rem;font-weight:bold}
+.movies{display:flex;flex-direction:column;gap:20px}
+.movie{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden;display:grid;grid-template-columns:120px 1fr;gap:20px}
+.movie-poster{background:linear-gradient(135deg,#dc2626 0%,#991b1b 100%);display:flex;align-items:center;justify-content:center;font-size:4rem;min-height:180px}
+.movie-info{padding:20px 20px 20px 0}
+.movie-title{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.movie-meta{font-size:.875rem;color:#888;margin-bottom:10px;display:flex;gap:15px}
+.movie-rating{padding:3px 8px;background:#f59e0b33;color:#f59e0b;border-radius:4px;font-size:.75rem}
+.showtimes{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+.showtime{padding:10px 15px;background:#252525;border-radius:6px;cursor:pointer;font-size:.875rem;border:1px solid transparent}
+.showtime:hover{border-color:#dc2626}
+.showtime.sold-out{opacity:.5;cursor:not-allowed}
+.format{font-size:.7rem;color:#888;display:block}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎬 Showtimes</h1><button class="btn">My Tickets</button></div>
+<div class="dates">
+<button class="date-btn active"><div class="date-day">TODAY</div><div class="date-num">27</div></button>
+<button class="date-btn"><div class="date-day">SAT</div><div class="date-num">28</div></button>
+<button class="date-btn"><div class="date-day">SUN</div><div class="date-num">29</div></button>
+<button class="date-btn"><div class="date-day">MON</div><div class="date-num">30</div></button>
+<button class="date-btn"><div class="date-day">TUE</div><div class="date-num">31</div></button>
+</div>
+<div class="movies" id="movies"></div>
+<script>
+const movies=[
+{title:'Space Odyssey 2',poster:'🚀',rating:'PG-13',runtime:'2h 28m',genre:'Sci-Fi',imdb:'8.4',times:[{time:'1:30 PM',format:'IMAX'},{time:'4:15 PM',format:'Standard'},{time:'7:00 PM',format:'IMAX',soldOut:true},{time:'9:45 PM',format:'Dolby'}]},
+{title:'The Last Kingdom',poster:'⚔️',rating:'R',runtime:'2h 15m',genre:'Action',imdb:'7.9',times:[{time:'2:00 PM',format:'Standard'},{time:'5:30 PM',format:'Standard'},{time:'8:15 PM',format:'Dolby'},{time:'10:45 PM',format:'Standard'}]},
+{title:'Finding Nemo 3',poster:'🐠',rating:'G',runtime:'1h 45m',genre:'Animation',imdb:'8.1',times:[{time:'11:00 AM',format:'Standard'},{time:'1:15 PM',format:'3D'},{time:'3:30 PM',format:'Standard'},{time:'6:00 PM',format:'3D'}]},
+{title:'Midnight Mystery',poster:'🔍',rating:'PG-13',runtime:'2h 05m',genre:'Thriller',imdb:'7.6',times:[{time:'4:00 PM',format:'Standard'},{time:'7:30 PM',format:'Standard'},{time:'10:15 PM',format:'Standard'}]}
+];
+document.getElementById('movies').innerHTML=movies.map(m=>`
+<div class="movie">
+<div class="movie-poster">${m.poster}</div>
+<div class="movie-info">
+<div class="movie-title">${m.title}</div>
+<div class="movie-meta"><span class="movie-rating">${m.rating}</span><span>${m.runtime}</span><span>${m.genre}</span><span>⭐ ${m.imdb}</span></div>
+<div class="showtimes">${m.times.map(t=>`<div class="showtime${t.soldOut?' sold-out':''}">${t.time}<span class="format">${t.format}${t.soldOut?' • SOLD OUT':''}</span></div>`).join('')}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gaming Floor - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"gaming-floor","name":"Gaming Floor","icon":"🎰","desc":"Casino floor management","category":"casino","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.floor-status{padding:10px 20px;background:#22c55e33;color:#22c55e;border-radius:6px;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#fbbf24}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.section{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.section-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.section-name{font-weight:bold;display:flex;align-items:center;gap:10px}
+.section-count{font-size:.875rem;color:#888}
+.machines{padding:15px}
+.machine-row{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#252525;border-radius:6px;margin-bottom:8px}
+.machine-row:last-child{margin-bottom:0}
+.machine-info{display:flex;align-items:center;gap:10px}
+.machine-status{width:10px;height:10px;border-radius:50%}
+.status-active{background:#22c55e}
+.status-idle{background:#f59e0b}
+.status-offline{background:#ef4444}
+.machine-id{font-weight:500}
+.machine-stats{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎰 Gaming Floor</h1><span class="floor-status">🟢 FLOOR OPEN</span></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">248</div><div class="stat-label">Active Machines</div></div>
+<div class="stat"><div class="stat-value">$847K</div><div class="stat-label">Today's Handle</div></div>
+<div class="stat"><div class="stat-value">1,245</div><div class="stat-label">Active Players</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Jackpots Today</div></div>
+</div>
+<div class="sections" id="sections"></div>
+<script>
+const sections=[
+{name:'Slot Machines',icon:'🎰',total:150,active:142,idle:5,offline:3,topMachines:[{id:'SL-001',status:'active',revenue:'$12,450'},{id:'SL-015',status:'active',revenue:'$9,820'},{id:'SL-042',status:'idle',revenue:'$7,650'}]},
+{name:'Poker Tables',icon:'🃏',total:24,active:18,idle:4,offline:2,topMachines:[{id:'PK-01',status:'active',revenue:'$45,000'},{id:'PK-05',status:'active',revenue:'$32,150'},{id:'PK-12',status:'idle',revenue:'$18,400'}]},
+{name:'Blackjack',icon:'🂡',total:32,active:28,idle:3,offline:1,topMachines:[{id:'BJ-08',status:'active',revenue:'$28,900'},{id:'BJ-02',status:'active',revenue:'$24,500'},{id:'BJ-15',status:'active',revenue:'$19,200'}]},
+{name:'Roulette',icon:'🎡',total:12,active:10,idle:1,offline:1,topMachines:[{id:'RL-03',status:'active',revenue:'$52,000'},{id:'RL-07',status:'active',revenue:'$38,400'},{id:'RL-01',status:'idle',revenue:'$28,100'}]}
+];
+document.getElementById('sections').innerHTML=sections.map(s=>`
+<div class="section">
+<div class="section-header">
+<span class="section-name">${s.icon} ${s.name}</span>
+<span class="section-count">${s.active}/${s.total} active</span>
+</div>
+<div class="machines">
+${s.topMachines.map(m=>`<div class="machine-row">
+<div class="machine-info"><span class="machine-status status-${m.status}"></span><span class="machine-id">${m.id}</span></div>
+<div class="machine-stats">${m.revenue}</div>
+</div>`).join('')}
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

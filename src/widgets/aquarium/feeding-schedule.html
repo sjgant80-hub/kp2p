@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feeding Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"feeding-schedule","name":"Feeding Schedule","icon":"🐟","desc":"Animal feeding times","category":"aquarium","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.current-time{padding:10px 20px;background:#0891b233;color:#0891b2;border-radius:6px;font-weight:600}
+.next-feeding{background:linear-gradient(135deg,#0891b2 0%,#0e7490 100%);border-radius:12px;padding:25px;margin-bottom:20px}
+.next-label{font-size:.875rem;opacity:.8;margin-bottom:5px}
+.next-info{display:flex;justify-content:space-between;align-items:center}
+.next-event{font-size:1.5rem;font-weight:bold}
+.next-countdown{font-size:2rem;font-weight:bold;font-family:monospace}
+.schedule{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.time-slot{display:grid;grid-template-columns:100px 1fr auto;align-items:center;padding:20px;border-bottom:1px solid #333}
+.time-slot:last-child{border-bottom:none}
+.time-slot.past{opacity:.5}
+.time-slot.current{background:#0891b222}
+.slot-time{font-size:1.25rem;font-weight:bold;color:#0891b2}
+.slot-info h4{margin-bottom:5px}
+.slot-location{font-size:.875rem;color:#888}
+.slot-status{padding:6px 15px;border-radius:6px;font-size:.75rem}
+.status-upcoming{background:#0891b233;color:#0891b2}
+.status-now{background:#22c55e33;color:#22c55e}
+.status-complete{background:#33333366;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🐟 Feeding Schedule</h1><span class="current-time" id="time">2:15 PM</span></div>
+<div class="next-feeding">
+<div class="next-label">NEXT FEEDING</div>
+<div class="next-info">
+<div class="next-event">🐧 Penguin Colony Feeding</div>
+<div class="next-countdown">00:15:00</div>
+</div>
+</div>
+<div class="schedule" id="schedule"></div>
+<script>
+const schedule=[
+{time:'9:30 AM',event:'Penguin Breakfast',location:'Penguin Colony - Building C',status:'complete'},
+{time:'10:00 AM',event:'Tropical Reef Feeding',location:'Tropical Reef - Building A',status:'complete'},
+{time:'11:00 AM',event:'Shark Feeding',location:'Shark Bay - Building B',status:'complete'},
+{time:'1:00 PM',event:'Amazon River Feeding',location:'Amazon River - Building B',status:'complete'},
+{time:'2:30 PM',event:'Penguin Colony Feeding',location:'Penguin Colony - Building C',status:'now'},
+{time:'3:00 PM',event:'Tropical Reef Feeding',location:'Tropical Reef - Building A',status:'upcoming'},
+{time:'4:00 PM',event:'Shark Feeding',location:'Shark Bay - Building B',status:'upcoming'},
+{time:'4:30 PM',event:'Sea Lion Show',location:'Outdoor Amphitheater',status:'upcoming'}
+];
+document.getElementById('schedule').innerHTML=schedule.map(s=>`
+<div class="time-slot${s.status==='complete'?' past':''}${s.status==='now'?' current':''}">
+<div class="slot-time">${s.time}</div>
+<div class="slot-info">
+<h4>${s.event}</h4>
+<div class="slot-location">📍 ${s.location}</div>
+</div>
+<span class="slot-status status-${s.status}">${s.status==='now'?'🔴 NOW':s.status==='complete'?'Complete':'Upcoming'}</span>
+</div>`).join('');
+</script>
+</body>
+</html>
