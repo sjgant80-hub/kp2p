@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Passenger Flow - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"passenger-flow","name":"Passenger Flow","icon":"👥","desc":"Monorail passenger analytics","category":"monorail","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#4f46e5;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.summary-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.summary-value{font-size:1.75rem;font-weight:bold;color:#4f46e5}
+.summary-change{font-size:.75rem;margin-top:5px}
+.change-up{color:#15803d}
+.change-down{color:#dc2626}
+.summary-label{font-size:.75rem;color:#888;margin-top:5px}
+.stations{display:flex;flex-direction:column;gap:10px}
+.station{background:#1a1a1a;border-radius:8px;border:1px solid #333;padding:15px;display:flex;align-items:center;gap:15px}
+.station-name{width:150px;font-weight:bold}
+.station-bar{flex:1;background:#333;border-radius:4px;height:24px;overflow:hidden;position:relative}
+.station-fill{height:100%;background:#4f46e5;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:.75rem}
+.station-count{width:80px;text-align:right;font-size:.875rem}
+.station-status{width:60px;text-align:center}
+.status-high{color:#dc2626}
+.status-medium{color:#eab308}
+.status-normal{color:#15803d}
+</style>
+</head>
+<body>
+<div class="header"><h1>👥 Flow</h1><button class="btn">Reports</button></div>
+<div class="summary">
+<div class="summary-card"><div class="summary-value">24,567</div><div class="summary-change change-up">↑ 8%</div><div class="summary-label">TODAY'S RIDERS</div></div>
+<div class="summary-card"><div class="summary-value">2,145</div><div class="summary-change change-up">↑ 12%</div><div class="summary-label">CURRENT HOUR</div></div>
+<div class="summary-card"><div class="summary-value">8.2 min</div><div class="summary-change change-down">↓ 5%</div><div class="summary-label">AVG WAIT TIME</div></div>
+<div class="summary-card"><div class="summary-value">78%</div><div class="summary-change change-up">↑ 3%</div><div class="summary-label">CAPACITY USED</div></div>
+</div>
+<div class="stations" id="stations"></div>
+<script>
+const stations=[
+{name:'Central Station',current:456,capacity:600,pct:76,status:'high'},
+{name:'Airport',current:389,capacity:500,pct:78,status:'high'},
+{name:'Downtown',current:312,capacity:450,pct:69,status:'medium'},
+{name:'Convention Ctr',current:245,capacity:400,pct:61,status:'medium'},
+{name:'Park District',current:178,capacity:350,pct:51,status:'normal'},
+{name:'Harbor',current:156,capacity:350,pct:45,status:'normal'},
+{name:'University',current:267,capacity:400,pct:67,status:'medium'},
+{name:'Stadium',current:423,capacity:600,pct:71,status:'medium'},
+{name:'Shopping Mall',current:198,capacity:350,pct:57,status:'normal'},
+{name:'Residential N',current:134,capacity:300,pct:45,status:'normal'},
+{name:'Residential S',current:112,capacity:300,pct:37,status:'normal'},
+{name:'Tech Campus',current:287,capacity:400,pct:72,status:'medium'}
+];
+document.getElementById('stations').innerHTML=stations.map(s=>`
+<div class="station">
+<span class="station-name">${s.name}</span>
+<div class="station-bar"><div class="station-fill" style="width:${s.pct}%">${s.pct}%</div></div>
+<span class="station-count">${s.current}/${s.capacity}</span>
+<span class="station-status status-${s.status}">${s.status==='high'?'🔴':s.status==='medium'?'🟡':'🟢'}</span>
+</div>`).join('');
+</script>
+</body>
+</html>

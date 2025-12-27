@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ferry Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"vessel-tracker","name":"Vessel Tracker","icon":"⛴️","desc":"Ferry vessel tracking","category":"ferry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0369a1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0369a1}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.vessels{display:flex;flex-direction:column;gap:15px}
+.vessel{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.vessel-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.vessel-name{font-size:1.125rem;font-weight:bold}
+.vessel-route{font-size:.75rem;color:#0369a1}
+.vessel-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-sailing{background:#0369a133;color:#0369a1;animation:pulse 2s infinite}
+.status-docked{background:#15803d33;color:#15803d}
+.status-loading{background:#eab30833;color:#eab308}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.vessel-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>⛴️ Fleet</h1><button class="btn">Dispatch</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">ACTIVE FERRIES</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">SAILING</div></div>
+<div class="stat"><div class="stat-value">8.4K</div><div class="stat-label">PASSENGERS</div></div>
+<div class="stat"><div class="stat-value">1.2K</div><div class="stat-label">VEHICLES</div></div>
+</div>
+<div class="vessels" id="vessels"></div>
+<script>
+const vessels=[
+{name:'MV Islander',route:'MAIN LINE',status:'sailing',from:'Harbor City',to:'Island Terminal',passengers:845,vehicles:120,capacity:'1000/150',eta:'35 min',speed:'18 kts'},
+{name:'MV Coastal Star',route:'EXPRESS',status:'sailing',from:'Downtown',to:'Beach Resort',passengers:456,vehicles:0,capacity:'600/0',eta:'22 min',speed:'25 kts'},
+{name:'MV Bay Runner',route:'COMMUTER',status:'docked',from:'--',to:'Financial District',passengers:0,vehicles:0,capacity:'800/100',eta:'Boarding',speed:'--'},
+{name:'MV Ocean Spirit',route:'MAIN LINE',status:'loading',from:'Island Terminal',to:'Harbor City',passengers:234,vehicles:45,capacity:'1000/150',eta:'Depart 15 min',speed:'--'},
+{name:'MV Harbor Queen',route:'SCENIC',status:'sailing',from:'Marina',to:'Lighthouse Point',passengers:312,vehicles:0,capacity:'400/0',eta:'48 min',speed:'12 kts'},
+{name:'MV Sunset',route:'EVENING',status:'docked',from:'--',to:'--',passengers:0,vehicles:0,capacity:'600/80',eta:'Next: 5:00 PM',speed:'--'}
+];
+document.getElementById('vessels').innerHTML=vessels.map(v=>`
+<div class="vessel">
+<div class="vessel-header">
+<div>
+<div class="vessel-name">${v.name}</div>
+<div class="vessel-route">${v.route}</div>
+</div>
+<span class="vessel-status status-${v.status}">${v.status.toUpperCase()}</span>
+</div>
+<div class="vessel-info">
+<div class="info"><div class="info-value">${v.from} → ${v.to}</div><div class="info-label">ROUTE</div></div>
+<div class="info"><div class="info-value">${v.passengers}/${v.capacity.split('/')[0]}</div><div class="info-label">PASSENGERS</div></div>
+<div class="info"><div class="info-value">${v.vehicles}/${v.capacity.split('/')[1]}</div><div class="info-label">VEHICLES</div></div>
+<div class="info"><div class="info-value">${v.eta}</div><div class="info-label">ETA</div></div>
+<div class="info"><div class="info-value">${v.speed}</div><div class="info-label">SPEED</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

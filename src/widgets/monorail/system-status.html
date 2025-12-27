@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monorail Status - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"system-status","name":"System Status","icon":"🚝","desc":"Monorail system monitoring","category":"monorail","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#4f46e5;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#4f46e5}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.trains{display:flex;flex-direction:column;gap:15px}
+.train{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.train-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.train-id{font-size:1.125rem;font-weight:bold}
+.train-line{font-size:.75rem;color:#4f46e5}
+.train-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-moving{background:#4f46e533;color:#4f46e5;animation:pulse 2s infinite}
+.status-station{background:#15803d33;color:#15803d}
+.status-depot{background:#64748b33;color:#64748b}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.train-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚝 Status</h1><button class="btn">Control Center</button></div>
+<div class="overview">
+<div class="stat"><div class="stat-value">🟢</div><div class="stat-label">SYSTEM</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">ACTIVE TRAINS</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">STATIONS</div></div>
+<div class="stat"><div class="stat-value">24K</div><div class="stat-label">DAILY RIDERS</div></div>
+<div class="stat"><div class="stat-value">99.2%</div><div class="stat-label">ON TIME</div></div>
+</div>
+<div class="trains" id="trains"></div>
+<script>
+const trains=[
+{id:'MR-101',line:'BLUE LINE',status:'moving',location:'Central → Park',speed:'45 mph',passengers:142,capacity:200,nextStation:'Park (2 min)',driver:'Auto'},
+{id:'MR-102',line:'BLUE LINE',status:'station',location:'Airport Terminal',speed:'0 mph',passengers:180,capacity:200,nextStation:'Departing (30 sec)',driver:'Auto'},
+{id:'MR-103',line:'RED LINE',status:'moving',location:'Downtown → Harbor',speed:'50 mph',passengers:98,capacity:200,nextStation:'Harbor (4 min)',driver:'Auto'},
+{id:'MR-104',line:'RED LINE',status:'moving',location:'Convention → Stadium',speed:'40 mph',passengers:220,capacity:250,nextStation:'Stadium (1 min)',driver:'Auto'},
+{id:'MR-105',line:'GREEN LINE',status:'station',location:'University',speed:'0 mph',passengers:156,capacity:200,nextStation:'Departing (45 sec)',driver:'Auto'},
+{id:'MR-106',line:'BLUE LINE',status:'depot',location:'Maintenance Depot',speed:'0 mph',passengers:0,capacity:200,nextStation:'Scheduled 2:00 PM',driver:'--'}
+];
+document.getElementById('trains').innerHTML=trains.map(t=>`
+<div class="train">
+<div class="train-header">
+<div>
+<div class="train-id">${t.id}</div>
+<div class="train-line">${t.line}</div>
+</div>
+<span class="train-status status-${t.status}">${t.status.toUpperCase()}</span>
+</div>
+<div class="train-info">
+<div class="info"><div class="info-value">${t.location}</div><div class="info-label">LOCATION</div></div>
+<div class="info"><div class="info-value">${t.speed}</div><div class="info-label">SPEED</div></div>
+<div class="info"><div class="info-value">${t.passengers}/${t.capacity}</div><div class="info-label">PASSENGERS</div></div>
+<div class="info"><div class="info-value">${t.nextStation}</div><div class="info-label">NEXT</div></div>
+<div class="info"><div class="info-value">${t.driver}</div><div class="info-label">MODE</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

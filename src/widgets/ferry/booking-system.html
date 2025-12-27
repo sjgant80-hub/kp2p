@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ferry Bookings - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"booking-system","name":"Booking System","icon":"🎫","desc":"Ferry ticket bookings","category":"ferry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0369a1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.departures{display:flex;flex-direction:column;gap:15px}
+.departure{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.departure-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.departure-route{font-size:1.125rem;font-weight:bold}
+.departure-vessel{font-size:.75rem;color:#0369a1}
+.departure-time{font-size:1.5rem;font-weight:bold;color:#0369a1}
+.departure-info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+.departure-footer{display:flex;justify-content:space-between;align-items:center}
+.availability{display:flex;gap:15px}
+.avail-item{font-size:.875rem}
+.avail-good{color:#15803d}
+.avail-limited{color:#eab308}
+.avail-full{color:#dc2626}
+.book-btn{padding:8px 20px;background:#0369a1;color:#fff;border:none;border-radius:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎫 Bookings</h1><button class="btn">New Booking</button></div>
+<div class="departures" id="departures"></div>
+<script>
+const departures=[
+{route:'Harbor City → Island Terminal',vessel:'MV Islander',time:'11:30 AM',duration:'55 min',passengers:{booked:678,capacity:1000},vehicles:{booked:95,capacity:150},passAvail:'good',vehAvail:'limited',prices:{passenger:'$18',vehicle:'$45'}},
+{route:'Downtown → Beach Resort',vessel:'MV Coastal Star',time:'12:00 PM',duration:'35 min',passengers:{booked:520,capacity:600},vehicles:{booked:0,capacity:0},passAvail:'limited',vehAvail:'none',prices:{passenger:'$25',vehicle:'N/A'}},
+{route:'Financial District → Harbor City',vessel:'MV Bay Runner',time:'12:30 PM',duration:'25 min',passengers:{booked:234,capacity:800},vehicles:{booked:34,capacity:100},passAvail:'good',vehAvail:'good',prices:{passenger:'$12',vehicle:'$35'}},
+{route:'Island Terminal → Harbor City',vessel:'MV Ocean Spirit',time:'1:00 PM',duration:'55 min',passengers:{booked:890,capacity:1000},vehicles:{booked:142,capacity:150},passAvail:'limited',vehAvail:'limited',prices:{passenger:'$18',vehicle:'$45'}},
+{route:'Marina → Lighthouse Point',vessel:'MV Harbor Queen',time:'2:00 PM',duration:'90 min',passengers:{booked:380,capacity:400},vehicles:{booked:0,capacity:0},passAvail:'limited',vehAvail:'none',prices:{passenger:'$35',vehicle:'N/A'}}
+];
+document.getElementById('departures').innerHTML=departures.map(d=>`
+<div class="departure">
+<div class="departure-header">
+<div>
+<div class="departure-route">${d.route}</div>
+<div class="departure-vessel">${d.vessel} • ${d.duration}</div>
+</div>
+<span class="departure-time">${d.time}</span>
+</div>
+<div class="departure-info">
+<div class="info"><div class="info-value">${d.passengers.booked}/${d.passengers.capacity}</div><div class="info-label">PASSENGERS</div></div>
+<div class="info"><div class="info-value">${d.vehicles.capacity>0?d.vehicles.booked+'/'+d.vehicles.capacity:'N/A'}</div><div class="info-label">VEHICLES</div></div>
+<div class="info"><div class="info-value">${d.prices.passenger}</div><div class="info-label">PASSENGER</div></div>
+<div class="info"><div class="info-value">${d.prices.vehicle}</div><div class="info-label">VEHICLE</div></div>
+</div>
+<div class="departure-footer">
+<div class="availability">
+<span class="avail-item avail-${d.passAvail}">👤 ${d.passAvail==='good'?'Available':d.passAvail==='limited'?'Limited':'Full'}</span>
+${d.vehicles.capacity>0?`<span class="avail-item avail-${d.vehAvail}">🚗 ${d.vehAvail==='good'?'Available':d.vehAvail==='limited'?'Limited':'Full'}</span>`:''}
+</div>
+<button class="book-btn">Book Now</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

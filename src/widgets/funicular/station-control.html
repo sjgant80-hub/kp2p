@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Funicular Control - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"station-control","name":"Station Control","icon":"🚞","desc":"Funicular station management","category":"funicular","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c2d12;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.status-panel{background:linear-gradient(135deg,#7c2d12 0%,#9a3412 100%);border-radius:12px;padding:25px;margin-bottom:20px}
+.status-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.status-title{font-size:1.25rem;font-weight:bold}
+.status-indicator{padding:8px 16px;background:rgba(255,255,255,.2);border-radius:20px;font-size:.875rem}
+.cars{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.car{background:rgba(255,255,255,.1);padding:20px;border-radius:12px}
+.car-name{font-size:1.125rem;font-weight:bold;margin-bottom:10px}
+.car-position{font-size:2rem;font-weight:bold;margin-bottom:10px}
+.car-info{font-size:.875rem;opacity:.9}
+.schedule{display:flex;flex-direction:column;gap:15px}
+.departure{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:flex;justify-content:space-between;align-items:center}
+.departure-station{font-size:1rem;font-weight:bold}
+.departure-time{font-size:1.25rem;color:#7c2d12}
+.departure-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-next{background:#15803d33;color:#15803d}
+.status-boarding{background:#7c2d1233;color:#ea580c}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚞 Control</h1><button class="btn">Emergency Stop</button></div>
+<div class="status-panel">
+<div class="status-header">
+<span class="status-title">SYSTEM STATUS</span>
+<span class="status-indicator">🟢 OPERATIONAL</span>
+</div>
+<div class="cars">
+<div class="car">
+<div class="car-name">CAR A - Summit</div>
+<div class="car-position">▲ 85%</div>
+<div class="car-info">Descending • 24/30 passengers • ETA Base: 3 min</div>
+</div>
+<div class="car">
+<div class="car-name">CAR B - Valley</div>
+<div class="car-position">▼ 15%</div>
+<div class="car-info">Ascending • 28/30 passengers • ETA Summit: 3 min</div>
+</div>
+</div>
+</div>
+<div class="schedule" id="schedule"></div>
+<script>
+const schedule=[
+{station:'Valley Station',direction:'▲ To Summit',time:'10:45 AM',status:'boarding',passengers:28},
+{station:'Summit Station',direction:'▼ To Valley',time:'10:45 AM',status:'boarding',passengers:24},
+{station:'Valley Station',direction:'▲ To Summit',time:'11:00 AM',status:'next',passengers:12},
+{station:'Summit Station',direction:'▼ To Valley',time:'11:00 AM',status:'next',passengers:8},
+{station:'Valley Station',direction:'▲ To Summit',time:'11:15 AM',status:'next',passengers:0},
+{station:'Summit Station',direction:'▼ To Valley',time:'11:15 AM',status:'next',passengers:0}
+];
+document.getElementById('schedule').innerHTML=schedule.map(s=>`
+<div class="departure">
+<div>
+<div class="departure-station">${s.station}</div>
+<div style="font-size:.875rem;color:#888">${s.direction} • ${s.passengers} waiting</div>
+</div>
+<div style="display:flex;align-items:center;gap:15px">
+<span class="departure-status status-${s.status}">${s.status.toUpperCase()}</span>
+<span class="departure-time">${s.time}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

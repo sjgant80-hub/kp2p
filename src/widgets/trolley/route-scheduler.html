@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trolley Routes - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"route-scheduler","name":"Route Scheduler","icon":"🚃","desc":"Trolley route management","category":"trolley","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#dc2626}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.routes{display:flex;flex-direction:column;gap:15px}
+.route{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.route-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.route-name{font-size:1.125rem;font-weight:bold}
+.route-line{font-size:.75rem;color:#dc2626}
+.route-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-running{background:#15803d33;color:#15803d}
+.status-delayed{background:#eab30833;color:#eab308}
+.status-suspended{background:#dc262633;color:#dc2626}
+.route-stops{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+.stop{padding:4px 10px;background:#252525;border-radius:4px;font-size:.75rem}
+.route-info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚃 Routes</h1><button class="btn">Update Schedule</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">ACTIVE ROUTES</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">TROLLEYS</div></div>
+<div class="stat"><div class="stat-value">2.4K</div><div class="stat-label">DAILY RIDERS</div></div>
+<div class="stat"><div class="stat-value">98%</div><div class="stat-label">ON TIME</div></div>
+</div>
+<div class="routes" id="routes"></div>
+<script>
+const routes=[
+{name:'Historic Downtown Loop',line:'RED LINE',status:'running',frequency:'15 min',firstRun:'7:00 AM',lastRun:'10:00 PM',trolleys:3,stops:['Station','Main St','Market','City Hall','Park','Museum','Station']},
+{name:'Waterfront Express',line:'BLUE LINE',status:'running',frequency:'20 min',firstRun:'8:00 AM',lastRun:'9:00 PM',trolleys:2,stops:['Pier 1','Aquarium','Marina','Beach','Pier 1']},
+{name:'Shopping District',line:'GREEN LINE',status:'running',frequency:'10 min',firstRun:'9:00 AM',lastRun:'9:00 PM',trolleys:4,stops:['Mall','Boutiques','Gallery','Market','Mall']},
+{name:'University Route',line:'YELLOW LINE',status:'delayed',frequency:'12 min',firstRun:'6:00 AM',lastRun:'11:00 PM',trolleys:2,stops:['Campus','Library','Stadium','Dorms','Campus']},
+{name:'Night Owl Service',line:'PURPLE LINE',status:'suspended',frequency:'30 min',firstRun:'10:00 PM',lastRun:'2:00 AM',trolleys:1,stops:['Downtown','Entertainment','Hotels','Downtown']}
+];
+document.getElementById('routes').innerHTML=routes.map(r=>`
+<div class="route">
+<div class="route-header">
+<div>
+<div class="route-name">${r.name}</div>
+<div class="route-line">${r.line}</div>
+</div>
+<span class="route-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="route-stops">${r.stops.map(s=>`<span class="stop">📍 ${s}</span>`).join('→')}</div>
+<div class="route-info">
+<div class="info"><div class="info-value">${r.frequency}</div><div class="info-label">FREQUENCY</div></div>
+<div class="info"><div class="info-value">${r.firstRun}</div><div class="info-label">FIRST RUN</div></div>
+<div class="info"><div class="info-value">${r.lastRun}</div><div class="info-label">LAST RUN</div></div>
+<div class="info"><div class="info-value">${r.trolleys}</div><div class="info-label">TROLLEYS</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

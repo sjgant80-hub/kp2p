@@ -880,6 +880,26 @@ const categoryMap = {
   // Submarine
   'dive-scheduler': { category: 'submarine', subcategory: 'scheduling', badge: 'ENT' },
   'systems-monitor': { category: 'submarine', subcategory: 'monitoring', badge: 'ENT' },
+
+  // Trolley
+  'route-scheduler': { category: 'trolley', subcategory: 'scheduling', badge: 'ENT' },
+  'trolley-fleet': { category: 'trolley', subcategory: 'fleet', badge: 'ENT' },
+
+  // Gondola
+  'lift-operations': { category: 'gondola', subcategory: 'operations', badge: 'ENT' },
+  'ticket-sales': { category: 'gondola', subcategory: 'sales', badge: 'ENT' },
+
+  // Funicular
+  'station-control': { category: 'funicular', subcategory: 'control', badge: 'ENT' },
+  'funicular-maintenance': { category: 'funicular', subcategory: 'maintenance', badge: 'ENT' },
+
+  // Monorail
+  'system-status': { category: 'monorail', subcategory: 'monitoring', badge: 'ENT' },
+  'passenger-flow': { category: 'monorail', subcategory: 'analytics', badge: 'ENT' },
+
+  // Ferry
+  'vessel-tracker': { category: 'ferry', subcategory: 'tracking', badge: 'ENT' },
+  'booking-system': { category: 'ferry', subcategory: 'booking', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1201,7 +1221,12 @@ const widgetDirs = [
   'drone',
   'jetski',
   'hovercraft',
-  'submarine'
+  'submarine',
+  'trolley',
+  'gondola',
+  'funicular',
+  'monorail',
+  'ferry'
 ];
 
 // Process all widgets in all directories

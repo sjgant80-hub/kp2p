@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gondola Operations - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"lift-operations","name":"Lift Operations","icon":"🚡","desc":"Gondola lift management","category":"gondola","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0891b2;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.conditions{background:linear-gradient(135deg,#0891b2 0%,#0e7490 100%);border-radius:12px;padding:20px;margin-bottom:20px}
+.conditions-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;text-align:center}
+.cond{background:rgba(255,255,255,.1);padding:12px;border-radius:8px}
+.cond-value{font-size:1.25rem;font-weight:bold}
+.cond-label{font-size:.7rem;opacity:.8}
+.lifts{display:flex;flex-direction:column;gap:15px}
+.lift{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.lift-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.lift-name{font-size:1.125rem;font-weight:bold}
+.lift-type{font-size:.75rem;color:#0891b2}
+.lift-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-running{background:#15803d33;color:#15803d}
+.status-wind-hold{background:#eab30833;color:#eab308}
+.status-closed{background:#dc262633;color:#dc2626}
+.lift-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚡 Gondolas</h1><button class="btn">Control Panel</button></div>
+<div class="conditions">
+<div class="conditions-grid">
+<div class="cond"><div class="cond-value">🟢</div><div class="cond-label">SYSTEM STATUS</div></div>
+<div class="cond"><div class="cond-value">28°F</div><div class="cond-label">SUMMIT TEMP</div></div>
+<div class="cond"><div class="cond-value">15 mph</div><div class="cond-label">WIND SPEED</div></div>
+<div class="cond"><div class="cond-value">Clear</div><div class="cond-label">VISIBILITY</div></div>
+<div class="cond"><div class="cond-value">4/5</div><div class="cond-label">LIFTS OPEN</div></div>
+</div>
+</div>
+<div class="lifts" id="lifts"></div>
+<script>
+const lifts=[
+{name:'Summit Express',type:'8-PASSENGER GONDOLA',status:'running',cabins:45,speed:'12 mph',wait:'5 min',elevation:'8,500 ft',length:'2.5 mi',passengers:'1,245 today'},
+{name:'Village Connector',type:'6-PASSENGER GONDOLA',status:'running',cabins:60,speed:'10 mph',wait:'3 min',elevation:'6,200 ft',length:'1.8 mi',passengers:'2,180 today'},
+{name:'Peak Rider',type:'4-PASSENGER GONDOLA',status:'running',cabins:80,speed:'8 mph',wait:'2 min',elevation:'9,800 ft',length:'1.2 mi',passengers:'890 today'},
+{name:'Skyway',type:'10-PASSENGER GONDOLA',status:'wind-hold',cabins:30,speed:'Paused',wait:'Hold',elevation:'10,200 ft',length:'3.1 mi',passengers:'456 today'},
+{name:'Alpine Link',type:'8-PASSENGER GONDOLA',status:'closed',cabins:50,speed:'--',wait:'--',elevation:'7,400 ft',length:'2.0 mi',passengers:'Maintenance'}
+];
+document.getElementById('lifts').innerHTML=lifts.map(l=>`
+<div class="lift">
+<div class="lift-header">
+<div>
+<div class="lift-name">${l.name}</div>
+<div class="lift-type">${l.type}</div>
+</div>
+<span class="lift-status status-${l.status}">${l.status==='wind-hold'?'WIND HOLD':l.status.toUpperCase()}</span>
+</div>
+<div class="lift-info">
+<div class="info"><div class="info-value">${l.cabins}</div><div class="info-label">CABINS</div></div>
+<div class="info"><div class="info-value">${l.speed}</div><div class="info-label">SPEED</div></div>
+<div class="info"><div class="info-value">${l.wait}</div><div class="info-label">WAIT TIME</div></div>
+<div class="info"><div class="info-value">${l.elevation}</div><div class="info-label">TOP ELEVATION</div></div>
+<div class="info"><div class="info-value">${l.passengers}</div><div class="info-label">PASSENGERS</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

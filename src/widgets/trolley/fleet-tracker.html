@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trolley Fleet - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fleet-tracker","name":"Fleet Tracker","icon":"🔔","desc":"Trolley fleet tracking","category":"trolley","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.trolleys{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.trolley{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.trolley-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.trolley-id{font-size:1.125rem;font-weight:bold}
+.trolley-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-service{background:#15803d33;color:#15803d}
+.status-depot{background:#64748b33;color:#64748b}
+.status-maintenance{background:#eab30833;color:#eab308}
+.trolley-location{font-size:.875rem;color:#888;margin-bottom:15px}
+.trolley-info{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px}
+.info-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.info-value{font-size:.875rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔔 Fleet</h1><button class="btn">Dispatch</button></div>
+<div class="trolleys" id="trolleys"></div>
+<script>
+const trolleys=[
+{id:'TR-101',name:'Old Faithful',status:'service',route:'Red Line',location:'Main St → Market',passengers:28,capacity:40,driver:'Mike J.',nextStop:'Market (2 min)'},
+{id:'TR-102',name:'Cable King',status:'service',route:'Blue Line',location:'Marina → Beach',passengers:22,capacity:35,driver:'Sarah L.',nextStop:'Beach (4 min)'},
+{id:'TR-103',name:'Heritage',status:'depot',route:'--',location:'Depot Bay 3',passengers:0,capacity:40,driver:'--',nextStop:'Next run: 2:00 PM'},
+{id:'TR-104',name:'Golden Gate',status:'service',route:'Green Line',location:'Gallery → Market',passengers:38,capacity:40,driver:'Tom R.',nextStop:'Market (1 min)'},
+{id:'TR-105',name:'Vintage',status:'maintenance',route:'--',location:'Maintenance Bay',passengers:0,capacity:35,driver:'--',nextStop:'Brake inspection'},
+{id:'TR-106',name:'Classic',status:'service',route:'Yellow Line',location:'Library → Stadium',passengers:18,capacity:40,driver:'Amy C.',nextStop:'Stadium (5 min)'}
+];
+document.getElementById('trolleys').innerHTML=trolleys.map(t=>`
+<div class="trolley">
+<div class="trolley-header">
+<span class="trolley-id">${t.id} - ${t.name}</span>
+<span class="trolley-status status-${t.status}">${t.status.toUpperCase()}</span>
+</div>
+<div class="trolley-location">📍 ${t.location} ${t.route!=='--'?`• ${t.route}`:''}</div>
+<div class="trolley-info">
+<div class="info"><div class="info-label">PASSENGERS</div><div class="info-value">${t.passengers}/${t.capacity}</div></div>
+<div class="info"><div class="info-label">DRIVER</div><div class="info-value">${t.driver}</div></div>
+<div class="info"><div class="info-label">NEXT STOP</div><div class="info-value">${t.nextStop}</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

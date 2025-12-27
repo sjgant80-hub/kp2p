@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Funicular Maintenance - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"maintenance-schedule","name":"Maintenance Schedule","icon":"🔧","desc":"Funicular maintenance tracking","category":"funicular","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c2d12;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.systems{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.system{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.system-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.system-name{font-size:1.125rem;font-weight:bold}
+.system-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-ok{background:#15803d33;color:#15803d}
+.status-due{background:#eab30833;color:#eab308}
+.status-overdue{background:#dc262633;color:#dc2626}
+.system-progress{margin-bottom:15px}
+.progress-bar{background:#333;border-radius:4px;height:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px}
+.fill-green{background:#15803d}
+.fill-yellow{background:#eab308}
+.fill-red{background:#dc2626}
+.progress-text{display:flex;justify-content:space-between;font-size:.75rem;color:#888;margin-top:5px}
+.system-details{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔧 Maintenance</h1><button class="btn">Schedule Service</button></div>
+<div class="systems" id="systems"></div>
+<script>
+const systems=[
+{name:'Cable System',status:'ok',usedHours:450,limitHours:1000,pct:45,lastService:'Jan 10',nextService:'Jul 10',tech:'Certified only',notes:'Annual inspection due Jul'},
+{name:'Drive Motor A',status:'ok',usedHours:320,limitHours:500,pct:64,lastService:'Dec 15',nextService:'Mar 15',tech:'Electrical',notes:'Running smoothly'},
+{name:'Drive Motor B',status:'ok',usedHours:310,limitHours:500,pct:62,lastService:'Dec 15',nextService:'Mar 15',tech:'Electrical',notes:'Backup motor ready'},
+{name:'Brake System',status:'due',usedHours:95,limitHours:100,pct:95,lastService:'Nov 1',nextService:'Feb 1',tech:'Safety certified',notes:'⚠️ Inspection due soon'},
+{name:'Car A Undercarriage',status:'ok',usedHours:600,limitHours:1500,pct:40,lastService:'Jan 5',nextService:'Jan 2026',tech:'Mechanical',notes:'Wheels checked'},
+{name:'Car B Undercarriage',status:'ok',usedHours:580,limitHours:1500,pct:39,lastService:'Jan 5',nextService:'Jan 2026',tech:'Mechanical',notes:'Wheels checked'}
+];
+document.getElementById('systems').innerHTML=systems.map(s=>{
+const fillClass=s.pct>80?'fill-red':s.pct>60?'fill-yellow':'fill-green';
+return`
+<div class="system">
+<div class="system-header">
+<span class="system-name">${s.name}</span>
+<span class="system-status status-${s.status}">${s.status.toUpperCase()}</span>
+</div>
+<div class="system-progress">
+<div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${s.pct}%"></div></div>
+<div class="progress-text"><span>${s.usedHours} / ${s.limitHours} hours</span><span>${s.pct}%</span></div>
+</div>
+<div class="system-details">
+<div class="detail"><div class="detail-label">LAST SERVICE</div><div class="detail-value">${s.lastService}</div></div>
+<div class="detail"><div class="detail-label">NEXT SERVICE</div><div class="detail-value">${s.nextService}</div></div>
+</div>
+<div style="font-size:.75rem;color:#888;margin-top:10px">📝 ${s.notes}</div>
+</div>`}).join('');
+</script>
+</body>
+</html>
