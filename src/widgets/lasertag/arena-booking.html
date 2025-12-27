@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arena Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"lasertag-booking","name":"Laser Tag Arena","icon":"🔫","desc":"Book laser tag sessions","category":"lasertag","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.arena{background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 100%);border-radius:12px;padding:25px;margin-bottom:20px}
+.arena-name{font-size:1.5rem;font-weight:bold;margin-bottom:10px}
+.arena-features{display:flex;flex-wrap:wrap;gap:15px;font-size:.875rem}
+.arena-features span{background:rgba(255,255,255,.2);padding:6px 12px;border-radius:6px}
+.game-modes{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px;margin-bottom:20px}
+.mode{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.mode-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.mode-name{font-size:1.25rem;font-weight:bold}
+.mode-players{font-size:.875rem;color:#888}
+.mode-desc{font-size:.875rem;color:#888;margin-bottom:15px;line-height:1.5}
+.mode-footer{display:flex;justify-content:space-between;align-items:center}
+.mode-duration{font-size:.875rem;color:#8b5cf6}
+.mode-price{font-size:1.125rem;font-weight:bold;color:#22c55e}
+.sessions{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.sessions h3{margin-bottom:15px}
+.session-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.session{padding:15px;background:#252525;border-radius:8px;text-align:center;cursor:pointer}
+.session:hover{background:#8b5cf633}
+.session-time{font-weight:bold;font-size:1.125rem;margin-bottom:5px}
+.session-spots{font-size:.75rem;color:#888}
+.session.full{opacity:.5;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔫 Laser Tag</h1><button class="btn">My Sessions</button></div>
+<div class="arena">
+<div class="arena-name">🌌 Galactic Arena</div>
+<div class="arena-features">
+<span>👥 Up to 30 players</span>
+<span>📐 5,000 sq ft</span>
+<span>🎵 Sound effects</span>
+<span>💨 Fog machines</span>
+<span>🔦 UV lighting</span>
+</div>
+</div>
+<div class="game-modes" id="modes"></div>
+<div class="sessions">
+<h3>🕐 Today's Sessions</h3>
+<div class="session-grid" id="sessions"></div>
+</div>
+<script>
+const modes=[
+{name:'Team Deathmatch',players:'4-30 players',duration:'15 min',desc:'Classic team vs team combat. Score points by tagging opponents while protecting your teammates.',price:12},
+{name:'Free For All',players:'4-20 players',duration:'10 min',desc:'Every player for themselves! The last one standing wins. Fast-paced and intense.',price:10},
+{name:'Capture the Base',players:'6-30 players',duration:'20 min',desc:'Strategic objective-based gameplay. Capture and hold bases to score points for your team.',price:15},
+{name:'Zombie Outbreak',players:'8-30 players',duration:'15 min',desc:'Survivors vs Zombies! One team hunts, the other survives. Tagged players join the zombie horde.',price:12}
+];
+document.getElementById('modes').innerHTML=modes.map(m=>`
+<div class="mode">
+<div class="mode-header"><div class="mode-name">${m.name}</div></div>
+<div class="mode-players">${m.players}</div>
+<div class="mode-desc">${m.desc}</div>
+<div class="mode-footer"><span class="mode-duration">⏱️ ${m.duration}</span><span class="mode-price">$${m.price}</span></div>
+</div>`).join('');
+
+const sessions=[
+{time:'1:00 PM',mode:'Team DM',spots:8,total:20},
+{time:'1:30 PM',mode:'FFA',spots:4,total:15},
+{time:'2:00 PM',mode:'Capture',spots:0,total:24},
+{time:'2:30 PM',mode:'Zombie',spots:12,total:20},
+{time:'3:00 PM',mode:'Team DM',spots:18,total:20},
+{time:'3:30 PM',mode:'FFA',spots:10,total:15},
+{time:'4:00 PM',mode:'Team DM',spots:20,total:20},
+{time:'4:30 PM',mode:'Zombie',spots:6,total:20}
+];
+document.getElementById('sessions').innerHTML=sessions.map(s=>`
+<div class="session${s.spots===0?' full':''}">
+<div class="session-time">${s.time}</div>
+<div style="font-size:.8rem;color:#8b5cf6;margin-bottom:5px">${s.mode}</div>
+<div class="session-spots">${s.spots===0?'FULL':`${s.spots} spots left`}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

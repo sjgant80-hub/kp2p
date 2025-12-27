@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"trampoline-booking","name":"Trampoline Sessions","icon":"🤸","desc":"Book trampoline park sessions","category":"trampoline","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px}
+.slot{padding:15px;background:#1a1a1a;border:1px solid #333;border-radius:8px;text-align:center;cursor:pointer}
+.slot.active{background:#ec4899;border-color:#ec4899}
+.slot-time{font-size:1.125rem;font-weight:bold}
+.slot-spots{font-size:.75rem;color:#888;margin-top:5px}
+.slot.active .slot-spots{color:#fff;opacity:.9}
+.packages{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.package{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.package-header{padding:20px;background:linear-gradient(135deg,#ec4899 0%,#db2777 100%);text-align:center}
+.package-name{font-size:1.25rem;font-weight:bold}
+.package-duration{font-size:.875rem;opacity:.9}
+.package-body{padding:20px}
+.package-features{margin-bottom:15px}
+.feature{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.875rem}
+.package-price{text-align:center;font-size:2rem;font-weight:bold;color:#ec4899;margin-bottom:15px}
+.book-btn{width:100%;padding:12px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<div class="header"><h1>🤸 Trampoline Park</h1><button class="btn">My Bookings</button></div>
+<h3 style="font-size:1rem;margin-bottom:15px">Select Time Slot</h3>
+<div class="slots" id="slots"></div>
+<h3 style="font-size:1rem;margin-bottom:15px">Choose Package</h3>
+<div class="packages" id="packages"></div>
+<script>
+const slots=[
+{time:'10:00 AM',spots:45},
+{time:'11:00 AM',spots:32},
+{time:'12:00 PM',spots:18},
+{time:'1:00 PM',spots:52},
+{time:'2:00 PM',spots:8},
+{time:'3:00 PM',spots:25},
+{time:'4:00 PM',spots:40},
+{time:'5:00 PM',spots:55}
+];
+document.getElementById('slots').innerHTML=slots.map((s,i)=>`
+<div class="slot${i===4?' active':''}"><div class="slot-time">${s.time}</div><div class="slot-spots">${s.spots} spots</div></div>
+`).join('');
+
+const packages=[
+{name:'Jump Pass',duration:'1 Hour',features:['Open jump areas','Foam pits','Dodgeball courts','Safety briefing'],price:18},
+{name:'Ultimate Pass',duration:'2 Hours',features:['All jump areas','Ninja course','Battle beams','Free socks included'],price:28},
+{name:'Party Package',duration:'2 Hours',features:['Private party room','10 jumpers included','Pizza & drinks','Party host'],price:250},
+{name:'Toddler Time',duration:'1 Hour',features:['Ages 2-5 only','Soft play area','Parent jumps free','Special hours'],price:12}
+];
+document.getElementById('packages').innerHTML=packages.map(p=>`
+<div class="package">
+<div class="package-header"><div class="package-name">${p.name}</div><div class="package-duration">${p.duration}</div></div>
+<div class="package-body">
+<div class="package-features">${p.features.map(f=>`<div class="feature">✓ ${f}</div>`).join('')}</div>
+<div class="package-price">$${p.price}</div>
+<button class="book-btn">Book Now</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

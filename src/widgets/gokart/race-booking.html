@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Race Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"race-booking","name":"Go Kart Racing","icon":"🏎️","desc":"Book go kart races","category":"gokart","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.track-info{background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);border-radius:12px;padding:20px;margin-bottom:20px}
+.track-name{font-size:1.5rem;font-weight:bold;margin-bottom:10px}
+.track-stats{display:flex;flex-wrap:wrap;gap:20px;font-size:.875rem}
+.track-stats span{opacity:.9}
+.race-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px;margin-bottom:20px}
+.race{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.race-header{padding:20px;background:#252525}
+.race-name{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.race-desc{font-size:.875rem;color:#888}
+.race-body{padding:20px}
+.race-details{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.detail{font-size:.875rem}
+.detail-label{color:#888;font-size:.75rem}
+.race-footer{display:flex;justify-content:space-between;align-items:center}
+.race-price{font-size:1.25rem;font-weight:bold;color:#22c55e}
+.book-btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.next-races{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.next-races h3{margin-bottom:15px}
+.race-slot{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#252525;border-radius:6px;margin-bottom:8px}
+.race-slot:last-child{margin-bottom:0}
+.slot-time{font-weight:bold}
+.slot-spots{font-size:.875rem;color:#888}
+.slot-btn{padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.875rem}
+.slot-btn.full{background:#333;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏎️ Go Kart Racing</h1><button class="btn">My Races</button></div>
+<div class="track-info">
+<div class="track-name">🏁 Thunder Road Speedway</div>
+<div class="track-stats">
+<span>📏 1/4 Mile Track</span>
+<span>🔄 12 Turns</span>
+<span>⚡ 45 MPH Karts</span>
+<span>🏆 Track Record: 42.3s</span>
+</div>
+</div>
+<div class="race-types" id="races"></div>
+<div class="next-races">
+<h3>🕐 Next Available Races</h3>
+<div id="slots"></div>
+</div>
+<script>
+const races=[
+{name:'Sprint Race',desc:'Quick 8-minute race, perfect for first-timers',laps:'~10 laps',karts:'Adult 45mph',age:'16+',height:`54"+`,price:25},
+{name:'Grand Prix',desc:'Competitive 12-minute race with qualifying',laps:'~15 laps',karts:'Adult 45mph',age:'16+',height:`54"+`,price:35},
+{name:'Junior Karts',desc:'Safe racing for young speedsters',laps:'~8 laps',karts:'Junior 25mph',age:'8-15',height:`48"-54"`,price:20},
+{name:'Double Feature',desc:'Two back-to-back races for more track time',laps:'~20 laps',karts:'Adult 45mph',age:'16+',height:`54"+`,price:45}
+];
+document.getElementById('races').innerHTML=races.map(r=>`
+<div class="race">
+<div class="race-header"><div class="race-name">${r.name}</div><div class="race-desc">${r.desc}</div></div>
+<div class="race-body">
+<div class="race-details">
+<div><div class="detail-label">Laps</div><div class="detail">${r.laps}</div></div>
+<div><div class="detail-label">Karts</div><div class="detail">${r.karts}</div></div>
+<div><div class="detail-label">Age</div><div class="detail">${r.age}</div></div>
+<div><div class="detail-label">Height</div><div class="detail">${r.height}</div></div>
+</div>
+<div class="race-footer"><span class="race-price">$${r.price}</span><button class="book-btn">Book Now</button></div>
+</div>
+</div>`).join('');
+
+const slots=[
+{time:'2:30 PM',type:'Sprint Race',spots:4,total:8},
+{time:'2:45 PM',type:'Junior Karts',spots:2,total:6},
+{time:'3:00 PM',type:'Grand Prix',spots:0,total:8},
+{time:'3:15 PM',type:'Sprint Race',spots:6,total:8},
+{time:'3:30 PM',type:'Sprint Race',spots:8,total:8}
+];
+document.getElementById('slots').innerHTML=slots.map(s=>`
+<div class="race-slot">
+<div><div class="slot-time">${s.time}</div><div style="font-size:.75rem;color:#888">${s.type}</div></div>
+<div class="slot-spots">${s.spots}/${s.total} spots</div>
+<button class="slot-btn${s.spots===0?' full':''}">${s.spots===0?'Full':'Join'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>

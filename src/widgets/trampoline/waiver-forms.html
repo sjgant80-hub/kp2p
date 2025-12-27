@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Waiver Forms - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"waiver-forms","name":"Waiver Forms","icon":"📋","desc":"Manage liability waivers","category":"trampoline","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.search{display:flex;gap:10px;margin-bottom:20px}
+.search input{flex:1;padding:12px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px}
+.search button{padding:12px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.waivers{display:flex;flex-direction:column;gap:10px}
+.waiver{background:#1a1a1a;border-radius:8px;border:1px solid #333;padding:15px;display:grid;grid-template-columns:1fr auto auto;gap:15px;align-items:center}
+.waiver-info h4{margin-bottom:5px}
+.waiver-meta{font-size:.875rem;color:#888;display:flex;gap:15px}
+.waiver-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status-valid{background:#22c55e33;color:#22c55e}
+.status-expired{background:#ef444433;color:#ef4444}
+.status-pending{background:#f59e0b33;color:#f59e0b}
+.waiver-actions{display:flex;gap:8px}
+.action-btn{padding:8px 12px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:4px;cursor:pointer;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>📋 Waiver Forms</h1><button class="btn">+ New Waiver</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">1,247</div><div class="stat-label">Active Waivers</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Signed Today</div></div>
+<div class="stat"><div class="stat-value">23</div><div class="stat-label">Expiring Soon</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Pending</div></div>
+</div>
+<div class="search">
+<input type="text" placeholder="Search by name, email, or phone...">
+<button>🔍 Search</button>
+</div>
+<div class="waivers" id="waivers"></div>
+<script>
+const waivers=[
+{name:'Johnson Family',email:'johnson@email.com',members:4,signed:'Today, 2:30 PM',expires:'Dec 2025',status:'valid'},
+{name:'Sarah Mitchell',email:'sarah.m@email.com',members:1,signed:'Today, 1:15 PM',expires:'Dec 2025',status:'valid'},
+{name:'Williams Party',email:'williams@email.com',members:8,signed:'Dec 20, 2024',expires:'Dec 2025',status:'valid'},
+{name:'Chen Family',email:'chen.family@email.com',members:3,signed:'Nov 15, 2024',expires:'Nov 2025',status:'valid'},
+{name:'Robert Brown',email:'rbrown@email.com',members:2,signed:'Jun 10, 2024',expires:'Jun 2025',status:'expired'},
+{name:'Party Booking #1245',email:'events@company.com',members:15,signed:'Pending',expires:'—',status:'pending'}
+];
+document.getElementById('waivers').innerHTML=waivers.map(w=>`
+<div class="waiver">
+<div class="waiver-info">
+<h4>${w.name}</h4>
+<div class="waiver-meta">
+<span>📧 ${w.email}</span>
+<span>👥 ${w.members} member${w.members>1?'s':''}</span>
+<span>📅 ${w.signed}</span>
+</div>
+</div>
+<span class="waiver-status status-${w.status}">${w.status==='valid'?`Valid until ${w.expires}`:w.status.toUpperCase()}</span>
+<div class="waiver-actions">
+<button class="action-btn">View</button>
+<button class="action-btn">Resend</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

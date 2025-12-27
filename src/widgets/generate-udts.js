@@ -640,6 +640,26 @@ const categoryMap = {
   // Bingo
   'game-caller': { category: 'bingo', subcategory: 'hosting', badge: 'ENT' },
   'card-manager': { category: 'bingo', subcategory: 'cards', badge: 'ENT' },
+
+  // Trampoline
+  'trampoline-booking': { category: 'trampoline', subcategory: 'booking', badge: 'ENT' },
+  'waiver-forms': { category: 'trampoline', subcategory: 'waivers', badge: 'ENT' },
+
+  // Mini Golf
+  'minigolf-booking': { category: 'minigolf', subcategory: 'booking', badge: 'ENT' },
+  'minigolf-scorecard': { category: 'minigolf', subcategory: 'scoring', badge: 'ENT' },
+
+  // Go Kart
+  'race-booking': { category: 'gokart', subcategory: 'booking', badge: 'ENT' },
+  'kart-leaderboard': { category: 'gokart', subcategory: 'rankings', badge: 'ENT' },
+
+  // Paintball
+  'paintball-booking': { category: 'paintball', subcategory: 'booking', badge: 'ENT' },
+  'paintball-teams': { category: 'paintball', subcategory: 'teams', badge: 'ENT' },
+
+  // Laser Tag
+  'lasertag-booking': { category: 'lasertag', subcategory: 'booking', badge: 'ENT' },
+  'lasertag-scores': { category: 'lasertag', subcategory: 'scoring', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -901,7 +921,12 @@ const widgetDirs = [
   'rafting',
   'skiing',
   'skydiving',
-  'bingo'
+  'bingo',
+  'trampoline',
+  'minigolf',
+  'gokart',
+  'paintball',
+  'lasertag'
 ];
 
 // Process all widgets in all directories
