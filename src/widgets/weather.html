@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<!--
+KONOMI WEATHER - Free Weather Dashboard
+Beautiful weather display. Open-Meteo API. $0 forever.
+Kills: Weather.com, AccuWeather apps
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "weather",
+    "name": "Weather",
+    "icon": "🌤️",
+    "desc": "Beautiful weather dashboard",
+    "body": "Real-time weather with 7-day forecast. Uses free Open-Meteo API. Geolocation support. No API key needed.",
+    "kills": ["Weather apps", "AccuWeather", "Weather.com"],
+    "price": 0,
+    "color": "#0ea5e9",
+    "badge": "NEW"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Weather</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0c1929;
+      --surface: #132337;
+      --surface2: #1a3a52;
+      --accent: #0ea5e9;
+      --text: #fff;
+      --text-dim: #8ba3b9;
+      --sun: #fbbf24;
+      --cloud: #94a3b8;
+      --rain: #3b82f6;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, var(--bg) 0%, #1e3a5f 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .location-btn {
+      background: var(--surface);
+      border: 1px solid var(--surface2);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+    }
+
+    .location-btn:hover {
+      background: var(--surface2);
+    }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .search-box input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--surface2);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .search-box button {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .current-weather {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+    }
+
+    .current-main {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .weather-icon {
+      font-size: 80px;
+      line-height: 1;
+    }
+
+    .current-temp {
+      font-size: 64px;
+      font-weight: 300;
+    }
+
+    .current-temp span {
+      font-size: 32px;
+      color: var(--text-dim);
+    }
+
+    .current-details {
+      margin-top: 8px;
+    }
+
+    .current-details .location {
+      font-size: 1.25rem;
+      margin-bottom: 4px;
+    }
+
+    .current-details .condition {
+      color: var(--text-dim);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .stat {
+      background: var(--surface2);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .forecast {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .forecast h2 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      color: var(--text-dim);
+    }
+
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 12px;
+    }
+
+    .forecast-day {
+      background: var(--surface2);
+      padding: 16px 8px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .forecast-day .day {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .forecast-day .icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .forecast-day .temps {
+      font-size: 0.9rem;
+    }
+
+    .forecast-day .high {
+      font-weight: 600;
+    }
+
+    .forecast-day .low {
+      color: var(--text-dim);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: var(--text-dim);
+    }
+
+    .loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--surface2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error {
+      background: #7f1d1d;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .current-weather {
+        grid-template-columns: 1fr;
+      }
+
+      .forecast-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .forecast-day:nth-child(n+5) {
+        display: none;
+      }
+
+      .stats {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .current-temp {
+        font-size: 48px;
+      }
+
+      .weather-icon {
+        font-size: 60px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌤️ Weather</h1>
+      <button class="location-btn" onclick="getLocation()">
+        📍 Use Location
+      </button>
+    </div>
+
+    <div class="search-box">
+      <input type="text" id="city-input" placeholder="Enter city name..." onkeydown="if(event.key==='Enter')searchCity()">
+      <button onclick="searchCity()">Search</button>
+    </div>
+
+    <div id="weather-content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading weather data...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WMO_CODES = {
+      0: { icon: '☀️', text: 'Clear sky' },
+      1: { icon: '🌤️', text: 'Mainly clear' },
+      2: { icon: '⛅', text: 'Partly cloudy' },
+      3: { icon: '☁️', text: 'Overcast' },
+      45: { icon: '🌫️', text: 'Foggy' },
+      48: { icon: '🌫️', text: 'Depositing rime fog' },
+      51: { icon: '🌧️', text: 'Light drizzle' },
+      53: { icon: '🌧️', text: 'Moderate drizzle' },
+      55: { icon: '🌧️', text: 'Dense drizzle' },
+      61: { icon: '🌧️', text: 'Slight rain' },
+      63: { icon: '🌧️', text: 'Moderate rain' },
+      65: { icon: '🌧️', text: 'Heavy rain' },
+      66: { icon: '🌨️', text: 'Light freezing rain' },
+      67: { icon: '🌨️', text: 'Heavy freezing rain' },
+      71: { icon: '🌨️', text: 'Slight snow' },
+      73: { icon: '🌨️', text: 'Moderate snow' },
+      75: { icon: '❄️', text: 'Heavy snow' },
+      77: { icon: '🌨️', text: 'Snow grains' },
+      80: { icon: '🌦️', text: 'Slight rain showers' },
+      81: { icon: '🌦️', text: 'Moderate rain showers' },
+      82: { icon: '⛈️', text: 'Violent rain showers' },
+      85: { icon: '🌨️', text: 'Slight snow showers' },
+      86: { icon: '🌨️', text: 'Heavy snow showers' },
+      95: { icon: '⛈️', text: 'Thunderstorm' },
+      96: { icon: '⛈️', text: 'Thunderstorm with hail' },
+      99: { icon: '⛈️', text: 'Thunderstorm with heavy hail' }
+    };
+
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    let currentLocation = { lat: 40.7128, lon: -74.006, name: 'New York' };
+
+    async function fetchWeather(lat, lon, name) {
+      const content = document.getElementById('weather-content');
+      content.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Loading weather data...</p>
+        </div>
+      `;
+
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        renderWeather(data, name);
+      } catch (err) {
+        content.innerHTML = `<div class="error">Failed to fetch weather data. Please try again.</div>`;
+      }
+    }
+
+    function renderWeather(data, locationName) {
+      const current = data.current;
+      const daily = data.daily;
+      const weather = WMO_CODES[current.weather_code] || { icon: '🌡️', text: 'Unknown' };
+
+      const forecastHTML = daily.time.map((date, i) => {
+        const d = new Date(date);
+        const dayWeather = WMO_CODES[daily.weather_code[i]] || { icon: '🌡️' };
+        return `
+          <div class="forecast-day">
+            <div class="day">${i === 0 ? 'Today' : DAYS[d.getDay()]}</div>
+            <div class="icon">${dayWeather.icon}</div>
+            <div class="temps">
+              <span class="high">${Math.round(daily.temperature_2m_max[i])}°</span>
+              <span class="low">${Math.round(daily.temperature_2m_min[i])}°</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('weather-content').innerHTML = `
+        <div class="current-weather">
+          <div>
+            <div class="current-main">
+              <div class="weather-icon">${weather.icon}</div>
+              <div>
+                <div class="current-temp">${Math.round(current.temperature_2m)}<span>°C</span></div>
+                <div class="current-details">
+                  <div class="location">${locationName}</div>
+                  <div class="condition">${weather.text}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Feels Like</div>
+              <div class="stat-value">${Math.round(current.apparent_temperature)}°</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Humidity</div>
+              <div class="stat-value">${current.relative_humidity_2m}%</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Wind</div>
+              <div class="stat-value">${Math.round(current.wind_speed_10m)} km/h</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">UV Index</div>
+              <div class="stat-value">${current.uv_index}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="forecast">
+          <h2>7-Day Forecast</h2>
+          <div class="forecast-grid">
+            ${forecastHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    async function searchCity() {
+      const input = document.getElementById('city-input');
+      const city = input.value.trim();
+      if (!city) return;
+
+      try {
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
+        const data = await res.json();
+
+        if (data.results && data.results.length > 0) {
+          const loc = data.results[0];
+          currentLocation = { lat: loc.latitude, lon: loc.longitude, name: `${loc.name}, ${loc.country}` };
+          fetchWeather(loc.latitude, loc.longitude, currentLocation.name);
+        } else {
+          alert('City not found');
+        }
+      } catch (err) {
+        alert('Failed to search city');
+      }
+    }
+
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            // Reverse geocode
+            try {
+              const res = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}`);
+              const data = await res.json();
+              const name = data.results?.[0]?.name || 'Your Location';
+              currentLocation = { lat, lon, name };
+              fetchWeather(lat, lon, name);
+            } catch {
+              fetchWeather(lat, lon, 'Your Location');
+            }
+          },
+          () => alert('Unable to get location')
+        );
+      } else {
+        alert('Geolocation not supported');
+      }
+    }
+
+    // Load default
+    fetchWeather(currentLocation.lat, currentLocation.lon, currentLocation.name);
+  </script>
+</body>
+</html>

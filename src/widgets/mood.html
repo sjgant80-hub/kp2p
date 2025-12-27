@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<!--
+KONOMI MOOD - Emotion Tracker
+Track your feelings over time. $0 forever.
+Kills: Daylio, Moodflow, Pixels
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "mood",
+    "name": "Mood",
+    "icon": "😊",
+    "desc": "Daily emotion tracker",
+    "body": "Track your emotional wellbeing over time. Log daily moods with optional notes. Visualize patterns with weekly/monthly views.",
+    "kills": ["Daylio $5/mo", "Moodflow $4/mo", "Pixels Year in Pixels"],
+    "price": 5,
+    "color": "#f472b6",
+    "badge": "NEW"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mood Tracker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #252525;
+      --accent: #f472b6;
+      --text: #fff;
+      --text-dim: #888;
+
+      --mood-5: #22c55e;
+      --mood-4: #84cc16;
+      --mood-3: #fbbf24;
+      --mood-2: #f97316;
+      --mood-1: #ef4444;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    .header .date {
+      color: var(--text-dim);
+    }
+
+    .mood-selector {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .mood-question {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+    }
+
+    .mood-options {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .mood-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      background: var(--surface2);
+      cursor: pointer;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .mood-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .mood-btn.selected {
+      border-color: var(--accent);
+      transform: scale(1.15);
+    }
+
+    .mood-btn[data-mood="5"] { background: var(--mood-5); }
+    .mood-btn[data-mood="4"] { background: var(--mood-4); }
+    .mood-btn[data-mood="3"] { background: var(--mood-3); }
+    .mood-btn[data-mood="2"] { background: var(--mood-2); }
+    .mood-btn[data-mood="1"] { background: var(--mood-1); }
+
+    .note-section {
+      margin-top: 20px;
+    }
+
+    .note-section textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid #333;
+      color: var(--text);
+      padding: 12px;
+      border-radius: 8px;
+      resize: none;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+
+    .note-section textarea::placeholder {
+      color: var(--text-dim);
+    }
+
+    .save-btn {
+      width: 100%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+
+    .save-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .calendar-section {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .calendar-header h2 {
+      font-size: 1rem;
+    }
+
+    .calendar-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .calendar-nav button {
+      background: var(--surface2);
+      border: none;
+      color: var(--text);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .calendar-day-header {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      padding: 8px 0;
+    }
+
+    .calendar-day {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .calendar-day.empty {
+      cursor: default;
+    }
+
+    .calendar-day.today {
+      border: 2px solid var(--accent);
+    }
+
+    .calendar-day.has-mood {
+      color: white;
+      font-weight: 500;
+    }
+
+    .calendar-day[data-mood="5"] { background: var(--mood-5); }
+    .calendar-day[data-mood="4"] { background: var(--mood-4); }
+    .calendar-day[data-mood="3"] { background: var(--mood-3); }
+    .calendar-day[data-mood="2"] { background: var(--mood-2); }
+    .calendar-day[data-mood="1"] { background: var(--mood-1); }
+
+    .stats-section {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .stats-section h2 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--surface2);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-card .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .stat-card .label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .mood-bar {
+      display: flex;
+      gap: 4px;
+      margin-top: 16px;
+    }
+
+    .mood-bar-segment {
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: white;
+      min-width: 30px;
+    }
+
+    .entry-detail {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .entry-detail .date {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .entry-detail .mood {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .entry-detail .note {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>😊 Mood Tracker</h1>
+      <div class="date" id="today-date"></div>
+    </div>
+
+    <div class="mood-selector">
+      <div class="mood-question">How are you feeling today?</div>
+      <div class="mood-options">
+        <button class="mood-btn" data-mood="1" onclick="selectMood(1)">😢</button>
+        <button class="mood-btn" data-mood="2" onclick="selectMood(2)">😕</button>
+        <button class="mood-btn" data-mood="3" onclick="selectMood(3)">😐</button>
+        <button class="mood-btn" data-mood="4" onclick="selectMood(4)">🙂</button>
+        <button class="mood-btn" data-mood="5" onclick="selectMood(5)">😄</button>
+      </div>
+      <div class="note-section">
+        <textarea id="mood-note" rows="3" placeholder="Add a note (optional)..."></textarea>
+      </div>
+      <button class="save-btn" id="save-btn" onclick="saveMood()" disabled>Log Mood</button>
+    </div>
+
+    <div class="calendar-section">
+      <div class="calendar-header">
+        <button class="calendar-nav" onclick="prevMonth()">◀</button>
+        <h2 id="month-title">December 2024</h2>
+        <button class="calendar-nav" onclick="nextMonth()">▶</button>
+      </div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+      <div id="entry-detail"></div>
+    </div>
+
+    <div class="stats-section">
+      <h2>Your Stats</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="value" id="stat-avg">-</div>
+          <div class="label">Avg Mood</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-entries">0</div>
+          <div class="label">Entries</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-streak">0</div>
+          <div class="label">Day Streak</div>
+        </div>
+      </div>
+      <div class="mood-bar" id="mood-bar"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'konomi_mood';
+    const MOODS = ['😢', '😕', '😐', '🙂', '😄'];
+
+    let entries = {};
+    let selectedMood = null;
+    let viewDate = new Date();
+
+    function getToday() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    function load() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        entries = JSON.parse(saved);
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function selectMood(mood) {
+      selectedMood = mood;
+      document.querySelectorAll('.mood-btn').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.mood) === mood);
+      });
+      document.getElementById('save-btn').disabled = false;
+    }
+
+    function saveMood() {
+      if (!selectedMood) return;
+
+      const today = getToday();
+      const note = document.getElementById('mood-note').value.trim();
+
+      entries[today] = {
+        mood: selectedMood,
+        note,
+        timestamp: new Date().toISOString()
+      };
+
+      save();
+
+      // Reset
+      selectedMood = null;
+      document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('selected'));
+      document.getElementById('mood-note').value = '';
+      document.getElementById('save-btn').disabled = true;
+
+      render();
+    }
+
+    function prevMonth() {
+      viewDate.setMonth(viewDate.getMonth() - 1);
+      renderCalendar();
+    }
+
+    function nextMonth() {
+      viewDate.setMonth(viewDate.getMonth() + 1);
+      renderCalendar();
+    }
+
+    function showEntry(dateStr) {
+      const entry = entries[dateStr];
+      const detailEl = document.getElementById('entry-detail');
+
+      if (!entry) {
+        detailEl.innerHTML = '';
+        return;
+      }
+
+      const date = new Date(dateStr).toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      detailEl.innerHTML = `
+        <div class="entry-detail">
+          <div class="date">${date}</div>
+          <div class="mood">${MOODS[entry.mood - 1]}</div>
+          ${entry.note ? `<div class="note">"${entry.note}"</div>` : ''}
+        </div>
+      `;
+    }
+
+    function renderCalendar() {
+      const grid = document.getElementById('calendar-grid');
+      const title = document.getElementById('month-title');
+
+      const year = viewDate.getFullYear();
+      const month = viewDate.getMonth();
+      const today = getToday();
+
+      title.textContent = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      let html = days.map(d => `<div class="calendar-day-header">${d}</div>`).join('');
+
+      // Empty cells before first day
+      for (let i = 0; i < firstDay; i++) {
+        html += '<div class="calendar-day empty"></div>';
+      }
+
+      // Days of the month
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const entry = entries[dateStr];
+        const isToday = dateStr === today;
+        const hasMood = entry?.mood;
+
+        html += `
+          <div class="calendar-day ${isToday ? 'today' : ''} ${hasMood ? 'has-mood' : ''}"
+               ${hasMood ? `data-mood="${entry.mood}"` : ''}
+               onclick="showEntry('${dateStr}')">
+            ${day}
+          </div>
+        `;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function renderStats() {
+      const allEntries = Object.values(entries);
+
+      // Average
+      if (allEntries.length > 0) {
+        const avg = allEntries.reduce((sum, e) => sum + e.mood, 0) / allEntries.length;
+        document.getElementById('stat-avg').textContent = MOODS[Math.round(avg) - 1];
+      }
+
+      // Total entries
+      document.getElementById('stat-entries').textContent = allEntries.length;
+
+      // Streak
+      let streak = 0;
+      let date = new Date();
+      while (true) {
+        const dateStr = date.toISOString().split('T')[0];
+        if (entries[dateStr]) {
+          streak++;
+          date.setDate(date.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      document.getElementById('stat-streak').textContent = streak;
+
+      // Mood distribution bar
+      const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      allEntries.forEach(e => counts[e.mood]++);
+      const total = allEntries.length || 1;
+
+      const barEl = document.getElementById('mood-bar');
+      barEl.innerHTML = Object.entries(counts).map(([mood, count]) => {
+        const pct = Math.round((count / total) * 100);
+        if (pct === 0) return '';
+        return `<div class="mood-bar-segment" data-mood="${mood}" style="flex: ${pct}; background: var(--mood-${mood})">${pct}%</div>`;
+      }).join('');
+    }
+
+    function render() {
+      // Today's date
+      document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      // Check if already logged today
+      const today = getToday();
+      if (entries[today]) {
+        document.querySelector('.mood-question').textContent = "Today's mood logged! ✓";
+        selectMood(entries[today].mood);
+        document.getElementById('mood-note').value = entries[today].note || '';
+      }
+
+      renderCalendar();
+      renderStats();
+    }
+
+    // Init
+    load();
+    render();
+  </script>
+</body>
+</html>

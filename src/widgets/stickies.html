@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<!--
+KONOMI STICKIES - Digital Sticky Notes
+Drag, resize, color-code your thoughts. $0 forever.
+Kills: Stickies.app, Notejoy, Sticky Notes
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "stickies",
+    "name": "Stickies",
+    "icon": "📝",
+    "desc": "Draggable sticky notes",
+    "body": "Digital sticky notes that float on your screen. Drag, resize, and color-code your thoughts. All notes saved locally.",
+    "kills": ["Stickies.app", "Notejoy $8/mo", "Windows Sticky Notes"],
+    "price": 0,
+    "color": "#fbbf24",
+    "badge": "NEW"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stickies</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --yellow: #fef08a;
+      --pink: #fbcfe8;
+      --blue: #bfdbfe;
+      --green: #bbf7d0;
+      --purple: #ddd6fe;
+      --orange: #fed7aa;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a1a;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #0f0f0f;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 1000;
+      border-bottom: 1px solid #333;
+    }
+
+    .toolbar h1 {
+      font-size: 1.25rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar-btn {
+      background: #333;
+      border: none;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toolbar-btn:hover {
+      background: #444;
+    }
+
+    .note-count {
+      margin-left: auto;
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .canvas {
+      padding-top: 60px;
+      width: 100%;
+      height: 100vh;
+      position: relative;
+    }
+
+    .sticky {
+      position: absolute;
+      width: 250px;
+      min-height: 200px;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      cursor: move;
+      transition: box-shadow 0.2s;
+    }
+
+    .sticky:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .sticky.dragging {
+      opacity: 0.9;
+      z-index: 999;
+    }
+
+    .sticky-header {
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: move;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .sticky-colors {
+      display: flex;
+      gap: 4px;
+    }
+
+    .color-btn {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.2);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    .color-btn:hover {
+      transform: scale(1.2);
+    }
+
+    .sticky-delete {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      opacity: 0.5;
+      font-size: 16px;
+    }
+
+    .sticky-delete:hover {
+      opacity: 1;
+    }
+
+    .sticky-content {
+      flex: 1;
+      padding: 12px;
+    }
+
+    .sticky-content textarea {
+      width: 100%;
+      height: 100%;
+      min-height: 150px;
+      background: transparent;
+      border: none;
+      resize: none;
+      font-family: inherit;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #333;
+    }
+
+    .sticky-content textarea:focus {
+      outline: none;
+    }
+
+    .sticky-content textarea::placeholder {
+      color: rgba(0,0,0,0.4);
+    }
+
+    .sticky-footer {
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      color: rgba(0,0,0,0.4);
+      border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: se-resize;
+      opacity: 0.3;
+    }
+
+    .resize-handle::after {
+      content: '⋰';
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 12px;
+    }
+
+    .empty-state {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #666;
+    }
+
+    .empty-state .icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state p {
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>📝 Stickies</h1>
+    <button class="toolbar-btn" onclick="addNote()">➕ New Note</button>
+    <button class="toolbar-btn" onclick="clearAll()">🗑️ Clear All</button>
+    <span class="note-count" id="note-count">0 notes</span>
+  </div>
+
+  <div class="canvas" id="canvas"></div>
+
+  <script>
+    const STORAGE_KEY = 'konomi_stickies';
+    const COLORS = {
+      yellow: '#fef08a',
+      pink: '#fbcfe8',
+      blue: '#bfdbfe',
+      green: '#bbf7d0',
+      purple: '#ddd6fe',
+      orange: '#fed7aa'
+    };
+
+    let notes = [];
+    let dragNote = null;
+    let dragOffset = { x: 0, y: 0 };
+    let resizeNote = null;
+    let highestZ = 10;
+
+    function load() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        notes = JSON.parse(saved);
+        highestZ = Math.max(10, ...notes.map(n => n.z || 10));
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+      updateCount();
+    }
+
+    function updateCount() {
+      document.getElementById('note-count').textContent = `${notes.length} note${notes.length !== 1 ? 's' : ''}`;
+    }
+
+    function addNote() {
+      highestZ++;
+      const note = {
+        id: Date.now(),
+        x: 100 + Math.random() * 200,
+        y: 100 + Math.random() * 100,
+        width: 250,
+        height: 200,
+        color: 'yellow',
+        content: '',
+        z: highestZ,
+        createdAt: new Date().toISOString()
+      };
+
+      notes.push(note);
+      save();
+      render();
+
+      // Focus the new note
+      setTimeout(() => {
+        const textarea = document.querySelector(`[data-id="${note.id}"] textarea`);
+        if (textarea) textarea.focus();
+      }, 50);
+    }
+
+    function deleteNote(id) {
+      notes = notes.filter(n => n.id !== id);
+      save();
+      render();
+    }
+
+    function clearAll() {
+      if (notes.length === 0) return;
+      if (!confirm('Delete all notes?')) return;
+      notes = [];
+      save();
+      render();
+    }
+
+    function setColor(id, color) {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        note.color = color;
+        save();
+        render();
+      }
+    }
+
+    function updateContent(id, content) {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        note.content = content;
+        save();
+      }
+    }
+
+    function bringToFront(id) {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        highestZ++;
+        note.z = highestZ;
+        save();
+      }
+    }
+
+    function render() {
+      const canvas = document.getElementById('canvas');
+
+      if (notes.length === 0) {
+        canvas.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📝</div>
+            <p>No sticky notes yet</p>
+            <button class="toolbar-btn" onclick="addNote()">➕ Create your first note</button>
+          </div>
+        `;
+        updateCount();
+        return;
+      }
+
+      canvas.innerHTML = notes.map(note => {
+        const date = new Date(note.createdAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        return `
+          <div class="sticky" data-id="${note.id}"
+               style="left: ${note.x}px; top: ${note.y}px; width: ${note.width}px; height: ${note.height}px; background: ${COLORS[note.color]}; z-index: ${note.z || 10};">
+            <div class="sticky-header">
+              <div class="sticky-colors">
+                ${Object.keys(COLORS).map(c => `
+                  <div class="color-btn" style="background: ${COLORS[c]}" onclick="setColor(${note.id}, '${c}')"></div>
+                `).join('')}
+              </div>
+              <button class="sticky-delete" onclick="deleteNote(${note.id})">✕</button>
+            </div>
+            <div class="sticky-content">
+              <textarea placeholder="Write something..."
+                        onmousedown="event.stopPropagation()"
+                        oninput="updateContent(${note.id}, this.value)">${note.content}</textarea>
+            </div>
+            <div class="sticky-footer">${date}</div>
+            <div class="resize-handle" data-resize="${note.id}"></div>
+          </div>
+        `;
+      }).join('');
+
+      updateCount();
+    }
+
+    // Drag handling
+    document.addEventListener('mousedown', (e) => {
+      const sticky = e.target.closest('.sticky');
+      const resizeHandle = e.target.closest('.resize-handle');
+
+      if (resizeHandle) {
+        const id = parseInt(resizeHandle.dataset.resize);
+        resizeNote = notes.find(n => n.id === id);
+        return;
+      }
+
+      if (sticky && (e.target.classList.contains('sticky-header') || e.target.classList.contains('sticky'))) {
+        const id = parseInt(sticky.dataset.id);
+        dragNote = notes.find(n => n.id === id);
+
+        if (dragNote) {
+          bringToFront(id);
+          sticky.classList.add('dragging');
+          sticky.style.zIndex = highestZ;
+
+          const rect = sticky.getBoundingClientRect();
+          dragOffset = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          };
+        }
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (dragNote) {
+        dragNote.x = Math.max(0, e.clientX - dragOffset.x);
+        dragNote.y = Math.max(60, e.clientY - dragOffset.y);
+
+        const sticky = document.querySelector(`[data-id="${dragNote.id}"]`);
+        if (sticky) {
+          sticky.style.left = dragNote.x + 'px';
+          sticky.style.top = dragNote.y + 'px';
+        }
+      }
+
+      if (resizeNote) {
+        const sticky = document.querySelector(`[data-id="${resizeNote.id}"]`);
+        if (sticky) {
+          const rect = sticky.getBoundingClientRect();
+          resizeNote.width = Math.max(200, e.clientX - rect.left);
+          resizeNote.height = Math.max(150, e.clientY - rect.top);
+          sticky.style.width = resizeNote.width + 'px';
+          sticky.style.height = resizeNote.height + 'px';
+        }
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (dragNote) {
+        const sticky = document.querySelector(`[data-id="${dragNote.id}"]`);
+        if (sticky) sticky.classList.remove('dragging');
+        save();
+        dragNote = null;
+      }
+
+      if (resizeNote) {
+        save();
+        resizeNote = null;
+      }
+    });
+
+    // Init
+    load();
+    render();
+  </script>
+</body>
+</html>

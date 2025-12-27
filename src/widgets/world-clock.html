@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<!--
+KONOMI WORLD CLOCK - Multi-timezone Dashboard
+Track time across the globe. $0 forever.
+Kills: World Clock apps, Timezone.io
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "world-clock",
+    "name": "World Clock",
+    "icon": "🌍",
+    "desc": "Multi-timezone dashboard",
+    "body": "Track time across multiple timezones. Add cities, see relative times, and never miss a meeting across the globe.",
+    "kills": ["World Clock apps", "Timezone.io", "Every Time Zone"],
+    "price": 0,
+    "color": "#8b5cf6",
+    "badge": "NEW"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>World Clock</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1e1e28;
+      --accent: #8b5cf6;
+      --text: #fff;
+      --text-dim: #666;
+      --day: #22c55e;
+      --night: #3b82f6;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .local-time {
+      text-align: right;
+    }
+
+    .local-time .time {
+      font-size: 2rem;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .local-time .date {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+
+    .add-zone {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .add-zone select {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--surface2);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .add-zone button {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .clocks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .clock-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .clock-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+
+    .clock-card.day::before {
+      background: linear-gradient(90deg, var(--day), #86efac);
+    }
+
+    .clock-card.night::before {
+      background: linear-gradient(90deg, var(--night), #93c5fd);
+    }
+
+    .clock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .clock-location {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .clock-zone {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      margin-top: 2px;
+    }
+
+    .clock-delete {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    .clock-delete:hover {
+      opacity: 1;
+      color: #ef4444;
+    }
+
+    .clock-time {
+      font-size: 3rem;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 8px;
+    }
+
+    .clock-date {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .clock-diff {
+      background: var(--surface2);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .clock-diff.ahead {
+      color: var(--day);
+    }
+
+    .clock-diff.behind {
+      color: #f97316;
+    }
+
+    .day-night-icon {
+      font-size: 1.2rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+      grid-column: 1 / -1;
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 500px) {
+      .header {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .local-time {
+        text-align: center;
+      }
+
+      .clock-time {
+        font-size: 2.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌍 World Clock</h1>
+      <div class="local-time">
+        <div class="time" id="local-time">--:--:--</div>
+        <div class="date" id="local-date">Loading...</div>
+      </div>
+    </div>
+
+    <div class="add-zone">
+      <select id="zone-select">
+        <option value="">Select a timezone...</option>
+        <optgroup label="Americas">
+          <option value="America/New_York">New York (EST)</option>
+          <option value="America/Chicago">Chicago (CST)</option>
+          <option value="America/Denver">Denver (MST)</option>
+          <option value="America/Los_Angeles">Los Angeles (PST)</option>
+          <option value="America/Toronto">Toronto</option>
+          <option value="America/Vancouver">Vancouver</option>
+          <option value="America/Mexico_City">Mexico City</option>
+          <option value="America/Sao_Paulo">São Paulo</option>
+          <option value="America/Buenos_Aires">Buenos Aires</option>
+        </optgroup>
+        <optgroup label="Europe">
+          <option value="Europe/London">London (GMT)</option>
+          <option value="Europe/Paris">Paris (CET)</option>
+          <option value="Europe/Berlin">Berlin</option>
+          <option value="Europe/Amsterdam">Amsterdam</option>
+          <option value="Europe/Madrid">Madrid</option>
+          <option value="Europe/Rome">Rome</option>
+          <option value="Europe/Zurich">Zurich</option>
+          <option value="Europe/Stockholm">Stockholm</option>
+          <option value="Europe/Moscow">Moscow</option>
+        </optgroup>
+        <optgroup label="Asia">
+          <option value="Asia/Dubai">Dubai</option>
+          <option value="Asia/Kolkata">Mumbai / Delhi</option>
+          <option value="Asia/Bangkok">Bangkok</option>
+          <option value="Asia/Singapore">Singapore</option>
+          <option value="Asia/Hong_Kong">Hong Kong</option>
+          <option value="Asia/Shanghai">Shanghai</option>
+          <option value="Asia/Tokyo">Tokyo</option>
+          <option value="Asia/Seoul">Seoul</option>
+        </optgroup>
+        <optgroup label="Pacific">
+          <option value="Australia/Sydney">Sydney</option>
+          <option value="Australia/Melbourne">Melbourne</option>
+          <option value="Australia/Perth">Perth</option>
+          <option value="Pacific/Auckland">Auckland</option>
+          <option value="Pacific/Honolulu">Honolulu</option>
+        </optgroup>
+        <optgroup label="Other">
+          <option value="Africa/Cairo">Cairo</option>
+          <option value="Africa/Johannesburg">Johannesburg</option>
+          <option value="Atlantic/Reykjavik">Reykjavik</option>
+          <option value="UTC">UTC</option>
+        </optgroup>
+      </select>
+      <button onclick="addZone()">Add</button>
+    </div>
+
+    <div class="clocks-grid" id="clocks-grid">
+      <div class="empty-state">
+        <div class="icon">🌍</div>
+        <p>Add timezones to track time around the world</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'konomi_world_clock';
+
+    let zones = [];
+
+    const CITY_NAMES = {
+      'America/New_York': 'New York',
+      'America/Chicago': 'Chicago',
+      'America/Denver': 'Denver',
+      'America/Los_Angeles': 'Los Angeles',
+      'America/Toronto': 'Toronto',
+      'America/Vancouver': 'Vancouver',
+      'America/Mexico_City': 'Mexico City',
+      'America/Sao_Paulo': 'São Paulo',
+      'America/Buenos_Aires': 'Buenos Aires',
+      'Europe/London': 'London',
+      'Europe/Paris': 'Paris',
+      'Europe/Berlin': 'Berlin',
+      'Europe/Amsterdam': 'Amsterdam',
+      'Europe/Madrid': 'Madrid',
+      'Europe/Rome': 'Rome',
+      'Europe/Zurich': 'Zurich',
+      'Europe/Stockholm': 'Stockholm',
+      'Europe/Moscow': 'Moscow',
+      'Asia/Dubai': 'Dubai',
+      'Asia/Kolkata': 'Mumbai',
+      'Asia/Bangkok': 'Bangkok',
+      'Asia/Singapore': 'Singapore',
+      'Asia/Hong_Kong': 'Hong Kong',
+      'Asia/Shanghai': 'Shanghai',
+      'Asia/Tokyo': 'Tokyo',
+      'Asia/Seoul': 'Seoul',
+      'Australia/Sydney': 'Sydney',
+      'Australia/Melbourne': 'Melbourne',
+      'Australia/Perth': 'Perth',
+      'Pacific/Auckland': 'Auckland',
+      'Pacific/Honolulu': 'Honolulu',
+      'Africa/Cairo': 'Cairo',
+      'Africa/Johannesburg': 'Johannesburg',
+      'Atlantic/Reykjavik': 'Reykjavik',
+      'UTC': 'UTC'
+    };
+
+    function load() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        zones = JSON.parse(saved);
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(zones));
+    }
+
+    function addZone() {
+      const select = document.getElementById('zone-select');
+      const zone = select.value;
+
+      if (!zone || zones.includes(zone)) return;
+
+      zones.push(zone);
+      select.value = '';
+      save();
+      render();
+    }
+
+    function removeZone(zone) {
+      zones = zones.filter(z => z !== zone);
+      save();
+      render();
+    }
+
+    function getTimeInfo(zone) {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      });
+
+      const hourFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        hour12: false
+      });
+
+      const hour = parseInt(hourFormatter.format(now));
+      const isDay = hour >= 6 && hour < 18;
+
+      // Calculate offset difference
+      const localOffset = now.getTimezoneOffset();
+      const zoneDate = new Date(now.toLocaleString('en-US', { timeZone: zone }));
+      const localDate = new Date(now.toLocaleString('en-US'));
+      const diffHours = Math.round((zoneDate - localDate) / (1000 * 60 * 60));
+
+      return {
+        time: formatter.format(now),
+        date: dateFormatter.format(now),
+        isDay,
+        diff: diffHours
+      };
+    }
+
+    function formatDiff(diff) {
+      if (diff === 0) return 'Same time';
+      const sign = diff > 0 ? '+' : '';
+      const hours = Math.abs(diff);
+      return `${sign}${diff}h`;
+    }
+
+    function render() {
+      const grid = document.getElementById('clocks-grid');
+
+      if (zones.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🌍</div>
+            <p>Add timezones to track time around the world</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = zones.map(zone => {
+        const info = getTimeInfo(zone);
+        const city = CITY_NAMES[zone] || zone.split('/').pop().replace(/_/g, ' ');
+        const diffClass = info.diff > 0 ? 'ahead' : info.diff < 0 ? 'behind' : '';
+
+        return `
+          <div class="clock-card ${info.isDay ? 'day' : 'night'}">
+            <div class="clock-header">
+              <div>
+                <div class="clock-location">${city}</div>
+                <div class="clock-zone">${zone}</div>
+              </div>
+              <button class="clock-delete" onclick="removeZone('${zone}')">✕</button>
+            </div>
+            <div class="clock-time">${info.time}</div>
+            <div class="clock-date">
+              <span class="day-night-icon">${info.isDay ? '☀️' : '🌙'}</span>
+              <span>${info.date}</span>
+              <span class="clock-diff ${diffClass}">${formatDiff(info.diff)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateLocalTime() {
+      const now = new Date();
+
+      document.getElementById('local-time').textContent = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+
+      document.getElementById('local-date').textContent = now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric'
+      }) + ' • ' + Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+
+    // Init
+    load();
+    render();
+    updateLocalTime();
+
+    // Update every second
+    setInterval(() => {
+      updateLocalTime();
+      render();
+    }, 1000);
+  </script>
+</body>
+</html>
