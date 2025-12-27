@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Incident Reporter - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"incident-reporter","name":"Incident Reporter","icon":"🚨","desc":"Report and track security incidents","category":"security","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.critical .stat-value{color:#ef4444}
+.stat.high .stat-value{color:#f59e0b}
+.incidents-list{display:flex;flex-direction:column;gap:15px}
+.incident-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.incident-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid #333}
+.incident-id{font-family:monospace;font-weight:600;display:flex;align-items:center;gap:10px}
+.severity{padding:4px 10px;border-radius:4px;font-size:.75rem;font-weight:500}
+.severity.critical{background:#ef444433;color:#ef4444}
+.severity.high{background:#f59e0b33;color:#f59e0b}
+.severity.medium{background:#3b82f633;color:#3b82f6}
+.severity.low{background:#10b98133;color:#10b981}
+.incident-body{padding:20px}
+.incident-title{font-size:1.125rem;font-weight:500;margin-bottom:10px}
+.incident-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:15px;font-size:.875rem}
+.meta-item span{display:block;color:#888;font-size:.75rem}
+.incident-desc{padding:15px;background:#252525;border-radius:8px;font-size:.875rem;margin-bottom:15px}
+.incident-status{padding:6px 12px;border-radius:6px;font-size:.75rem;display:inline-block}
+.incident-status.open{background:#ef444433;color:#ef4444}
+.incident-status.investigating{background:#f59e0b33;color:#f59e0b}
+.incident-status.resolved{background:#10b98133;color:#10b981}
+.incident-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-danger{background:#ef4444;color:#fff}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🚨 Incident Reporter</h1>
+<button class="btn btn-danger" onclick="showModal()">+ Report Incident</button>
+</div>
+
+<div class="stats">
+<div class="stat critical"><div class="stat-value" id="openCount">0</div><div class="stat-label">Open</div></div>
+<div class="stat high"><div class="stat-value" id="investigatingCount">0</div><div class="stat-label">Investigating</div></div>
+<div class="stat"><div class="stat-value" id="resolvedCount">0</div><div class="stat-label">Resolved (30d)</div></div>
+<div class="stat"><div class="stat-value" id="avgResolution">0h</div><div class="stat-label">Avg Resolution</div></div>
+</div>
+
+<div class="incidents-list" id="incidentsList"></div>
+
+<div class="modal" id="incidentModal">
+<div class="modal-content">
+<h2>Report Incident</h2>
+<form id="incidentForm">
+<div class="form-group">
+<label>Title</label>
+<input type="text" id="incidentTitle" required placeholder="Brief description">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Type</label>
+<select id="incidentType">
+<option value="security_breach">Security Breach</option>
+<option value="unauthorized_access">Unauthorized Access</option>
+<option value="data_leak">Data Leak</option>
+<option value="physical_intrusion">Physical Intrusion</option>
+<option value="system_compromise">System Compromise</option>
+<option value="policy_violation">Policy Violation</option>
+</select>
+</div>
+<div class="form-group">
+<label>Severity</label>
+<select id="incidentSeverity">
+<option value="low">Low</option>
+<option value="medium">Medium</option>
+<option value="high">High</option>
+<option value="critical">Critical</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Location/System</label>
+<input type="text" id="incidentLocation" placeholder="Where did this occur?">
+</div>
+<div class="form-group">
+<label>Description</label>
+<textarea id="incidentDesc" rows="4" required placeholder="Detailed description of the incident..."></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-danger">Report Incident</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_incidents';
+let incidents = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const typeLabels = {
+  security_breach: '🔓 Security Breach',
+  unauthorized_access: '🚫 Unauthorized Access',
+  data_leak: '📤 Data Leak',
+  physical_intrusion: '🚷 Physical Intrusion',
+  system_compromise: '💻 System Compromise',
+  policy_violation: '📋 Policy Violation'
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(incidents));
+}
+
+function generateId() {
+  return 'INC-' + Date.now().toString(36).toUpperCase();
+}
+
+function updateStats() {
+  const open = incidents.filter(i => i.status === 'open').length;
+  const investigating = incidents.filter(i => i.status === 'investigating').length;
+  const thirtyDaysAgo = Date.now() - 30*24*60*60*1000;
+  const resolved = incidents.filter(i => i.status === 'resolved' && new Date(i.resolvedAt) > thirtyDaysAgo).length;
+
+  document.getElementById('openCount').textContent = open;
+  document.getElementById('investigatingCount').textContent = investigating;
+  document.getElementById('resolvedCount').textContent = resolved;
+  document.getElementById('avgResolution').textContent = '4.2h';
+}
+
+function render() {
+  const list = document.getElementById('incidentsList');
+
+  if (incidents.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No incidents reported</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = incidents.sort((a, b) => {
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    const statusOrder = { open: 0, investigating: 1, resolved: 2 };
+    if (statusOrder[a.status] !== statusOrder[b.status]) return statusOrder[a.status] - statusOrder[b.status];
+    return severityOrder[a.severity] - severityOrder[b.severity];
+  }).map(i => `
+    <div class="incident-card">
+      <div class="incident-header">
+        <span class="incident-id">🚨 ${i.id}</span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span class="severity ${i.severity}">${i.severity}</span>
+          <span class="incident-status ${i.status}">${i.status}</span>
+        </div>
+      </div>
+      <div class="incident-body">
+        <div class="incident-title">${i.title}</div>
+        <div class="incident-meta">
+          <div class="meta-item"><span>Type</span>${typeLabels[i.type]}</div>
+          <div class="meta-item"><span>Location</span>${i.location || 'N/A'}</div>
+          <div class="meta-item"><span>Reported</span>${new Date(i.reportedAt).toLocaleString()}</div>
+          <div class="meta-item"><span>Reporter</span>${i.reporter || 'Anonymous'}</div>
+        </div>
+        <div class="incident-desc">${i.description}</div>
+      </div>
+      <div class="incident-footer">
+        ${i.status === 'open' ? `<button class="btn btn-primary" onclick="updateStatus('${i.id}', 'investigating')">🔍 Investigate</button>` : ''}
+        ${i.status === 'investigating' ? `<button class="btn btn-primary" onclick="updateStatus('${i.id}', 'resolved')">✓ Resolve</button>` : ''}
+        <button class="btn btn-secondary" onclick="deleteIncident('${i.id}')">🗑️ Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('incidentModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('incidentModal').classList.remove('active');
+}
+
+document.getElementById('incidentForm').addEventListener('submit', e => {
+  e.preventDefault();
+  incidents.unshift({
+    id: generateId(),
+    title: document.getElementById('incidentTitle').value,
+    type: document.getElementById('incidentType').value,
+    severity: document.getElementById('incidentSeverity').value,
+    location: document.getElementById('incidentLocation').value,
+    description: document.getElementById('incidentDesc').value,
+    status: 'open',
+    reporter: 'Current User',
+    reportedAt: new Date().toISOString()
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function updateStatus(id, status) {
+  const i = incidents.find(x => x.id === id);
+  if (i) {
+    i.status = status;
+    if (status === 'resolved') i.resolvedAt = new Date().toISOString();
+    save();
+    render();
+  }
+}
+
+function deleteIncident(id) {
+  if (confirm('Delete this incident report?')) {
+    incidents = incidents.filter(i => i.id !== id);
+    save();
+    render();
+  }
+}
+
+if (incidents.length === 0) {
+  incidents = [
+    { id: 'INC-001', title: 'Unauthorized login attempt detected', type: 'unauthorized_access', severity: 'high', location: 'Admin Portal', description: 'Multiple failed login attempts from IP 192.168.1.100. Account locked after 5 attempts.', status: 'investigating', reporter: 'System Alert', reportedAt: new Date(Date.now() - 2*60*60*1000).toISOString() },
+    { id: 'INC-002', title: 'Tailgating incident at main entrance', type: 'physical_intrusion', severity: 'medium', location: 'Main Lobby', description: 'Security camera captured an individual following an employee through the secure entrance without badge scan.', status: 'open', reporter: 'Security Guard', reportedAt: new Date(Date.now() - 30*60*1000).toISOString() },
+    { id: 'INC-003', title: 'Sensitive file shared externally', type: 'data_leak', severity: 'critical', location: 'Cloud Storage', description: 'Confidential financial report was shared to external email address. Access revoked immediately.', status: 'resolved', reporter: 'DLP System', reportedAt: new Date(Date.now() - 48*60*60*1000).toISOString(), resolvedAt: new Date(Date.now() - 44*60*60*1000).toISOString() }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

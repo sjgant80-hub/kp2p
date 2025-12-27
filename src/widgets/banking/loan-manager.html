@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loan Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"loan-manager","name":"Loan Manager","icon":"🏦","desc":"Manage loan applications and portfolios","category":"banking","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:20px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.loans-list{display:flex;flex-direction:column;gap:15px}
+.loan-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.loan-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.loan-id{font-family:monospace;font-weight:600}
+.loan-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.loan-status.pending{background:#f59e0b33;color:#f59e0b}
+.loan-status.approved{background:#10b98133;color:#10b981}
+.loan-status.active{background:#3b82f633;color:#3b82f6}
+.loan-status.paid{background:#8b5cf633;color:#8b5cf6}
+.loan-status.defaulted{background:#ef444433;color:#ef4444}
+.loan-body{padding:20px}
+.borrower-info{display:flex;align-items:center;gap:15px;margin-bottom:15px}
+.borrower-avatar{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:1.25rem;font-weight:bold}
+.borrower-details h4{font-weight:500}
+.borrower-details span{font-size:.875rem;color:#888}
+.loan-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:15px}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.detail-item strong{font-size:1.125rem}
+.payment-progress{margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.875rem}
+.progress-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#10b981,#3b82f6);border-radius:4px}
+.loan-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏦 Loan Manager</h1>
+<button class="btn btn-primary" onclick="alert('New loan application')">+ New Application</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalLoans">$0</div><div class="stat-label">Total Portfolio</div></div>
+<div class="stat"><div class="stat-value" id="activeLoans">0</div><div class="stat-label">Active Loans</div></div>
+<div class="stat"><div class="stat-value" id="pendingApps">0</div><div class="stat-label">Pending Apps</div></div>
+<div class="stat"><div class="stat-value" id="avgRate">0%</div><div class="stat-label">Avg Interest Rate</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-status="all">All</div>
+<div class="tab" data-status="pending">Pending</div>
+<div class="tab" data-status="active">Active</div>
+<div class="tab" data-status="paid">Paid Off</div>
+</div>
+
+<div class="loans-list" id="loansList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_loans';
+let loans = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(loans));
+}
+
+function getInitials(name) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
+
+function updateStats() {
+  const active = loans.filter(l => l.status === 'active');
+  const totalPortfolio = active.reduce((s, l) => s + l.principal, 0);
+  const pending = loans.filter(l => l.status === 'pending').length;
+  const avgRate = active.length > 0 ? (active.reduce((s, l) => s + l.rate, 0) / active.length).toFixed(1) : 0;
+
+  document.getElementById('totalLoans').textContent = '$' + (totalPortfolio / 1000000).toFixed(1) + 'M';
+  document.getElementById('activeLoans').textContent = active.length;
+  document.getElementById('pendingApps').textContent = pending;
+  document.getElementById('avgRate').textContent = avgRate + '%';
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? loans : loans.filter(l => l.status === currentFilter);
+  const list = document.getElementById('loansList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No loans found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(l => {
+    const paymentPct = Math.round((l.paid / l.principal) * 100);
+    const remaining = l.principal - l.paid;
+
+    return `
+      <div class="loan-card">
+        <div class="loan-header">
+          <span class="loan-id">${l.loanId}</span>
+          <span class="loan-status ${l.status}">${l.status}</span>
+        </div>
+        <div class="loan-body">
+          <div class="borrower-info">
+            <div class="borrower-avatar">${getInitials(l.borrower)}</div>
+            <div class="borrower-details">
+              <h4>${l.borrower}</h4>
+              <span>${l.type} Loan • Credit Score: ${l.creditScore}</span>
+            </div>
+          </div>
+          <div class="loan-details">
+            <div class="detail-item"><span>Principal</span><strong>$${l.principal.toLocaleString()}</strong></div>
+            <div class="detail-item"><span>Interest Rate</span><strong>${l.rate}%</strong></div>
+            <div class="detail-item"><span>Term</span><strong>${l.term} months</strong></div>
+            <div class="detail-item"><span>Monthly Payment</span><strong>$${l.monthlyPayment.toLocaleString()}</strong></div>
+          </div>
+          ${l.status === 'active' ? `
+            <div class="payment-progress">
+              <div class="progress-header">
+                <span>Payment Progress</span>
+                <span>$${l.paid.toLocaleString()} of $${l.principal.toLocaleString()} (${paymentPct}%)</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:${paymentPct}%"></div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+        <div class="loan-footer">
+          ${l.status === 'pending' ? `
+            <button class="btn btn-primary" onclick="approveLoan('${l.id}')">✓ Approve</button>
+            <button class="btn btn-secondary" onclick="rejectLoan('${l.id}')">✗ Reject</button>
+          ` : `
+            <button class="btn btn-primary" onclick="alert('View loan details')">📊 Details</button>
+            <button class="btn btn-secondary" onclick="alert('Payment history')">💰 Payments</button>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function approveLoan(id) {
+  const l = loans.find(x => x.id === id);
+  if (l) { l.status = 'active'; save(); render(); }
+}
+
+function rejectLoan(id) {
+  if (confirm('Reject this loan application?')) {
+    loans = loans.filter(l => l.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.status;
+    render();
+  });
+});
+
+if (loans.length === 0) {
+  loans = [
+    { id: '1', loanId: 'LN-2024-0001', borrower: 'John Smith', type: 'Mortgage', creditScore: 750, principal: 450000, rate: 6.5, term: 360, monthlyPayment: 2847, paid: 85410, status: 'active' },
+    { id: '2', loanId: 'LN-2024-0012', borrower: 'Sarah Johnson', type: 'Auto', creditScore: 680, principal: 35000, rate: 7.9, term: 60, monthlyPayment: 708, paid: 4248, status: 'active' },
+    { id: '3', loanId: 'LN-2024-0023', borrower: 'Michael Williams', type: 'Personal', creditScore: 720, principal: 25000, rate: 9.5, term: 36, monthlyPayment: 800, paid: 0, status: 'pending' },
+    { id: '4', loanId: 'LN-2023-0089', borrower: 'Emily Brown', type: 'Business', creditScore: 785, principal: 150000, rate: 8.0, term: 84, monthlyPayment: 2340, paid: 150000, status: 'paid' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

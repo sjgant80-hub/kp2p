@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Access Control - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"access-control","name":"Access Control","icon":"🔐","desc":"Manage physical and digital access control","category":"security","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.alert .stat-value{color:#ef4444}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px}
+.panel{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.panel-header{padding:15px 20px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+.panel-title{font-weight:600;display:flex;align-items:center;gap:8px}
+.panel-body{padding:20px;max-height:400px;overflow-y:auto}
+.access-point{display:flex;align-items:center;gap:15px;padding:12px;background:#252525;border-radius:8px;margin-bottom:10px}
+.access-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.25rem}
+.access-icon.door{background:#3b82f633}
+.access-icon.gate{background:#10b98133}
+.access-icon.elevator{background:#8b5cf633}
+.access-info{flex:1}
+.access-name{font-weight:500}
+.access-location{font-size:.75rem;color:#888}
+.access-status{display:flex;align-items:center;gap:8px}
+.status-dot{width:10px;height:10px;border-radius:50%}
+.status-dot.locked{background:#10b981}
+.status-dot.unlocked{background:#f59e0b}
+.status-dot.alarm{background:#ef4444;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.activity-item{display:flex;gap:15px;padding:10px 0;border-bottom:1px solid #252525}
+.activity-item:last-child{border:none}
+.activity-time{min-width:60px;font-size:.75rem;color:#888}
+.activity-icon{font-size:1rem}
+.activity-desc{flex:1;font-size:.875rem}
+.activity-user{color:#888}
+.badge-list{display:flex;flex-direction:column;gap:10px}
+.badge-item{display:flex;align-items:center;gap:15px;padding:12px;background:#252525;border-radius:8px}
+.badge-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:600}
+.badge-info{flex:1}
+.badge-name{font-weight:500}
+.badge-id{font-family:monospace;font-size:.75rem;color:#888}
+.badge-access{font-size:.75rem;padding:3px 8px;background:#333;border-radius:4px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-sm{padding:4px 8px;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔐 Access Control</h1>
+<button class="btn btn-primary" onclick="alert('Add access point')">+ Add Access Point</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalPoints">0</div><div class="stat-label">Access Points</div></div>
+<div class="stat"><div class="stat-value" id="activeBadges">0</div><div class="stat-label">Active Badges</div></div>
+<div class="stat"><div class="stat-value" id="todayEvents">0</div><div class="stat-label">Events Today</div></div>
+<div class="stat alert"><div class="stat-value" id="activeAlerts">0</div><div class="stat-label">Active Alerts</div></div>
+</div>
+
+<div class="grid">
+<div class="panel">
+<div class="panel-header">
+<span class="panel-title">🚪 Access Points</span>
+<button class="btn btn-secondary btn-sm" onclick="lockAll()">🔒 Lock All</button>
+</div>
+<div class="panel-body" id="accessPoints"></div>
+</div>
+
+<div class="panel">
+<div class="panel-header">
+<span class="panel-title">📋 Recent Activity</span>
+</div>
+<div class="panel-body" id="activityLog"></div>
+</div>
+
+<div class="panel">
+<div class="panel-header">
+<span class="panel-title">🪪 Active Badges</span>
+<button class="btn btn-secondary btn-sm" onclick="alert('Manage badges')">Manage</button>
+</div>
+<div class="panel-body" id="badgeList"></div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_access_control';
+
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+  accessPoints: [
+    { id: '1', name: 'Main Entrance', location: 'Lobby', type: 'door', status: 'locked' },
+    { id: '2', name: 'Server Room', location: 'Floor 3', type: 'door', status: 'locked' },
+    { id: '3', name: 'Parking Gate A', location: 'Garage', type: 'gate', status: 'unlocked' },
+    { id: '4', name: 'Executive Floor', location: 'Floor 10', type: 'elevator', status: 'locked' },
+    { id: '5', name: 'Emergency Exit', location: 'Floor 1', type: 'door', status: 'alarm' }
+  ],
+  badges: [
+    { id: 'B001', name: 'John Smith', role: 'Admin', accessLevel: 'Full Access' },
+    { id: 'B012', name: 'Sarah Johnson', role: 'Manager', accessLevel: 'Floors 1-5' },
+    { id: 'B045', name: 'Mike Williams', role: 'Engineer', accessLevel: 'Floors 1-3' },
+    { id: 'B089', name: 'Emily Brown', role: 'Visitor', accessLevel: 'Lobby Only' }
+  ],
+  activity: [
+    { time: '14:32', icon: '🚪', action: 'Main Entrance unlocked', user: 'John Smith' },
+    { time: '14:28', icon: '🔐', action: 'Server Room access granted', user: 'Mike Williams' },
+    { time: '14:15', icon: '🚗', action: 'Parking Gate A opened', user: 'Sarah Johnson' },
+    { time: '13:55', icon: '⚠️', action: 'Emergency Exit alarm triggered', user: 'System' },
+    { time: '13:42', icon: '🚪', action: 'Main Entrance locked', user: 'System' }
+  ]
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getInitials(name) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
+
+function updateStats() {
+  document.getElementById('totalPoints').textContent = data.accessPoints.length;
+  document.getElementById('activeBadges').textContent = data.badges.length;
+  document.getElementById('todayEvents').textContent = data.activity.length;
+  document.getElementById('activeAlerts').textContent = data.accessPoints.filter(p => p.status === 'alarm').length;
+}
+
+function render() {
+  const typeIcons = { door: '🚪', gate: '🚗', elevator: '🛗' };
+
+  document.getElementById('accessPoints').innerHTML = data.accessPoints.map(p => `
+    <div class="access-point">
+      <div class="access-icon ${p.type}">${typeIcons[p.type]}</div>
+      <div class="access-info">
+        <div class="access-name">${p.name}</div>
+        <div class="access-location">${p.location}</div>
+      </div>
+      <div class="access-status">
+        <span class="status-dot ${p.status}"></span>
+        <span style="font-size:.875rem">${p.status}</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="toggleLock('${p.id}')">${p.status === 'locked' ? '🔓' : '🔒'}</button>
+    </div>
+  `).join('');
+
+  document.getElementById('activityLog').innerHTML = data.activity.map(a => `
+    <div class="activity-item">
+      <span class="activity-time">${a.time}</span>
+      <span class="activity-icon">${a.icon}</span>
+      <div class="activity-desc">
+        ${a.action}
+        <div class="activity-user">${a.user}</div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('badgeList').innerHTML = data.badges.map(b => `
+    <div class="badge-item">
+      <div class="badge-avatar">${getInitials(b.name)}</div>
+      <div class="badge-info">
+        <div class="badge-name">${b.name}</div>
+        <div class="badge-id">${b.id} • ${b.role}</div>
+      </div>
+      <span class="badge-access">${b.accessLevel}</span>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function toggleLock(id) {
+  const p = data.accessPoints.find(x => x.id === id);
+  if (p) {
+    p.status = p.status === 'locked' ? 'unlocked' : 'locked';
+    save();
+    render();
+  }
+}
+
+function lockAll() {
+  data.accessPoints.forEach(p => { if (p.status !== 'alarm') p.status = 'locked'; });
+  save();
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clinical Trials - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"clinical-trials","name":"Clinical Trials","icon":"🔬","desc":"Track clinical trial progress and participants","category":"pharma","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.trials-list{display:flex;flex-direction:column;gap:20px}
+.trial-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.trial-header{padding:20px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #333}
+.trial-info h3{font-size:1.125rem;margin-bottom:5px}
+.trial-id{font-family:monospace;font-size:.875rem;color:#888}
+.trial-phase{padding:6px 12px;border-radius:6px;font-size:.75rem;font-weight:500}
+.trial-phase.phase-1{background:#8b5cf633;color:#8b5cf6}
+.trial-phase.phase-2{background:#3b82f633;color:#3b82f6}
+.trial-phase.phase-3{background:#10b98133;color:#10b981}
+.trial-phase.phase-4{background:#f59e0b33;color:#f59e0b}
+.trial-body{padding:20px}
+.trial-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.metric{padding:15px;background:#252525;border-radius:8px;text-align:center}
+.metric-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.metric-label{font-size:.75rem;color:#888;margin-top:5px}
+.enrollment-progress{margin-bottom:20px}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:8px}
+.progress-bar{height:10px;background:#333;border-radius:5px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#10b981,#3b82f6);border-radius:5px}
+.milestones{display:flex;flex-direction:column;gap:10px}
+.milestones h4{font-size:.875rem;color:#888;margin-bottom:5px}
+.milestone{display:flex;align-items:center;gap:15px;padding:10px;background:#252525;border-radius:6px}
+.milestone-status{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem}
+.milestone-status.completed{background:#10b98133;color:#10b981}
+.milestone-status.in-progress{background:#3b82f633;color:#3b82f6}
+.milestone-status.pending{background:#33333;color:#888}
+.milestone-info{flex:1}
+.milestone-date{font-size:.75rem;color:#888}
+.trial-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔬 Clinical Trials</h1>
+<button class="btn btn-primary" onclick="alert('Add trial')">+ New Trial</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeTrials">0</div><div class="stat-label">Active Trials</div></div>
+<div class="stat"><div class="stat-value" id="totalParticipants">0</div><div class="stat-label">Total Participants</div></div>
+<div class="stat"><div class="stat-value" id="sitesCount">0</div><div class="stat-label">Clinical Sites</div></div>
+<div class="stat"><div class="stat-value" id="completionRate">0%</div><div class="stat-label">Avg Completion</div></div>
+</div>
+
+<div class="trials-list" id="trialsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_clinical_trials';
+let trials = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(trials));
+}
+
+function updateStats() {
+  const active = trials.filter(t => t.status === 'active').length;
+  const participants = trials.reduce((s, t) => s + t.enrolled, 0);
+  const sites = trials.reduce((s, t) => s + t.sites, 0);
+  const avgCompletion = trials.length > 0 ? Math.round(trials.reduce((s, t) => s + (t.enrolled / t.targetEnrollment) * 100, 0) / trials.length) : 0;
+
+  document.getElementById('activeTrials').textContent = active;
+  document.getElementById('totalParticipants').textContent = participants.toLocaleString();
+  document.getElementById('sitesCount').textContent = sites;
+  document.getElementById('completionRate').textContent = avgCompletion + '%';
+}
+
+function render() {
+  const list = document.getElementById('trialsList');
+
+  if (trials.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No clinical trials</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = trials.map(t => {
+    const enrollmentPct = Math.round((t.enrolled / t.targetEnrollment) * 100);
+
+    return `
+      <div class="trial-card">
+        <div class="trial-header">
+          <div class="trial-info">
+            <h3>${t.name}</h3>
+            <div class="trial-id">${t.trialId} • ${t.indication}</div>
+          </div>
+          <span class="trial-phase phase-${t.phase}">${t.phase.toUpperCase()}</span>
+        </div>
+        <div class="trial-body">
+          <div class="trial-metrics">
+            <div class="metric">
+              <div class="metric-value">${t.enrolled}</div>
+              <div class="metric-label">Enrolled</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${t.sites}</div>
+              <div class="metric-label">Sites</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${t.screenFail}%</div>
+              <div class="metric-label">Screen Fail Rate</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${t.retention}%</div>
+              <div class="metric-label">Retention</div>
+            </div>
+          </div>
+          <div class="enrollment-progress">
+            <div class="progress-header">
+              <span>Enrollment Progress</span>
+              <span>${t.enrolled}/${t.targetEnrollment} (${enrollmentPct}%)</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${enrollmentPct}%"></div>
+            </div>
+          </div>
+          <div class="milestones">
+            <h4>Key Milestones</h4>
+            ${t.milestones.map(m => `
+              <div class="milestone">
+                <div class="milestone-status ${m.status}">${m.status === 'completed' ? '✓' : m.status === 'in-progress' ? '◐' : '○'}</div>
+                <div class="milestone-info">
+                  <div>${m.name}</div>
+                  <div class="milestone-date">${m.date}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="trial-footer">
+          <button class="btn btn-primary" onclick="alert('View details')">📊 Details</button>
+          <button class="btn btn-secondary" onclick="alert('Export data')">📥 Export</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+if (trials.length === 0) {
+  trials = [
+    { id: '1', trialId: 'NCT-2024-001', name: 'AURORA-3 Study', indication: 'Type 2 Diabetes', phase: 'phase-3', status: 'active', enrolled: 847, targetEnrollment: 1200, sites: 45, screenFail: 18, retention: 94, milestones: [{name:'First Patient In',status:'completed',date:'Mar 2024'},{name:'50% Enrollment',status:'completed',date:'Aug 2024'},{name:'Last Patient In',status:'in-progress',date:'Feb 2025'},{name:'Database Lock',status:'pending',date:'Jun 2025'}] },
+    { id: '2', trialId: 'NCT-2024-015', name: 'BEACON Study', indication: 'Rheumatoid Arthritis', phase: 'phase-2', status: 'active', enrolled: 124, targetEnrollment: 200, sites: 12, screenFail: 22, retention: 89, milestones: [{name:'First Patient In',status:'completed',date:'Jul 2024'},{name:'Interim Analysis',status:'in-progress',date:'Jan 2025'},{name:'Primary Endpoint',status:'pending',date:'Jun 2025'}] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

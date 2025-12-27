@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drug Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"drug-inventory","name":"Drug Inventory","icon":"💊","desc":"Manage pharmaceutical inventory and expiration","category":"pharma","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.stat.danger .stat-value{color:#ef4444}
+.alerts{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:15px;margin-bottom:20px}
+.alerts h3{font-size:.875rem;color:#888;margin-bottom:10px}
+.alert-list{display:flex;gap:10px;flex-wrap:wrap}
+.alert-item{padding:8px 12px;border-radius:6px;font-size:.875rem;display:flex;align-items:center;gap:8px}
+.alert-item.expiring{background:#f59e0b33;color:#f59e0b}
+.alert-item.expired{background:#ef444433;color:#ef4444}
+.alert-item.low{background:#3b82f633;color:#3b82f6}
+.inventory-table{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.table-header{display:grid;grid-template-columns:1fr 120px 100px 100px 120px 80px;padding:15px 20px;background:#252525;font-weight:600;font-size:.875rem;color:#888}
+.table-row{display:grid;grid-template-columns:1fr 120px 100px 100px 120px 80px;padding:12px 20px;border-top:1px solid #333;align-items:center}
+.table-row:hover{background:#252525}
+.drug-info h4{font-weight:500}
+.drug-info span{font-size:.75rem;color:#888}
+.lot-number{font-family:monospace;font-size:.875rem}
+.stock-level{display:flex;align-items:center;gap:5px}
+.stock-indicator{width:8px;height:8px;border-radius:50%}
+.stock-indicator.good{background:#10b981}
+.stock-indicator.low{background:#f59e0b}
+.stock-indicator.critical{background:#ef4444}
+.expiry-date{font-size:.875rem}
+.expiry-date.expired{color:#ef4444}
+.expiry-date.expiring{color:#f59e0b}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-sm{padding:4px 8px;font-size:.75rem}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💊 Drug Inventory</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Drug</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalDrugs">0</div><div class="stat-label">Total Items</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Inventory Value</div></div>
+<div class="stat warning"><div class="stat-value" id="expiringCount">0</div><div class="stat-label">Expiring Soon</div></div>
+<div class="stat danger"><div class="stat-value" id="lowStock">0</div><div class="stat-label">Low Stock</div></div>
+</div>
+
+<div class="alerts" id="alertsPanel"></div>
+
+<div class="inventory-table">
+<div class="table-header">
+<div>Drug Name</div>
+<div>Lot Number</div>
+<div>Stock</div>
+<div>Unit Price</div>
+<div>Expiry</div>
+<div>Actions</div>
+</div>
+<div id="inventoryList"></div>
+</div>
+
+<div class="modal" id="drugModal">
+<div class="modal-content">
+<h2>Add Drug</h2>
+<form id="drugForm">
+<div class="form-group">
+<label>Drug Name</label>
+<input type="text" id="drugName" required placeholder="Acetaminophen 500mg">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Lot Number</label>
+<input type="text" id="lotNumber" required placeholder="LOT123456">
+</div>
+<div class="form-group">
+<label>Category</label>
+<select id="category">
+<option value="analgesic">Analgesic</option>
+<option value="antibiotic">Antibiotic</option>
+<option value="antiviral">Antiviral</option>
+<option value="vaccine">Vaccine</option>
+<option value="supplement">Supplement</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Quantity</label>
+<input type="number" id="quantity" min="0" required>
+</div>
+<div class="form-group">
+<label>Unit Price</label>
+<input type="number" id="unitPrice" min="0" step="0.01" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Min Stock Level</label>
+<input type="number" id="minStock" min="0" value="50">
+</div>
+<div class="form-group">
+<label>Expiry Date</label>
+<input type="date" id="expiryDate" required>
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Drug</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_drug_inventory';
+let drugs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(drugs));
+}
+
+function getDaysUntilExpiry(dateStr) {
+  return Math.ceil((new Date(dateStr) - new Date()) / (1000*60*60*24));
+}
+
+function getStockStatus(qty, min) {
+  if (qty <= min * 0.25) return 'critical';
+  if (qty <= min) return 'low';
+  return 'good';
+}
+
+function getExpiryClass(days) {
+  if (days < 0) return 'expired';
+  if (days < 90) return 'expiring';
+  return '';
+}
+
+function updateStats() {
+  const totalValue = drugs.reduce((s, d) => s + (d.quantity * d.unitPrice), 0);
+  const expiring = drugs.filter(d => getDaysUntilExpiry(d.expiryDate) < 90 && getDaysUntilExpiry(d.expiryDate) >= 0).length;
+  const lowStock = drugs.filter(d => d.quantity <= d.minStock).length;
+
+  document.getElementById('totalDrugs').textContent = drugs.length;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+  document.getElementById('expiringCount').textContent = expiring;
+  document.getElementById('lowStock').textContent = lowStock;
+
+  renderAlerts();
+}
+
+function renderAlerts() {
+  const panel = document.getElementById('alertsPanel');
+  const alerts = [];
+
+  drugs.forEach(d => {
+    const days = getDaysUntilExpiry(d.expiryDate);
+    if (days < 0) alerts.push({ type: 'expired', text: `${d.name} expired ${Math.abs(days)} days ago` });
+    else if (days < 90) alerts.push({ type: 'expiring', text: `${d.name} expires in ${days} days` });
+    if (d.quantity <= d.minStock) alerts.push({ type: 'low', text: `${d.name} low stock (${d.quantity})` });
+  });
+
+  if (alerts.length === 0) {
+    panel.innerHTML = '<h3>⚠️ Alerts</h3><div style="color:#666">No active alerts</div>';
+    return;
+  }
+
+  panel.innerHTML = `
+    <h3>⚠️ Alerts (${alerts.length})</h3>
+    <div class="alert-list">
+      ${alerts.slice(0, 5).map(a => `<div class="alert-item ${a.type}">${a.text}</div>`).join('')}
+      ${alerts.length > 5 ? `<div class="alert-item" style="background:#33333;color:#888">+${alerts.length - 5} more</div>` : ''}
+    </div>
+  `;
+}
+
+function render() {
+  const list = document.getElementById('inventoryList');
+
+  if (drugs.length === 0) {
+    list.innerHTML = '<div style="padding:40px;text-align:center;color:#666">No drugs in inventory</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = drugs.map(d => {
+    const days = getDaysUntilExpiry(d.expiryDate);
+    const stockStatus = getStockStatus(d.quantity, d.minStock);
+    const expiryClass = getExpiryClass(days);
+
+    return `
+      <div class="table-row">
+        <div class="drug-info">
+          <h4>${d.name}</h4>
+          <span>${d.category}</span>
+        </div>
+        <div class="lot-number">${d.lotNumber}</div>
+        <div class="stock-level">
+          <span class="stock-indicator ${stockStatus}"></span>
+          ${d.quantity}
+        </div>
+        <div>$${d.unitPrice.toFixed(2)}</div>
+        <div class="expiry-date ${expiryClass}">${new Date(d.expiryDate).toLocaleDateString()}</div>
+        <div>
+          <button class="btn btn-secondary btn-sm" onclick="adjustStock('${d.id}')">±</button>
+          <button class="btn btn-secondary btn-sm" onclick="deleteDrug('${d.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  const future = new Date(); future.setFullYear(future.getFullYear() + 2);
+  document.getElementById('expiryDate').value = future.toISOString().split('T')[0];
+  document.getElementById('drugModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('drugModal').classList.remove('active');
+}
+
+document.getElementById('drugForm').addEventListener('submit', e => {
+  e.preventDefault();
+  drugs.push({
+    id: Date.now().toString(),
+    name: document.getElementById('drugName').value,
+    lotNumber: document.getElementById('lotNumber').value.toUpperCase(),
+    category: document.getElementById('category').value,
+    quantity: parseInt(document.getElementById('quantity').value),
+    unitPrice: parseFloat(document.getElementById('unitPrice').value),
+    minStock: parseInt(document.getElementById('minStock').value) || 50,
+    expiryDate: document.getElementById('expiryDate').value
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function adjustStock(id) {
+  const d = drugs.find(x => x.id === id);
+  if (d) {
+    const adj = prompt('Adjust quantity (+/-):', '0');
+    if (adj !== null) {
+      d.quantity = Math.max(0, d.quantity + parseInt(adj));
+      save();
+      render();
+    }
+  }
+}
+
+function deleteDrug(id) {
+  if (confirm('Remove this drug from inventory?')) {
+    drugs = drugs.filter(d => d.id !== id);
+    save();
+    render();
+  }
+}
+
+if (drugs.length === 0) {
+  const future = d => { const x = new Date(); x.setMonth(x.getMonth() + d); return x.toISOString().split('T')[0]; };
+  drugs = [
+    { id: '1', name: 'Acetaminophen 500mg', lotNumber: 'LOT2024A001', category: 'analgesic', quantity: 500, unitPrice: 0.15, minStock: 100, expiryDate: future(18) },
+    { id: '2', name: 'Amoxicillin 250mg', lotNumber: 'LOT2024B012', category: 'antibiotic', quantity: 45, unitPrice: 0.85, minStock: 50, expiryDate: future(6) },
+    { id: '3', name: 'Ibuprofen 400mg', lotNumber: 'LOT2023C089', category: 'analgesic', quantity: 320, unitPrice: 0.22, minStock: 100, expiryDate: future(2) },
+    { id: '4', name: 'Vitamin D3 1000IU', lotNumber: 'LOT2024D045', category: 'supplement', quantity: 1200, unitPrice: 0.08, minStock: 200, expiryDate: future(24) }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

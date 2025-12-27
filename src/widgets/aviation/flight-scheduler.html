@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flight Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"flight-scheduler","name":"Flight Scheduler","icon":"✈️","desc":"Schedule and manage flight operations","category":"aviation","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.flights-list{display:flex;flex-direction:column;gap:15px}
+.flight-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.flight-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.flight-number{font-size:1.25rem;font-weight:bold;display:flex;align-items:center;gap:10px}
+.flight-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.flight-status.scheduled{background:#3b82f633;color:#3b82f6}
+.flight-status.boarding{background:#f59e0b33;color:#f59e0b}
+.flight-status.departed{background:#10b98133;color:#10b981}
+.flight-status.arrived{background:#8b5cf633;color:#8b5cf6}
+.flight-status.cancelled{background:#ef444433;color:#ef4444}
+.flight-body{padding:20px}
+.route{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.airport{text-align:center}
+.airport-code{font-size:2rem;font-weight:bold}
+.airport-city{font-size:.875rem;color:#888}
+.airport-time{font-size:1.125rem;margin-top:5px}
+.route-line{flex:1;display:flex;align-items:center;justify-content:center;padding:0 20px}
+.route-line svg{width:100%;height:30px}
+.flight-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px;padding-top:15px;border-top:1px solid #333}
+.detail span{display:block;color:#888;font-size:.75rem}
+.flight-actions{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>✈️ Flight Scheduler</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Schedule Flight</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayFlights">0</div><div class="stat-label">Today's Flights</div></div>
+<div class="stat"><div class="stat-value" id="onTime">0%</div><div class="stat-label">On-Time Rate</div></div>
+<div class="stat"><div class="stat-value" id="activeFlights">0</div><div class="stat-label">In Air</div></div>
+<div class="stat"><div class="stat-value" id="scheduled">0</div><div class="stat-label">Scheduled</div></div>
+</div>
+
+<div class="flights-list" id="flightsList"></div>
+
+<div class="modal" id="flightModal">
+<div class="modal-content">
+<h2>Schedule Flight</h2>
+<form id="flightForm">
+<div class="form-group">
+<label>Flight Number</label>
+<input type="text" id="flightNumber" required placeholder="KS1234">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Origin</label>
+<input type="text" id="origin" required placeholder="JFK" maxlength="3" style="text-transform:uppercase">
+</div>
+<div class="form-group">
+<label>Destination</label>
+<input type="text" id="destination" required placeholder="LAX" maxlength="3" style="text-transform:uppercase">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Departure Date</label>
+<input type="date" id="departDate" required>
+</div>
+<div class="form-group">
+<label>Departure Time</label>
+<input type="time" id="departTime" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Aircraft</label>
+<select id="aircraft">
+<option value="B737">Boeing 737</option>
+<option value="A320">Airbus A320</option>
+<option value="B777">Boeing 777</option>
+<option value="A350">Airbus A350</option>
+</select>
+</div>
+<div class="form-group">
+<label>Gate</label>
+<input type="text" id="gate" placeholder="A12">
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Schedule</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_flights';
+let flights = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const cities = {JFK:'New York',LAX:'Los Angeles',ORD:'Chicago',DFW:'Dallas',DEN:'Denver',SFO:'San Francisco',SEA:'Seattle',ATL:'Atlanta',MIA:'Miami',BOS:'Boston'};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(flights));
+}
+
+function updateStats() {
+  const today = new Date().toDateString();
+  const todayFlights = flights.filter(f => new Date(f.departDate).toDateString() === today);
+  const active = flights.filter(f => f.status === 'departed').length;
+  const scheduled = flights.filter(f => f.status === 'scheduled').length;
+  const onTime = todayFlights.length > 0 ? Math.round((todayFlights.filter(f => f.status !== 'cancelled').length / todayFlights.length) * 100) : 100;
+
+  document.getElementById('todayFlights').textContent = todayFlights.length;
+  document.getElementById('onTime').textContent = onTime + '%';
+  document.getElementById('activeFlights').textContent = active;
+  document.getElementById('scheduled').textContent = scheduled;
+}
+
+function render() {
+  const list = document.getElementById('flightsList');
+
+  if (flights.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No flights scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = flights.sort((a, b) => new Date(a.departDate + 'T' + a.departTime) - new Date(b.departDate + 'T' + b.departTime)).map(f => `
+    <div class="flight-card">
+      <div class="flight-header">
+        <span class="flight-number">✈️ ${f.flightNumber}</span>
+        <span class="flight-status ${f.status}">${f.status}</span>
+      </div>
+      <div class="flight-body">
+        <div class="route">
+          <div class="airport">
+            <div class="airport-code">${f.origin}</div>
+            <div class="airport-city">${cities[f.origin] || f.origin}</div>
+            <div class="airport-time">${f.departTime}</div>
+          </div>
+          <div class="route-line">
+            <svg viewBox="0 0 200 30"><line x1="0" y1="15" x2="180" y2="15" stroke="#333" stroke-width="2" stroke-dasharray="5,5"/><polygon points="180,10 200,15 180,20" fill="#10b981"/></svg>
+          </div>
+          <div class="airport">
+            <div class="airport-code">${f.destination}</div>
+            <div class="airport-city">${cities[f.destination] || f.destination}</div>
+            <div class="airport-time">${f.arrivalTime || '--:--'}</div>
+          </div>
+        </div>
+        <div class="flight-details">
+          <div class="detail"><span>Date</span>${new Date(f.departDate).toLocaleDateString()}</div>
+          <div class="detail"><span>Aircraft</span>${f.aircraft}</div>
+          <div class="detail"><span>Gate</span>${f.gate || 'TBD'}</div>
+          <div class="detail"><span>Duration</span>${f.duration || 'N/A'}</div>
+        </div>
+      </div>
+      <div class="flight-actions">
+        ${f.status === 'scheduled' ? `<button class="btn btn-primary" onclick="updateStatus('${f.id}', 'boarding')">Start Boarding</button>` : ''}
+        ${f.status === 'boarding' ? `<button class="btn btn-primary" onclick="updateStatus('${f.id}', 'departed')">Depart</button>` : ''}
+        ${f.status === 'departed' ? `<button class="btn btn-primary" onclick="updateStatus('${f.id}', 'arrived')">Arrived</button>` : ''}
+        <button class="btn btn-secondary" onclick="deleteFlight('${f.id}')">Cancel</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('departDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('flightModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('flightModal').classList.remove('active');
+}
+
+document.getElementById('flightForm').addEventListener('submit', e => {
+  e.preventDefault();
+  flights.push({
+    id: Date.now().toString(),
+    flightNumber: document.getElementById('flightNumber').value.toUpperCase(),
+    origin: document.getElementById('origin').value.toUpperCase(),
+    destination: document.getElementById('destination').value.toUpperCase(),
+    departDate: document.getElementById('departDate').value,
+    departTime: document.getElementById('departTime').value,
+    aircraft: document.getElementById('aircraft').value,
+    gate: document.getElementById('gate').value.toUpperCase(),
+    status: 'scheduled',
+    duration: '3h 45m'
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function updateStatus(id, status) {
+  const f = flights.find(x => x.id === id);
+  if (f) { f.status = status; save(); render(); }
+}
+
+function deleteFlight(id) {
+  if (confirm('Cancel this flight?')) {
+    const f = flights.find(x => x.id === id);
+    if (f) { f.status = 'cancelled'; save(); render(); }
+  }
+}
+
+if (flights.length === 0) {
+  const today = new Date().toISOString().split('T')[0];
+  flights = [
+    { id: '1', flightNumber: 'KS1234', origin: 'JFK', destination: 'LAX', departDate: today, departTime: '08:30', aircraft: 'B777', gate: 'A12', status: 'departed', duration: '5h 30m' },
+    { id: '2', flightNumber: 'KS5678', origin: 'ORD', destination: 'MIA', departDate: today, departTime: '14:15', aircraft: 'A320', gate: 'B8', status: 'scheduled', duration: '3h 15m' },
+    { id: '3', flightNumber: 'KS9012', origin: 'SFO', destination: 'SEA', departDate: today, departTime: '10:00', aircraft: 'B737', gate: 'C3', status: 'boarding', duration: '1h 45m' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

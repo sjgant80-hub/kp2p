@@ -300,6 +300,26 @@ const categoryMap = {
   // Telecom
   'network-monitor': { category: 'telecom', subcategory: 'network', badge: 'ENT' },
   'subscriber-management': { category: 'telecom', subcategory: 'subscribers', badge: 'ENT' },
+
+  // Aviation
+  'flight-scheduler': { category: 'aviation', subcategory: 'scheduling', badge: 'ENT' },
+  'aircraft-maintenance': { category: 'aviation', subcategory: 'maintenance', badge: 'ENT' },
+
+  // Mining
+  'equipment-tracker': { category: 'mining', subcategory: 'equipment', badge: 'ENT' },
+  'production-report': { category: 'mining', subcategory: 'production', badge: 'ENT' },
+
+  // Pharma
+  'drug-inventory': { category: 'pharma', subcategory: 'inventory', badge: 'ENT' },
+  'clinical-trials': { category: 'pharma', subcategory: 'trials', badge: 'ENT' },
+
+  // Banking
+  'loan-manager': { category: 'banking', subcategory: 'loans', badge: 'ENT' },
+  'account-management': { category: 'banking', subcategory: 'accounts', badge: 'ENT' },
+
+  // Security
+  'access-control': { category: 'security', subcategory: 'access', badge: 'ENT' },
+  'incident-reporter': { category: 'security', subcategory: 'incidents', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -476,7 +496,12 @@ const widgetDirs = [
   'logistics',
   'manufacturing',
   'automotive',
-  'telecom'
+  'telecom',
+  'aviation',
+  'mining',
+  'pharma',
+  'banking',
+  'security'
 ];
 
 // Process all widgets in all directories

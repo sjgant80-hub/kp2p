@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equipment Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"equipment-tracker","name":"Equipment Tracker","icon":"🚜","desc":"Track mining equipment and machinery","category":"mining","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.equipment-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.equipment-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.equipment-header{padding:15px;display:flex;justify-content:space-between;align-items:center;background:#252525}
+.equipment-name{display:flex;align-items:center;gap:10px;font-weight:600}
+.equipment-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.equipment-status.active{background:#10b98133;color:#10b981}
+.equipment-status.idle{background:#f59e0b33;color:#f59e0b}
+.equipment-status.maintenance{background:#ef444433;color:#ef4444}
+.equipment-body{padding:15px}
+.equipment-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem;margin-bottom:15px}
+.info-label{color:#888}
+.fuel-gauge{margin-top:15px}
+.gauge-header{display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:5px}
+.gauge-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.gauge-fill{height:100%;border-radius:4px}
+.gauge-fill.high{background:#10b981}
+.gauge-fill.medium{background:#f59e0b}
+.gauge-fill.low{background:#ef4444}
+.location-info{margin-top:15px;padding:12px;background:#252525;border-radius:8px;font-size:.875rem}
+.equipment-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🚜 Equipment Tracker</h1>
+<button class="btn btn-primary" onclick="alert('Add equipment')">+ Add Equipment</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalEquipment">0</div><div class="stat-label">Total Equipment</div></div>
+<div class="stat"><div class="stat-value" id="activeCount">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value" id="idleCount">0</div><div class="stat-label">Idle</div></div>
+<div class="stat"><div class="stat-value" id="utilizationRate">0%</div><div class="stat-label">Utilization</div></div>
+</div>
+
+<div class="equipment-grid" id="equipmentGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_mining_equipment';
+let equipment = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const typeIcons = {excavator:'🏗️',haul_truck:'🚛',loader:'🚜',drill:'🔨',dozer:'🚧',crusher:'⚙️'};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(equipment));
+}
+
+function getFuelClass(level) {
+  if (level > 50) return 'high';
+  if (level > 25) return 'medium';
+  return 'low';
+}
+
+function updateStats() {
+  const active = equipment.filter(e => e.status === 'active').length;
+  const idle = equipment.filter(e => e.status === 'idle').length;
+  const util = equipment.length > 0 ? Math.round((active / equipment.length) * 100) : 0;
+
+  document.getElementById('totalEquipment').textContent = equipment.length;
+  document.getElementById('activeCount').textContent = active;
+  document.getElementById('idleCount').textContent = idle;
+  document.getElementById('utilizationRate').textContent = util + '%';
+}
+
+function render() {
+  const grid = document.getElementById('equipmentGrid');
+
+  if (equipment.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No equipment tracked</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = equipment.map(e => `
+    <div class="equipment-card">
+      <div class="equipment-header">
+        <div class="equipment-name">${typeIcons[e.type] || '🚜'} ${e.name}</div>
+        <span class="equipment-status ${e.status}">${e.status}</span>
+      </div>
+      <div class="equipment-body">
+        <div class="equipment-info">
+          <div><span class="info-label">ID:</span> ${e.equipmentId}</div>
+          <div><span class="info-label">Type:</span> ${e.type.replace('_', ' ')}</div>
+          <div><span class="info-label">Hours:</span> ${e.operatingHours.toLocaleString()}</div>
+          <div><span class="info-label">Operator:</span> ${e.operator || 'Unassigned'}</div>
+        </div>
+        <div class="fuel-gauge">
+          <div class="gauge-header">
+            <span>Fuel Level</span>
+            <span>${e.fuelLevel}%</span>
+          </div>
+          <div class="gauge-bar">
+            <div class="gauge-fill ${getFuelClass(e.fuelLevel)}" style="width:${e.fuelLevel}%"></div>
+          </div>
+        </div>
+        <div class="location-info">
+          📍 ${e.location || 'Unknown Location'}
+        </div>
+      </div>
+      <div class="equipment-actions">
+        <button class="btn btn-primary" onclick="toggleStatus('${e.id}')">${e.status === 'active' ? '⏹️ Stop' : '▶️ Start'}</button>
+        <button class="btn btn-secondary" onclick="refuel('${e.id}')">⛽ Refuel</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function toggleStatus(id) {
+  const e = equipment.find(x => x.id === id);
+  if (e) {
+    e.status = e.status === 'active' ? 'idle' : 'active';
+    save();
+    render();
+  }
+}
+
+function refuel(id) {
+  const e = equipment.find(x => x.id === id);
+  if (e) {
+    e.fuelLevel = 100;
+    save();
+    render();
+  }
+}
+
+if (equipment.length === 0) {
+  equipment = [
+    { id: '1', equipmentId: 'EX-001', name: 'CAT 390F Excavator', type: 'excavator', status: 'active', operatingHours: 4520, fuelLevel: 72, operator: 'John Smith', location: 'Pit A - North Face' },
+    { id: '2', equipmentId: 'HT-003', name: 'Komatsu 930E Haul Truck', type: 'haul_truck', status: 'active', operatingHours: 8900, fuelLevel: 45, operator: 'Mike Johnson', location: 'Haul Road 3' },
+    { id: '3', equipmentId: 'LD-002', name: 'CAT 994K Loader', type: 'loader', status: 'idle', operatingHours: 3200, fuelLevel: 88, operator: null, location: 'Stockpile Area' },
+    { id: '4', equipmentId: 'DR-001', name: 'Atlas Copco D65', type: 'drill', status: 'maintenance', operatingHours: 1560, fuelLevel: 15, operator: null, location: 'Maintenance Bay 2' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Account Management - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"account-management","name":"Account Management","icon":"💳","desc":"Manage customer banking accounts","category":"banking","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:400px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:20px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.accounts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px}
+.account-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.account-header{padding:20px;background:linear-gradient(135deg,#252525,#1a1a1a);display:flex;justify-content:space-between;align-items:flex-start}
+.customer-info{display:flex;align-items:center;gap:15px}
+.customer-avatar{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:1.25rem;font-weight:bold}
+.customer-details h4{font-weight:500}
+.customer-id{font-family:monospace;font-size:.75rem;color:#888}
+.account-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.account-status.active{background:#10b98133;color:#10b981}
+.account-status.frozen{background:#3b82f633;color:#3b82f6}
+.account-status.closed{background:#ef444433;color:#ef4444}
+.account-body{padding:20px}
+.accounts-list{display:flex;flex-direction:column;gap:10px}
+.account-item{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#252525;border-radius:8px}
+.account-type{display:flex;align-items:center;gap:10px}
+.account-icon{font-size:1.25rem}
+.account-number{font-family:monospace;font-size:.75rem;color:#888}
+.account-balance{text-align:right}
+.balance-amount{font-size:1.125rem;font-weight:bold}
+.balance-label{font-size:.7rem;color:#888}
+.account-actions{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💳 Account Management</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search by name or account..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Open new account')">+ New Account</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalCustomers">0</div><div class="stat-label">Total Customers</div></div>
+<div class="stat"><div class="stat-value" id="totalDeposits">$0</div><div class="stat-label">Total Deposits</div></div>
+<div class="stat"><div class="stat-value" id="activeAccounts">0</div><div class="stat-label">Active Accounts</div></div>
+<div class="stat"><div class="stat-value" id="avgBalance">$0</div><div class="stat-label">Avg Balance</div></div>
+</div>
+
+<div class="accounts-grid" id="accountsGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_bank_accounts';
+let customers = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
+}
+
+function getInitials(name) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
+
+function formatCurrency(amount) {
+  if (amount >= 1000000) return '$' + (amount / 1000000).toFixed(1) + 'M';
+  if (amount >= 1000) return '$' + (amount / 1000).toFixed(1) + 'K';
+  return '$' + amount.toLocaleString();
+}
+
+function updateStats() {
+  const allAccounts = customers.flatMap(c => c.accounts);
+  const totalDeposits = allAccounts.reduce((s, a) => s + a.balance, 0);
+  const active = allAccounts.filter(a => a.status === 'active').length;
+  const avgBalance = allAccounts.length > 0 ? Math.round(totalDeposits / allAccounts.length) : 0;
+
+  document.getElementById('totalCustomers').textContent = customers.length;
+  document.getElementById('totalDeposits').textContent = formatCurrency(totalDeposits);
+  document.getElementById('activeAccounts').textContent = active;
+  document.getElementById('avgBalance').textContent = formatCurrency(avgBalance);
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = customers.filter(c =>
+    c.name.toLowerCase().includes(search) ||
+    c.customerId.toLowerCase().includes(search) ||
+    c.accounts.some(a => a.number.includes(search))
+  );
+
+  const grid = document.getElementById('accountsGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No accounts found</div>';
+    updateStats();
+    return;
+  }
+
+  const accountIcons = { checking: '💰', savings: '🏦', money_market: '📈', cd: '📀' };
+
+  grid.innerHTML = filtered.map(c => `
+    <div class="account-card">
+      <div class="account-header">
+        <div class="customer-info">
+          <div class="customer-avatar">${getInitials(c.name)}</div>
+          <div>
+            <div class="customer-details"><h4>${c.name}</h4></div>
+            <div class="customer-id">${c.customerId}</div>
+          </div>
+        </div>
+        <span class="account-status ${c.status}">${c.status}</span>
+      </div>
+      <div class="account-body">
+        <div class="accounts-list">
+          ${c.accounts.map(a => `
+            <div class="account-item">
+              <div class="account-type">
+                <span class="account-icon">${accountIcons[a.type] || '💳'}</span>
+                <div>
+                  <div style="font-weight:500">${a.type.replace('_', ' ')}</div>
+                  <div class="account-number">****${a.number.slice(-4)}</div>
+                </div>
+              </div>
+              <div class="account-balance">
+                <div class="balance-amount">$${a.balance.toLocaleString()}</div>
+                <div class="balance-label">Available</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="account-actions">
+        <button class="btn btn-primary" onclick="alert('View transactions')">📋 Transactions</button>
+        <button class="btn btn-secondary" onclick="alert('Account settings')">⚙️ Settings</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (customers.length === 0) {
+  customers = [
+    { id: '1', customerId: 'CUS-2024-0001', name: 'John Smith', status: 'active', accounts: [{type:'checking',number:'1234567890',balance:15420,status:'active'},{type:'savings',number:'0987654321',balance:48750,status:'active'}] },
+    { id: '2', customerId: 'CUS-2024-0015', name: 'Sarah Johnson', status: 'active', accounts: [{type:'checking',number:'1122334455',balance:8320,status:'active'},{type:'money_market',number:'5544332211',balance:125000,status:'active'}] },
+    { id: '3', customerId: 'CUS-2023-0089', name: 'Michael Williams', status: 'active', accounts: [{type:'checking',number:'9988776655',balance:2150,status:'active'},{type:'savings',number:'5566778899',balance:12400,status:'active'},{type:'cd',number:'1357924680',balance:50000,status:'active'}] },
+    { id: '4', customerId: 'CUS-2024-0042', name: 'Emily Brown', status: 'frozen', accounts: [{type:'checking',number:'2468013579',balance:340,status:'frozen'}] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

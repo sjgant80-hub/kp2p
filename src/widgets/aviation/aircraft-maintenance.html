@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aircraft Maintenance - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"aircraft-maintenance","name":"Aircraft Maintenance","icon":"🔩","desc":"Track aircraft maintenance and inspections","category":"aviation","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.aircraft-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px}
+.aircraft-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.aircraft-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.aircraft-id{display:flex;align-items:center;gap:10px;font-weight:600}
+.aircraft-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.aircraft-status.operational{background:#10b98133;color:#10b981}
+.aircraft-status.maintenance{background:#f59e0b33;color:#f59e0b}
+.aircraft-status.grounded{background:#ef444433;color:#ef4444}
+.aircraft-body{padding:20px}
+.aircraft-info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.info-item span{display:block;color:#888;font-size:.75rem}
+.maintenance-section{border-top:1px solid #333;padding-top:15px}
+.maintenance-section h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.maintenance-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #252525}
+.maintenance-item:last-child{border:none}
+.maintenance-name{display:flex;align-items:center;gap:8px}
+.due-date{font-size:.875rem}
+.due-date.overdue{color:#ef4444}
+.due-date.soon{color:#f59e0b}
+.due-date.ok{color:#10b981}
+.hours-remaining{padding:12px;background:#252525;border-radius:8px;margin-top:15px}
+.hours-bar{height:6px;background:#333;border-radius:3px;margin-top:8px}
+.hours-fill{height:100%;background:#10b981;border-radius:3px}
+.aircraft-actions{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔩 Aircraft Maintenance</h1>
+<button class="btn btn-primary" onclick="alert('Add aircraft feature')">+ Add Aircraft</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalAircraft">0</div><div class="stat-label">Fleet Size</div></div>
+<div class="stat"><div class="stat-value" id="operational">0</div><div class="stat-label">Operational</div></div>
+<div class="stat warning"><div class="stat-value" id="dueMaintenance">0</div><div class="stat-label">Due Maintenance</div></div>
+<div class="stat"><div class="stat-value" id="avgUtilization">0%</div><div class="stat-label">Avg Utilization</div></div>
+</div>
+
+<div class="aircraft-grid" id="aircraftGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_aircraft_maintenance';
+let aircraft = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(aircraft));
+}
+
+function getDaysUntil(dateStr) {
+  return Math.ceil((new Date(dateStr) - new Date()) / (1000*60*60*24));
+}
+
+function getDueDateClass(days) {
+  if (days < 0) return 'overdue';
+  if (days < 30) return 'soon';
+  return 'ok';
+}
+
+function updateStats() {
+  const operational = aircraft.filter(a => a.status === 'operational').length;
+  const dueMaint = aircraft.filter(a => a.maintenance.some(m => getDaysUntil(m.dueDate) < 30)).length;
+  const avgUtil = aircraft.length > 0 ? Math.round(aircraft.reduce((s, a) => s + (a.hoursFlown / a.maxHours) * 100, 0) / aircraft.length) : 0;
+
+  document.getElementById('totalAircraft').textContent = aircraft.length;
+  document.getElementById('operational').textContent = operational;
+  document.getElementById('dueMaintenance').textContent = dueMaint;
+  document.getElementById('avgUtilization').textContent = avgUtil + '%';
+}
+
+function render() {
+  const grid = document.getElementById('aircraftGrid');
+
+  if (aircraft.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No aircraft in fleet</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = aircraft.map(a => {
+    const utilization = Math.round((a.hoursFlown / a.maxHours) * 100);
+    const hoursRemaining = a.maxHours - a.hoursFlown;
+
+    return `
+      <div class="aircraft-card">
+        <div class="aircraft-header">
+          <div class="aircraft-id">✈️ ${a.registration}</div>
+          <span class="aircraft-status ${a.status}">${a.status}</span>
+        </div>
+        <div class="aircraft-body">
+          <div class="aircraft-info">
+            <div class="info-item"><span>Type</span>${a.type}</div>
+            <div class="info-item"><span>Hours Flown</span>${a.hoursFlown.toLocaleString()}</div>
+            <div class="info-item"><span>Cycles</span>${a.cycles.toLocaleString()}</div>
+            <div class="info-item"><span>Last Inspection</span>${new Date(a.lastInspection).toLocaleDateString()}</div>
+          </div>
+          <div class="hours-remaining">
+            <div style="display:flex;justify-content:space-between;font-size:.875rem">
+              <span>Hours to Next Service</span>
+              <span>${hoursRemaining.toLocaleString()} hrs</span>
+            </div>
+            <div class="hours-bar"><div class="hours-fill" style="width:${100 - utilization}%"></div></div>
+          </div>
+          <div class="maintenance-section">
+            <h4>Upcoming Maintenance</h4>
+            ${a.maintenance.map(m => {
+              const days = getDaysUntil(m.dueDate);
+              const cls = getDueDateClass(days);
+              return `
+                <div class="maintenance-item">
+                  <span class="maintenance-name">${m.icon} ${m.name}</span>
+                  <span class="due-date ${cls}">${days < 0 ? Math.abs(days) + 'd overdue' : days + ' days'}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        <div class="aircraft-actions">
+          <button class="btn btn-primary" onclick="logMaintenance('${a.id}')">📋 Log Service</button>
+          <button class="btn btn-secondary" onclick="toggleStatus('${a.id}')">${a.status === 'operational' ? '🛠️' : '✓'}</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function logMaintenance(id) {
+  const a = aircraft.find(x => x.id === id);
+  if (a) {
+    a.lastInspection = new Date().toISOString();
+    a.hoursFlown = 0;
+    a.maintenance.forEach(m => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 3);
+      m.dueDate = d.toISOString();
+    });
+    save();
+    render();
+  }
+}
+
+function toggleStatus(id) {
+  const a = aircraft.find(x => x.id === id);
+  if (a) {
+    a.status = a.status === 'operational' ? 'maintenance' : 'operational';
+    save();
+    render();
+  }
+}
+
+if (aircraft.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString(); };
+  aircraft = [
+    { id: '1', registration: 'N123KS', type: 'Boeing 737-800', status: 'operational', hoursFlown: 2450, maxHours: 5000, cycles: 1200, lastInspection: new Date(Date.now() - 30*24*60*60*1000).toISOString(), maintenance: [{icon:'🔧',name:'A-Check',dueDate:future(45)},{icon:'🔬',name:'Engine Inspection',dueDate:future(90)},{icon:'⚡',name:'Electrical Check',dueDate:future(20)}] },
+    { id: '2', registration: 'N456KS', type: 'Airbus A320', status: 'operational', hoursFlown: 4200, maxHours: 5000, cycles: 2100, lastInspection: new Date(Date.now() - 60*24*60*60*1000).toISOString(), maintenance: [{icon:'🔧',name:'A-Check',dueDate:future(15)},{icon:'🛞',name:'Landing Gear',dueDate:future(60)}] },
+    { id: '3', registration: 'N789KS', type: 'Boeing 777-300', status: 'maintenance', hoursFlown: 1800, maxHours: 5000, cycles: 600, lastInspection: new Date().toISOString(), maintenance: [{icon:'🔧',name:'C-Check',dueDate:future(-5)},{icon:'🔬',name:'Engine Overhaul',dueDate:future(180)}] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>
