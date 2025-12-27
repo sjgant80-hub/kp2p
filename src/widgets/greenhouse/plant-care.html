@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plant Care - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"plant-care","name":"Plant Care","icon":"🌱","desc":"Plant care schedules","category":"greenhouse","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.tasks-today{background:linear-gradient(135deg,#059669 0%,#047857 100%);border-radius:12px;padding:20px;margin-bottom:20px}
+.tasks-label{font-size:.75rem;opacity:.8;margin-bottom:10px}
+.tasks-list{display:flex;gap:15px;flex-wrap:wrap}
+.task-badge{background:rgba(255,255,255,.2);padding:8px 15px;border-radius:20px;font-size:.875rem}
+.plants{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.plant{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.plant-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.plant-name{font-size:1.125rem;font-weight:bold}
+.plant-species{font-size:.75rem;color:#059669}
+.plant-health{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.health-excellent{background:#05966933;color:#059669}
+.health-good{background:#0369a133;color:#0369a1}
+.health-fair{background:#eab30833;color:#eab308}
+.plant-location{font-size:.875rem;color:#888;margin-bottom:15px}
+.care-schedule{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.care-item{background:#252525;padding:10px;border-radius:6px}
+.care-task{font-size:.75rem;color:#888;margin-bottom:2px}
+.care-next{font-size:.875rem}
+.care-overdue{color:#dc2626}
+.plant-notes{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌱 Plant Care</h1><button class="btn">Add Plant</button></div>
+<div class="tasks-today">
+<div class="tasks-label">TODAY'S CARE TASKS</div>
+<div class="tasks-list">
+<span class="task-badge">💧 Water 12 plants</span>
+<span class="task-badge">✂️ Prune 3 plants</span>
+<span class="task-badge">🧪 Fertilize 5 plants</span>
+<span class="task-badge">🔄 Repot 2 plants</span>
+</div>
+</div>
+<div class="plants" id="plants"></div>
+<script>
+const plants=[
+{name:'Tomato Seedlings',species:'Solanum lycopersicum',health:'excellent',location:'Propagation House - Bench A',water:'Today',fertilize:'In 3 days',prune:'Weekly',repot:'In 2 weeks',notes:'Ready for transplant next week'},
+{name:'Orchid Collection',species:'Phalaenopsis spp.',health:'good',location:'Tropical Section - Hanging',water:'In 2 days',fertilize:'Weekly',prune:'As needed',repot:'Spring',notes:'Watch for scale insects'},
+{name:'Pepper Starts',species:'Capsicum annuum',health:'excellent',location:'Propagation House - Bench B',water:'Tomorrow',fertilize:'In 5 days',prune:'N/A',repot:'In 1 week',notes:'Harden off before transplant'},
+{name:'Ficus Trees',species:'Ficus benjamina',health:'fair',location:'Main Area - South Wall',water:'Overdue',fertilize:'Today',prune:'In 1 week',repot:'N/A',notes:'Dropping leaves - check for stress'},
+{name:'Herb Garden',species:'Mixed herbs',health:'excellent',location:'Main Area - Center Bench',water:'Today',fertilize:'In 1 week',prune:'Harvest regularly',repot:'N/A',notes:'Basil bolting - pinch flowers'},
+{name:'Succulents',species:'Mixed succulents',health:'good',location:'Cool Storage - Shelf',water:'In 5 days',fertilize:'Monthly',prune:'N/A',repot:'As needed',notes:'Propagating new cuttings'}
+];
+document.getElementById('plants').innerHTML=plants.map(p=>`
+<div class="plant">
+<div class="plant-header">
+<div>
+<div class="plant-name">${p.name}</div>
+<div class="plant-species">${p.species}</div>
+</div>
+<span class="plant-health health-${p.health}">${p.health.toUpperCase()}</span>
+</div>
+<div class="plant-location">📍 ${p.location}</div>
+<div class="care-schedule">
+<div class="care-item"><div class="care-task">💧 WATER</div><div class="care-next ${p.water==='Overdue'?'care-overdue':''}">${p.water}</div></div>
+<div class="care-item"><div class="care-task">🧪 FERTILIZE</div><div class="care-next">${p.fertilize}</div></div>
+<div class="care-item"><div class="care-task">✂️ PRUNE</div><div class="care-next">${p.prune}</div></div>
+<div class="care-item"><div class="care-task">🔄 REPOT</div><div class="care-next">${p.repot}</div></div>
+</div>
+<div class="plant-notes">📝 ${p.notes}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

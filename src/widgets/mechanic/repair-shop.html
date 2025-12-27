@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repair Shop - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"repair-shop","name":"Repair Shop","icon":"🔧","desc":"Auto repair management","category":"mechanic","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#dc2626}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.bays{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.bay{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.bay.active{background:#dc2626;border-color:#dc2626}
+.jobs{display:flex;flex-direction:column;gap:15px}
+.job{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.job-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.job-vehicle{font-size:1.125rem;font-weight:bold}
+.job-customer{font-size:.75rem;color:#dc2626}
+.job-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-inprogress{background:#eab30833;color:#eab308}
+.status-waiting{background:#0369a133;color:#0369a1}
+.status-complete{background:#15803d33;color:#15803d}
+.job-info{font-size:.875rem;color:#888;margin-bottom:15px}
+.job-services{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.service{padding:4px 10px;background:#252525;border-radius:4px;font-size:.75rem}
+.job-footer{display:flex;justify-content:space-between;align-items:center}
+.job-estimate{font-size:1rem;font-weight:bold}
+.job-tech{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔧 Repair Shop</h1><button class="btn">New Work Order</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">ACTIVE JOBS</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">WAITING PARTS</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">COMPLETED TODAY</div></div>
+<div class="stat"><div class="stat-value">$4,250</div><div class="stat-label">TODAY'S REVENUE</div></div>
+</div>
+<div class="bays">
+<button class="bay active">All Bays</button>
+<button class="bay">Bay 1</button>
+<button class="bay">Bay 2</button>
+<button class="bay">Bay 3</button>
+<button class="bay">Bay 4</button>
+<button class="bay">Waiting</button>
+</div>
+<div class="jobs" id="jobs"></div>
+<script>
+const jobs=[
+{vehicle:'2019 Honda Accord',customer:'John Smith',status:'inprogress',bay:'Bay 1',services:['Oil Change','Brake Inspection','Tire Rotation'],estimate:'$185',tech:'Mike T.',dropoff:'8:00 AM',promise:'11:00 AM'},
+{vehicle:'2021 Ford F-150',customer:'Sarah Johnson',status:'inprogress',bay:'Bay 2',services:['Transmission Service','Filter Replace'],estimate:'$450',tech:'Dave R.',dropoff:'7:30 AM',promise:'2:00 PM'},
+{vehicle:'2018 Toyota Camry',customer:'Bob Wilson',status:'waiting',bay:'Parts',services:['A/C Compressor','Recharge System'],estimate:'$875',tech:'Pending',dropoff:'Yesterday',promise:'Tomorrow'},
+{vehicle:'2020 Chevy Silverado',customer:'Mike Davis',status:'inprogress',bay:'Bay 3',services:['Engine Diagnostic','Check Engine Light'],estimate:'$125+',tech:'Tom S.',dropoff:'9:00 AM',promise:'12:00 PM'},
+{vehicle:'2017 BMW 328i',customer:'Lisa Brown',status:'complete',bay:'Done',services:['Brake Pads','Rotors','Fluid Flush'],estimate:'$685',tech:'Dave R.',dropoff:'Yesterday',promise:'Ready'}
+];
+document.getElementById('jobs').innerHTML=jobs.map(j=>`
+<div class="job">
+<div class="job-header">
+<div>
+<div class="job-vehicle">${j.vehicle}</div>
+<div class="job-customer">👤 ${j.customer}</div>
+</div>
+<span class="job-status status-${j.status}">${j.status==='inprogress'?'IN PROGRESS':j.status.toUpperCase()}</span>
+</div>
+<div class="job-info">📍 ${j.bay} • Drop-off: ${j.dropoff} • Promise: ${j.promise}</div>
+<div class="job-services">${j.services.map(s=>`<span class="service">${s}</span>`).join('')}</div>
+<div class="job-footer">
+<span class="job-estimate">${j.estimate}</span>
+<span class="job-tech">🔧 ${j.tech}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

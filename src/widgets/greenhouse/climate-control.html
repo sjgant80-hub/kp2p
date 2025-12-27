@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Climate Control - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"climate-control","name":"Climate Control","icon":"🌡️","desc":"Greenhouse environment","category":"greenhouse","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.current{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.reading{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.reading-icon{font-size:2rem;margin-bottom:10px}
+.reading-value{font-size:1.75rem;font-weight:bold}
+.reading-label{font-size:.75rem;color:#888;margin-top:5px}
+.reading-status{font-size:.7rem;margin-top:5px;padding:2px 8px;border-radius:4px;display:inline-block}
+.status-optimal{background:#05966933;color:#059669}
+.status-warning{background:#eab30833;color:#eab308}
+.status-alert{background:#dc262633;color:#dc2626}
+.zones{display:flex;flex-direction:column;gap:15px}
+.zone{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.zone-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.zone-name{font-size:1.125rem;font-weight:bold}
+.zone-type{font-size:.75rem;color:#059669}
+.zone-controls{display:flex;gap:10px}
+.control{padding:6px 12px;border-radius:4px;font-size:.75rem;cursor:pointer;border:none}
+.control-on{background:#059669;color:#fff}
+.control-off{background:#333;color:#888}
+.zone-readings{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.zone-reading{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.zone-reading-value{font-size:1rem;font-weight:bold}
+.zone-reading-label{font-size:.65rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌡️ Climate Control</h1><button class="btn">Settings</button></div>
+<div class="current">
+<div class="reading"><div class="reading-icon">🌡️</div><div class="reading-value">72°F</div><div class="reading-label">AVG TEMPERATURE</div><span class="reading-status status-optimal">OPTIMAL</span></div>
+<div class="reading"><div class="reading-icon">💧</div><div class="reading-value">65%</div><div class="reading-label">HUMIDITY</div><span class="reading-status status-optimal">OPTIMAL</span></div>
+<div class="reading"><div class="reading-icon">☀️</div><div class="reading-value">850</div><div class="reading-label">LIGHT (PAR)</div><span class="reading-status status-optimal">OPTIMAL</span></div>
+<div class="reading"><div class="reading-icon">💨</div><div class="reading-value">420</div><div class="reading-label">CO2 (PPM)</div><span class="reading-status status-warning">LOW</span></div>
+</div>
+<div class="zones" id="zones"></div>
+<script>
+const zones=[
+{name:'Propagation House',type:'SEEDLINGS',temp:75,humidity:80,light:600,co2:450,heating:true,cooling:false,vents:false,irrigation:true},
+{name:'Main Growing Area',type:'VEGETABLES',temp:72,humidity:65,light:900,co2:400,heating:false,cooling:true,vents:true,irrigation:true},
+{name:'Tropical Section',type:'ORNAMENTALS',temp:78,humidity:75,light:700,co2:420,heating:true,cooling:false,vents:false,irrigation:true},
+{name:'Cool Storage',type:'OVERWINTERING',temp:45,humidity:50,light:200,co2:380,heating:false,cooling:true,vents:false,irrigation:false}
+];
+document.getElementById('zones').innerHTML=zones.map(z=>`
+<div class="zone">
+<div class="zone-header">
+<div>
+<div class="zone-name">${z.name}</div>
+<div class="zone-type">${z.type}</div>
+</div>
+<div class="zone-controls">
+<button class="control ${z.heating?'control-on':'control-off'}">🔥 Heat</button>
+<button class="control ${z.cooling?'control-on':'control-off'}">❄️ Cool</button>
+<button class="control ${z.vents?'control-on':'control-off'}">💨 Vents</button>
+<button class="control ${z.irrigation?'control-on':'control-off'}">💧 Water</button>
+</div>
+</div>
+<div class="zone-readings">
+<div class="zone-reading"><div class="zone-reading-value">${z.temp}°F</div><div class="zone-reading-label">TEMP</div></div>
+<div class="zone-reading"><div class="zone-reading-value">${z.humidity}%</div><div class="zone-reading-label">HUMIDITY</div></div>
+<div class="zone-reading"><div class="zone-reading-value">${z.light}</div><div class="zone-reading-label">LIGHT</div></div>
+<div class="zone-reading"><div class="zone-reading-value">${z.co2}</div><div class="zone-reading-label">CO2</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

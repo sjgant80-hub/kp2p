@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trail Conditions - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"trail-conditions","name":"Trail Conditions","icon":"❄️","desc":"Snow trail status","category":"snowmobile","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.weather{background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);border-radius:12px;padding:25px;margin-bottom:20px}
+.weather-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.weather-temp{font-size:2.5rem;font-weight:bold}
+.weather-desc{font-size:1rem;opacity:.9}
+.weather-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}
+.weather-item{background:rgba(255,255,255,.1);padding:12px;border-radius:8px;text-align:center}
+.weather-value{font-size:1.125rem;font-weight:bold}
+.weather-label{font-size:.7rem;opacity:.8}
+.trails{display:flex;flex-direction:column;gap:15px}
+.trail{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.trail-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.trail-name{font-size:1.125rem;font-weight:bold}
+.trail-updated{font-size:.75rem;color:#888}
+.trail-condition{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.condition-excellent{background:#15803d33;color:#15803d}
+.condition-good{background:#0ea5e933;color:#0ea5e9}
+.condition-fair{background:#eab30833;color:#eab308}
+.condition-poor{background:#dc262633;color:#dc2626}
+.trail-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:15px}
+.trail-stat{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.trail-stat-value{font-size:.9rem;font-weight:bold}
+.trail-stat-label{font-size:.6rem;color:#888}
+.trail-notes{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>❄️ Trail Conditions</h1><button class="btn">Full Report</button></div>
+<div class="weather">
+<div class="weather-header">
+<div>
+<div class="weather-temp">18°F</div>
+<div class="weather-desc">Partly Cloudy • Light Snow Tonight</div>
+</div>
+<span>Updated: Today 7:00 AM</span>
+</div>
+<div class="weather-grid">
+<div class="weather-item"><div class="weather-value">24"</div><div class="weather-label">SNOW BASE</div></div>
+<div class="weather-item"><div class="weather-value">4-6"</div><div class="weather-label">EXPECTED</div></div>
+<div class="weather-item"><div class="weather-value">5 mph</div><div class="weather-label">WIND</div></div>
+<div class="weather-item"><div class="weather-value">Good</div><div class="weather-label">VISIBILITY</div></div>
+</div>
+</div>
+<div class="trails" id="trails"></div>
+<script>
+const trails=[
+{name:'North Ridge Corridor',condition:'excellent',updated:'6:30 AM',length:'28 mi',base:'26"',groomed:'Last Night',traffic:'Moderate',open:true,notes:'Freshly groomed, perfect corduroy. Best conditions of the season!'},
+{name:'Valley Loop',condition:'good',updated:'6:30 AM',length:'15 mi',base:'22"',groomed:'Yesterday',traffic:'Light',open:true,notes:'Good overall. Some windblown sections near mile marker 8.'},
+{name:'Mountain Climb',condition:'good',updated:'6:00 AM',length:'12 mi',base:'30"',groomed:'2 Days Ago',traffic:'Light',open:true,notes:'Deep powder in open areas. Experienced riders recommended.'},
+{name:'Lake Crossing',condition:'excellent',updated:'7:00 AM',length:'8 mi',base:'24"',groomed:'Last Night',traffic:'Heavy',open:true,notes:'Ice thickness verified at 18". Connects to state trail system.'},
+{name:'Back Country Access',condition:'fair',updated:'Yesterday',length:'20 mi',base:'18"',groomed:'Not Groomed',traffic:'Very Light',open:true,notes:'Ungroomed wilderness trail. Watch for exposed rocks and stumps.'},
+{name:'South Connector',condition:'poor',updated:'Today',length:'5 mi',base:'12"',groomed:'N/A',traffic:'Closed',open:false,notes:'CLOSED: Insufficient snow cover. Awaiting accumulation.'}
+];
+document.getElementById('trails').innerHTML=trails.map(t=>`
+<div class="trail">
+<div class="trail-header">
+<div>
+<div class="trail-name">${t.name}</div>
+<div class="trail-updated">Updated: ${t.updated}</div>
+</div>
+<span class="trail-condition condition-${t.condition}">${t.condition.toUpperCase()}</span>
+</div>
+<div class="trail-stats">
+<div class="trail-stat"><div class="trail-stat-value">${t.length}</div><div class="trail-stat-label">LENGTH</div></div>
+<div class="trail-stat"><div class="trail-stat-value">${t.base}</div><div class="trail-stat-label">SNOW BASE</div></div>
+<div class="trail-stat"><div class="trail-stat-value">${t.groomed}</div><div class="trail-stat-label">GROOMED</div></div>
+<div class="trail-stat"><div class="trail-stat-value">${t.traffic}</div><div class="trail-stat-label">TRAFFIC</div></div>
+<div class="trail-stat"><div class="trail-stat-value">${t.open?'✅ Open':'🚫 Closed'}</div><div class="trail-stat-label">STATUS</div></div>
+</div>
+<div class="trail-notes">📝 ${t.notes}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

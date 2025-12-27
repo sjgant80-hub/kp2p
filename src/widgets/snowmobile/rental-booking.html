@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Snowmobile Rental - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"rental-booking","name":"Rental Booking","icon":"🛷","desc":"Snowmobile rentals","category":"snowmobile","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.bookings{display:flex;flex-direction:column;gap:15px}
+.booking{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.booking-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.booking-customer{font-size:1.125rem;font-weight:bold}
+.booking-id{font-size:.75rem;color:#0ea5e9}
+.booking-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-confirmed{background:#15803d33;color:#15803d}
+.status-active{background:#0ea5e933;color:#0ea5e9}
+.status-pending{background:#eab30833;color:#eab308}
+.booking-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+.booking-machines{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.machine{padding:6px 12px;background:#0ea5e922;border:1px solid #0ea5e9;border-radius:4px;font-size:.75rem}
+.booking-footer{display:flex;justify-content:space-between;align-items:center}
+.booking-total{font-size:1.125rem;font-weight:bold;color:#0ea5e9}
+.booking-actions{display:flex;gap:8px}
+.action-btn{padding:6px 12px;border-radius:4px;font-size:.75rem;cursor:pointer;border:none}
+.action-primary{background:#0ea5e9;color:#fff}
+.action-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛷 Rentals</h1><button class="btn">New Booking</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">TODAY'S BOOKINGS</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">ACTIVE NOW</div></div>
+<div class="stat"><div class="stat-value">15</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">$4,850</div><div class="stat-label">TODAY'S REVENUE</div></div>
+</div>
+<div class="bookings" id="bookings"></div>
+<script>
+const bookings=[
+{customer:'Johnson Family',id:'SNO-2024-0127',status:'active',date:'Today',time:'9:00 AM - 1:00 PM',duration:'4 hours',riders:4,machines:['Arctic Cat ZR 6000','Arctic Cat ZR 6000','Polaris Indy 550','Ski-Doo MXZ 600'],gear:['4 Helmets','4 Suits'],total:'$780'},
+{customer:'Mike Thompson',id:'SNO-2024-0128',status:'confirmed',date:'Today',time:'2:00 PM - 5:00 PM',duration:'3 hours',riders:2,machines:['Ski-Doo Summit 850','Polaris RMK 800'],gear:['2 Helmets'],total:'$495'},
+{customer:'Adventure Tours Inc',id:'SNO-2024-0129',status:'active',date:'Today',time:'8:00 AM - 4:00 PM',duration:'8 hours',riders:8,machines:['8x Guided Tour Package'],gear:['Full Package','Guide Included'],total:'$2,400'},
+{customer:'Sarah Williams',id:'SNO-2024-0130',status:'pending',date:'Tomorrow',time:'10:00 AM - 2:00 PM',duration:'4 hours',riders:1,machines:['Yamaha Sidewinder'],gear:['1 Helmet','1 Suit'],total:'$295'},
+{customer:'Corporate Retreat',id:'SNO-2024-0131',status:'confirmed',date:'Jan 28',time:'9:00 AM - 3:00 PM',duration:'6 hours',riders:12,machines:['12x Group Package'],gear:['Full Package','2 Guides'],total:'$3,600'}
+];
+document.getElementById('bookings').innerHTML=bookings.map(b=>`
+<div class="booking">
+<div class="booking-header">
+<div>
+<div class="booking-customer">${b.customer}</div>
+<div class="booking-id">${b.id}</div>
+</div>
+<span class="booking-status status-${b.status}">${b.status.toUpperCase()}</span>
+</div>
+<div class="booking-details">
+<div class="detail"><div class="detail-label">DATE</div><div class="detail-value">${b.date}</div></div>
+<div class="detail"><div class="detail-label">TIME</div><div class="detail-value">${b.time}</div></div>
+<div class="detail"><div class="detail-label">DURATION</div><div class="detail-value">${b.duration}</div></div>
+<div class="detail"><div class="detail-label">RIDERS</div><div class="detail-value">${b.riders}</div></div>
+</div>
+<div class="booking-machines">${b.machines.map(m=>`<span class="machine">🛷 ${m}</span>`).join('')}</div>
+<div class="booking-footer">
+<span class="booking-total">${b.total}</span>
+<div class="booking-actions">
+<button class="action-btn action-secondary">Details</button>
+<button class="action-btn action-primary">Check In</button>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATV Rental Fleet - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"rental-fleet","name":"Rental Fleet","icon":"🏍️","desc":"ATV fleet management","category":"atv","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ca8a04;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#ca8a04}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#ca8a04;border-color:#ca8a04}
+.fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.vehicle{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.vehicle-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.vehicle-name{font-size:1.125rem;font-weight:bold}
+.vehicle-id{font-size:.75rem;color:#ca8a04}
+.vehicle-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-rented{background:#0369a133;color:#0369a1}
+.status-maintenance{background:#dc262633;color:#dc2626}
+.vehicle-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.spec{background:#252525;padding:10px;border-radius:6px}
+.spec-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.spec-value{font-size:.875rem}
+.vehicle-footer{display:flex;justify-content:space-between;align-items:center;font-size:.875rem}
+.vehicle-rate{font-weight:bold;color:#ca8a04}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏍️ ATV Fleet</h1><button class="btn">Add Vehicle</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">TOTAL FLEET</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">RENTED</div></div>
+<div class="stat"><div class="stat-value">1</div><div class="stat-label">MAINTENANCE</div></div>
+</div>
+<div class="filters">
+<button class="filter active">All Vehicles</button>
+<button class="filter">Available</button>
+<button class="filter">Youth</button>
+<button class="filter">Adult</button>
+<button class="filter">Side-by-Side</button>
+</div>
+<div class="fleet" id="fleet"></div>
+<script>
+const fleet=[
+{name:'Polaris Sportsman 450',id:'ATV-001',status:'available',type:'Adult',engine:'450cc',seats:1,hours:245,lastService:'Jan 15',rate:'$95/hr'},
+{name:'Honda Rancher 420',id:'ATV-002',status:'rented',type:'Adult',engine:'420cc',seats:1,hours:312,lastService:'Jan 10',rate:'$85/hr'},
+{name:'Can-Am Outlander 570',id:'ATV-003',status:'available',type:'Adult',engine:'570cc',seats:1,hours:189,lastService:'Jan 20',rate:'$105/hr'},
+{name:'Polaris RZR 1000',id:'SXS-001',status:'rented',type:'Side-by-Side',engine:'1000cc',seats:2,hours:156,lastService:'Jan 18',rate:'$175/hr'},
+{name:'Honda TRX90X',id:'ATV-010',status:'available',type:'Youth',engine:'90cc',seats:1,hours:98,lastService:'Jan 12',rate:'$45/hr'},
+{name:'Yamaha Kodiak 450',id:'ATV-004',status:'maintenance',type:'Adult',engine:'450cc',seats:1,hours:423,lastService:'Today',rate:'$90/hr'}
+];
+document.getElementById('fleet').innerHTML=fleet.map(v=>`
+<div class="vehicle">
+<div class="vehicle-header">
+<div>
+<div class="vehicle-name">${v.name}</div>
+<div class="vehicle-id">${v.id}</div>
+</div>
+<span class="vehicle-status status-${v.status}">${v.status.toUpperCase()}</span>
+</div>
+<div class="vehicle-specs">
+<div class="spec"><div class="spec-label">TYPE</div><div class="spec-value">${v.type}</div></div>
+<div class="spec"><div class="spec-label">ENGINE</div><div class="spec-value">${v.engine}</div></div>
+<div class="spec"><div class="spec-label">HOURS</div><div class="spec-value">${v.hours}</div></div>
+<div class="spec"><div class="spec-label">LAST SERVICE</div><div class="spec-value">${v.lastService}</div></div>
+</div>
+<div class="vehicle-footer">
+<span>🪑 ${v.seats} seat${v.seats>1?'s':''}</span>
+<span class="vehicle-rate">${v.rate}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

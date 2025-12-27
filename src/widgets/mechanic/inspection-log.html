@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inspection Log - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"inspection-log","name":"Inspection Log","icon":"📋","desc":"Vehicle inspections","category":"mechanic","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.summary-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.summary-value{font-size:1.75rem;font-weight:bold}
+.summary-label{font-size:.75rem;color:#888;margin-top:5px}
+.pass{color:#15803d}
+.fail{color:#dc2626}
+.pending{color:#eab308}
+.inspections{display:flex;flex-direction:column;gap:15px}
+.inspection{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.inspection-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.inspection-vehicle{font-size:1.125rem;font-weight:bold}
+.inspection-type{font-size:.75rem;color:#dc2626}
+.inspection-result{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.result-pass{background:#15803d33;color:#15803d}
+.result-fail{background:#dc262633;color:#dc2626}
+.result-pending{background:#eab30833;color:#eab308}
+.inspection-meta{font-size:.875rem;color:#888;margin-bottom:15px}
+.checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:15px}
+.check-item{background:#252525;padding:10px;border-radius:6px;display:flex;align-items:center;gap:8px;font-size:.875rem}
+.inspection-notes{font-size:.75rem;color:#888;font-style:italic}
+</style>
+</head>
+<body>
+<div class="header"><h1>📋 Inspection Log</h1><button class="btn">New Inspection</button></div>
+<div class="summary">
+<div class="summary-card"><div class="summary-value pass">42</div><div class="summary-label">PASSED</div></div>
+<div class="summary-card"><div class="summary-value fail">8</div><div class="summary-label">FAILED</div></div>
+<div class="summary-card"><div class="summary-value pending">3</div><div class="summary-label">PENDING</div></div>
+<div class="summary-card"><div class="summary-value">53</div><div class="summary-label">THIS MONTH</div></div>
+</div>
+<div class="inspections" id="inspections"></div>
+<script>
+const inspections=[
+{vehicle:'2019 Honda Civic',type:'STATE INSPECTION',result:'pass',date:'Today 10:30 AM',tech:'Mike T.',mileage:'45,230',checks:[{item:'Brakes',ok:true},{item:'Lights',ok:true},{item:'Tires',ok:true},{item:'Emissions',ok:true},{item:'Wipers',ok:true},{item:'Horn',ok:true}],notes:'All systems within spec. Good for 1 year.'},
+{vehicle:'2017 Chevy Malibu',type:'STATE INSPECTION',result:'fail',date:'Today 9:15 AM',tech:'Dave R.',mileage:'78,450',checks:[{item:'Brakes',ok:true},{item:'Lights',ok:false},{item:'Tires',ok:true},{item:'Emissions',ok:true},{item:'Wipers',ok:false},{item:'Horn',ok:true}],notes:'Failed: Left brake light out, wiper blades torn. Customer declined repairs.'},
+{vehicle:'2021 Toyota RAV4',type:'PRE-PURCHASE',result:'pass',date:'Yesterday',tech:'Tom S.',mileage:'28,100',checks:[{item:'Engine',ok:true},{item:'Trans',ok:true},{item:'Suspension',ok:true},{item:'Body',ok:true},{item:'Interior',ok:true},{item:'History',ok:true}],notes:'Clean CarFax, no accidents. Recommend purchase.'},
+{vehicle:'2018 Ford Explorer',type:'STATE INSPECTION',result:'pending',date:'In Progress',tech:'Mike T.',mileage:'62,300',checks:[{item:'Brakes',ok:true},{item:'Lights',ok:true},{item:'Tires',ok:true},{item:'Emissions',ok:null},{item:'Wipers',ok:true},{item:'Horn',ok:true}],notes:'Waiting for emissions test results.'}
+];
+document.getElementById('inspections').innerHTML=inspections.map(i=>`
+<div class="inspection">
+<div class="inspection-header">
+<div>
+<div class="inspection-vehicle">${i.vehicle}</div>
+<div class="inspection-type">${i.type}</div>
+</div>
+<span class="inspection-result result-${i.result}">${i.result.toUpperCase()}</span>
+</div>
+<div class="inspection-meta">📅 ${i.date} • 🔧 ${i.tech} • 📍 ${i.mileage} mi</div>
+<div class="checklist">${i.checks.map(c=>`<div class="check-item">${c.ok===true?'✅':c.ok===false?'❌':'⏳'} ${c.item}</div>`).join('')}</div>
+<div class="inspection-notes">📝 ${i.notes}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -820,6 +820,26 @@ const categoryMap = {
   // Monastery
   'retreat-booking': { category: 'monastery', subcategory: 'retreats', badge: 'ENT' },
   'guest-rooms': { category: 'monastery', subcategory: 'accommodations', badge: 'ENT' },
+
+  // Farm
+  'crop-planner': { category: 'farm', subcategory: 'planning', badge: 'ENT' },
+  'harvest-tracker': { category: 'farm', subcategory: 'harvesting', badge: 'ENT' },
+
+  // Greenhouse
+  'climate-control': { category: 'greenhouse', subcategory: 'environment', badge: 'ENT' },
+  'plant-care': { category: 'greenhouse', subcategory: 'plants', badge: 'ENT' },
+
+  // Mechanic
+  'repair-shop': { category: 'mechanic', subcategory: 'repairs', badge: 'ENT' },
+  'inspection-log': { category: 'mechanic', subcategory: 'inspections', badge: 'ENT' },
+
+  // ATV
+  'atv-rental-fleet': { category: 'atv', subcategory: 'rentals', badge: 'ENT' },
+  'trail-guide': { category: 'atv', subcategory: 'trails', badge: 'ENT' },
+
+  // Snowmobile
+  'snowmobile-rental': { category: 'snowmobile', subcategory: 'rentals', badge: 'ENT' },
+  'trail-conditions': { category: 'snowmobile', subcategory: 'conditions', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1126,7 +1146,12 @@ const widgetDirs = [
   'mosque',
   'synagogue',
   'temple',
-  'monastery'
+  'monastery',
+  'farm',
+  'greenhouse',
+  'mechanic',
+  'atv',
+  'snowmobile'
 ];
 
 // Process all widgets in all directories

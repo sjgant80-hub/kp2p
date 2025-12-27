@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harvest Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"harvest-tracker","name":"Harvest Tracker","icon":"🚜","desc":"Track harvest progress","category":"farm","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#15803d;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.progress-card{background:linear-gradient(135deg,#15803d 0%,#166534 100%);border-radius:12px;padding:25px;margin-bottom:20px}
+.progress-label{font-size:.875rem;opacity:.8;margin-bottom:10px}
+.progress-bar{background:rgba(255,255,255,.2);border-radius:10px;height:20px;overflow:hidden;margin-bottom:10px}
+.progress-fill{background:#fff;height:100%;border-radius:10px;transition:width .3s}
+.progress-stats{display:flex;justify-content:space-between;font-size:.875rem}
+.harvests{display:flex;flex-direction:column;gap:15px}
+.harvest{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.harvest-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.harvest-crop{font-size:1.125rem;font-weight:bold}
+.harvest-field{font-size:.75rem;color:#15803d}
+.harvest-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-complete{background:#15803d33;color:#15803d}
+.status-inprogress{background:#eab30833;color:#eab308}
+.status-pending{background:#64748b33;color:#64748b}
+.harvest-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+.metric{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.metric-value{font-size:1rem;font-weight:bold}
+.metric-label{font-size:.65rem;color:#888;margin-top:2px}
+.harvest-notes{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚜 Harvest Tracker</h1><button class="btn">Log Harvest</button></div>
+<div class="progress-card">
+<div class="progress-label">SEASON HARVEST PROGRESS</div>
+<div class="progress-bar"><div class="progress-fill" style="width:68%"></div></div>
+<div class="progress-stats"><span>68% Complete</span><span>32 of 48 acres harvested</span></div>
+</div>
+<div class="harvests" id="harvests"></div>
+<script>
+const harvests=[
+{crop:'Sweet Corn',field:'North 40',status:'complete',acres:12,harvested:12,yield:'1,840 bu',quality:'Grade A',date:'Jul 22',notes:'Excellent moisture levels, stored in Bin 3'},
+{crop:'Wheat',field:'East Meadow',status:'complete',acres:8,harvested:8,yield:'445 bu',quality:'Grade A',date:'Jul 1',notes:'Sold to Miller Co-op at $7.25/bu'},
+{crop:'Tomatoes',field:'Garden Plot',status:'inprogress',acres:2,harvested:1.5,yield:'38 tons',quality:'Mixed',date:'Ongoing',notes:'Peak harvest, selling at farmers market'},
+{crop:'Soybeans',field:'South Field',status:'pending',acres:20,harvested:0,yield:'--',quality:'--',date:'Oct 15',notes:'Monitor moisture, target 13%'},
+{crop:'Pumpkins',field:'West Patch',status:'pending',acres:4,harvested:0,yield:'--',quality:'--',date:'Oct 1',notes:'Festival pre-orders at 80%'}
+];
+document.getElementById('harvests').innerHTML=harvests.map(h=>`
+<div class="harvest">
+<div class="harvest-header">
+<div>
+<div class="harvest-crop">${h.crop}</div>
+<div class="harvest-field">📍 ${h.field}</div>
+</div>
+<span class="harvest-status status-${h.status}">${h.status==='inprogress'?'IN PROGRESS':h.status.toUpperCase()}</span>
+</div>
+<div class="harvest-metrics">
+<div class="metric"><div class="metric-value">${h.harvested}/${h.acres}</div><div class="metric-label">ACRES</div></div>
+<div class="metric"><div class="metric-value">${h.yield}</div><div class="metric-label">YIELD</div></div>
+<div class="metric"><div class="metric-value">${h.quality}</div><div class="metric-label">QUALITY</div></div>
+<div class="metric"><div class="metric-value">${h.date}</div><div class="metric-label">DATE</div></div>
+</div>
+<div class="harvest-notes">📝 ${h.notes}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

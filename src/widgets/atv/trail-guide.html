@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trail Guide - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"trail-guide","name":"Trail Guide","icon":"🗺️","desc":"ATV trail information","category":"atv","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ca8a04;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.conditions{background:linear-gradient(135deg,#ca8a04 0%,#a16207 100%);border-radius:12px;padding:20px;margin-bottom:20px}
+.conditions-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.conditions-title{font-size:1rem;font-weight:bold}
+.conditions-date{font-size:.75rem;opacity:.8}
+.conditions-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;text-align:center}
+.condition{background:rgba(255,255,255,.1);padding:10px;border-radius:8px}
+.condition-value{font-size:1.25rem;font-weight:bold}
+.condition-label{font-size:.7rem;opacity:.8}
+.difficulty{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.diff{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.diff.active{background:#ca8a04;border-color:#ca8a04}
+.trails{display:flex;flex-direction:column;gap:15px}
+.trail{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.trail-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.trail-name{font-size:1.125rem;font-weight:bold}
+.trail-status{font-size:.75rem}
+.status-open{color:#15803d}
+.status-closed{color:#dc2626}
+.trail-difficulty{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.diff-easy{background:#15803d33;color:#15803d}
+.diff-moderate{background:#ca8a0433;color:#ca8a04}
+.diff-difficult{background:#dc262633;color:#dc2626}
+.trail-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+.trail-stat{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.trail-stat-value{font-size:1rem;font-weight:bold}
+.trail-stat-label{font-size:.65rem;color:#888}
+.trail-desc{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🗺️ Trail Guide</h1><button class="btn">Trail Map</button></div>
+<div class="conditions">
+<div class="conditions-header">
+<span class="conditions-title">CURRENT CONDITIONS</span>
+<span class="conditions-date">Updated: Today 8:00 AM</span>
+</div>
+<div class="conditions-grid">
+<div class="condition"><div class="condition-value">72°F</div><div class="condition-label">TEMPERATURE</div></div>
+<div class="condition"><div class="condition-value">Dry</div><div class="condition-label">TRAIL STATUS</div></div>
+<div class="condition"><div class="condition-value">Good</div><div class="condition-label">VISIBILITY</div></div>
+<div class="condition"><div class="condition-value">5/6</div><div class="condition-label">TRAILS OPEN</div></div>
+</div>
+</div>
+<div class="difficulty">
+<button class="diff active">All Trails</button>
+<button class="diff">Easy</button>
+<button class="diff">Moderate</button>
+<button class="diff">Difficult</button>
+</div>
+<div class="trails" id="trails"></div>
+<script>
+const trails=[
+{name:'Pine Ridge Loop',status:'open',difficulty:'easy',distance:'5.2 mi',duration:'45 min',elevation:'200 ft',terrain:'Forest',desc:'Scenic beginner trail through pine forest. Wide paths, gentle grades. Great for families.'},
+{name:'Canyon Run',status:'open',difficulty:'moderate',distance:'8.7 mi',duration:'1.5 hr',elevation:'650 ft',terrain:'Canyon',desc:'Intermediate trail with canyon views. Some rocky sections and moderate climbs.'},
+{name:'Summit Trail',status:'open',difficulty:'difficult',distance:'12.3 mi',duration:'3 hr',elevation:'1,800 ft',terrain:'Mountain',desc:'Advanced trail to mountain summit. Technical sections, steep grades. Experienced riders only.'},
+{name:'Desert Wash',status:'open',difficulty:'moderate',distance:'6.5 mi',duration:'1 hr',elevation:'150 ft',terrain:'Desert',desc:'Sandy wash trail with occasional rocks. Watch for soft sand sections.'},
+{name:'Creek Crossing',status:'closed',difficulty:'moderate',distance:'4.8 mi',duration:'40 min',elevation:'100 ft',terrain:'Wetland',desc:'CLOSED: Water levels high from recent rain. Expected to reopen in 2-3 days.'},
+{name:'Meadow Path',status:'open',difficulty:'easy',distance:'3.2 mi',duration:'30 min',elevation:'50 ft',terrain:'Meadow',desc:'Easy flat trail through open meadow. Perfect for beginners and youth riders.'}
+];
+document.getElementById('trails').innerHTML=trails.map(t=>`
+<div class="trail">
+<div class="trail-header">
+<div>
+<div class="trail-name">${t.name}</div>
+<div class="trail-status status-${t.status}">${t.status==='open'?'✅ OPEN':'🚫 CLOSED'}</div>
+</div>
+<span class="trail-difficulty diff-${t.difficulty}">${t.difficulty.toUpperCase()}</span>
+</div>
+<div class="trail-stats">
+<div class="trail-stat"><div class="trail-stat-value">${t.distance}</div><div class="trail-stat-label">DISTANCE</div></div>
+<div class="trail-stat"><div class="trail-stat-value">${t.duration}</div><div class="trail-stat-label">DURATION</div></div>
+<div class="trail-stat"><div class="trail-stat-value">${t.elevation}</div><div class="trail-stat-label">ELEVATION</div></div>
+<div class="trail-stat"><div class="trail-stat-value">${t.terrain}</div><div class="trail-stat-label">TERRAIN</div></div>
+</div>
+<div class="trail-desc">${t.desc}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

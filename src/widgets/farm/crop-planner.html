@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crop Planner - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"crop-planner","name":"Crop Planner","icon":"🌾","desc":"Seasonal crop planning","category":"farm","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#15803d;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#15803d}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.seasons{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.season{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.season.active{background:#15803d;border-color:#15803d}
+.crops{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.crop{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.crop-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.crop-name{font-size:1.125rem;font-weight:bold}
+.crop-variety{font-size:.75rem;color:#15803d}
+.crop-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-planned{background:#15803d33;color:#15803d}
+.status-planted{background:#0369a133;color:#0369a1}
+.status-growing{background:#eab30833;color:#eab308}
+.crop-schedule{font-size:.875rem;color:#888;margin-bottom:15px}
+.crop-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+.crop-notes{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌾 Crop Planner</h1><button class="btn">Add Crop</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">ACRES PLANNED</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">CROP TYPES</div></div>
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">FIELDS</div></div>
+<div class="stat"><div class="stat-value">$245K</div><div class="stat-label">PROJECTED</div></div>
+</div>
+<div class="seasons">
+<button class="season active">All Seasons</button>
+<button class="season">Spring</button>
+<button class="season">Summer</button>
+<button class="season">Fall</button>
+<button class="season">Winter</button>
+</div>
+<div class="crops" id="crops"></div>
+<script>
+const crops=[
+{name:'Sweet Corn',variety:'Golden Bantam',status:'planted',plant:'Mar 15',harvest:'Jul 20',field:'North 40',acres:12,yield:'150 bu/acre',notes:'Succession planting every 2 weeks'},
+{name:'Soybeans',variety:'Pioneer 92Y75',status:'planned',plant:'May 1',harvest:'Oct 15',field:'South Field',acres:20,yield:'45 bu/acre',notes:'Rotate with corn from last year'},
+{name:'Wheat',variety:'Hard Red Winter',status:'growing',plant:'Sep 20',harvest:'Jun 30',field:'East Meadow',acres:8,yield:'55 bu/acre',notes:'Cover crop after harvest'},
+{name:'Tomatoes',variety:'Beefsteak',status:'planted',plant:'Apr 10',harvest:'Aug 1',field:'Garden Plot',acres:2,yield:'25 tons/acre',notes:'Stake and prune weekly'},
+{name:'Pumpkins',variety:'Howden',status:'planned',plant:'Jun 1',harvest:'Oct 1',field:'West Patch',acres:4,yield:'15,000 lbs/acre',notes:'For fall festival sales'},
+{name:'Alfalfa',variety:'Vernal',status:'growing',plant:'Apr 1',harvest:'Multiple',field:'Hay Field',acres:10,yield:'4 cuts/year',notes:'First cut mid-May'}
+];
+document.getElementById('crops').innerHTML=crops.map(c=>`
+<div class="crop">
+<div class="crop-header">
+<div>
+<div class="crop-name">${c.name}</div>
+<div class="crop-variety">${c.variety}</div>
+</div>
+<span class="crop-status status-${c.status}">${c.status.toUpperCase()}</span>
+</div>
+<div class="crop-schedule">🌱 Plant: ${c.plant} → 🌾 Harvest: ${c.harvest}</div>
+<div class="crop-details">
+<div class="detail"><div class="detail-label">FIELD</div><div class="detail-value">${c.field}</div></div>
+<div class="detail"><div class="detail-label">ACRES</div><div class="detail-value">${c.acres}</div></div>
+<div class="detail"><div class="detail-label">EST. YIELD</div><div class="detail-value">${c.yield}</div></div>
+</div>
+<div class="crop-notes">📝 ${c.notes}</div>
+</div>`).join('');
+</script>
+</body>
+</html>
