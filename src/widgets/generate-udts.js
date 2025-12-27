@@ -323,22 +323,55 @@ function generateUDT(id, meta, html) {
   };
 }
 
-// Process all widgets
-const files = fs.readdirSync(widgetsDir).filter(f => f.endsWith('.html') && f !== 'index.html');
+// Directories to scan for widgets
+const widgetDirs = [
+  '', // root
+  'comm',
+  'productivity',
+  'business',
+  'dev',
+  'industrial',
+  'ai',
+  'p2p',
+  'games',
+  'lifestyle',
+  'utility',
+  'data'
+];
+
+// Process all widgets in all directories
 let count = 0;
 
-for (const file of files) {
-  const id = file.replace('.html', '');
-  const htmlPath = path.join(widgetsDir, file);
-  const html = fs.readFileSync(htmlPath, 'utf-8');
+for (const dir of widgetDirs) {
+  const scanDir = dir ? path.join(widgetsDir, dir) : widgetsDir;
 
-  const meta = extractMeta(html);
-  const udt = generateUDT(id, meta, html);
+  if (!fs.existsSync(scanDir)) continue;
 
-  const udtPath = path.join(udtDir, `${id}.udt.json`);
-  fs.writeFileSync(udtPath, JSON.stringify(udt, null, 2));
-  count++;
-  console.log(`Generated: ${id}.udt.json`);
+  const files = fs.readdirSync(scanDir).filter(f => {
+    if (!f.endsWith('.html')) return false;
+    if (f === 'index.html') return false;
+    if (f.includes('directory')) return false;
+    return true;
+  });
+
+  for (const file of files) {
+    const id = file.replace('.html', '');
+    const htmlPath = path.join(scanDir, file);
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+
+    const meta = extractMeta(html);
+    const udt = generateUDT(id, meta, html);
+
+    // Add directory info to UDT
+    if (dir) {
+      udt.classification.directory = dir;
+    }
+
+    const udtPath = path.join(udtDir, `${id}.udt.json`);
+    fs.writeFileSync(udtPath, JSON.stringify(udt, null, 2));
+    count++;
+    console.log(`Generated: ${id}.udt.json${dir ? ` (${dir}/)` : ''}`);
+  }
 }
 
 console.log(`\nTotal: ${count} UDT instances generated`);

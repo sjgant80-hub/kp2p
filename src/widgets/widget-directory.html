@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<!--
+Widget Directory - Category Navigation
+Browse widgets organized by category
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Widget Directory - KISS MySaaS</title>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "widget-directory",
+    "name": "Widget Directory",
+    "category": "utility",
+    "version": "1.0.0",
+    "icon": "📂",
+    "desc": "Browse widgets by category",
+    "body": "Navigate through widget categories. Each directory contains related widgets. Click to explore or preview any widget.",
+    "kills": ["Disorganized widgets", "Flat file structures"],
+    "price": 0
+  }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    /* Header */
+    .header { margin-bottom: 32px; }
+    h1 { font-size: 1.75rem; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #666; }
+    .breadcrumb a { color: #e94560; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+
+    /* Directory grid */
+    .dir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px; }
+
+    .dir-card { background: linear-gradient(135deg, #111 0%, #1a1a2e 100%); border: 1px solid #222; border-radius: 16px; padding: 24px; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden; }
+    .dir-card:hover { transform: translateY(-4px); border-color: #e94560; box-shadow: 0 12px 40px rgba(233,69,96,0.15); }
+    .dir-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--dir-color, #e94560); }
+
+    .dir-icon { font-size: 48px; margin-bottom: 16px; }
+    .dir-name { font-size: 1.25rem; font-weight: 600; margin-bottom: 8px; }
+    .dir-desc { font-size: 13px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+    .dir-count { font-size: 12px; color: #666; display: flex; align-items: center; gap: 8px; }
+    .dir-count span { background: rgba(233,69,96,0.2); color: #e94560; padding: 4px 10px; border-radius: 12px; font-weight: 600; }
+
+    /* Widget list (when viewing a directory) */
+    .widget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+
+    .widget-card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+    .widget-card:hover { transform: translateY(-2px); border-color: #e94560; }
+    .widget-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .widget-icon { font-size: 28px; }
+    .widget-name { font-size: 1rem; font-weight: 500; }
+    .widget-desc { font-size: 12px; color: #888; line-height: 1.4; }
+
+    /* Back button */
+    .back-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #222; border: 1px solid #333; border-radius: 8px; color: #fff; text-decoration: none; font-size: 14px; margin-bottom: 24px; cursor: pointer; }
+    .back-btn:hover { background: #333; border-color: #e94560; }
+
+    /* Preview modal */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; padding: 24px; }
+    .modal.open { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: #111; border-radius: 16px; width: 100%; max-width: 1000px; max-height: 90vh; display: flex; flex-direction: column; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h3 { display: flex; align-items: center; gap: 10px; }
+    .modal-close { background: none; border: none; color: #666; font-size: 24px; cursor: pointer; }
+    .modal-body { flex: 1; min-height: 0; }
+    .modal-iframe { width: 100%; height: 500px; border: none; background: #fff; border-radius: 0 0 16px 16px; }
+    .modal-actions { padding: 12px 20px; border-top: 1px solid #222; display: flex; gap: 12px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; text-decoration: none; }
+    .btn-primary { background: #e94560; color: white; }
+    .btn-secondary { background: #222; color: white; }
+
+    /* Empty */
+    .empty { text-align: center; padding: 60px; color: #666; }
+    .empty-icon { font-size: 64px; margin-bottom: 16px; }
+
+    /* Search */
+    .search-bar { margin-bottom: 24px; }
+    .search-bar input { width: 100%; max-width: 400px; padding: 12px 16px; background: #111; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; }
+    .search-bar input:focus { outline: none; border-color: #e94560; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📂 Widget Directory</h1>
+      <div class="breadcrumb" id="breadcrumb">
+        <a href="#" onclick="showRoot(); return false;">Home</a>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="search" placeholder="Search widgets..." oninput="handleSearch()">
+    </div>
+
+    <div id="content"></div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle"></h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <iframe class="modal-iframe" id="modalFrame"></iframe>
+      </div>
+      <div class="modal-actions">
+        <a id="modalOpen" href="#" target="_blank" class="btn btn-primary">Open Full Page</a>
+        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Directory configuration
+    const DIRECTORIES = {
+      comm: {
+        name: 'Communication',
+        icon: '💬',
+        color: '#3b82f6',
+        desc: 'Chat, messaging, email, voice, and real-time communication widgets'
+      },
+      productivity: {
+        name: 'Productivity',
+        icon: '📋',
+        color: '#22c55e',
+        desc: 'Task management, calendars, notes, timers, and organizational tools'
+      },
+      business: {
+        name: 'Business',
+        icon: '💼',
+        color: '#f59e0b',
+        desc: 'CRM, invoicing, feedback, testimonials, and sales tools'
+      },
+      dev: {
+        name: 'Developer Tools',
+        icon: '💻',
+        color: '#8b5cf6',
+        desc: 'Code editors, Git, terminal, APIs, and development utilities'
+      },
+      industrial: {
+        name: 'Industrial',
+        icon: '🏭',
+        color: '#06b6d4',
+        desc: 'PLC, HMI, OPC-UA, SCADA, and industrial automation widgets'
+      },
+      ai: {
+        name: 'AI & LLM',
+        icon: '🤖',
+        color: '#ec4899',
+        desc: 'AI chat, local LLMs, model hierarchy, and machine learning tools'
+      },
+      p2p: {
+        name: 'P2P Core',
+        icon: '🔗',
+        color: '#14b8a6',
+        desc: 'WebRTC mesh, signaling, presence, and peer-to-peer infrastructure'
+      },
+      games: {
+        name: 'Games',
+        icon: '🎮',
+        color: '#ef4444',
+        desc: 'Mahjong, trivia, puzzles, and entertainment widgets'
+      },
+      lifestyle: {
+        name: 'Lifestyle',
+        icon: '🌟',
+        color: '#eab308',
+        desc: 'Weather, fitness, recipes, budget, and personal tools'
+      },
+      utility: {
+        name: 'Utility',
+        icon: '🔧',
+        color: '#64748b',
+        desc: 'Auth, forms, status pages, containers, and system widgets'
+      },
+      data: {
+        name: 'Data & Files',
+        icon: '🗄️',
+        color: '#a855f7',
+        desc: 'Databases, file management, analytics, and data processing'
+      }
+    };
+
+    let currentDir = null;
+    let allWidgets = {};
+
+    // Load directory contents
+    async function loadDirectory(dirName) {
+      if (allWidgets[dirName]) return allWidgets[dirName];
+
+      try {
+        // Fetch widget list from directory
+        const widgets = [];
+        const response = await fetch(`${dirName}/`);
+        const html = await response.text();
+
+        // Parse directory listing (works on simple servers)
+        const matches = html.matchAll(/href="([^"]+\.html)"/g);
+        for (const match of matches) {
+          const file = match[1];
+          if (file.startsWith('..')) continue;
+
+          try {
+            const widgetRes = await fetch(`${dirName}/${file}`);
+            const widgetHtml = await widgetRes.text();
+
+            const metaMatch = widgetHtml.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
+            if (metaMatch) {
+              const meta = JSON.parse(metaMatch[1]);
+              meta.file = `${dirName}/${file}`;
+              widgets.push(meta);
+            } else {
+              const titleMatch = widgetHtml.match(/<title>([^<]+)<\/title>/i);
+              widgets.push({
+                id: file.replace('.html', ''),
+                name: titleMatch ? titleMatch[1].split('-')[0].trim() : file.replace('.html', ''),
+                icon: '📦',
+                desc: '',
+                file: `${dirName}/${file}`
+              });
+            }
+          } catch (e) {
+            console.warn('Failed to load widget:', file);
+          }
+        }
+
+        allWidgets[dirName] = widgets;
+        return widgets;
+      } catch (e) {
+        console.warn('Failed to load directory:', dirName);
+        return [];
+      }
+    }
+
+    // Alternative: Load from manifest
+    async function loadFromManifest() {
+      try {
+        const res = await fetch('manifest.json');
+        const manifest = await res.json();
+
+        // Group by directory
+        for (const file of manifest.widgets) {
+          const parts = file.split('/');
+          if (parts.length === 2) {
+            const [dir, name] = parts;
+            if (!allWidgets[dir]) allWidgets[dir] = [];
+
+            try {
+              const widgetRes = await fetch(file);
+              const html = await widgetRes.text();
+
+              const metaMatch = html.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
+              if (metaMatch) {
+                const meta = JSON.parse(metaMatch[1]);
+                meta.file = file;
+                allWidgets[dir].push(meta);
+              } else {
+                allWidgets[dir].push({
+                  id: name.replace('.html', ''),
+                  name: name.replace('.html', '').replace(/-/g, ' '),
+                  icon: '📦',
+                  file: file
+                });
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {
+        console.warn('Manifest load failed');
+      }
+    }
+
+    // Show root directory list
+    async function showRoot() {
+      currentDir = null;
+      document.getElementById('breadcrumb').innerHTML = '<span>Home</span>';
+      document.getElementById('search').value = '';
+
+      // Count widgets per directory
+      await loadFromManifest();
+
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="dir-grid">
+          ${Object.entries(DIRECTORIES).map(([key, dir]) => {
+            const count = allWidgets[key]?.length || 0;
+            return `
+              <div class="dir-card" style="--dir-color: ${dir.color}" onclick="openDirectory('${key}')">
+                <div class="dir-icon">${dir.icon}</div>
+                <div class="dir-name">${dir.name}</div>
+                <div class="dir-desc">${dir.desc}</div>
+                <div class="dir-count">
+                  <span>${count}</span> widgets
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // Open a directory
+    async function openDirectory(dirName) {
+      currentDir = dirName;
+      const dir = DIRECTORIES[dirName];
+
+      document.getElementById('breadcrumb').innerHTML = `
+        <a href="#" onclick="showRoot(); return false;">Home</a>
+        <span>/</span>
+        <span>${dir.icon} ${dir.name}</span>
+      `;
+
+      const widgets = allWidgets[dirName] || [];
+
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <button class="back-btn" onclick="showRoot()">← Back to Categories</button>
+
+        ${widgets.length === 0 ? `
+          <div class="empty">
+            <div class="empty-icon">📭</div>
+            <p>No widgets found in this directory</p>
+          </div>
+        ` : `
+          <div class="widget-grid">
+            ${widgets.map(w => `
+              <div class="widget-card" onclick="previewWidget('${w.file}', '${w.icon || '📦'}', '${escapeAttr(w.name)}')">
+                <div class="widget-header">
+                  <span class="widget-icon">${w.icon || '📦'}</span>
+                  <span class="widget-name">${w.name}</span>
+                </div>
+                <div class="widget-desc">${w.desc || ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      `;
+    }
+
+    // Search
+    function handleSearch() {
+      const query = document.getElementById('search').value.toLowerCase();
+      if (!query) {
+        if (currentDir) openDirectory(currentDir);
+        else showRoot();
+        return;
+      }
+
+      // Search all widgets
+      const results = [];
+      for (const [dir, widgets] of Object.entries(allWidgets)) {
+        for (const w of widgets) {
+          const searchable = `${w.name} ${w.desc || ''} ${w.id}`.toLowerCase();
+          if (searchable.includes(query)) {
+            results.push({ ...w, dir });
+          }
+        }
+      }
+
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <button class="back-btn" onclick="showRoot(); document.getElementById('search').value = '';">← Clear Search</button>
+        <p style="margin-bottom:16px;color:#888">${results.length} results for "${query}"</p>
+
+        ${results.length === 0 ? `
+          <div class="empty">
+            <div class="empty-icon">🔍</div>
+            <p>No widgets match your search</p>
+          </div>
+        ` : `
+          <div class="widget-grid">
+            ${results.map(w => `
+              <div class="widget-card" onclick="previewWidget('${w.file}', '${w.icon || '📦'}', '${escapeAttr(w.name)}')">
+                <div class="widget-header">
+                  <span class="widget-icon">${w.icon || '📦'}</span>
+                  <span class="widget-name">${w.name}</span>
+                </div>
+                <div class="widget-desc">${w.desc || ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      `;
+    }
+
+    // Preview widget
+    function previewWidget(file, icon, name) {
+      document.getElementById('modalTitle').innerHTML = `<span>${icon}</span> ${name}`;
+      document.getElementById('modalFrame').src = file;
+      document.getElementById('modalOpen').href = file;
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+      document.getElementById('modalFrame').src = '';
+    }
+
+    function escapeAttr(str) {
+      return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // Close modal on escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    document.getElementById('modal').addEventListener('click', e => {
+      if (e.target.id === 'modal') closeModal();
+    });
+
+    // Initialize
+    showRoot();
+  </script>
+</body>
+</html>

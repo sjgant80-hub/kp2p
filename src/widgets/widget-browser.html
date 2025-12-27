@@ -189,46 +189,85 @@ Browse, search, and preview all available widgets
       'unknown': '📦 Other'
     };
 
-    // Load widgets from manifest
+    // Directory to category mapping
+    const dirToCategory = {
+      'comm': 'communication',
+      'productivity': 'productivity',
+      'business': 'business',
+      'dev': 'dev',
+      'industrial': 'industrial',
+      'ai': 'ai',
+      'p2p': 'p2p',
+      'games': 'games',
+      'lifestyle': 'lifestyle',
+      'utility': 'utility',
+      'data': 'data'
+    };
+
+    // Load widgets from manifest (supports both flat and directory structure)
     async function loadWidgets() {
       try {
         const manifestRes = await fetch('manifest.json');
         const manifest = await manifestRes.json();
 
-        const loadPromises = manifest.widgets.map(async (file) => {
+        // Build file list from directory structure or flat list
+        let files = [];
+        if (manifest.directories) {
+          // New directory-based structure
+          for (const [dir, widgets] of Object.entries(manifest.directories)) {
+            for (const widget of widgets) {
+              files.push({ path: `${dir}/${widget}`, dir });
+            }
+          }
+          // Add root widgets
+          if (manifest.root) {
+            for (const widget of manifest.root) {
+              if (!widget.includes('index') && !widget.includes('directory')) {
+                files.push({ path: widget, dir: 'utility' });
+              }
+            }
+          }
+        } else if (manifest.widgets) {
+          // Legacy flat structure
+          files = manifest.widgets.map(f => ({ path: f, dir: null }));
+        }
+
+        const loadPromises = files.map(async ({ path, dir }) => {
           try {
-            const res = await fetch(file);
+            const res = await fetch(path);
             const html = await res.text();
 
             // Extract embedded metadata
             const metaMatch = html.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
             if (metaMatch) {
               const meta = JSON.parse(metaMatch[1]);
-              meta.file = file;
-              meta.category = meta.category || guessCategory(file, meta);
+              meta.file = path;
+              meta.category = dirToCategory[dir] || meta.category || guessCategory(path, meta);
+              meta.directory = dir;
               return meta;
             }
 
             // Fallback: extract from title/comments
             const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-            const name = titleMatch ? titleMatch[1].split('-')[0].trim() : file.replace('.html', '');
+            const name = titleMatch ? titleMatch[1].split('-')[0].trim() : path.split('/').pop().replace('.html', '');
             return {
-              id: file.replace('.html', '').replace(/-/g, ''),
+              id: path.replace(/.*\//, '').replace('.html', '').replace(/-/g, ''),
               name: name,
               icon: '📦',
               desc: 'Widget',
               body: '',
-              category: guessCategory(file, {}),
-              file: file
+              category: dirToCategory[dir] || guessCategory(path, {}),
+              directory: dir,
+              file: path
             };
           } catch (e) {
-            console.warn('Failed to load:', file, e);
+            console.warn('Failed to load:', path, e);
             return null;
           }
         });
 
         const results = await Promise.all(loadPromises);
-        allWidgets = results.filter(w => w && w.id !== 'widgetBrowser');
+        allWidgets = results.filter(w => w && w.id !== 'widgetBrowser' && w.id !== 'widgetDirectory');
 
         // Collect categories
         allWidgets.forEach(w => categories.add(w.category || 'unknown'));
