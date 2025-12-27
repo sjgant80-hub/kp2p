@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--
 Widget Browser - KISS MySaaS Widget Index
-Browse, search, and preview all available widgets
+Browse, search, and preview all 500+ widgets
+Compass Layout: Categories on edges, Widgets in center
 -->
 <html lang="en">
 <head>
@@ -13,150 +14,160 @@ Browse, search, and preview all available widgets
     "id": "widget-browser",
     "name": "Widget Browser",
     "category": "utility",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "icon": "🗂️",
     "desc": "Browse and search all KISS MySaaS widgets",
-    "body": "Dynamic widget index that loads metadata from all widgets. Search, filter by category, preview in modal. Self-updating from manifest.json.",
+    "body": "Compass layout with categories on edges, widgets in center. Search and filter 500+ widgets.",
     "kills": ["Manual widget lists", "Outdated indexes"],
     "price": 0
   }
   </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #fff; height: 100vh; overflow: hidden; }
 
-    /* Header */
-    .header { padding: 24px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-bottom: 1px solid #222; }
-    .header-content { max-width: 1400px; margin: 0 auto; }
-    .header h1 { font-size: 1.75rem; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
-    .header h1 span { color: #e94560; }
-    .header p { color: #666; font-size: 14px; }
+    /* Compass Layout */
+    .compass { display: grid; grid-template: auto 1fr auto / auto 1fr auto; height: 100vh; gap: 1px; background: #222; }
 
-    /* Stats bar */
-    .stats { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
-    .stat { background: rgba(255,255,255,0.05); padding: 12px 20px; border-radius: 8px; }
-    .stat-value { font-size: 1.5rem; font-weight: 700; color: #e94560; }
-    .stat-label { font-size: 12px; color: #666; }
-
-    /* Search & Filter */
-    .controls { padding: 16px 24px; background: #111; border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 100; }
-    .controls-inner { max-width: 1400px; margin: 0 auto; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    .search-box { flex: 1; min-width: 200px; position: relative; }
-    .search-box input { width: 100%; padding: 12px 16px 12px 44px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; }
+    /* North - Header & Search */
+    .north { grid-column: 1 / -1; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 12px 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .logo { font-size: 1.25rem; font-weight: 700; white-space: nowrap; }
+    .logo span { color: #e94560; }
+    .search-box { flex: 1; min-width: 200px; max-width: 400px; position: relative; }
+    .search-box input { width: 100%; padding: 10px 14px 10px 36px; background: #0a0a0a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px; }
     .search-box input:focus { outline: none; border-color: #e94560; }
-    .search-box::before { content: '🔍'; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 16px; }
-    .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-    .chip { padding: 8px 16px; background: #1a1a1a; border: 1px solid #333; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
-    .chip:hover { border-color: #e94560; }
+    .search-box::before { content: '🔍'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+    .stats { display: flex; gap: 16px; font-size: 12px; color: #888; }
+    .stats strong { color: #e94560; }
+
+    /* Category Rails (West & East) */
+    .west, .east { background: #111; width: 140px; overflow-y: auto; overflow-x: hidden; }
+    .west::-webkit-scrollbar, .east::-webkit-scrollbar, .north-cats::-webkit-scrollbar, .south-cats::-webkit-scrollbar { width: 4px; height: 4px; }
+    .west::-webkit-scrollbar-thumb, .east::-webkit-scrollbar-thumb, .north-cats::-webkit-scrollbar-thumb, .south-cats::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    .rail-title { font-size: 9px; text-transform: uppercase; color: #555; padding: 8px 10px 4px; letter-spacing: 1px; position: sticky; top: 0; background: #111; z-index: 1; }
+    .cat-btn { display: block; width: 100%; padding: 6px 10px; background: none; border: none; color: #888; font-size: 11px; text-align: left; cursor: pointer; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cat-btn:hover { background: #1a1a1a; color: #fff; }
+    .cat-btn.active { background: #e94560; color: #fff; }
+    .cat-btn .icon { margin-right: 4px; }
+
+    /* North & South Category Strips */
+    .north-cats, .south-cats { display: flex; gap: 4px; overflow-x: auto; padding: 4px 0; flex-shrink: 0; }
+    .north-strip, .south-strip { grid-column: 1 / -1; background: #0d0d0d; padding: 6px 12px; display: flex; align-items: center; gap: 8px; }
+    .strip-label { font-size: 9px; text-transform: uppercase; color: #444; white-space: nowrap; }
+    .chip { padding: 5px 10px; background: #1a1a1a; border: 1px solid #282828; border-radius: 4px; font-size: 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap; color: #999; }
+    .chip:hover { border-color: #e94560; color: #fff; }
     .chip.active { background: #e94560; border-color: #e94560; color: #fff; }
-    .view-toggle { display: flex; gap: 4px; }
-    .view-btn { padding: 8px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; cursor: pointer; font-size: 16px; }
-    .view-btn.active { background: #e94560; border-color: #e94560; }
 
-    /* Grid */
-    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-    .grid.list-view { grid-template-columns: 1fr; }
+    /* Center - Widget Grid */
+    .center { background: #0a0a0a; overflow-y: auto; padding: 16px; }
+    .widget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 
-    /* Card */
-    .card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; transition: all 0.2s; cursor: pointer; }
-    .card:hover { transform: translateY(-2px); border-color: #e94560; box-shadow: 0 8px 32px rgba(233,69,96,0.1); }
-    .card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-    .card-icon { font-size: 32px; line-height: 1; }
-    .card-title { flex: 1; }
-    .card-title h3 { font-size: 1.1rem; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
-    .card-title p { font-size: 12px; color: #666; }
-    .card-body { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 12px; }
-    .card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
-    .tag { font-size: 10px; padding: 3px 8px; background: #1a1a1a; border-radius: 4px; color: #666; }
-    .tag.category { background: #16213e; color: #64b5f6; }
-    .badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+    /* Widget Card */
+    .card { background: #111; border: 1px solid #1a1a1a; border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s; }
+    .card:hover { border-color: #e94560; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(233,69,96,0.15); }
+    .card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+    .card-icon { font-size: 28px; line-height: 1; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+    .card-desc { font-size: 11px; color: #666; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .card-meta { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
+    .tag { font-size: 9px; padding: 2px 6px; background: #1a1a1a; border-radius: 3px; color: #666; }
+    .tag.cat { background: #16213e; color: #64b5f6; }
+    .badge { font-size: 8px; padding: 2px 5px; border-radius: 3px; font-weight: 700; }
+    .badge.ent { background: #7c3aed; color: #fff; }
     .badge.new { background: #22c55e; color: #000; }
-    .badge.core { background: #7c3aed; color: #fff; }
-    .badge.kustom { background: linear-gradient(90deg, #f59e0b, #ec4899); color: #000; }
+    .badge.ai { background: #0ea5e9; color: #fff; }
+    .badge.p2p { background: #f59e0b; color: #000; }
 
-    /* List view card */
-    .grid.list-view .card { display: flex; align-items: center; gap: 16px; padding: 16px 20px; }
-    .grid.list-view .card-header { margin-bottom: 0; }
-    .grid.list-view .card-body { flex: 1; margin-bottom: 0; }
-    .grid.list-view .card-meta { margin-left: auto; }
+    /* South - Footer */
+    .south { grid-column: 1 / -1; background: #0a0a0a; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #444; border-top: 1px solid #1a1a1a; }
+    .south a { color: #e94560; text-decoration: none; }
 
-    /* Modal */
-    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; padding: 24px; overflow: auto; }
-    .modal.open { display: flex; align-items: center; justify-content: center; }
-    .modal-content { background: #111; border-radius: 16px; max-width: 1200px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
-    .modal-header { padding: 20px 24px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 16px; }
-    .modal-header h2 { flex: 1; font-size: 1.25rem; display: flex; align-items: center; gap: 12px; }
-    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 8px; }
-    .modal-close:hover { color: #fff; }
-    .modal-body { flex: 1; min-height: 0; }
-    .modal-iframe { width: 100%; height: 600px; border: none; background: #fff; border-radius: 0 0 16px 16px; }
-    .modal-actions { padding: 16px 24px; border-top: 1px solid #222; display: flex; gap: 12px; }
-    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; border: none; }
-    .btn-primary { background: #e94560; color: white; }
-    .btn-secondary { background: #222; color: white; }
-    .btn:hover { opacity: 0.9; }
-
-    /* Loading */
-    .loading { text-align: center; padding: 48px; color: #666; }
-    .loading-spinner { font-size: 32px; animation: spin 1s linear infinite; display: inline-block; }
+    /* Loading & Empty */
+    .loading, .empty { text-align: center; padding: 48px; color: #444; }
+    .loading-spin { animation: spin 1s linear infinite; display: inline-block; font-size: 24px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Empty state */
-    .empty { text-align: center; padding: 48px; color: #666; }
-    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    /* Modal */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; padding: 20px; }
+    .modal.open { display: flex; align-items: center; justify-content: center; }
+    .modal-box { background: #111; border-radius: 12px; max-width: 1100px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
+    .modal-head { padding: 16px 20px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
+    .modal-head h2 { flex: 1; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
+    .modal-close:hover { color: #fff; }
+    .modal-body { flex: 1; }
+    .modal-frame { width: 100%; height: 500px; border: none; background: #fff; border-radius: 0 0 12px 12px; }
+    .modal-foot { padding: 12px 20px; border-top: 1px solid #222; display: flex; gap: 10px; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; border: none; }
+    .btn-primary { background: #e94560; color: #fff; text-decoration: none; }
+    .btn-secondary { background: #222; color: #fff; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-content">
-      <h1>🗂️ Widget <span>Browser</span></h1>
-      <p>Browse, search, and preview all KISS MySaaS widgets</p>
-      <div class="stats">
-        <div class="stat"><div class="stat-value" id="totalCount">0</div><div class="stat-label">Total Widgets</div></div>
-        <div class="stat"><div class="stat-value" id="categoryCount">0</div><div class="stat-label">Categories</div></div>
-        <div class="stat"><div class="stat-value" id="visibleCount">0</div><div class="stat-label">Showing</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="controls">
-    <div class="controls-inner">
+  <div class="compass">
+    <!-- NORTH: Header, Search, Stats -->
+    <header class="north">
+      <div class="logo">🗂️ <span>Widgets</span></div>
       <div class="search-box">
-        <input type="text" id="search" placeholder="Search widgets by name, description, or category...">
+        <input type="text" id="search" placeholder="Search 500+ widgets...">
       </div>
-      <div class="filter-chips" id="categoryFilters"></div>
-      <div class="view-toggle">
-        <button class="view-btn active" data-view="grid" title="Grid view">⊞</button>
-        <button class="view-btn" data-view="list" title="List view">☰</button>
+      <div class="stats">
+        <span><strong id="totalCount">0</strong> widgets</span>
+        <span><strong id="catCount">0</strong> categories</span>
+        <span>showing <strong id="visibleCount">0</strong></span>
       </div>
-    </div>
-  </div>
+      <button class="chip" id="resetBtn" style="display:none">✕ Reset</button>
+    </header>
 
-  <div class="container">
-    <div class="loading" id="loading">
-      <div class="loading-spinner">⟳</div>
-      <p>Loading widgets...</p>
+    <!-- NORTH STRIP: Core Categories -->
+    <div class="north-strip">
+      <span class="strip-label">Core:</span>
+      <div class="north-cats" id="northCats"></div>
     </div>
-    <div class="grid" id="widgetGrid"></div>
-    <div class="empty" id="emptyState" style="display:none">
-      <div class="empty-icon">🔍</div>
-      <p>No widgets match your search</p>
+
+    <!-- WEST: Enterprise A-L -->
+    <aside class="west" id="westRail">
+      <div class="rail-title">Enterprise A-L</div>
+    </aside>
+
+    <!-- CENTER: Widget Grid -->
+    <main class="center" id="center">
+      <div class="loading" id="loading"><span class="loading-spin">⟳</span><p>Loading widgets...</p></div>
+      <div class="widget-grid" id="grid"></div>
+      <div class="empty" id="empty" style="display:none">🔍 No widgets match</div>
+    </main>
+
+    <!-- EAST: Enterprise M-Z -->
+    <aside class="east" id="eastRail">
+      <div class="rail-title">Enterprise M-Z</div>
+    </aside>
+
+    <!-- SOUTH STRIP: Recreation -->
+    <div class="south-strip">
+      <span class="strip-label">Recreation:</span>
+      <div class="south-cats" id="southCats"></div>
     </div>
+
+    <!-- SOUTH: Footer -->
+    <footer class="south">
+      <span>KISS MySaaS • <a href="index.html">Home</a></span>
+      <span>Open Source • Forever Free</span>
+    </footer>
   </div>
 
   <!-- Preview Modal -->
   <div class="modal" id="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="modalTitle"><span id="modalIcon"></span> <span id="modalName"></span></h2>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2><span id="modalIcon"></span> <span id="modalName"></span></h2>
         <button class="modal-close" onclick="closeModal()">×</button>
       </div>
       <div class="modal-body">
-        <iframe class="modal-iframe" id="modalFrame"></iframe>
+        <iframe class="modal-frame" id="modalFrame"></iframe>
       </div>
-      <div class="modal-actions">
-        <a id="modalOpen" href="#" target="_blank" class="btn btn-primary">Open Full Page</a>
+      <div class="modal-foot">
+        <a id="modalOpen" href="#" target="_blank" class="btn btn-primary">Open Full</a>
         <button class="btn btn-secondary" onclick="closeModal()">Close</button>
       </div>
     </div>
@@ -164,322 +175,253 @@ Browse, search, and preview all available widgets
 
   <script>
     // =========================================================================
-    // Widget Browser - Dynamic Widget Index
+    // Widget Browser v2 - Compass Layout
     // =========================================================================
 
     let allWidgets = [];
-    let categories = new Set();
     let activeCategory = 'all';
     let searchQuery = '';
-    let viewMode = 'grid';
 
-    // Category mappings for better display
-    const categoryLabels = {
-      'communication': '💬 Communication',
-      'productivity': '📋 Productivity',
-      'data': '🗄️ Data & Files',
-      'business': '💼 Business',
-      'dev': '💻 Developer Tools',
-      'industrial': '🏭 Industrial',
-      'ai': '🤖 AI & LLM',
-      'games': '🎮 Games',
-      'utility': '🔧 Utility',
-      'lifestyle': '🌟 Lifestyle',
-      'p2p': '🔗 P2P Core',
-      'unknown': '📦 Other'
+    // Category organization for compass layout
+    const coreCategories = ['ai', 'dev', 'productivity', 'business', 'comm', 'utility', 'data', 'industrial', 'p2p', 'games', 'lifestyle'];
+    const recreationCategories = ['golf', 'tennis', 'skiing', 'swimming', 'bowling', 'archery', 'climbing', 'diving', 'sailing', 'kayak', 'surf', 'fishing', 'camping', 'hunting', 'rafting', 'skydiving', 'bingo', 'trampoline', 'minigolf', 'gokart', 'paintball', 'lasertag', 'zipline', 'segway', 'paragliding', 'bungee', 'waterpark', 'cinema', 'casino', 'aquarium', 'zoo', 'museum', 'concert', 'planetarium', 'library', 'theater', 'fairground', 'aquatic', 'racetrack', 'amusement', 'arcade', 'escape', 'skating', 'equestrian', 'martial', 'yoga', 'gym', 'fitness'];
+
+    // Icons for categories
+    const catIcons = {
+      ai: '🤖', dev: '💻', productivity: '📋', business: '💼', comm: '💬', utility: '🔧',
+      data: '🗄️', industrial: '🏭', p2p: '🔗', games: '🎮', lifestyle: '🌟',
+      hr: '👥', finance: '💰', service: '🎧', marketing: '📣', legal: '⚖️',
+      retail: '🛒', healthcare: '🏥', education: '📚', events: '🎪', realestate: '🏠',
+      hospitality: '🏨', transport: '🚌', government: '🏛️', nonprofit: '❤️', construction: '🏗️',
+      energy: '⚡', agriculture: '🌾', media: '📺', sports: '⚽', science: '🔬',
+      insurance: '🛡️', logistics: '📦', manufacturing: '�icing', automotive: '🚗', telecom: '📡',
+      aviation: '✈️', mining: '⛏️', pharma: '💊', banking: '🏦', security: '🔒',
+      food: '🍽️', chemical: '🧪', textile: '🧵', furniture: '🪑', printing: '🖨️',
+      gaming: '🎰', beauty: '💅', pet: '🐾', jewelry: '💎', wine: '🍷',
+      music: '🎵', photography: '📷', dental: '🦷', veterinary: '🐕', catering: '🍴',
+      landscaping: '🌳', plumbing: '🔧', hvac: '❄️', cleaning: '🧹', electrical: '⚡',
+      roofing: '🏠', flooring: '🪵', painting: '🎨', moving: '📦', pool: '🏊',
+      pest: '🐜', appliance: '🔌', window: '🪟', locksmith: '🔑', taxi: '🚕',
+      daycare: '👶', bakery: '🥐', florist: '💐', tutoring: '📖', spa: '💆',
+      brewery: '🍺', carwash: '🚿', laundry: '👕', coffee: '☕', tattoo: '💉',
+      notary: '📝', driving: '🚗', marina: '⚓', storage: '📦', vending: '🎰',
+      rental: '🔄', courier: '🚚', optometry: '👓', chiro: '🦴', photobooth: '📸',
+      acupuncture: '📍', dj: '🎧', tailor: '✂️', accounting: '📊', nursery: '🌱',
+      massage: '💆', golf: '⛳', tennis: '🎾', skiing: '⛷️', bowling: '🎳',
+      archery: '🏹', climbing: '🧗', diving: '🤿', sailing: '⛵', kayak: '🛶',
+      surf: '🏄', fishing: '🎣', camping: '🏕️', hunting: '🦌', rafting: '🚣',
+      skydiving: '🪂', bingo: '🎱', trampoline: '🤸', minigolf: '⛳', gokart: '🏎️',
+      paintball: '🎯', lasertag: '🔫', zipline: '🎢', paragliding: '🪂', bungee: '🪢',
+      waterpark: '🌊', cinema: '🎬', casino: '🎰', aquarium: '🐠', zoo: '🦁',
+      museum: '🏛️', concert: '🎤', planetarium: '🌟', theater: '🎭', fairground: '🎡',
+      observatory: '🔭', botanic: '🌺', racetrack: '🏇', amusement: '🎢', cruise: '🚢',
+      resort: '🏖️', stadium: '🏟️', convention: '🎪', memorial: '🪦', winery: '🍇',
+      stable: '🐴', kennel: '🐕', coworking: '🏢', datacenter: '🖥️', incubator: '🚀',
+      makerspace: '🛠️', hangar: '✈️', shelter: '🏠', church: '⛪', mosque: '🕌',
+      synagogue: '🕍', temple: '🛕', monastery: '⛩️', farm: '🚜', greenhouse: '🌿',
+      mechanic: '🔧', atv: '🏍️', snowmobile: '🛷', boat: '🚤', rv: '🚐',
+      motorcycle: '🏍️', bicycle: '🚲', scooter: '🛴', helicopter: '🚁', drone: '🛸',
+      jetski: '🚤', hovercraft: '🛥️', submarine: '🚢', trolley: '🚃', gondola: '🚡',
+      funicular: '🚞', monorail: '🚝', ferry: '⛴️', tram: '🚊', shuttle: '🚐',
+      limousine: '🚗', pedicab: '🚲', rickshaw: '🛺', cablecar: '🚡'
     };
 
-    // Directory to category mapping
-    const dirToCategory = {
-      'comm': 'communication',
-      'productivity': 'productivity',
-      'business': 'business',
-      'dev': 'dev',
-      'industrial': 'industrial',
-      'ai': 'ai',
-      'p2p': 'p2p',
-      'games': 'games',
-      'lifestyle': 'lifestyle',
-      'utility': 'utility',
-      'data': 'data'
-    };
-
-    // Load widgets from manifest (supports both flat and directory structure)
+    // Load manifest and widgets
     async function loadWidgets() {
       try {
-        const manifestRes = await fetch('manifest.json');
-        const manifest = await manifestRes.json();
+        const res = await fetch('manifest.json');
+        const manifest = await res.json();
+        const files = [];
 
-        // Build file list from directory structure or flat list
-        let files = [];
+        // Build file list from directories
         if (manifest.directories) {
-          // New directory-based structure
           for (const [dir, widgets] of Object.entries(manifest.directories)) {
             for (const widget of widgets) {
               files.push({ path: `${dir}/${widget}`, dir });
             }
           }
-          // Add root widgets
-          if (manifest.root) {
-            for (const widget of manifest.root) {
-              if (!widget.includes('index') && !widget.includes('directory')) {
-                files.push({ path: widget, dir: 'utility' });
-              }
-            }
-          }
-        } else if (manifest.widgets) {
-          // Legacy flat structure
-          files = manifest.widgets.map(f => ({ path: f, dir: null }));
         }
 
+        // Load widget metadata
         const loadPromises = files.map(async ({ path, dir }) => {
           try {
             const res = await fetch(path);
             const html = await res.text();
-
-            // Extract embedded metadata
             const metaMatch = html.match(/<script[^>]*id="widget-meta"[^>]*>([\s\S]*?)<\/script>/i);
             if (metaMatch) {
               const meta = JSON.parse(metaMatch[1]);
               meta.file = path;
-              meta.category = dirToCategory[dir] || meta.category || guessCategory(path, meta);
               meta.directory = dir;
               return meta;
             }
-
-            // Fallback: extract from title/comments
             const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-            const name = titleMatch ? titleMatch[1].split('-')[0].trim() : path.split('/').pop().replace('.html', '');
             return {
-              id: path.replace(/.*\//, '').replace('.html', '').replace(/-/g, ''),
-              name: name,
-              icon: '📦',
-              desc: 'Widget',
-              body: '',
-              category: dirToCategory[dir] || guessCategory(path, {}),
+              id: path.split('/').pop().replace('.html', ''),
+              name: titleMatch ? titleMatch[1].split('-')[0].trim() : path.split('/').pop().replace('.html', ''),
+              icon: catIcons[dir] || '📦',
+              desc: '',
               directory: dir,
               file: path
             };
           } catch (e) {
-            console.warn('Failed to load:', path, e);
             return null;
           }
         });
 
-        const results = await Promise.all(loadPromises);
-        allWidgets = results.filter(w => w && w.id !== 'widgetBrowser' && w.id !== 'widgetDirectory');
-
-        // Collect categories
-        allWidgets.forEach(w => categories.add(w.category || 'unknown'));
+        allWidgets = (await Promise.all(loadPromises)).filter(w => w && w.id !== 'widget-browser' && w.id !== 'widget-directory');
 
         document.getElementById('loading').style.display = 'none';
-        renderCategoryFilters();
+        buildCategoryRails();
         renderWidgets();
         updateStats();
 
-      } catch (error) {
-        console.error('Failed to load manifest:', error);
-        document.getElementById('loading').innerHTML = '<p>Failed to load widgets. Check console.</p>';
+      } catch (e) {
+        document.getElementById('loading').innerHTML = '<p>Failed to load widgets</p>';
       }
     }
 
-    // Guess category from filename/metadata
-    function guessCategory(file, meta) {
-      const name = file.toLowerCase();
-      if (meta.category) return meta.category;
+    // Build category navigation rails
+    function buildCategoryRails() {
+      const allDirs = [...new Set(allWidgets.map(w => w.directory))].sort();
 
-      // AI/LLM
-      if (name.includes('llm') || name.includes('ai-') || name.includes('femto') || name.includes('pico') ||
-          name.includes('nano') || name.includes('micro') || name.includes('centi') || name.includes('deci') ||
-          name.includes('unity') || name.includes('evgpu') || name.includes('cube') || name.includes('block-array') ||
-          name.includes('k3-os')) return 'ai';
+      // Core categories - North strip
+      const northCats = document.getElementById('northCats');
+      northCats.innerHTML = '<span class="chip active" data-cat="all">All</span>' +
+        coreCategories.filter(c => allDirs.includes(c) || c === 'comm').map(c =>
+          `<span class="chip" data-cat="${c}">${catIcons[c] || '📦'} ${c}</span>`
+        ).join('');
 
-      // Industrial
-      if (name.includes('kopc') || name.includes('kplc') || name.includes('khmi') || name.includes('ktag') ||
-          name.includes('kisa') || name.includes('kflow') || name.includes('kpipe') || name.includes('kci') ||
-          name.includes('ktest') || name.includes('koil') || name.includes('perspektive')) return 'industrial';
-
-      // Games
-      if (name.includes('mahjong') || name.includes('trivia') || name.includes('sisyphus') ||
-          name.includes('tales') || name.includes('lyrics') || name.includes('fighter')) return 'games';
-
-      // P2P Core
-      if (name.includes('p2p') || name.includes('mesh') || name.includes('webtorrent') ||
-          name.includes('presence') || name.includes('bridge')) return 'p2p';
-
-      // Communication
-      if (name.includes('chat') || name.includes('comment') || name.includes('support') ||
-          name.includes('notification') || name.includes('email') || name.includes('sms') ||
-          name.includes('mail') || name.includes('msg') || name.includes('vcard') ||
-          name.includes('voice')) return 'communication';
-
-      // Productivity
-      if (name.includes('kanban') || name.includes('calendar') || name.includes('wiki') ||
-          name.includes('timer') || name.includes('pomodoro') || name.includes('todo') ||
-          name.includes('docs') || name.includes('roadmap') || name.includes('habit') ||
-          name.includes('mood') || name.includes('stickies')) return 'productivity';
-
-      // Developer
-      if (name.includes('git') || name.includes('code') || name.includes('cli') || name.includes('mcp') ||
-          name.includes('json') || name.includes('regex') || name.includes('markdown') ||
-          name.includes('snippet') || name.includes('kode') || name.includes('terminal') ||
-          name.includes('kopilot') || name.includes('kompare') || name.includes('kron')) return 'dev';
-
-      // Business
-      if (name.includes('crm') || name.includes('checkout') || name.includes('invoice') ||
-          name.includes('waitlist') || name.includes('feedback') || name.includes('testimonial') ||
-          name.includes('kmarket') || name.includes('kold') || name.includes('kualify') ||
-          name.includes('kloser') || name.includes('kprospekt')) return 'business';
-
-      // Lifestyle
-      if (name.includes('weather') || name.includes('world-clock') || name.includes('donate') ||
-          name.includes('crypto') || name.includes('bookmark') || name.includes('links') ||
-          name.includes('color') || name.includes('password') || name.includes('qr') ||
-          name.includes('konvert') || name.includes('krypt')) return 'lifestyle';
-
-      // Data
-      if (name.includes('database') || name.includes('file') || name.includes('analytics') ||
-          name.includes('ksql') || name.includes('kqtt')) return 'data';
-
-      // Utility
-      if (name.includes('form') || name.includes('poll') || name.includes('faq') ||
-          name.includes('status') || name.includes('auth') || name.includes('iframe') ||
-          name.includes('kframe') || name.includes('kontainer') || name.includes('widget-')) return 'utility';
-
-      return 'unknown';
-    }
-
-    // Render category filter chips
-    function renderCategoryFilters() {
-      const container = document.getElementById('categoryFilters');
-      container.innerHTML = `<button class="chip active" data-category="all">All</button>`;
-
-      const sortedCategories = [...categories].sort();
-      sortedCategories.forEach(cat => {
-        const label = categoryLabels[cat] || cat;
-        container.innerHTML += `<button class="chip" data-category="${cat}">${label}</button>`;
+      // Enterprise A-L - West rail
+      const westRail = document.getElementById('westRail');
+      const westCats = allDirs.filter(d => !coreCategories.includes(d) && !recreationCategories.includes(d) && d.toLowerCase() < 'm');
+      westCats.forEach(c => {
+        westRail.innerHTML += `<button class="cat-btn" data-cat="${c}"><span class="icon">${catIcons[c] || '📦'}</span>${c}</button>`;
       });
 
-      // Add click handlers
-      container.querySelectorAll('.chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          activeCategory = chip.dataset.category;
+      // Enterprise M-Z - East rail
+      const eastRail = document.getElementById('eastRail');
+      const eastCats = allDirs.filter(d => !coreCategories.includes(d) && !recreationCategories.includes(d) && d.toLowerCase() >= 'm');
+      eastCats.forEach(c => {
+        eastRail.innerHTML += `<button class="cat-btn" data-cat="${c}"><span class="icon">${catIcons[c] || '📦'}</span>${c}</button>`;
+      });
+
+      // Recreation - South strip
+      const southCats = document.getElementById('southCats');
+      const recCats = allDirs.filter(d => recreationCategories.includes(d));
+      southCats.innerHTML = recCats.map(c =>
+        `<span class="chip" data-cat="${c}">${catIcons[c] || '🎮'} ${c}</span>`
+      ).join('');
+
+      // Event delegation for all category buttons
+      document.addEventListener('click', (e) => {
+        if (e.target.matches('.chip, .cat-btn')) {
+          document.querySelectorAll('.chip, .cat-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          activeCategory = e.target.dataset.cat;
+          document.getElementById('resetBtn').style.display = activeCategory === 'all' ? 'none' : 'inline-block';
           renderWidgets();
-        });
+        }
       });
+
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        activeCategory = 'all';
+        searchQuery = '';
+        document.getElementById('search').value = '';
+        document.querySelectorAll('.chip, .cat-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('[data-cat="all"]').classList.add('active');
+        document.getElementById('resetBtn').style.display = 'none';
+        renderWidgets();
+      });
+
+      document.getElementById('catCount').textContent = allDirs.length;
     }
 
     // Render widget grid
     function renderWidgets() {
-      const grid = document.getElementById('widgetGrid');
-      const emptyState = document.getElementById('emptyState');
+      const grid = document.getElementById('grid');
+      const empty = document.getElementById('empty');
 
-      // Filter widgets
       let filtered = allWidgets.filter(w => {
-        // Category filter
-        if (activeCategory !== 'all' && w.category !== activeCategory) return false;
-
-        // Search filter
+        if (activeCategory !== 'all' && w.directory !== activeCategory) return false;
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          const searchable = `${w.name} ${w.desc} ${w.body} ${w.category} ${w.file}`.toLowerCase();
+          const searchable = `${w.name} ${w.desc} ${w.directory} ${w.id}`.toLowerCase();
           if (!searchable.includes(q)) return false;
         }
-
         return true;
       });
 
-      // Sort by name
       filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-      // Update visible count
       document.getElementById('visibleCount').textContent = filtered.length;
 
       if (filtered.length === 0) {
         grid.innerHTML = '';
-        emptyState.style.display = 'block';
+        empty.style.display = 'block';
         return;
       }
 
-      emptyState.style.display = 'none';
+      empty.style.display = 'none';
       grid.innerHTML = filtered.map(w => {
-        const badge = w.badge ? `<span class="badge ${w.badge.toLowerCase()}">${w.badge}</span>` : '';
-        const catLabel = categoryLabels[w.category] || w.category;
-
+        const badge = getBadge(w);
         return `
-          <div class="card" onclick="openPreview('${w.file}', '${w.icon || '📦'}', '${escapeHtml(w.name)}')">
-            <div class="card-header">
-              <span class="card-icon">${w.icon || '📦'}</span>
-              <div class="card-title">
-                <h3>${w.name} ${badge}</h3>
-                <p>${w.desc || ''}</p>
+          <div class="card" onclick="openPreview('${w.file}', '${w.icon || catIcons[w.directory] || '📦'}', '${esc(w.name)}')">
+            <div class="card-head">
+              <span class="card-icon">${w.icon || catIcons[w.directory] || '📦'}</span>
+              <div class="card-info">
+                <div class="card-name">${w.name} ${badge}</div>
+                <div class="card-desc">${w.desc || ''}</div>
               </div>
             </div>
-            <div class="card-body">${w.body || ''}</div>
             <div class="card-meta">
-              <span class="tag category">${catLabel}</span>
-              ${w.kills ? w.kills.slice(0,2).map(k => `<span class="tag">${k}</span>`).join('') : ''}
+              <span class="tag cat">${w.directory}</span>
             </div>
           </div>
         `;
       }).join('');
     }
 
-    // Update stats
-    function updateStats() {
-      document.getElementById('totalCount').textContent = allWidgets.length;
-      document.getElementById('categoryCount').textContent = categories.size;
+    function getBadge(w) {
+      const b = w.badge || '';
+      if (b === 'ENT') return '<span class="badge ent">ENT</span>';
+      if (b === 'AI') return '<span class="badge ai">AI</span>';
+      if (b === 'P2P') return '<span class="badge p2p">P2P</span>';
+      if (b === 'NEW') return '<span class="badge new">NEW</span>';
+      return '';
     }
 
-    // Open preview modal
+    function updateStats() {
+      document.getElementById('totalCount').textContent = allWidgets.length;
+    }
+
     function openPreview(file, icon, name) {
       document.getElementById('modalIcon').textContent = icon;
       document.getElementById('modalName').textContent = name;
       document.getElementById('modalFrame').src = file;
       document.getElementById('modalOpen').href = file;
       document.getElementById('modal').classList.add('open');
-      document.body.style.overflow = 'hidden';
     }
 
-    // Close modal
     function closeModal() {
       document.getElementById('modal').classList.remove('open');
       document.getElementById('modalFrame').src = '';
-      document.body.style.overflow = '';
     }
 
-    // Escape HTML
-    function escapeHtml(text) {
-      return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    function esc(s) {
+      return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
-    // Event listeners
+    // Search
     document.getElementById('search').addEventListener('input', (e) => {
       searchQuery = e.target.value;
+      document.getElementById('resetBtn').style.display = searchQuery || activeCategory !== 'all' ? 'inline-block' : 'none';
       renderWidgets();
     });
 
-    document.querySelectorAll('.view-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        viewMode = btn.dataset.view;
-        document.getElementById('widgetGrid').className = viewMode === 'list' ? 'grid list-view' : 'grid';
-      });
-    });
+    // Modal close
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    document.getElementById('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 
-    // Close modal on escape or click outside
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeModal();
-    });
-
-    document.getElementById('modal').addEventListener('click', (e) => {
-      if (e.target.id === 'modal') closeModal();
-    });
-
-    // Initialize
+    // Init
     loadWidgets();
   </script>
 </body>
