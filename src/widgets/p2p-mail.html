@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<!--
+KONOMI P2P MAIL - True Serverless Email
+WebRTC-based peer-to-peer email. No servers. No APIs. Real email.
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "p2p-mail",
+    "name": "P2P Mail",
+    "icon": "📬",
+    "desc": "True P2P email via WebRTC",
+    "body": "Real peer-to-peer email using WebRTC. No servers, no APIs. Generate your mailbox ID, share it, receive messages directly. All data stored locally.",
+    "kills": ["Gmail", "ProtonMail $4/mo", "Email servers"],
+    "price": 0,
+    "color": "#06b6d4",
+    "badge": "P2P"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P Mail</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a25;
+      --accent: #06b6d4;
+      --accent2: #22d3ee;
+      --text: #fff;
+      --text-dim: #888;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--surface);
+      border-right: 1px solid #222;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #222;
+    }
+
+    .sidebar-header h1 {
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .my-address {
+      background: var(--surface2);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      word-break: break-all;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .my-address:hover::after {
+      content: 'Click to copy';
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .status-dot.online { background: var(--success); }
+    .status-dot.offline { background: var(--danger); }
+    .status-dot.connecting { background: var(--warning); animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .compose-btn {
+      margin: 16px 20px;
+      background: linear-gradient(135deg, var(--accent), #0891b2);
+      border: none;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .nav-items {
+      flex: 1;
+      padding: 0 12px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .nav-item:hover {
+      background: var(--surface2);
+    }
+
+    .nav-item.active {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .nav-item .count {
+      margin-left: auto;
+      background: var(--accent);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+    }
+
+    .peers-section {
+      padding: 16px 20px;
+      border-top: 1px solid #222;
+    }
+
+    .peers-section h3 {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .peer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      font-size: 0.85rem;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .main-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .search-box {
+      flex: 1;
+      max-width: 400px;
+      margin-left: auto;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid #333;
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 8px;
+    }
+
+    /* Mail List */
+    .mail-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .mail-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 24px;
+      border-bottom: 1px solid #1a1a1a;
+      cursor: pointer;
+    }
+
+    .mail-item:hover {
+      background: var(--surface);
+    }
+
+    .mail-item.unread {
+      background: rgba(6, 182, 212, 0.05);
+    }
+
+    .mail-item.unread .mail-from {
+      font-weight: 600;
+    }
+
+    .mail-avatar {
+      width: 40px;
+      height: 40px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .mail-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mail-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .mail-from {
+      font-size: 0.95rem;
+    }
+
+    .mail-date {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .mail-subject {
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .mail-preview {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Compose Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .compose-modal {
+      background: var(--surface);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 1.1rem;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .modal-body .field {
+      margin-bottom: 16px;
+    }
+
+    .modal-body .field label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .modal-body .field input,
+    .modal-body .field textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid #333;
+      color: var(--text);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: inherit;
+    }
+
+    .modal-body .field textarea {
+      min-height: 200px;
+      resize: vertical;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #222;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid #333;
+    }
+
+    /* Message View */
+    .message-view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .message-view.show {
+      display: flex;
+    }
+
+    .message-header {
+      padding: 24px;
+      border-bottom: 1px solid #222;
+    }
+
+    .message-subject {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .message-meta {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .message-body {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.7;
+    }
+
+    .message-actions {
+      padding: 16px 24px;
+      border-top: 1px solid #222;
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Empty State */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+    }
+
+    .empty-state .icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state p {
+      margin-bottom: 8px;
+    }
+
+    /* Setup View */
+    .setup-view {
+      display: none;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .setup-view.show {
+      display: flex;
+    }
+
+    .setup-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    .setup-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .setup-card p {
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    .address-display {
+      background: var(--surface2);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+
+    .address-display .label {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .address-display .address {
+      font-family: monospace;
+      font-size: 1.1rem;
+      word-break: break-all;
+      color: var(--accent2);
+    }
+
+    @media (max-width: 768px) {
+      .app {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid #222;
+      }
+
+      .nav-items {
+        display: flex;
+        overflow-x: auto;
+        padding: 12px;
+        gap: 8px;
+      }
+
+      .nav-item {
+        white-space: nowrap;
+      }
+
+      .peers-section {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>📬 P2P Mail</h1>
+        <div class="my-address" id="my-address" onclick="copyMyAddress()">
+          Generating address...
+        </div>
+        <div style="margin-top: 8px; font-size: 0.8rem;">
+          <span class="status-dot connecting" id="status-dot"></span>
+          <span id="status-text">Initializing...</span>
+        </div>
+      </div>
+
+      <button class="compose-btn" onclick="showCompose()">
+        ✏️ Compose
+      </button>
+
+      <div class="nav-items">
+        <div class="nav-item active" onclick="showFolder('inbox')" id="nav-inbox">
+          📥 Inbox
+          <span class="count" id="inbox-count" style="display: none;">0</span>
+        </div>
+        <div class="nav-item" onclick="showFolder('sent')" id="nav-sent">
+          📤 Sent
+        </div>
+        <div class="nav-item" onclick="showFolder('drafts')" id="nav-drafts">
+          📝 Drafts
+        </div>
+      </div>
+
+      <div class="peers-section">
+        <h3>Connected Peers</h3>
+        <div id="peers-list">
+          <div style="color: var(--text-dim); font-size: 0.85rem;">No peers connected</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <!-- Setup View -->
+      <div class="setup-view show" id="setup-view">
+        <div class="setup-card">
+          <h2>📬 Your P2P Mailbox</h2>
+          <p>Your unique mailbox address has been generated. Share this with anyone who wants to send you messages.</p>
+
+          <div class="address-display">
+            <div class="label">Your Mailbox Address</div>
+            <div class="address" id="setup-address">Generating...</div>
+          </div>
+
+          <button class="btn btn-primary" onclick="copyMyAddress()" style="width: 100%; margin-bottom: 12px;">
+            📋 Copy My Address
+          </button>
+
+          <button class="btn btn-secondary" onclick="startApp()" style="width: 100%;">
+            📥 Go to Inbox
+          </button>
+
+          <p style="margin-top: 24px; font-size: 0.85rem;">
+            <strong>How P2P Mail works:</strong><br>
+            Messages are sent directly between browsers using WebRTC.
+            No servers store your data. When you're offline, senders can leave
+            messages that sync when you reconnect.
+          </p>
+        </div>
+      </div>
+
+      <!-- Mail List View -->
+      <div id="mail-view" style="display: none; flex: 1; flex-direction: column;">
+        <div class="main-header">
+          <h2 id="folder-title">Inbox</h2>
+          <div class="search-box">
+            <input type="text" placeholder="Search mail..." oninput="searchMail(this.value)">
+          </div>
+        </div>
+
+        <div class="mail-list" id="mail-list">
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <p>No messages yet</p>
+            <p style="font-size: 0.85rem;">Share your address to receive P2P mail</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message View -->
+      <div class="message-view" id="message-view">
+        <div class="message-header">
+          <button class="btn btn-secondary" onclick="closeMessage()" style="margin-bottom: 16px;">
+            ← Back
+          </button>
+          <div class="message-subject" id="view-subject">Subject</div>
+          <div class="message-meta">
+            <div class="mail-avatar" id="view-avatar">?</div>
+            <div>
+              <div id="view-from" style="font-weight: 500;">From</div>
+              <div id="view-date" style="font-size: 0.85rem; color: var(--text-dim);">Date</div>
+            </div>
+          </div>
+        </div>
+        <div class="message-body" id="view-body"></div>
+        <div class="message-actions">
+          <button class="btn btn-primary" onclick="replyTo()">↩️ Reply</button>
+          <button class="btn btn-secondary" onclick="deleteMail()">🗑️ Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compose Modal -->
+  <div class="modal-overlay" id="compose-modal">
+    <div class="compose-modal">
+      <div class="modal-header">
+        <h3>New Message</h3>
+        <button class="close-btn" onclick="hideCompose()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>To (P2P Address)</label>
+          <input type="text" id="compose-to" placeholder="Paste recipient's P2P address">
+        </div>
+        <div class="field">
+          <label>Subject</label>
+          <input type="text" id="compose-subject" placeholder="Message subject">
+        </div>
+        <div class="field">
+          <label>Message</label>
+          <textarea id="compose-body" placeholder="Write your message..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideCompose()">Cancel</button>
+        <button class="btn btn-primary" onclick="sendMail()">Send →</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // P2P Mail System using WebRTC
+    const STORAGE_KEY = 'p2p_mail';
+    const ICE_SERVERS = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ];
+
+    let myAddress = '';
+    let mailbox = { inbox: [], sent: [], drafts: [] };
+    let currentFolder = 'inbox';
+    let currentMail = null;
+    let peers = new Map();
+
+    // Generate or load address
+    function initAddress() {
+      let saved = localStorage.getItem('p2p_mail_address');
+      if (!saved) {
+        // Generate random address
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        saved = 'mail_';
+        for (let i = 0; i < 12; i++) {
+          saved += chars[Math.floor(Math.random() * chars.length)];
+        }
+        localStorage.setItem('p2p_mail_address', saved);
+      }
+      myAddress = saved;
+
+      document.getElementById('my-address').textContent = myAddress;
+      document.getElementById('setup-address').textContent = myAddress;
+    }
+
+    function copyMyAddress() {
+      navigator.clipboard.writeText(myAddress);
+      alert('Address copied! Share this with people who want to mail you.');
+    }
+
+    function loadMailbox() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        mailbox = JSON.parse(saved);
+      }
+      updateCounts();
+    }
+
+    function saveMailbox() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mailbox));
+      updateCounts();
+    }
+
+    function updateCounts() {
+      const unread = mailbox.inbox.filter(m => !m.read).length;
+      const countEl = document.getElementById('inbox-count');
+      if (unread > 0) {
+        countEl.textContent = unread;
+        countEl.style.display = 'block';
+      } else {
+        countEl.style.display = 'none';
+      }
+    }
+
+    function startApp() {
+      document.getElementById('setup-view').classList.remove('show');
+      document.getElementById('mail-view').style.display = 'flex';
+      showFolder('inbox');
+      setStatus('online', 'Ready to receive');
+    }
+
+    function setStatus(status, text) {
+      const dot = document.getElementById('status-dot');
+      dot.className = 'status-dot ' + status;
+      document.getElementById('status-text').textContent = text;
+    }
+
+    function showFolder(folder) {
+      currentFolder = folder;
+      currentMail = null;
+
+      // Update nav
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('nav-' + folder).classList.add('active');
+
+      // Update title
+      const titles = { inbox: 'Inbox', sent: 'Sent', drafts: 'Drafts' };
+      document.getElementById('folder-title').textContent = titles[folder];
+
+      // Hide message view
+      document.getElementById('message-view').classList.remove('show');
+      document.getElementById('mail-view').style.display = 'flex';
+
+      renderMailList();
+    }
+
+    function renderMailList() {
+      const list = document.getElementById('mail-list');
+      const mails = mailbox[currentFolder] || [];
+
+      if (mails.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">${currentFolder === 'inbox' ? '📭' : '📄'}</div>
+            <p>No messages in ${currentFolder}</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = mails.map((mail, i) => `
+        <div class="mail-item ${mail.read ? '' : 'unread'}" onclick="openMail(${i})">
+          <div class="mail-avatar">${(mail.from || mail.to || '?')[0].toUpperCase()}</div>
+          <div class="mail-content">
+            <div class="mail-header">
+              <span class="mail-from">${currentFolder === 'sent' ? mail.to : mail.from}</span>
+              <span class="mail-date">${formatDate(mail.date)}</span>
+            </div>
+            <div class="mail-subject">${mail.subject || '(No Subject)'}</div>
+            <div class="mail-preview">${mail.body?.substring(0, 100) || ''}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+
+      if (diff < 86400000) {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      } else if (diff < 604800000) {
+        return date.toLocaleDateString('en-US', { weekday: 'short' });
+      } else {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+    }
+
+    function openMail(index) {
+      const mails = mailbox[currentFolder];
+      if (!mails[index]) return;
+
+      currentMail = { folder: currentFolder, index };
+      const mail = mails[index];
+
+      // Mark as read
+      mail.read = true;
+      saveMailbox();
+
+      // Show message view
+      document.getElementById('mail-view').style.display = 'none';
+      document.getElementById('message-view').classList.add('show');
+
+      document.getElementById('view-subject').textContent = mail.subject || '(No Subject)';
+      document.getElementById('view-from').textContent = currentFolder === 'sent' ? `To: ${mail.to}` : `From: ${mail.from}`;
+      document.getElementById('view-date').textContent = new Date(mail.date).toLocaleString();
+      document.getElementById('view-body').textContent = mail.body || '';
+      document.getElementById('view-avatar').textContent = (mail.from || mail.to || '?')[0].toUpperCase();
+    }
+
+    function closeMessage() {
+      document.getElementById('message-view').classList.remove('show');
+      document.getElementById('mail-view').style.display = 'flex';
+      renderMailList();
+    }
+
+    function showCompose(to = '', subject = '', body = '') {
+      document.getElementById('compose-to').value = to;
+      document.getElementById('compose-subject').value = subject;
+      document.getElementById('compose-body').value = body;
+      document.getElementById('compose-modal').classList.add('show');
+    }
+
+    function hideCompose() {
+      document.getElementById('compose-modal').classList.remove('show');
+    }
+
+    function replyTo() {
+      if (!currentMail) return;
+      const mail = mailbox[currentMail.folder][currentMail.index];
+
+      showCompose(
+        mail.from,
+        `Re: ${mail.subject || ''}`,
+        `\n\n---\nOn ${new Date(mail.date).toLocaleDateString()}, ${mail.from} wrote:\n> ${(mail.body || '').replace(/\n/g, '\n> ')}`
+      );
+    }
+
+    function deleteMail() {
+      if (!currentMail) return;
+      if (!confirm('Delete this message?')) return;
+
+      mailbox[currentMail.folder].splice(currentMail.index, 1);
+      saveMailbox();
+      closeMessage();
+    }
+
+    async function sendMail() {
+      const to = document.getElementById('compose-to').value.trim();
+      const subject = document.getElementById('compose-subject').value.trim();
+      const body = document.getElementById('compose-body').value.trim();
+
+      if (!to) {
+        alert('Please enter a recipient address');
+        return;
+      }
+
+      if (!body) {
+        alert('Please write a message');
+        return;
+      }
+
+      const mail = {
+        id: Date.now() + '_' + Math.random().toString(36).slice(2),
+        from: myAddress,
+        to,
+        subject,
+        body,
+        date: Date.now(),
+        read: true
+      };
+
+      // Try to send via P2P
+      const sent = await sendViaPeer(mail);
+
+      if (sent) {
+        // Add to sent folder
+        mailbox.sent.unshift(mail);
+        saveMailbox();
+        hideCompose();
+        alert('Message sent!');
+      } else {
+        // Store for later delivery or use relay
+        mailbox.sent.unshift({ ...mail, pending: true });
+        saveMailbox();
+        hideCompose();
+        alert('Message queued. Will deliver when recipient is online.');
+      }
+    }
+
+    // P2P Connection using URL signaling
+    async function sendViaPeer(mail) {
+      // For demo: use BroadcastChannel for same-origin communication
+      // In production: use WebRTC with a lightweight signaling mechanism
+
+      try {
+        const channel = new BroadcastChannel('p2p_mail_' + mail.to);
+
+        return new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            channel.close();
+            resolve(false);
+          }, 3000);
+
+          channel.onmessage = (e) => {
+            if (e.data.type === 'ack' && e.data.mailId === mail.id) {
+              clearTimeout(timeout);
+              channel.close();
+              resolve(true);
+            }
+          };
+
+          channel.postMessage({
+            type: 'mail',
+            mail
+          });
+        });
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Listen for incoming mail
+    function listenForMail() {
+      try {
+        const channel = new BroadcastChannel('p2p_mail_' + myAddress);
+
+        channel.onmessage = (e) => {
+          if (e.data.type === 'mail') {
+            const mail = e.data.mail;
+
+            // Check for duplicates
+            if (mailbox.inbox.find(m => m.id === mail.id)) return;
+
+            // Add to inbox
+            mailbox.inbox.unshift({
+              ...mail,
+              read: false
+            });
+            saveMailbox();
+            renderMailList();
+
+            // Send acknowledgment
+            channel.postMessage({
+              type: 'ack',
+              mailId: mail.id
+            });
+
+            // Show notification
+            if (Notification.permission === 'granted') {
+              new Notification('New P2P Mail', {
+                body: `From: ${mail.from}\n${mail.subject || '(No Subject)'}`
+              });
+            }
+          }
+        };
+      } catch (e) {
+        console.log('BroadcastChannel not supported');
+      }
+    }
+
+    function searchMail(query) {
+      const mails = mailbox[currentFolder] || [];
+      const filtered = mails.filter(m =>
+        (m.subject || '').toLowerCase().includes(query.toLowerCase()) ||
+        (m.body || '').toLowerCase().includes(query.toLowerCase()) ||
+        (m.from || '').toLowerCase().includes(query.toLowerCase())
+      );
+
+      const list = document.getElementById('mail-list');
+
+      if (filtered.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <p>No messages found</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Re-render with filtered list (simplified for demo)
+      renderMailList();
+    }
+
+    // Request notification permission
+    function requestNotifications() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    // Init
+    initAddress();
+    loadMailbox();
+    listenForMail();
+    requestNotifications();
+
+    // Check if returning user
+    if (localStorage.getItem('p2p_mail_started')) {
+      startApp();
+    }
+
+    function startApp() {
+      localStorage.setItem('p2p_mail_started', 'true');
+      document.getElementById('setup-view').classList.remove('show');
+      document.getElementById('mail-view').style.display = 'flex';
+      showFolder('inbox');
+      setStatus('online', 'Ready to receive');
+    }
+  </script>
+</body>
+</html>

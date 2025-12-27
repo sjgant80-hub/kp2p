@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<!--
+KONOMI MSG - Zero-Server Message Links
+Encode messages in URLs. Share anywhere. No backend. $0 forever.
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "msg",
+    "name": "Msg",
+    "icon": "✉️",
+    "desc": "Zero-server message links",
+    "body": "Create shareable message links with no server required. Messages encoded in URL. Works on GitHub Pages. Truly serverless.",
+    "kills": ["Email", "Contact forms", "Messaging apps"],
+    "price": 0,
+    "color": "#8b5cf6",
+    "badge": "P2P"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Msg</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a25;
+      --accent: #8b5cf6;
+      --accent2: #a78bfa;
+      --text: #fff;
+      --text-dim: #888;
+      --success: #22c55e;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Compose View */
+    .compose-view {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding-top: 20px;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--text-dim);
+    }
+
+    .compose-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid #333;
+      color: var(--text);
+      padding: 14px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 1rem;
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .field textarea {
+      min-height: 150px;
+      resize: vertical;
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder {
+      color: #555;
+    }
+
+    .generate-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      border: none;
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .generate-btn:hover {
+      opacity: 0.9;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      display: none;
+    }
+
+    .result-card.show {
+      display: block;
+    }
+
+    .result-card h3 {
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .link-box {
+      background: var(--surface2);
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 14px;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .share-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .share-btn {
+      background: var(--surface2);
+      border: 1px solid #444;
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      justify-content: center;
+      min-width: 120px;
+    }
+
+    .share-btn:hover {
+      border-color: var(--accent);
+    }
+
+    .share-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* Read View */
+    .read-view {
+      display: none;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .read-view.show {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .message-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(139, 92, 246, 0.2);
+    }
+
+    .message-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    .message-from {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+    }
+
+    .message-from strong {
+      color: var(--text);
+      font-size: 1.1rem;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .message-date {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      text-align: right;
+    }
+
+    .message-subject {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: var(--accent2);
+    }
+
+    .message-body {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .message-actions {
+      margin-top: 32px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .reply-btn {
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      border: none;
+      color: white;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .copy-btn {
+      background: var(--surface2);
+      border: 1px solid #444;
+      color: var(--text);
+      padding: 14px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .how-it-works {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 24px;
+    }
+
+    .how-it-works h3 {
+      margin-bottom: 16px;
+      font-size: 1rem;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      background: var(--accent);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .step-text {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      padding-top: 3px;
+    }
+
+    .encrypted-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      margin-left: 8px;
+    }
+
+    @media (max-width: 500px) {
+      .share-buttons {
+        flex-direction: column;
+      }
+
+      .share-btn {
+        min-width: 100%;
+      }
+
+      .message-card {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Compose View -->
+  <div class="compose-view" id="compose-view">
+    <div class="header">
+      <h1>✉️ Msg</h1>
+      <p>Create shareable message links - no server required</p>
+    </div>
+
+    <div class="compose-card">
+      <div class="field">
+        <label>Your Name</label>
+        <input type="text" id="from" placeholder="Anonymous">
+      </div>
+      <div class="field">
+        <label>Subject</label>
+        <input type="text" id="subject" placeholder="Message subject">
+      </div>
+      <div class="field">
+        <label>Message</label>
+        <textarea id="body" placeholder="Write your message..."></textarea>
+      </div>
+      <button class="generate-btn" onclick="generateLink()">
+        <span>Generate Link</span>
+        <span>→</span>
+      </button>
+    </div>
+
+    <div class="result-card" id="result-card">
+      <h3>
+        <span>🔗 Your Message Link</span>
+        <span class="encrypted-badge">🔒 Encoded</span>
+      </h3>
+      <div class="link-box" id="link-box"></div>
+      <div class="share-buttons">
+        <button class="share-btn primary" onclick="copyLink()">📋 Copy Link</button>
+        <button class="share-btn" onclick="shareNative()">📤 Share</button>
+        <button class="share-btn" onclick="openLink()">👁️ Preview</button>
+      </div>
+    </div>
+
+    <div class="how-it-works">
+      <h3>🔮 How It Works</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Write your message above</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">Click "Generate Link" - your message is encoded into the URL itself</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Share the link via any channel (text, social, email, etc.)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">Recipient opens the link and sees your formatted message</div>
+        </div>
+      </div>
+      <p style="margin-top: 16px; font-size: 0.85rem; color: var(--text-dim);">
+        <strong>✨ No servers, no APIs, no accounts.</strong> The message IS the link.
+        Works on GitHub Pages or any static host.
+      </p>
+    </div>
+  </div>
+
+  <!-- Read View -->
+  <div class="read-view" id="read-view">
+    <div class="message-card">
+      <div class="message-meta">
+        <div class="message-from">
+          From:
+          <strong id="read-from">Anonymous</strong>
+        </div>
+        <div class="message-date" id="read-date"></div>
+      </div>
+      <div class="message-subject" id="read-subject">No Subject</div>
+      <div class="message-body" id="read-body"></div>
+      <div class="message-actions">
+        <button class="reply-btn" onclick="startReply()">↩️ Reply</button>
+        <button class="copy-btn" onclick="copyMessage()">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentMessage = null;
+    let generatedUrl = '';
+
+    // Encoding functions (base64 + compression-friendly)
+    function encode(obj) {
+      const json = JSON.stringify(obj);
+      const base64 = btoa(unescape(encodeURIComponent(json)));
+      // Make URL-safe
+      return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    function decode(str) {
+      try {
+        // Restore base64
+        let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+        // Add padding if needed
+        while (base64.length % 4) base64 += '=';
+        const json = decodeURIComponent(escape(atob(base64)));
+        return JSON.parse(json);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function generateLink() {
+      const from = document.getElementById('from').value.trim() || 'Anonymous';
+      const subject = document.getElementById('subject').value.trim() || 'No Subject';
+      const body = document.getElementById('body').value.trim();
+
+      if (!body) {
+        alert('Please write a message');
+        return;
+      }
+
+      const message = {
+        f: from,
+        s: subject,
+        b: body,
+        t: Date.now()
+      };
+
+      const encoded = encode(message);
+      generatedUrl = `${window.location.origin}${window.location.pathname}#${encoded}`;
+
+      document.getElementById('link-box').textContent = generatedUrl;
+      document.getElementById('result-card').classList.add('show');
+    }
+
+    function copyLink() {
+      navigator.clipboard.writeText(generatedUrl);
+      alert('Link copied to clipboard!');
+    }
+
+    async function shareNative() {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Message for you',
+            text: 'Someone sent you a message',
+            url: generatedUrl
+          });
+        } catch (e) {
+          if (e.name !== 'AbortError') copyLink();
+        }
+      } else {
+        copyLink();
+      }
+    }
+
+    function openLink() {
+      window.open(generatedUrl, '_blank');
+    }
+
+    function showMessage(msg) {
+      currentMessage = msg;
+
+      document.getElementById('read-from').textContent = msg.f || 'Anonymous';
+      document.getElementById('read-subject').textContent = msg.s || 'No Subject';
+      document.getElementById('read-body').textContent = msg.b || '';
+
+      if (msg.t) {
+        const date = new Date(msg.t);
+        document.getElementById('read-date').textContent = date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+
+      document.getElementById('compose-view').style.display = 'none';
+      document.getElementById('read-view').classList.add('show');
+    }
+
+    function startReply() {
+      // Switch to compose view with pre-filled reply
+      document.getElementById('read-view').classList.remove('show');
+      document.getElementById('compose-view').style.display = 'block';
+
+      document.getElementById('subject').value = `Re: ${currentMessage.s || 'No Subject'}`;
+      document.getElementById('body').value = `\n\n---\nOn ${new Date(currentMessage.t).toLocaleDateString()}, ${currentMessage.f} wrote:\n> ${(currentMessage.b || '').replace(/\n/g, '\n> ')}`;
+      document.getElementById('body').focus();
+      document.getElementById('body').setSelectionRange(0, 0);
+
+      // Clear hash
+      history.pushState('', document.title, window.location.pathname);
+    }
+
+    function copyMessage() {
+      const text = `From: ${currentMessage.f}\nSubject: ${currentMessage.s}\n\n${currentMessage.b}`;
+      navigator.clipboard.writeText(text);
+      alert('Message copied!');
+    }
+
+    // Check for message in URL on load
+    function checkForMessage() {
+      const hash = window.location.hash.slice(1);
+      if (hash) {
+        const msg = decode(hash);
+        if (msg && msg.b) {
+          showMessage(msg);
+        }
+      }
+    }
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', checkForMessage);
+
+    // Init
+    checkForMessage();
+  </script>
+</body>
+</html>
