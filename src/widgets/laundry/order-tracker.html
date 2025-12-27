@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"laundry-order-tracker","name":"Laundry Order Tracker","icon":"🧺","desc":"Track laundry orders","category":"laundry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#14b8a6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.order-id{font-weight:600}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.received{background:#3b82f633;color:#3b82f6}
+.status.washing{background:#14b8a633;color:#14b8a6}
+.status.drying{background:#f59e0b33;color:#f59e0b}
+.status.ready{background:#22c55e33;color:#22c55e}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.timeline{display:flex;justify-content:space-between;position:relative;padding:15px 0}
+.timeline::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:#333}
+.step{position:relative;z-index:1;text-align:center}
+.step-dot{width:16px;height:16px;border-radius:50%;background:#333;margin:0 auto 5px}
+.step-dot.active{background:#14b8a6}
+.step-label{font-size:.65rem;color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#14b8a6;color:#000}
+</style>
+</head>
+<body>
+<div class="header"><h1>🧺 Order Tracker</h1><button class="btn" onclick="alert('New')">+ New Order</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Ready</div></div>
+<div class="stat"><div class="stat-value">38</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">$890</div><div class="stat-label">Revenue</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const orders=[
+{id:'L-001',customer:'Sarah M.',phone:'555-0101',items:'15 lbs',service:'Wash & Fold',price:22,pickup:'3:00 PM',status:'washing',step:2},
+{id:'L-002',customer:'Mike J.',phone:'555-0102',items:'8 lbs',service:'Dry Clean',price:35,pickup:'5:00 PM',status:'drying',step:3},
+{id:'L-003',customer:'Emma D.',phone:'555-0103',items:'20 lbs',service:'Wash & Fold',price:30,pickup:'2:00 PM',status:'ready',step:4},
+{id:'L-004',customer:'Tom W.',phone:'555-0104',items:'5 items',service:'Press Only',price:18,pickup:'4:00 PM',status:'received',step:1}
+];
+document.getElementById('list').innerHTML=orders.map(o=>`
+<div class="card">
+<div class="card-header"><span class="order-id">#${o.id}</span><span class="status ${o.status}">${o.status.charAt(0).toUpperCase()+o.status.slice(1)}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Customer</span><span>${o.customer}</span></div><div class="row"><span class="label">Items</span><span>${o.items}</span></div></div>
+<div><div class="row"><span class="label">Service</span><span>${o.service}</span></div><div class="row"><span class="label">Price</span><span>$${o.price}</span></div></div>
+</div>
+<div class="timeline">
+<div class="step"><div class="step-dot ${o.step>=1?'active':''}"></div><div class="step-label">Received</div></div>
+<div class="step"><div class="step-dot ${o.step>=2?'active':''}"></div><div class="step-label">Washing</div></div>
+<div class="step"><div class="step-dot ${o.step>=3?'active':''}"></div><div class="step-label">Drying</div></div>
+<div class="step"><div class="step-dot ${o.step>=4?'active':''}"></div><div class="step-label">Ready</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Machine Status - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"machine-status","name":"Machine Status","icon":"🔄","desc":"Monitor laundry machines","category":"laundry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#14b8a6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.section{margin-bottom:25px}
+.section-title{font-size:1rem;font-weight:600;margin-bottom:15px;display:flex;align-items:center;gap:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:15px}
+.machine{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.machine-icon{font-size:2rem;margin-bottom:10px}
+.machine-id{font-weight:600;margin-bottom:5px}
+.machine-status{padding:4px 10px;border-radius:4px;font-size:.75rem;display:inline-block}
+.machine-status.available{background:#22c55e33;color:#22c55e}
+.machine-status.running{background:#14b8a633;color:#14b8a6}
+.machine-status.offline{background:#ef444433;color:#ef4444}
+.timer{font-size:1.25rem;font-weight:bold;color:#14b8a6;margin-top:10px}
+.bar{height:6px;background:#333;border-radius:3px;margin-top:10px}
+.fill{height:100%;background:#14b8a6;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔄 Machine Status</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Washers</div></div>
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Dryers</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">1</div><div class="stat-label">Offline</div></div>
+</div>
+<div class="section">
+<div class="section-title">🧼 Washers</div>
+<div class="grid" id="washers"></div>
+</div>
+<div class="section">
+<div class="section-title">♨️ Dryers</div>
+<div class="grid" id="dryers"></div>
+</div>
+<script>
+const washers=[
+{id:'W1',status:'running',time:18,total:35},
+{id:'W2',status:'available',time:0,total:0},
+{id:'W3',status:'running',time:5,total:35},
+{id:'W4',status:'available',time:0,total:0},
+{id:'W5',status:'running',time:28,total:35},
+{id:'W6',status:'offline',time:0,total:0},
+{id:'W7',status:'available',time:0,total:0},
+{id:'W8',status:'running',time:12,total:35}
+];
+const dryers=[
+{id:'D1',status:'running',time:22,total:45},
+{id:'D2',status:'running',time:8,total:45},
+{id:'D3',status:'available',time:0,total:0},
+{id:'D4',status:'running',time:35,total:45},
+{id:'D5',status:'available',time:0,total:0},
+{id:'D6',status:'available',time:0,total:0}
+];
+function renderMachines(machines,icon){
+return machines.map(m=>`
+<div class="machine">
+<div class="machine-icon">${icon}</div>
+<div class="machine-id">${m.id}</div>
+<div class="machine-status ${m.status}">${m.status.charAt(0).toUpperCase()+m.status.slice(1)}</div>
+${m.status==='running'?`<div class="timer">${m.time}:00</div><div class="bar"><div class="fill" style="width:${((m.total-m.time)/m.total)*100}%"></div></div>`:''}
+</div>`).join('');
+}
+document.getElementById('washers').innerHTML=renderMachines(washers,'🧼');
+document.getElementById('dryers').innerHTML=renderMachines(dryers,'♨️');
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"session-tracker","name":"Session Tracker","icon":"⏱️","desc":"Track tutoring sessions","category":"tutoring","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.time{font-weight:600}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.scheduled{background:#3b82f633;color:#3b82f6}
+.status.progress{background:#8b5cf633;color:#8b5cf6}
+.status.completed{background:#22c55e33;color:#22c55e}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#8b5cf6;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>⏱️ Session Tracker</h1><button class="btn" onclick="alert('New')">+ New Session</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">1</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value">42hrs</div><div class="stat-label">Total Hours</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const sessions=[
+{time:'2:00 PM',student:'Emma Johnson',subject:'Algebra',duration:'1 hour',location:'Online',rate:45,status:'progress'},
+{time:'4:00 PM',student:'Liam Smith',subject:'SAT Prep',duration:'1.5 hours',location:'Library',rate:60,status:'scheduled'},
+{time:'6:00 PM',student:'Olivia Davis',subject:'Reading',duration:'45 min',location:'Home',rate:40,status:'scheduled'},
+{time:'10:00 AM',student:'Noah Wilson',subject:'Calculus',duration:'1 hour',location:'Online',rate:75,status:'completed'}
+];
+document.getElementById('list').innerHTML=sessions.map(s=>`
+<div class="card">
+<div class="card-header"><span class="time">📅 ${s.time}</span><span class="status ${s.status}">${s.status==='progress'?'In Progress':s.status==='scheduled'?'Scheduled':'Completed'}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Student</span><span>${s.student}</span></div><div class="row"><span class="label">Subject</span><span>${s.subject}</span></div></div>
+<div><div class="row"><span class="label">Duration</span><span>${s.duration}</span></div><div class="row"><span class="label">Earnings</span><span>$${s.rate}</span></div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

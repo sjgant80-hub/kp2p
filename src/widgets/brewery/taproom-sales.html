@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Taproom Sales - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"taproom-sales","name":"Taproom Sales","icon":"🍻","desc":"Track taproom sales","category":"brewery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.beer-icon{font-size:2rem;margin-bottom:10px}
+.beer-name{font-weight:600;margin-bottom:5px}
+.beer-style{font-size:.875rem;color:#888;margin-bottom:10px}
+.abv{display:inline-block;padding:4px 8px;background:#f59e0b33;color:#f59e0b;border-radius:4px;font-size:.75rem;margin-bottom:10px}
+.price{font-size:1.25rem;font-weight:bold;margin-bottom:15px}
+.remaining{font-size:.75rem;color:#888}
+.bar{height:6px;background:#333;border-radius:3px;margin-top:5px}
+.fill{height:100%;background:#22c55e;border-radius:3px}
+.btn{width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;background:#f59e0b;color:#000;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🍻 Taproom Sales</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">$2.4k</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Pours</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">On Tap</div></div>
+<div class="stat"><div class="stat-value">45</div><div class="stat-label">Avg/Customer</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const beers=[
+{icon:'🍺',name:'Golden Ale',style:'Pale Ale',abv:'5.2%',pint:7,remaining:75},
+{icon:'🍺',name:'Winter Stout',style:'Oatmeal Stout',abv:'6.8%',pint:8,remaining:60},
+{icon:'🍺',name:'Hop Heaven',style:'IPA',abv:'7.2%',pint:8,remaining:40},
+{icon:'🍺',name:'Lager Time',style:'Pilsner',abv:'4.8%',pint:6,remaining:90},
+{icon:'🍺',name:'Wheat Wonder',style:'Hefeweizen',abv:'5.0%',pint:7,remaining:55},
+{icon:'🍺',name:'Dark Knight',style:'Porter',abv:'5.5%',pint:7,remaining:25}
+];
+document.getElementById('grid').innerHTML=beers.map(b=>`
+<div class="card">
+<div class="beer-icon">${b.icon}</div>
+<div class="beer-name">${b.name}</div>
+<div class="beer-style">${b.style}</div>
+<div class="abv">${b.abv}</div>
+<div class="price">$${b.pint}/pint</div>
+<div class="remaining">${b.remaining}% remaining</div>
+<div class="bar"><div class="fill" style="width:${b.remaining}%;background:${b.remaining<30?'#ef4444':b.remaining<50?'#f59e0b':'#22c55e'}"></div></div>
+<button class="btn" onclick="alert('Pour')">Pour</button>
+</div>`).join('');
+</script>
+</body>
+</html>

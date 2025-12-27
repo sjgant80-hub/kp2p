@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Queue Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"queue-manager","name":"Queue Manager","icon":"🚗","desc":"Manage car wash queue","category":"carwash","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.position{font-weight:600;font-size:1.25rem;color:#06b6d4}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.waiting{background:#f59e0b33;color:#f59e0b}
+.status.washing{background:#06b6d433;color:#06b6d4}
+.status.done{background:#22c55e33;color:#22c55e}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#06b6d4;color:#000}
+.actions{display:flex;gap:10px;margin-top:15px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚗 Queue Manager</h1><button class="btn" onclick="alert('Add')">+ Add Vehicle</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">In Queue</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Washing</div></div>
+<div class="stat"><div class="stat-value">~15min</div><div class="stat-label">Wait Time</div></div>
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Today</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const queue=[
+{pos:1,plate:'ABC-123',vehicle:'Toyota Camry',color:'Silver',wash:'Premium',price:25,status:'washing'},
+{pos:2,plate:'XYZ-789',vehicle:'Honda CR-V',color:'Black',wash:'Deluxe',price:35,status:'washing'},
+{pos:3,plate:'DEF-456',vehicle:'BMW 3 Series',color:'White',wash:'Premium',price:25,status:'waiting'},
+{pos:4,plate:'GHI-321',vehicle:'Ford F-150',color:'Red',wash:'Basic',price:15,status:'waiting'},
+{pos:5,plate:'JKL-654',vehicle:'Tesla Model 3',color:'Blue',wash:'Ultimate',price:45,status:'waiting'}
+];
+document.getElementById('list').innerHTML=queue.map(q=>`
+<div class="card">
+<div class="card-header"><span class="position">#${q.pos}</span><span class="status ${q.status}">${q.status==='washing'?'Washing':q.status==='done'?'Complete':'Waiting'}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Vehicle</span><span>${q.vehicle}</span></div><div class="row"><span class="label">Plate</span><span>${q.plate}</span></div></div>
+<div><div class="row"><span class="label">Wash</span><span>${q.wash}</span></div><div class="row"><span class="label">Price</span><span>$${q.price}</span></div></div>
+</div>
+<div class="actions"><button class="btn" onclick="alert('${q.status==='waiting'?'Start':'Complete'}')">${q.status==='waiting'?'Start Wash':'Complete'}</button></div>
+</div>`).join('');
+</script>
+</body>
+</html>
