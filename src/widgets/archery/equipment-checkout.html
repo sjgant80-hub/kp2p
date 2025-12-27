@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equipment Checkout - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"equipment-checkout","name":"Equipment Checkout","icon":"🎯","desc":"Archery equipment rental","category":"archery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#16a34a}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.equipment{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px;margin-bottom:20px}
+.item{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.item-name{font-weight:600}
+.item-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status-available{background:#16a34a33;color:#16a34a}
+.status-out{background:#f59e0b33;color:#f59e0b}
+.item-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;font-size:.875rem}
+.detail-label{color:#888}
+.item-qty{display:flex;justify-content:space-between;align-items:center;padding:15px;background:#252525;border-radius:8px}
+.qty-label{color:#888;font-size:.875rem}
+.qty-control{display:flex;align-items:center;gap:10px}
+.qty-btn{width:30px;height:30px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;border-radius:4px;cursor:pointer}
+.qty-value{font-weight:bold;min-width:30px;text-align:center}
+.active-checkouts{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.checkout-title{font-weight:600;margin-bottom:15px}
+.checkout{display:flex;align-items:center;gap:15px;padding:15px;background:#252525;border-radius:8px;margin-bottom:10px}
+.checkout-item{flex:1}
+.checkout-name{font-weight:500}
+.checkout-details{font-size:.75rem;color:#888}
+.checkout-time{text-align:right}
+.time-value{font-weight:bold;color:#16a34a}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎯 Equipment Checkout</h1><button class="btn">+ New Checkout</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Bows Available</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">Checked Out</div></div>
+<div class="stat"><div class="stat-value">$5</div><div class="stat-label">Rental Fee</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Maintenance</div></div>
+</div>
+<div class="equipment" id="equipment"></div>
+<div class="active-checkouts">
+<div class="checkout-title">Active Checkouts</div>
+<div id="checkouts"></div>
+</div>
+<script>
+const items=[
+{name:'Recurve Bow',type:'Beginner',poundage:'20-30 lbs',total:15,available:8,rate:'$5/session'},
+{name:'Recurve Bow',type:'Intermediate',poundage:'30-40 lbs',total:10,available:4,rate:'$5/session'},
+{name:'Compound Bow',type:'Adult',poundage:'40-60 lbs',total:8,available:3,rate:'$8/session'},
+{name:'Youth Bow',type:'Junior',poundage:'10-20 lbs',total:12,available:9,rate:'$3/session'}
+];
+const checkouts=[
+{item:'Recurve Bow (Beginner)',customer:'Mike Chen',lane:'Lane 3',time:'45 min'},
+{item:'Compound Bow',customer:'Sarah Johnson',lane:'Lane 5',time:'1:15'},
+{item:'Youth Bow',customer:'Wilson Family',lane:'Lane 1',time:'30 min'}
+];
+document.getElementById('equipment').innerHTML=items.map(i=>`
+<div class="item">
+<div class="item-header"><span class="item-name">${i.name}</span><span class="item-status ${i.available>0?'status-available':'status-out'}">${i.available} available</span></div>
+<div class="item-details">
+<div><span class="detail-label">Type:</span> ${i.type}</div>
+<div><span class="detail-label">Draw:</span> ${i.poundage}</div>
+</div>
+<div class="item-qty"><span class="qty-label">${i.rate}</span><div class="qty-control"><button class="qty-btn">-</button><span class="qty-value">0</span><button class="qty-btn">+</button></div></div>
+</div>`).join('');
+document.getElementById('checkouts').innerHTML=checkouts.map(c=>`
+<div class="checkout">
+<div class="checkout-item"><div class="checkout-name">${c.item}</div><div class="checkout-details">${c.customer} • ${c.lane}</div></div>
+<div class="checkout-time"><div class="time-value">${c.time}</div><div style="font-size:.7rem;color:#888">elapsed</div></div>
+</div>`).join('');
+</script>
+</body>
+</html>

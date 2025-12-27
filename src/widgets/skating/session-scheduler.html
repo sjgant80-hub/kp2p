@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"session-scheduler","name":"Session Scheduler","icon":"⛸️","desc":"Ice skating session scheduling","category":"skating","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.session{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.session-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.session-time{font-weight:600}
+.session-type{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.type-public{background:#22c55e33;color:#22c55e}
+.type-lesson{background:#3b82f633;color:#3b82f6}
+.type-hockey{background:#dc262633;color:#dc2626}
+.type-figure{background:#c084fc33;color:#c084fc}
+.session-body{padding:20px}
+.session-info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.info-item{display:flex;flex-direction:column}
+.info-label{font-size:.75rem;color:#888}
+.info-value{font-size:.875rem;margin-top:2px}
+.capacity{margin-bottom:15px}
+.capacity-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.capacity-fill{height:100%;background:#0ea5e9}
+.capacity-text{font-size:.75rem;color:#888;margin-top:5px;display:flex;justify-content:space-between}
+.session-btn{width:100%;padding:10px;background:#0ea5e9;border:none;border-radius:6px;color:#fff;cursor:pointer}
+.session-btn.full{background:#333;color:#888;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>⛸️ Session Scheduler</h1><button class="btn">+ Add Session</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Sessions Today</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Registered</div></div>
+<div class="stat"><div class="stat-value">$2.4k</div><div class="stat-label">Revenue</div></div>
+<div class="stat"><div class="stat-value">28°F</div><div class="stat-label">Ice Temp</div></div>
+</div>
+<div class="schedule" id="schedule"></div>
+<script>
+const sessions=[
+{time:'10:00 AM - 12:00 PM',type:'public',name:'Open Skate',capacity:75,booked:68,price:12,ice:'Main Rink'},
+{time:'12:30 PM - 1:30 PM',type:'lesson',name:'Learn to Skate - Beginners',capacity:20,booked:18,price:35,ice:'Main Rink'},
+{time:'2:00 PM - 4:00 PM',type:'public',name:'Open Skate',capacity:75,booked:42,price:12,ice:'Main Rink'},
+{time:'4:30 PM - 6:00 PM',type:'hockey',name:'Youth Hockey Practice',capacity:30,booked:28,price:0,ice:'Main Rink'},
+{time:'6:30 PM - 8:00 PM',type:'figure',name:'Figure Skating Club',capacity:25,booked:22,price:0,ice:'Main Rink'},
+{time:'8:30 PM - 10:30 PM',type:'hockey',name:'Adult Hockey League',capacity:40,booked:40,price:25,ice:'Main Rink'}
+];
+document.getElementById('schedule').innerHTML=sessions.map(s=>`
+<div class="session">
+<div class="session-header"><span class="session-time">${s.time}</span><span class="session-type type-${s.type}">${s.type.charAt(0).toUpperCase()+s.type.slice(1)}</span></div>
+<div class="session-body">
+<div style="font-weight:600;margin-bottom:10px">${s.name}</div>
+<div class="session-info">
+<div class="info-item"><span class="info-label">Location</span><span class="info-value">🏟️ ${s.ice}</span></div>
+<div class="info-item"><span class="info-label">Price</span><span class="info-value">${s.price?'$'+s.price:'Included'}</span></div>
+</div>
+<div class="capacity"><div class="capacity-bar"><div class="capacity-fill" style="width:${(s.booked/s.capacity)*100}%"></div></div><div class="capacity-text"><span>${s.booked}/${s.capacity} spots</span><span>${s.capacity-s.booked} available</span></div></div>
+<button class="session-btn ${s.booked>=s.capacity?'full':''}">${s.booked>=s.capacity?'Session Full':'Book Now'}</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

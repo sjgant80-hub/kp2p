@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>League Scores - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"league-scores","name":"League Scores","icon":"🏆","desc":"Bowling league standings","category":"bowling","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.league-select{width:100%;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#e0e0e0;margin-bottom:20px}
+.standings{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden;margin-bottom:20px}
+.standings-header{display:grid;grid-template-columns:40px 1fr 80px 80px 80px;padding:15px 20px;background:#252525;font-size:.875rem;font-weight:600}
+.standing{display:grid;grid-template-columns:40px 1fr 80px 80px 80px;padding:15px 20px;border-top:1px solid #333;align-items:center}
+.rank{font-weight:bold;color:#f97316}
+.rank.gold{color:#fbbf24}
+.rank.silver{color:#9ca3af}
+.rank.bronze{color:#b45309}
+.team-name{font-weight:500}
+.stat-col{text-align:center}
+.high-scores{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.scores-title{font-weight:600;margin-bottom:15px}
+.scores-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.score-card{background:#252525;border-radius:8px;padding:15px;text-align:center}
+.score-type{font-size:.75rem;color:#888;margin-bottom:5px}
+.score-value{font-size:2rem;font-weight:bold;color:#f97316}
+.score-holder{font-size:.875rem;margin-top:5px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏆 League Scores</h1><button class="btn">Enter Scores</button></div>
+<select class="league-select"><option>Thursday Night Mixed League</option><option>Monday Men's League</option><option>Wednesday Women's League</option><option>Saturday Youth League</option></select>
+<div class="standings">
+<div class="standings-header"><span>#</span><span>Team</span><span style="text-align:center">W-L</span><span style="text-align:center">Avg</span><span style="text-align:center">Pts</span></div>
+<div id="standings"></div>
+</div>
+<div class="high-scores">
+<div class="scores-title">🎯 Season High Scores</div>
+<div class="scores-grid">
+<div class="score-card"><div class="score-type">High Game (Individual)</div><div class="score-value">289</div><div class="score-holder">Mike Johnson</div></div>
+<div class="score-card"><div class="score-type">High Series (Individual)</div><div class="score-value">742</div><div class="score-holder">Sarah Chen</div></div>
+<div class="score-card"><div class="score-type">High Game (Team)</div><div class="score-value">987</div><div class="score-holder">Pin Crushers</div></div>
+<div class="score-card"><div class="score-type">High Series (Team)</div><div class="score-value">2,845</div><div class="score-holder">Strike Force</div></div>
+</div>
+</div>
+<script>
+const standings=[
+{rank:1,team:'Strike Force',wins:28,losses:8,avg:185,pts:42},
+{rank:2,team:'Pin Crushers',wins:26,losses:10,avg:178,pts:38},
+{rank:3,team:'Gutter Ballers',wins:24,losses:12,avg:172,pts:35},
+{rank:4,team:'Split Happens',wins:22,losses:14,avg:168,pts:32},
+{rank:5,team:'Spare Me',wins:20,losses:16,avg:165,pts:28},
+{rank:6,team:'Rolling Thunder',wins:18,losses:18,avg:162,pts:24},
+{rank:7,team:'The Kingpins',wins:14,losses:22,avg:158,pts:18},
+{rank:8,team:'Alley Cats',wins:12,losses:24,avg:155,pts:14}
+];
+document.getElementById('standings').innerHTML=standings.map(s=>`
+<div class="standing">
+<span class="rank ${s.rank===1?'gold':s.rank===2?'silver':s.rank===3?'bronze':''}">${s.rank}</span>
+<span class="team-name">${s.team}</span>
+<span class="stat-col">${s.wins}-${s.losses}</span>
+<span class="stat-col">${s.avg}</span>
+<span class="stat-col" style="font-weight:bold">${s.pts}</span>
+</div>`).join('');
+</script>
+</body>
+</html>

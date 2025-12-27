@@ -560,6 +560,26 @@ const categoryMap = {
   // Nursery
   'plant-inventory': { category: 'nursery', subcategory: 'inventory', badge: 'ENT' },
   'care-schedule': { category: 'nursery', subcategory: 'care', badge: 'ENT' },
+
+  // Massage
+  'massage-appointments': { category: 'massage', subcategory: 'scheduling', badge: 'ENT' },
+  'client-notes': { category: 'massage', subcategory: 'records', badge: 'ENT' },
+
+  // Martial Arts
+  'class-roster': { category: 'martial', subcategory: 'students', badge: 'ENT' },
+  'belt-tracker': { category: 'martial', subcategory: 'progression', badge: 'ENT' },
+
+  // Skating
+  'session-scheduler': { category: 'skating', subcategory: 'scheduling', badge: 'ENT' },
+  'skate-rental': { category: 'skating', subcategory: 'rentals', badge: 'ENT' },
+
+  // Bowling
+  'lane-manager': { category: 'bowling', subcategory: 'lanes', badge: 'ENT' },
+  'league-scores': { category: 'bowling', subcategory: 'leagues', badge: 'ENT' },
+
+  // Archery
+  'range-booking': { category: 'archery', subcategory: 'booking', badge: 'ENT' },
+  'equipment-checkout': { category: 'archery', subcategory: 'rentals', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -801,7 +821,12 @@ const widgetDirs = [
   'dj',
   'tailor',
   'accounting',
-  'nursery'
+  'nursery',
+  'massage',
+  'martial',
+  'skating',
+  'bowling',
+  'archery'
 ];
 
 // Process all widgets in all directories

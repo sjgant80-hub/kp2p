@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Class Roster - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"class-roster","name":"Class Roster","icon":"🥋","desc":"Martial arts class roster","category":"martial","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#dc2626}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.class-select{width:100%;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#e0e0e0;margin-bottom:20px}
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:15px}
+.student{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.student-avatar{width:60px;height:60px;background:#dc2626;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.student-name{font-weight:600;margin-bottom:5px}
+.student-belt{display:inline-block;padding:4px 12px;border-radius:4px;font-size:.75rem;margin-bottom:10px}
+.belt-white{background:#fff;color:#000}
+.belt-yellow{background:#fbbf24;color:#000}
+.belt-orange{background:#f97316;color:#000}
+.belt-green{background:#22c55e;color:#000}
+.belt-blue{background:#3b82f6;color:#fff}
+.belt-brown{background:#92400e;color:#fff}
+.belt-black{background:#000;color:#fff;border:1px solid #333}
+.student-info{font-size:.75rem;color:#888}
+.attendance{display:flex;justify-content:center;gap:3px;margin-top:10px}
+.att-dot{width:8px;height:8px;border-radius:50%;background:#333}
+.att-dot.present{background:#22c55e}
+.att-dot.absent{background:#ef4444}
+</style>
+</head>
+<body>
+<div class="header"><h1>🥋 Class Roster</h1><button class="btn">+ Add Student</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Students</div></div>
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Classes Today</div></div>
+<div class="stat"><div class="stat-value">87%</div><div class="stat-label">Attendance</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Belt Tests Due</div></div>
+</div>
+<select class="class-select"><option>Adult Karate - 6:00 PM (18 students)</option><option>Kids Taekwondo - 4:00 PM (24 students)</option><option>BJJ Fundamentals - 7:30 PM (12 students)</option><option>Muay Thai - 8:00 PM (10 students)</option></select>
+<div class="roster" id="roster"></div>
+<script>
+const students=[
+{name:'Michael Chen',belt:'blue',age:28,months:18,att:[1,1,1,0,1]},
+{name:'Sarah Johnson',belt:'green',age:32,months:12,att:[1,1,1,1,1]},
+{name:'David Kim',belt:'brown',age:25,months:36,att:[1,0,1,1,1]},
+{name:'Emily Davis',belt:'yellow',age:22,months:4,att:[1,1,0,1,1]},
+{name:'James Wilson',belt:'white',age:35,months:1,att:[1,1,1,1,0]},
+{name:'Lisa Park',belt:'orange',age:29,months:8,att:[1,1,1,1,1]},
+{name:'Robert Lee',belt:'black',age:40,months:60,att:[1,1,1,1,1]},
+{name:'Amanda White',belt:'blue',age:27,months:20,att:[0,1,1,1,1]}
+];
+document.getElementById('roster').innerHTML=students.map(s=>`
+<div class="student">
+<div class="student-avatar">🥋</div>
+<div class="student-name">${s.name}</div>
+<span class="student-belt belt-${s.belt}">${s.belt.charAt(0).toUpperCase()+s.belt.slice(1)} Belt</span>
+<div class="student-info">Age: ${s.age} • Member: ${s.months} months</div>
+<div class="attendance">${s.att.map(a=>`<div class="att-dot ${a?'present':'absent'}"></div>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

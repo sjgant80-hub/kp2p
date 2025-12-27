@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Range Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"range-booking","name":"Range Booking","icon":"🏹","desc":"Archery range reservations","category":"archery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#16a34a}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.lanes{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:15px}
+.lane{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.lane-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.lane-num{font-weight:bold}
+.lane-type{font-size:.75rem;color:#888}
+.lane-body{padding:15px}
+.time-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.slot{padding:8px;text-align:center;border-radius:4px;font-size:.75rem;cursor:pointer}
+.slot.available{background:#16a34a33;color:#16a34a}
+.slot.booked{background:#333;color:#888;cursor:not-allowed}
+.slot.selected{background:#16a34a;color:#fff}
+.lane-price{display:flex;justify-content:space-between;margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.price-label{color:#888;font-size:.875rem}
+.price-value{font-weight:bold;color:#16a34a}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏹 Range Booking</h1><button class="btn">Book Selected</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Lanes</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Available Now</div></div>
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Bookings Today</div></div>
+<div class="stat"><div class="stat-value">$15/hr</div><div class="stat-label">Lane Rate</div></div>
+</div>
+<div class="lanes" id="lanes"></div>
+<script>
+const lanes=[
+{num:1,type:'20 yards',slots:['10am','11am','12pm','1pm','2pm','3pm','4pm','5pm'],booked:[1,1,0,0,1,0,0,0]},
+{num:2,type:'20 yards',slots:['10am','11am','12pm','1pm','2pm','3pm','4pm','5pm'],booked:[1,0,0,1,1,0,0,0]},
+{num:3,type:'30 yards',slots:['10am','11am','12pm','1pm','2pm','3pm','4pm','5pm'],booked:[0,0,1,1,0,0,1,0]},
+{num:4,type:'30 yards',slots:['10am','11am','12pm','1pm','2pm','3pm','4pm','5pm'],booked:[1,1,1,0,0,0,0,0]},
+{num:5,type:'50 yards',slots:['10am','11am','12pm','1pm','2pm','3pm','4pm','5pm'],booked:[0,0,0,0,1,1,0,0]},
+{num:6,type:'50 yards',slots:['10am','11am','12pm','1pm','2pm','3pm','4pm','5pm'],booked:[0,1,0,0,0,0,1,1]}
+];
+document.getElementById('lanes').innerHTML=lanes.map(l=>`
+<div class="lane">
+<div class="lane-header"><span class="lane-num">Lane ${l.num}</span><span class="lane-type">${l.type}</span></div>
+<div class="lane-body">
+<div class="time-slots">${l.slots.map((s,i)=>`<div class="slot ${l.booked[i]?'booked':'available'}">${s}</div>`).join('')}</div>
+<div class="lane-price"><span class="price-label">Rate</span><span class="price-value">$15/hour</span></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

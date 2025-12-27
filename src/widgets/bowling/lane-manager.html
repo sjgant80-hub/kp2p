@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lane Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"lane-manager","name":"Lane Manager","icon":"🎳","desc":"Bowling lane management","category":"bowling","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.lanes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.lane{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.lane-header{padding:15px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.lane-num{font-weight:bold;font-size:1.25rem}
+.lane-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status-open{background:#22c55e33;color:#22c55e}
+.status-active{background:#f9731633;color:#f97316}
+.status-reserved{background:#3b82f633;color:#3b82f6}
+.status-maint{background:#ef444433;color:#ef4444}
+.lane-body{padding:15px}
+.lane-info{font-size:.875rem;margin-bottom:10px}
+.lane-timer{font-size:1.5rem;font-weight:bold;color:#f97316;margin-bottom:5px}
+.lane-expires{font-size:.75rem;color:#888}
+.lane-actions{display:flex;gap:10px;margin-top:15px}
+.lane-btn{flex:1;padding:8px;border:1px solid #333;background:#252525;color:#e0e0e0;border-radius:6px;cursor:pointer;font-size:.875rem}
+.lane-btn.primary{background:#f97316;border-color:#f97316;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎳 Lane Manager</h1><button class="btn">+ Quick Reserve</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Total Lanes</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">$1.8k</div><div class="stat-label">Today</div></div>
+</div>
+<div class="lanes" id="lanes"></div>
+<script>
+const lanes=[
+{num:1,status:'active',party:'Johnson Family',players:4,timer:'0:45',expires:'2:15 PM'},
+{num:2,status:'active',party:'Birthday Party',players:8,timer:'1:30',expires:'3:00 PM'},
+{num:3,status:'reserved',party:'Smith (4:00 PM)',players:6,timer:'-',expires:'-'},
+{num:4,status:'open',party:'-',players:0,timer:'-',expires:'-'},
+{num:5,status:'active',party:'League Night',players:4,timer:'2:00',expires:'4:00 PM'},
+{num:6,status:'maint',party:'Pin Setter Repair',players:0,timer:'-',expires:'-'},
+{num:7,status:'active',party:'Corporate Event',players:6,timer:'0:15',expires:'1:45 PM'},
+{num:8,status:'open',party:'-',players:0,timer:'-',expires:'-'}
+];
+document.getElementById('lanes').innerHTML=lanes.map(l=>`
+<div class="lane">
+<div class="lane-header"><span class="lane-num">Lane ${l.num}</span><span class="lane-status status-${l.status}">${l.status.charAt(0).toUpperCase()+l.status.slice(1)}</span></div>
+<div class="lane-body">
+${l.status==='active'?`<div class="lane-timer">${l.timer} remaining</div><div class="lane-expires">Ends: ${l.expires}</div>`:''}
+<div class="lane-info">${l.status==='open'?'Available for booking':l.status==='maint'?'🔧 Under maintenance':l.party+' • '+l.players+' players'}</div>
+<div class="lane-actions">
+${l.status==='open'?'<button class="lane-btn primary">Start Session</button>':''}
+${l.status==='active'?'<button class="lane-btn">Add Time</button><button class="lane-btn">End</button>':''}
+${l.status==='reserved'?'<button class="lane-btn primary">Check In</button>':''}
+${l.status==='maint'?'<button class="lane-btn">Mark Ready</button>':''}
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
