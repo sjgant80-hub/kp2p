@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repair Tickets - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"repair-tickets","name":"Repair Tickets","icon":"🔧","desc":"Appliance repair tickets","category":"appliance","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.id{font-weight:600}
+.type{padding:4px 8px;border-radius:4px;font-size:.75rem;background:#f59e0b33;color:#f59e0b;margin-left:10px}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.new{background:#8b5cf633;color:#8b5cf6}
+.status.diag{background:#3b82f633;color:#3b82f6}
+.status.parts{background:#f59e0b33;color:#f59e0b}
+.status.done{background:#22c55e33;color:#22c55e}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#f59e0b;color:#000}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔧 Repair Tickets</h1><button class="btn" onclick="alert('New')">+ New</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Open</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">Awaiting Parts</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">2.5h</div><div class="stat-label">Avg Time</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const tickets=[
+{id:'AR-001',type:'🧊 Refrigerator',customer:'Johnson Family',issue:'Not cooling',brand:'Samsung',tech:'Mike T.',status:'diag'},
+{id:'AR-002',type:'🫧 Washer',customer:'Smith Home',issue:'Leaking water',brand:'LG',tech:'Tom R.',status:'parts'},
+{id:'AR-003',type:'🍽️ Dishwasher',customer:'Williams',issue:'Not draining',brand:'Bosch',tech:'--',status:'new'},
+{id:'AR-004',type:'🔥 Oven',customer:'Davis Home',issue:'Element broken',brand:'GE',tech:'Mike T.',status:'done'}
+];
+document.getElementById('list').innerHTML=tickets.map(t=>`
+<div class="card">
+<div class="card-header"><span class="id">#${t.id}<span class="type">${t.type}</span></span><span class="status ${t.status}">${t.status==='diag'?'Diagnosed':t.status==='parts'?'Parts Ordered':t.status==='done'?'Completed':'New'}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Customer</span><span>${t.customer}</span></div><div class="row"><span class="label">Brand</span><span>${t.brand}</span></div></div>
+<div><div class="row"><span class="label">Issue</span><span>${t.issue}</span></div><div class="row"><span class="label">Tech</span><span>${t.tech}</span></div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

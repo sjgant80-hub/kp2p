@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inspection Form - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"inspection-form","name":"Inspection Form","icon":"📝","desc":"Pest inspection forms","category":"pest","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#84cc16}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.result{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.result.clear{background:#22c55e33;color:#22c55e}
+.result.issues{background:#f59e0b33;color:#f59e0b}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.item{padding:10px;background:#252525;border-radius:6px}
+.item-label{font-size:.75rem;color:#888}
+.findings{margin-top:10px}
+.finding{display:flex;justify-content:space-between;padding:8px 12px;background:#252525;border-radius:6px;margin-bottom:6px}
+.severity{width:10px;height:10px;border-radius:50%;margin-right:10px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#84cc16;color:#000}
+</style>
+</head>
+<body>
+<div class="header"><h1>📝 Inspection Forms</h1><button class="btn" onclick="alert('New')">+ New</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Inspections</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">Clear</div></div>
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Issues</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">Follow-ups</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const reports=[
+{date:'Dec 26',property:'Smith Home',type:'Pre-Purchase',result:'issues',findings:[{pest:'Termites',loc:'Garage',sev:'#ef4444'},{pest:'Ants',loc:'Kitchen',sev:'#f59e0b'}]},
+{date:'Dec 24',property:'ABC Restaurant',type:'Monthly',result:'clear',findings:[]},
+{date:'Dec 22',property:'Johnson Home',type:'Quarterly',result:'issues',findings:[{pest:'Rodents',loc:'Attic',sev:'#f59e0b'}]}
+];
+document.getElementById('list').innerHTML=reports.map(r=>`
+<div class="card">
+<div class="card-header"><span>📅 ${r.date}</span><span class="result ${r.result}">${r.result==='clear'?'CLEAR':'ISSUES FOUND'}</span></div>
+<div class="info">
+<div class="item"><div class="item-label">Property</div><div>${r.property}</div></div>
+<div class="item"><div class="item-label">Type</div><div>${r.type}</div></div>
+</div>
+${r.findings.length?`<div class="findings">${r.findings.map(f=>`<div class="finding"><div style="display:flex;align-items:center"><span class="severity" style="background:${f.sev}"></span>${f.pest} - ${f.loc}</div></div>`).join('')}</div>`:'<div style="color:#22c55e;text-align:center;padding:10px">✓ No pest activity</div>'}
+</div>`).join('');
+</script>
+</body>
+</html>

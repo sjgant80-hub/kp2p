@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Warranty Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"warranty-tracker","name":"Warranty Tracker","icon":"📜","desc":"Track appliance warranties","category":"appliance","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.name{font-weight:600;display:flex;align-items:center;gap:8px}
+.status{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.status.active{background:#22c55e33;color:#22c55e}
+.status.expiring{background:#f59e0b33;color:#f59e0b}
+.status.expired{background:#ef444433;color:#ef4444}
+.details{font-size:.875rem;margin-bottom:10px}
+.bar{height:8px;background:#333;border-radius:4px;margin:10px 0}
+.fill{height:100%;border-radius:4px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#f59e0b;color:#000;width:100%}
+</style>
+</head>
+<body>
+<div class="header"><h1>📜 Warranty Tracker</h1><button class="btn" style="width:auto" onclick="alert('Add')">+ Add</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Total</div></div>
+<div class="stat"><div class="stat-value">9</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Expiring</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">Claims</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const items=[
+{icon:'🧊',name:'Refrigerator',brand:'Samsung',customer:'Johnson',end:'Dec 2025',days:365,status:'active',pct:50},
+{icon:'🫧',name:'Washer',brand:'LG',customer:'Smith',end:'Apr 2025',days:120,status:'expiring',pct:80},
+{icon:'🍽️',name:'Dishwasher',brand:'Bosch',customer:'Williams',end:'Jan 2025',days:30,status:'expiring',pct:95},
+{icon:'🔥',name:'Range',brand:'GE',customer:'Davis',end:'Nov 2024',days:-30,status:'expired',pct:100}
+];
+document.getElementById('grid').innerHTML=items.map(i=>`
+<div class="card">
+<div class="card-header"><span class="name">${i.icon} ${i.name}</span><span class="status ${i.status}">${i.status==='active'?'Active':i.status==='expiring'?'Expiring Soon':'Expired'}</span></div>
+<div class="details"><div>Brand: ${i.brand} • Customer: ${i.customer}</div><div style="color:#888">Expires: ${i.end}</div></div>
+<div class="bar"><div class="fill" style="width:${i.pct}%;background:${i.status==='active'?'#22c55e':i.status==='expiring'?'#f59e0b':'#ef4444'}"></div></div>
+<div style="font-size:.75rem;color:#888;text-align:right;margin-bottom:10px">${i.days>0?i.days+' days left':'Expired'}</div>
+<button class="btn" onclick="alert('Claim')">📝 File Claim</button>
+</div>`).join('');
+</script>
+</body>
+</html>

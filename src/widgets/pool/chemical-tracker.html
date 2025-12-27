@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chemical Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"chemical-tracker","name":"Chemical Tracker","icon":"🧪","desc":"Track pool chemicals","category":"pool","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.name{font-weight:600}
+.status{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.status.good{background:#22c55e33;color:#22c55e}
+.status.low{background:#f59e0b33;color:#f59e0b}
+.status.out{background:#ef444433;color:#ef4444}
+.bar{height:10px;background:#333;border-radius:5px;margin:10px 0}
+.fill{height:100%;border-radius:5px}
+.details{font-size:.875rem;color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#06b6d4;color:#fff;width:100%;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🧪 Chemical Tracker</h1><button class="btn" style="width:auto" onclick="alert('Add')">+ Add</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Chemicals</div></div>
+<div class="stat"><div class="stat-value">$485</div><div class="stat-label">Inventory Value</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value">1</div><div class="stat-label">Reorder Now</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const items=[
+{name:'Chlorine Tablets',stock:25,max:100,status:'good',color:'#22c55e'},
+{name:'Liquid Chlorine',stock:8,max:30,status:'low',color:'#f59e0b'},
+{name:'pH Down',stock:3,max:15,status:'low',color:'#f59e0b'},
+{name:'pH Up',stock:12,max:50,status:'good',color:'#22c55e'},
+{name:'Algaecide',stock:0,max:10,status:'out',color:'#ef4444'},
+{name:'Stabilizer',stock:18,max:40,status:'good',color:'#22c55e'}
+];
+document.getElementById('grid').innerHTML=items.map(i=>`
+<div class="card">
+<div class="card-header"><span class="name">${i.name}</span><span class="status ${i.status}">${i.status==='out'?'Out of Stock':i.status==='low'?'Low Stock':'In Stock'}</span></div>
+<div style="display:flex;justify-content:space-between;font-size:.875rem"><span>${i.stock} units</span><span style="color:#888">Max: ${i.max}</span></div>
+<div class="bar"><div class="fill" style="width:${(i.stock/i.max)*100}%;background:${i.color}"></div></div>
+<button class="btn" onclick="alert('Reorder')">📦 Reorder</button>
+</div>`).join('');
+</script>
+</body>
+</html>

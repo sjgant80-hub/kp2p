@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Service Jobs - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"service-jobs","name":"Service Jobs","icon":"🔑","desc":"Locksmith service jobs","category":"locksmith","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#fbbf24}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.priority{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.priority.emergency{background:#ef444433;color:#ef4444}
+.priority.urgent{background:#f59e0b33;color:#f59e0b}
+.priority.normal{background:#3b82f633;color:#3b82f6}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.new{background:#8b5cf633;color:#8b5cf6}
+.status.enroute{background:#fbbf2433;color:#fbbf24}
+.status.done{background:#22c55e33;color:#22c55e}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#fbbf24;color:#000}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔑 Service Jobs</h1><button class="btn" onclick="alert('New')">+ New Job</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Active Jobs</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Emergency</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">En Route</div></div>
+<div class="stat"><div class="stat-value">28</div><div class="stat-label">Completed</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const jobs=[
+{id:'LJ-001',customer:'Sarah M.',address:'123 Oak St',phone:'555-0101',service:'Lockout',priority:'emergency',tech:'Mike',eta:'15 min',price:125,status:'enroute'},
+{id:'LJ-002',customer:'ABC Corp',address:'456 Business Park',phone:'555-0102',service:'Rekey Office',priority:'normal',tech:'Tom',eta:'2:00 PM',price:350,status:'new'},
+{id:'LJ-003',customer:'Johnson Home',address:'789 Maple Ave',phone:'555-0103',service:'Install Deadbolt',priority:'normal',tech:'Mike',eta:'4:00 PM',price:180,status:'new'},
+{id:'LJ-004',customer:'Davis Apt',address:'321 Cedar Ln',phone:'555-0104',service:'Car Lockout',priority:'urgent',tech:'Tom',eta:'25 min',price:85,status:'enroute'}
+];
+document.getElementById('list').innerHTML=jobs.map(j=>`
+<div class="card">
+<div class="card-header"><span>#${j.id} <span class="priority ${j.priority}">${j.priority.toUpperCase()}</span></span><span class="status ${j.status}">${j.status==='enroute'?'En Route':j.status==='done'?'Completed':'New'}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Customer</span><span>${j.customer}</span></div><div class="row"><span class="label">Address</span><span>${j.address}</span></div><div class="row"><span class="label">Service</span><span>${j.service}</span></div></div>
+<div><div class="row"><span class="label">Tech</span><span>${j.tech}</span></div><div class="row"><span class="label">ETA</span><span>${j.eta}</span></div><div class="row"><span class="label">Price</span><span>$${j.price}</span></div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

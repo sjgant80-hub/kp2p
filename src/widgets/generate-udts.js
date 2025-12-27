@@ -420,6 +420,26 @@ const categoryMap = {
   // Moving
   'move-estimator': { category: 'moving', subcategory: 'estimating', badge: 'ENT' },
   'inventory-checklist': { category: 'moving', subcategory: 'inventory', badge: 'ENT' },
+
+  // Pool
+  'maintenance-log': { category: 'pool', subcategory: 'maintenance', badge: 'ENT' },
+  'chemical-tracker': { category: 'pool', subcategory: 'chemicals', badge: 'ENT' },
+
+  // Pest
+  'service-schedule': { category: 'pest', subcategory: 'scheduling', badge: 'ENT' },
+  'inspection-form': { category: 'pest', subcategory: 'inspection', badge: 'ENT' },
+
+  // Appliance
+  'repair-tickets': { category: 'appliance', subcategory: 'repairs', badge: 'ENT' },
+  'warranty-tracker': { category: 'appliance', subcategory: 'warranties', badge: 'ENT' },
+
+  // Window
+  'cleaning-schedule': { category: 'window', subcategory: 'scheduling', badge: 'ENT' },
+  'quote-builder': { category: 'window', subcategory: 'quotes', badge: 'ENT' },
+
+  // Locksmith
+  'service-jobs': { category: 'locksmith', subcategory: 'service', badge: 'ENT' },
+  'key-inventory': { category: 'locksmith', subcategory: 'inventory', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -626,7 +646,12 @@ const widgetDirs = [
   'roofing',
   'flooring',
   'painting',
-  'moving'
+  'moving',
+  'pool',
+  'pest',
+  'appliance',
+  'window',
+  'locksmith'
 ];
 
 // Process all widgets in all directories

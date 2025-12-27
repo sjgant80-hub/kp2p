@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Key Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"key-inventory","name":"Key Inventory","icon":"🗝️","desc":"Track key blanks inventory","category":"locksmith","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#fbbf24}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+table{width:100%;background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+th{text-align:left;padding:15px;background:#252525;font-size:.875rem;color:#888}
+td{padding:15px;border-bottom:1px solid #333}
+tr:last-child td{border-bottom:none}
+.stock{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.stock.good{background:#22c55e33;color:#22c55e}
+.stock.low{background:#f59e0b33;color:#f59e0b}
+.stock.out{background:#ef444433;color:#ef4444}
+.btn{padding:6px 12px;border:none;border-radius:6px;cursor:pointer;background:#fbbf24;color:#000;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🗝️ Key Inventory</h1><button class="btn" style="padding:8px 16px" onclick="alert('Add')">+ Add Stock</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Key Types</div></div>
+<div class="stat"><div class="stat-value">1,245</div><div class="stat-label">Total Blanks</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value">$2.8k</div><div class="stat-label">Value</div></div>
+</div>
+<table>
+<thead><tr><th>Key Type</th><th>Category</th><th>In Stock</th><th>Min Level</th><th>Status</th><th>Action</th></tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+<script>
+const keys=[
+{type:'KW1',cat:'Residential',stock:150,min:50,status:'good'},
+{type:'SC1',cat:'Residential',stock:120,min:50,status:'good'},
+{type:'Y1',cat:'Commercial',stock:35,min:30,status:'low'},
+{type:'M1',cat:'Commercial',stock:80,min:25,status:'good'},
+{type:'B86',cat:'Automotive',stock:12,min:20,status:'low'},
+{type:'HU66',cat:'Automotive',stock:0,min:15,status:'out'}
+];
+document.getElementById('tbody').innerHTML=keys.map(k=>`<tr>
+<td style="font-weight:600">${k.type}</td>
+<td>${k.cat}</td>
+<td>${k.stock}</td>
+<td>${k.min}</td>
+<td><span class="stock ${k.status}">${k.status==='good'?'In Stock':k.status==='low'?'Low Stock':'Out of Stock'}</span></td>
+<td><button class="btn" onclick="alert('Order')">Order</button></td>
+</tr>`).join('');
+</script>
+</body>
+</html>
