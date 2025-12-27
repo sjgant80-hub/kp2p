@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lesson Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"lesson-scheduler","name":"Lesson Scheduler","icon":"🎸","desc":"Manage music lesson appointments","category":"music","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule-list{display:flex;flex-direction:column;gap:15px}
+.lesson-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.lesson-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.lesson-time{font-weight:600;display:flex;align-items:center;gap:10px}
+.lesson-duration{font-size:.875rem;color:#888}
+.lesson-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.lesson-status.scheduled{background:#3b82f633;color:#3b82f6}
+.lesson-status.in-progress{background:#10b98133;color:#10b981}
+.lesson-status.completed{background:#8b5cf633;color:#8b5cf6}
+.lesson-body{padding:20px;display:flex;gap:20px;align-items:center}
+.student-avatar{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:1.25rem}
+.lesson-info{flex:1}
+.student-name{font-weight:500;margin-bottom:5px}
+.lesson-details{font-size:.875rem;color:#888}
+.lesson-instrument{display:flex;align-items:center;gap:5px}
+.lesson-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#8b5cf6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🎸 Lesson Scheduler</h1>
+<button class="btn btn-primary" onclick="alert('Schedule lesson')">+ Schedule Lesson</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayLessons">0</div><div class="stat-label">Today's Lessons</div></div>
+<div class="stat"><div class="stat-value" id="weeklyStudents">0</div><div class="stat-label">Active Students</div></div>
+<div class="stat"><div class="stat-value" id="totalHours">0</div><div class="stat-label">Hours This Week</div></div>
+<div class="stat"><div class="stat-value" id="revenue">$0</div><div class="stat-label">Weekly Revenue</div></div>
+</div>
+
+<div class="schedule-list" id="scheduleList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_lesson_scheduler';
+let lessons = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const instrumentIcons = { guitar: '🎸', piano: '🎹', drums: '🥁', violin: '🎻', voice: '🎤', bass: '🎸', saxophone: '🎷' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(lessons));
+}
+
+function updateStats() {
+  const students = [...new Set(lessons.map(l => l.student))].length;
+  const totalHours = lessons.reduce((s, l) => s + l.duration, 0) / 60;
+  const revenue = lessons.reduce((s, l) => s + l.rate, 0);
+
+  document.getElementById('todayLessons').textContent = lessons.length;
+  document.getElementById('weeklyStudents').textContent = students;
+  document.getElementById('totalHours').textContent = totalHours.toFixed(1);
+  document.getElementById('revenue').textContent = '$' + revenue;
+}
+
+function render() {
+  const list = document.getElementById('scheduleList');
+
+  if (lessons.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No lessons scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...lessons].sort((a, b) => {
+    const statusOrder = { 'in-progress': 0, scheduled: 1, completed: 2 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+
+  list.innerHTML = sorted.map(l => `
+    <div class="lesson-card">
+      <div class="lesson-header">
+        <div class="lesson-time">
+          <span>🕐 ${l.time}</span>
+          <span class="lesson-duration">(${l.duration} min)</span>
+        </div>
+        <span class="lesson-status ${l.status}">${l.status}</span>
+      </div>
+      <div class="lesson-body">
+        <div class="student-avatar">${l.student.charAt(0)}</div>
+        <div class="lesson-info">
+          <div class="student-name">${l.student}</div>
+          <div class="lesson-details">
+            <span class="lesson-instrument">${instrumentIcons[l.instrument] || '🎵'} ${l.instrument}</span>
+            • Level: ${l.level} • $${l.rate}
+          </div>
+        </div>
+      </div>
+      <div class="lesson-footer">
+        ${l.status === 'scheduled' ? `<button class="btn btn-primary" onclick="startLesson('${l.id}')">▶️ Start</button>` : ''}
+        ${l.status === 'in-progress' ? `<button class="btn btn-primary" onclick="completeLesson('${l.id}')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View notes')">📝 Notes</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function startLesson(id) {
+  const l = lessons.find(x => x.id === id);
+  if (l) { l.status = 'in-progress'; save(); render(); }
+}
+
+function completeLesson(id) {
+  const l = lessons.find(x => x.id === id);
+  if (l) { l.status = 'completed'; save(); render(); }
+}
+
+if (lessons.length === 0) {
+  lessons = [
+    { id: '1', time: '10:00 AM', student: 'Emma Wilson', instrument: 'piano', level: 'Intermediate', duration: 60, rate: 65, status: 'completed' },
+    { id: '2', time: '11:30 AM', student: 'James Chen', instrument: 'guitar', level: 'Beginner', duration: 30, rate: 40, status: 'completed' },
+    { id: '3', time: '1:00 PM', student: 'Sofia Martinez', instrument: 'voice', level: 'Advanced', duration: 45, rate: 55, status: 'in-progress' },
+    { id: '4', time: '2:30 PM', student: 'Liam Johnson', instrument: 'drums', level: 'Beginner', duration: 60, rate: 65, status: 'scheduled' },
+    { id: '5', time: '4:00 PM', student: 'Olivia Brown', instrument: 'violin', level: 'Intermediate', duration: 45, rate: 55, status: 'scheduled' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

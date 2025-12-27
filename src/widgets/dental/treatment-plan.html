@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Treatment Plan - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"treatment-plan","name":"Treatment Plan","icon":"📋","desc":"Manage dental treatment plans","category":"dental","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.plans-list{display:flex;flex-direction:column;gap:20px}
+.plan-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.plan-header{padding:20px;background:#252525;display:flex;justify-content:space-between;align-items:flex-start}
+.patient-info h3{font-weight:600;margin-bottom:5px}
+.patient-info span{font-size:.875rem;color:#888}
+.plan-total{text-align:right}
+.plan-total strong{font-size:1.5rem;color:#06b6d4}
+.plan-total span{display:block;font-size:.75rem;color:#888}
+.plan-body{padding:20px}
+.treatments-table{width:100%;border-collapse:collapse}
+.treatments-table th{text-align:left;padding:10px;background:#252525;font-size:.875rem;color:#888}
+.treatments-table td{padding:12px 10px;border-bottom:1px solid #333}
+.treatment-status{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.treatment-status.completed{background:#10b98133;color:#10b981}
+.treatment-status.scheduled{background:#3b82f633;color:#3b82f6}
+.treatment-status.pending{background:#f59e0b33;color:#f59e0b}
+.progress-section{margin-top:20px;padding-top:20px;border-top:1px solid #333}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:10px;font-size:.875rem}
+.progress-bar{height:10px;background:#333;border-radius:5px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#06b6d4,#10b981);border-radius:5px}
+.plan-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#06b6d4;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📋 Treatment Plans</h1>
+<button class="btn btn-primary" onclick="alert('New plan')">+ New Plan</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activePlans">0</div><div class="stat-label">Active Plans</div></div>
+<div class="stat"><div class="stat-value" id="pendingTreatments">0</div><div class="stat-label">Pending Treatments</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Total Value</div></div>
+<div class="stat"><div class="stat-value" id="avgCompletion">0%</div><div class="stat-label">Avg Completion</div></div>
+</div>
+
+<div class="plans-list" id="plansList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_treatment_plans';
+let plans = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
+}
+
+function updateStats() {
+  const pending = plans.flatMap(p => p.treatments).filter(t => t.status === 'pending').length;
+  const totalValue = plans.reduce((s, p) => s + p.treatments.reduce((ts, t) => ts + t.cost, 0), 0);
+  const completionRates = plans.map(p => {
+    const completed = p.treatments.filter(t => t.status === 'completed').length;
+    return (completed / p.treatments.length) * 100;
+  });
+  const avgCompletion = completionRates.length > 0 ? Math.round(completionRates.reduce((a, b) => a + b) / completionRates.length) : 0;
+
+  document.getElementById('activePlans').textContent = plans.length;
+  document.getElementById('pendingTreatments').textContent = pending;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+  document.getElementById('avgCompletion').textContent = avgCompletion + '%';
+}
+
+function render() {
+  const list = document.getElementById('plansList');
+
+  if (plans.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No treatment plans</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = plans.map(p => {
+    const total = p.treatments.reduce((s, t) => s + t.cost, 0);
+    const completed = p.treatments.filter(t => t.status === 'completed').length;
+    const progress = Math.round((completed / p.treatments.length) * 100);
+
+    return `
+      <div class="plan-card">
+        <div class="plan-header">
+          <div class="patient-info">
+            <h3>👤 ${p.patient}</h3>
+            <span>Plan created: ${new Date(p.createdAt).toLocaleDateString()}</span>
+          </div>
+          <div class="plan-total">
+            <strong>$${total.toLocaleString()}</strong>
+            <span>Treatment Total</span>
+          </div>
+        </div>
+        <div class="plan-body">
+          <table class="treatments-table">
+            <thead>
+              <tr>
+                <th>Treatment</th>
+                <th>Tooth</th>
+                <th>Cost</th>
+                <th>Insurance</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${p.treatments.map(t => `
+                <tr>
+                  <td>${t.name}</td>
+                  <td>${t.tooth || 'N/A'}</td>
+                  <td>$${t.cost}</td>
+                  <td>$${t.insuranceCover}</td>
+                  <td><span class="treatment-status ${t.status}">${t.status}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="progress-section">
+            <div class="progress-header">
+              <span>Treatment Progress</span>
+              <span>${completed}/${p.treatments.length} completed (${progress}%)</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${progress}%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="plan-footer">
+          <button class="btn btn-primary" onclick="alert('Schedule next')">📅 Schedule Next</button>
+          <button class="btn btn-secondary" onclick="alert('Print plan')">🖨️ Print</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+if (plans.length === 0) {
+  plans = [
+    {
+      id: '1', patient: 'John Smith', createdAt: new Date(Date.now() - 30*24*60*60*1000).toISOString(),
+      treatments: [
+        { name: 'Deep Cleaning', tooth: null, cost: 350, insuranceCover: 280, status: 'completed' },
+        { name: 'Filling', tooth: '#14', cost: 200, insuranceCover: 160, status: 'completed' },
+        { name: 'Crown', tooth: '#19', cost: 1200, insuranceCover: 600, status: 'scheduled' },
+        { name: 'Root Canal', tooth: '#30', cost: 1500, insuranceCover: 900, status: 'pending' }
+      ]
+    },
+    {
+      id: '2', patient: 'Sarah Johnson', createdAt: new Date(Date.now() - 14*24*60*60*1000).toISOString(),
+      treatments: [
+        { name: 'Exam & X-rays', tooth: null, cost: 150, insuranceCover: 150, status: 'completed' },
+        { name: 'Filling', tooth: '#3', cost: 180, insuranceCover: 144, status: 'pending' },
+        { name: 'Filling', tooth: '#12', cost: 180, insuranceCover: 144, status: 'pending' }
+      ]
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

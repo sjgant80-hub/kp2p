@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session Planner - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"session-planner","name":"Session Planner","icon":"📸","desc":"Plan and schedule photo sessions","category":"photography","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.sessions-list{display:flex;flex-direction:column;gap:15px}
+.session-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.session-header{padding:20px;background:linear-gradient(135deg,#1a1a1a,#3d2814)}
+.session-type{font-size:.875rem;color:#f59e0b;text-transform:uppercase;margin-bottom:5px}
+.session-client{font-size:1.125rem;font-weight:600}
+.session-date{font-size:.875rem;color:#888;margin-top:5px}
+.session-body{padding:20px}
+.session-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:15px}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.checklist{background:#252525;padding:15px;border-radius:8px}
+.checklist h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.checklist-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #333}
+.checklist-item:last-child{border-bottom:none}
+.checklist-item input{width:18px;height:18px}
+.session-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#f59e0b;color:#000}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📸 Session Planner</h1>
+<button class="btn btn-primary" onclick="alert('New session')">+ New Session</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="upcomingSessions">0</div><div class="stat-label">Upcoming Sessions</div></div>
+<div class="stat"><div class="stat-value" id="thisWeek">0</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value" id="revenue">$0</div><div class="stat-label">Booked Revenue</div></div>
+<div class="stat"><div class="stat-value" id="avgSession">$0</div><div class="stat-label">Avg Session Value</div></div>
+</div>
+
+<div class="sessions-list" id="sessionsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_photo_sessions';
+let sessions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+}
+
+function updateStats() {
+  const upcoming = sessions.filter(s => s.status !== 'completed').length;
+  const revenue = sessions.reduce((sum, s) => sum + s.package.price, 0);
+  const avgSession = sessions.length > 0 ? Math.round(revenue / sessions.length) : 0;
+
+  document.getElementById('upcomingSessions').textContent = upcoming;
+  document.getElementById('thisWeek').textContent = sessions.length;
+  document.getElementById('revenue').textContent = '$' + revenue.toLocaleString();
+  document.getElementById('avgSession').textContent = '$' + avgSession;
+}
+
+function render() {
+  const list = document.getElementById('sessionsList');
+
+  if (sessions.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No sessions scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = sessions.map(s => `
+    <div class="session-card">
+      <div class="session-header">
+        <div class="session-type">${s.type}</div>
+        <div class="session-client">${s.client}</div>
+        <div class="session-date">📅 ${new Date(s.date).toLocaleDateString()} at ${s.time} • 📍 ${s.location}</div>
+      </div>
+      <div class="session-body">
+        <div class="session-details">
+          <div class="detail-item"><span>Package</span><strong>${s.package.name}</strong></div>
+          <div class="detail-item"><span>Duration</span><strong>${s.package.duration}</strong></div>
+          <div class="detail-item"><span>Deliverables</span><strong>${s.package.photos} photos</strong></div>
+          <div class="detail-item"><span>Total</span><strong>$${s.package.price}</strong></div>
+        </div>
+        <div class="checklist">
+          <h4>Preparation Checklist</h4>
+          ${s.checklist.map((item, i) => `
+            <div class="checklist-item">
+              <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleItem('${s.id}', ${i})">
+              <span>${item.task}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="session-footer">
+        <button class="btn btn-primary" onclick="alert('Session details')">📋 Details</button>
+        <button class="btn btn-secondary" onclick="alert('Send reminder')">📧 Remind</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function toggleItem(sessionId, itemIndex) {
+  const s = sessions.find(x => x.id === sessionId);
+  if (s) {
+    s.checklist[itemIndex].done = !s.checklist[itemIndex].done;
+    save();
+  }
+}
+
+if (sessions.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  sessions = [
+    { id: '1', client: 'Sarah & Michael', type: 'Wedding', date: future(3), time: '2:00 PM', location: 'Rose Garden Estate', package: { name: 'Premium Wedding', duration: '8 hours', photos: 500, price: 3500 }, checklist: [{task:'Scout location',done:true},{task:'Backup equipment',done:true},{task:'Shot list review',done:false},{task:'Confirm timeline',done:false}], status: 'scheduled' },
+    { id: '2', client: 'Johnson Family', type: 'Family Portrait', date: future(5), time: '10:00 AM', location: 'Central Park', package: { name: 'Family Session', duration: '2 hours', photos: 50, price: 450 }, checklist: [{task:'Confirm outfits',done:true},{task:'Prepare props',done:false},{task:'Check weather',done:false}], status: 'scheduled' },
+    { id: '3', client: 'Tech Startup Inc', type: 'Corporate', date: future(7), time: '9:00 AM', location: 'Client Office', package: { name: 'Corporate Headshots', duration: '4 hours', photos: 25, price: 1200 }, checklist: [{task:'Setup portable studio',done:false},{task:'Confirm employee count',done:true},{task:'Prepare release forms',done:false}], status: 'scheduled' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

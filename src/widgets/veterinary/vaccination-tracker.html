@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vaccination Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"vaccination-tracker","name":"Vaccination Tracker","icon":"💉","desc":"Track pet vaccinations and due dates","category":"veterinary","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:300px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.stat.danger .stat-value{color:#ef4444}
+.pets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.pet-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.pet-header{padding:20px;display:flex;align-items:center;gap:15px;border-bottom:1px solid #333}
+.pet-avatar{width:50px;height:50px;border-radius:50%;background:#252525;display:flex;align-items:center;justify-content:center;font-size:1.75rem}
+.pet-info h3{font-weight:500;margin-bottom:5px}
+.pet-info span{font-size:.875rem;color:#888}
+.vaccines-list{padding:15px}
+.vaccine-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#252525;border-radius:6px;margin-bottom:8px}
+.vaccine-name{font-weight:500}
+.vaccine-date{font-size:.875rem;color:#888}
+.vaccine-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.vaccine-status.current{background:#10b98133;color:#10b981}
+.vaccine-status.due-soon{background:#f59e0b33;color:#f59e0b}
+.vaccine-status.overdue{background:#ef444433;color:#ef4444}
+.pet-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#ec4899;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💉 Vaccination Tracker</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search pets..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add vaccination')">+ Add Record</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalPets">0</div><div class="stat-label">Total Pets</div></div>
+<div class="stat warning"><div class="stat-value" id="dueSoon">0</div><div class="stat-label">Due Soon</div></div>
+<div class="stat danger"><div class="stat-value" id="overdue">0</div><div class="stat-label">Overdue</div></div>
+<div class="stat"><div class="stat-value" id="upToDate">0</div><div class="stat-label">Up to Date</div></div>
+</div>
+
+<div class="pets-grid" id="petsGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_vaccination_tracker';
+let pets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const petIcons = { dog: '🐕', cat: '🐱', bird: '🦜', rabbit: '🐰' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(pets));
+}
+
+function getDaysUntil(date) {
+  return Math.ceil((new Date(date) - new Date()) / (1000*60*60*24));
+}
+
+function getVaccineStatus(dueDate) {
+  const days = getDaysUntil(dueDate);
+  if (days < 0) return { class: 'overdue', text: `${Math.abs(days)}d overdue` };
+  if (days <= 30) return { class: 'due-soon', text: `Due in ${days}d` };
+  return { class: 'current', text: 'Current' };
+}
+
+function updateStats() {
+  const allVaccines = pets.flatMap(p => p.vaccines);
+  const overdue = allVaccines.filter(v => getDaysUntil(v.dueDate) < 0).length;
+  const dueSoon = allVaccines.filter(v => { const d = getDaysUntil(v.dueDate); return d >= 0 && d <= 30; }).length;
+  const upToDate = allVaccines.filter(v => getDaysUntil(v.dueDate) > 30).length;
+
+  document.getElementById('totalPets').textContent = pets.length;
+  document.getElementById('dueSoon').textContent = dueSoon;
+  document.getElementById('overdue').textContent = overdue;
+  document.getElementById('upToDate').textContent = upToDate;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = pets.filter(p =>
+    p.name.toLowerCase().includes(search) ||
+    p.owner.toLowerCase().includes(search)
+  );
+
+  const grid = document.getElementById('petsGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No pets found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => `
+    <div class="pet-card">
+      <div class="pet-header">
+        <div class="pet-avatar">${petIcons[p.type] || '🐾'}</div>
+        <div class="pet-info">
+          <h3>${p.name}</h3>
+          <span>${p.breed} • Owner: ${p.owner}</span>
+        </div>
+      </div>
+      <div class="vaccines-list">
+        ${p.vaccines.map(v => {
+          const status = getVaccineStatus(v.dueDate);
+          return `
+            <div class="vaccine-item">
+              <div>
+                <div class="vaccine-name">${v.name}</div>
+                <div class="vaccine-date">Last: ${new Date(v.lastGiven).toLocaleDateString()}</div>
+              </div>
+              <span class="vaccine-status ${status.class}">${status.text}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div class="pet-footer">
+        <button class="btn btn-primary" onclick="alert('Schedule vaccination')">📅 Schedule</button>
+        <button class="btn btn-secondary" onclick="alert('View history')">📋 History</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (pets.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  pets = [
+    { id: '1', name: 'Max', type: 'dog', breed: 'Golden Retriever', owner: 'John Smith', vaccines: [
+      { name: 'Rabies', lastGiven: past(300), dueDate: future(65) },
+      { name: 'DHPP', lastGiven: past(180), dueDate: future(185) },
+      { name: 'Bordetella', lastGiven: past(330), dueDate: past(35) }
+    ]},
+    { id: '2', name: 'Luna', type: 'cat', breed: 'Maine Coon', owner: 'Sarah Johnson', vaccines: [
+      { name: 'Rabies', lastGiven: past(200), dueDate: future(165) },
+      { name: 'FVRCP', lastGiven: past(350), dueDate: future(15) },
+      { name: 'FeLV', lastGiven: past(340), dueDate: future(25) }
+    ]},
+    { id: '3', name: 'Buddy', type: 'dog', breed: 'Labrador', owner: 'Mike Williams', vaccines: [
+      { name: 'Rabies', lastGiven: past(400), dueDate: past(35) },
+      { name: 'DHPP', lastGiven: past(380), dueDate: past(15) },
+      { name: 'Lyme', lastGiven: past(350), dueDate: future(15) }
+    ]},
+    { id: '4', name: 'Whiskers', type: 'cat', breed: 'Siamese', owner: 'Emily Brown', vaccines: [
+      { name: 'Rabies', lastGiven: past(100), dueDate: future(265) },
+      { name: 'FVRCP', lastGiven: past(120), dueDate: future(245) }
+    ]}
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

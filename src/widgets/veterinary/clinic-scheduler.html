@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clinic Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"clinic-scheduler","name":"Clinic Scheduler","icon":"🏥","desc":"Schedule veterinary appointments","category":"veterinary","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.appointments-list{display:flex;flex-direction:column;gap:15px}
+.appointment-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.appointment-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.appointment-time{font-weight:600}
+.appointment-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.appointment-status.waiting{background:#f59e0b33;color:#f59e0b}
+.appointment-status.in-exam{background:#ec489933;color:#ec4899}
+.appointment-status.completed{background:#10b98133;color:#10b981}
+.appointment-status.scheduled{background:#3b82f633;color:#3b82f6}
+.appointment-body{padding:20px;display:flex;gap:20px}
+.pet-avatar{width:60px;height:60px;border-radius:50%;background:#252525;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.pet-info{flex:1}
+.pet-name{font-weight:600;margin-bottom:5px}
+.pet-details{font-size:.875rem;color:#888}
+.visit-info{text-align:right}
+.visit-type{font-weight:500;margin-bottom:5px}
+.visit-details{font-size:.875rem;color:#888}
+.appointment-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#ec4899;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏥 Clinic Scheduler</h1>
+<button class="btn btn-primary" onclick="alert('New appointment')">+ New Appointment</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayAppts">0</div><div class="stat-label">Today's Appointments</div></div>
+<div class="stat"><div class="stat-value" id="inExam">0</div><div class="stat-label">In Exam Room</div></div>
+<div class="stat"><div class="stat-value" id="waiting">0</div><div class="stat-label">Waiting</div></div>
+<div class="stat"><div class="stat-value" id="remaining">0</div><div class="stat-label">Remaining</div></div>
+</div>
+
+<div class="appointments-list" id="appointmentsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_vet_schedule';
+let appointments = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const petIcons = { dog: '🐕', cat: '🐱', bird: '🦜', rabbit: '🐰', hamster: '🐹', reptile: '🦎' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+}
+
+function updateStats() {
+  const inExam = appointments.filter(a => a.status === 'in-exam').length;
+  const waiting = appointments.filter(a => a.status === 'waiting').length;
+  const remaining = appointments.filter(a => a.status === 'scheduled').length;
+
+  document.getElementById('todayAppts').textContent = appointments.length;
+  document.getElementById('inExam').textContent = inExam;
+  document.getElementById('waiting').textContent = waiting;
+  document.getElementById('remaining').textContent = remaining;
+}
+
+function render() {
+  const list = document.getElementById('appointmentsList');
+
+  if (appointments.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No appointments scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...appointments].sort((a, b) => {
+    const statusOrder = { 'in-exam': 0, waiting: 1, scheduled: 2, completed: 3 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+
+  list.innerHTML = sorted.map(a => `
+    <div class="appointment-card">
+      <div class="appointment-header">
+        <div class="appointment-time">🕐 ${a.time}</div>
+        <span class="appointment-status ${a.status}">${a.status.replace('-', ' ')}</span>
+      </div>
+      <div class="appointment-body">
+        <div class="pet-avatar">${petIcons[a.petType] || '🐾'}</div>
+        <div class="pet-info">
+          <div class="pet-name">${a.petName} (${a.petBreed})</div>
+          <div class="pet-details">
+            Owner: ${a.owner} • ${a.petAge} • ${a.petWeight}
+          </div>
+        </div>
+        <div class="visit-info">
+          <div class="visit-type">${a.visitType}</div>
+          <div class="visit-details">Dr. ${a.vet} • Room ${a.room}</div>
+        </div>
+      </div>
+      <div class="appointment-footer">
+        ${a.status === 'scheduled' ? `<button class="btn btn-primary" onclick="updateStatus('${a.id}', 'waiting')">📥 Check In</button>` : ''}
+        ${a.status === 'waiting' ? `<button class="btn btn-primary" onclick="updateStatus('${a.id}', 'in-exam')">🩺 Start Exam</button>` : ''}
+        ${a.status === 'in-exam' ? `<button class="btn btn-primary" onclick="updateStatus('${a.id}', 'completed')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View record')">📋 Record</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const a = appointments.find(x => x.id === id);
+  if (a) { a.status = status; save(); render(); }
+}
+
+if (appointments.length === 0) {
+  appointments = [
+    { id: '1', time: '9:00 AM', petName: 'Max', petType: 'dog', petBreed: 'Golden Retriever', petAge: '3 years', petWeight: '68 lbs', owner: 'John Smith', visitType: 'Annual Checkup', vet: 'Anderson', room: '1', status: 'completed' },
+    { id: '2', time: '9:30 AM', petName: 'Luna', petType: 'cat', petBreed: 'Maine Coon', petAge: '2 years', petWeight: '12 lbs', owner: 'Sarah Johnson', visitType: 'Vaccination', vet: 'Martinez', room: '2', status: 'in-exam' },
+    { id: '3', time: '10:00 AM', petName: 'Buddy', petType: 'dog', petBreed: 'Labrador', petAge: '5 years', petWeight: '75 lbs', owner: 'Mike Williams', visitType: 'Skin Issue', vet: 'Anderson', room: '1', status: 'waiting' },
+    { id: '4', time: '10:30 AM', petName: 'Whiskers', petType: 'cat', petBreed: 'Siamese', petAge: '8 years', petWeight: '10 lbs', owner: 'Emily Brown', visitType: 'Dental Cleaning', vet: 'Martinez', room: '3', status: 'scheduled' },
+    { id: '5', time: '11:00 AM', petName: 'Rocky', petType: 'dog', petBreed: 'Bulldog', petAge: '4 years', petWeight: '52 lbs', owner: 'David Chen', visitType: 'Limping', vet: 'Anderson', room: '1', status: 'scheduled' },
+    { id: '6', time: '11:30 AM', petName: 'Tweety', petType: 'bird', petBreed: 'Cockatiel', petAge: '2 years', petWeight: '3 oz', owner: 'Lisa Garcia', visitType: 'Feather Loss', vet: 'Martinez', room: '2', status: 'scheduled' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

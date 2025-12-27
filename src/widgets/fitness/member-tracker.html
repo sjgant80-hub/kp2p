@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Member Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"member-tracker","name":"Member Tracker","icon":"👥","desc":"Track gym memberships and visits","category":"fitness","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:300px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#22c55e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.members-list{display:flex;flex-direction:column;gap:10px}
+.member-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:flex;align-items:center;gap:20px}
+.member-avatar{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:bold}
+.member-info{flex:1}
+.member-name{font-weight:600;margin-bottom:5px}
+.member-details{font-size:.875rem;color:#888}
+.member-stats{display:flex;gap:20px}
+.member-stat{text-align:center}
+.member-stat .value{font-size:1.25rem;font-weight:bold}
+.member-stat .label{font-size:.7rem;color:#888}
+.membership-badge{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.membership-badge.premium{background:#f59e0b33;color:#f59e0b}
+.membership-badge.standard{background:#3b82f633;color:#3b82f6}
+.membership-badge.basic{background:#33333;color:#888}
+.membership-badge.expired{background:#ef444433;color:#ef4444}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#22c55e;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>👥 Member Tracker</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search members..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add member')">+ Add Member</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalMembers">0</div><div class="stat-label">Total Members</div></div>
+<div class="stat"><div class="stat-value" id="activeToday">0</div><div class="stat-label">Checked In Today</div></div>
+<div class="stat"><div class="stat-value" id="newThisMonth">0</div><div class="stat-label">New This Month</div></div>
+<div class="stat"><div class="stat-value" id="retention">0%</div><div class="stat-label">Retention Rate</div></div>
+</div>
+
+<div class="members-list" id="membersList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_fitness_members';
+let members = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(members));
+}
+
+function updateStats() {
+  const active = members.filter(m => m.status === 'active').length;
+  const checkedIn = members.filter(m => m.checkedInToday).length;
+  const retention = members.length > 0 ? Math.round((active / members.length) * 100) : 0;
+
+  document.getElementById('totalMembers').textContent = members.length;
+  document.getElementById('activeToday').textContent = checkedIn;
+  document.getElementById('newThisMonth').textContent = 12;
+  document.getElementById('retention').textContent = retention + '%';
+}
+
+function getMembershipClass(plan) {
+  const classes = { premium: 'premium', standard: 'standard', basic: 'basic', expired: 'expired' };
+  return classes[plan.toLowerCase()] || 'basic';
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = members.filter(m =>
+    m.name.toLowerCase().includes(search) ||
+    m.email.toLowerCase().includes(search)
+  );
+
+  const list = document.getElementById('membersList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No members found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(m => `
+    <div class="member-card">
+      <div class="member-avatar">${m.name.split(' ').map(n => n[0]).join('')}</div>
+      <div class="member-info">
+        <div class="member-name">${m.name}</div>
+        <div class="member-details">
+          ${m.email} • Member since ${new Date(m.joinDate).toLocaleDateString()}
+        </div>
+      </div>
+      <div class="member-stats">
+        <div class="member-stat">
+          <div class="value">${m.visitsThisMonth}</div>
+          <div class="label">Visits/Month</div>
+        </div>
+        <div class="member-stat">
+          <div class="value">${m.streak}</div>
+          <div class="label">Day Streak</div>
+        </div>
+      </div>
+      <span class="membership-badge ${getMembershipClass(m.plan)}">${m.plan}</span>
+      <button class="btn ${m.checkedInToday ? 'btn-secondary' : 'btn-primary'}" onclick="checkIn('${m.id}')">
+        ${m.checkedInToday ? '✓ Checked In' : 'Check In'}
+      </button>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function checkIn(id) {
+  const m = members.find(x => x.id === id);
+  if (m && !m.checkedInToday) {
+    m.checkedInToday = true;
+    m.visitsThisMonth++;
+    m.streak++;
+    save();
+    render();
+  }
+}
+
+if (members.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  members = [
+    { id: '1', name: 'Alex Thompson', email: 'alex@example.com', plan: 'Premium', joinDate: past(365), visitsThisMonth: 18, streak: 12, status: 'active', checkedInToday: true },
+    { id: '2', name: 'Maria Garcia', email: 'maria@example.com', plan: 'Premium', joinDate: past(180), visitsThisMonth: 22, streak: 28, status: 'active', checkedInToday: true },
+    { id: '3', name: 'James Wilson', email: 'james@example.com', plan: 'Standard', joinDate: past(90), visitsThisMonth: 12, streak: 5, status: 'active', checkedInToday: false },
+    { id: '4', name: 'Emily Chen', email: 'emily@example.com', plan: 'Standard', joinDate: past(45), visitsThisMonth: 8, streak: 3, status: 'active', checkedInToday: false },
+    { id: '5', name: 'Michael Brown', email: 'michael@example.com', plan: 'Basic', joinDate: past(30), visitsThisMonth: 4, streak: 0, status: 'active', checkedInToday: false },
+    { id: '6', name: 'Sarah Davis', email: 'sarah@example.com', plan: 'Expired', joinDate: past(400), visitsThisMonth: 0, streak: 0, status: 'expired', checkedInToday: false }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

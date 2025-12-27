@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patient Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"patient-scheduler","name":"Patient Scheduler","icon":"🦷","desc":"Schedule dental appointments","category":"dental","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule-list{display:flex;flex-direction:column;gap:15px}
+.appointment-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.appointment-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.appointment-time{font-weight:600;display:flex;align-items:center;gap:10px}
+.appointment-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.appointment-status.confirmed{background:#10b98133;color:#10b981}
+.appointment-status.pending{background:#f59e0b33;color:#f59e0b}
+.appointment-status.in-chair{background:#06b6d433;color:#06b6d4}
+.appointment-status.completed{background:#8b5cf633;color:#8b5cf6}
+.appointment-body{padding:20px;display:flex;gap:20px}
+.patient-info{flex:1}
+.patient-name{font-weight:600;margin-bottom:5px}
+.patient-details{font-size:.875rem;color:#888}
+.procedure-info{text-align:right}
+.procedure-name{font-weight:500;margin-bottom:5px}
+.procedure-details{font-size:.875rem;color:#888}
+.appointment-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#06b6d4;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🦷 Patient Scheduler</h1>
+<button class="btn btn-primary" onclick="alert('Schedule appointment')">+ New Appointment</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayAppts">0</div><div class="stat-label">Today's Appointments</div></div>
+<div class="stat"><div class="stat-value" id="inChair">0</div><div class="stat-label">In Chair</div></div>
+<div class="stat"><div class="stat-value" id="waitingRoom">0</div><div class="stat-label">Waiting</div></div>
+<div class="stat"><div class="stat-value" id="remaining">0</div><div class="stat-label">Remaining</div></div>
+</div>
+
+<div class="schedule-list" id="scheduleList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_dental_schedule';
+let appointments = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+}
+
+function updateStats() {
+  const inChair = appointments.filter(a => a.status === 'in-chair').length;
+  const pending = appointments.filter(a => a.status === 'pending').length;
+  const remaining = appointments.filter(a => a.status === 'confirmed' || a.status === 'pending').length;
+
+  document.getElementById('todayAppts').textContent = appointments.length;
+  document.getElementById('inChair').textContent = inChair;
+  document.getElementById('waitingRoom').textContent = pending;
+  document.getElementById('remaining').textContent = remaining;
+}
+
+function render() {
+  const list = document.getElementById('scheduleList');
+
+  if (appointments.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No appointments scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...appointments].sort((a, b) => {
+    const statusOrder = { 'in-chair': 0, pending: 1, confirmed: 2, completed: 3 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  });
+
+  list.innerHTML = sorted.map(a => `
+    <div class="appointment-card">
+      <div class="appointment-header">
+        <div class="appointment-time">
+          🕐 ${a.time} (${a.duration} min)
+        </div>
+        <span class="appointment-status ${a.status}">${a.status.replace('-', ' ')}</span>
+      </div>
+      <div class="appointment-body">
+        <div class="patient-info">
+          <div class="patient-name">👤 ${a.patient}</div>
+          <div class="patient-details">
+            📞 ${a.phone} • DOB: ${a.dob}
+          </div>
+        </div>
+        <div class="procedure-info">
+          <div class="procedure-name">${a.procedure}</div>
+          <div class="procedure-details">Dr. ${a.dentist} • Chair ${a.chair}</div>
+        </div>
+      </div>
+      <div class="appointment-footer">
+        ${a.status === 'confirmed' ? `<button class="btn btn-primary" onclick="updateStatus('${a.id}', 'pending')">📥 Check In</button>` : ''}
+        ${a.status === 'pending' ? `<button class="btn btn-primary" onclick="updateStatus('${a.id}', 'in-chair')">🦷 Start Treatment</button>` : ''}
+        ${a.status === 'in-chair' ? `<button class="btn btn-primary" onclick="updateStatus('${a.id}', 'completed')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View chart')">📋 Chart</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const a = appointments.find(x => x.id === id);
+  if (a) { a.status = status; save(); render(); }
+}
+
+if (appointments.length === 0) {
+  appointments = [
+    { id: '1', time: '9:00 AM', duration: 60, patient: 'John Smith', phone: '555-0101', dob: '05/12/1985', procedure: 'Cleaning & Exam', dentist: 'Williams', chair: '1', status: 'completed' },
+    { id: '2', time: '10:00 AM', duration: 90, patient: 'Sarah Johnson', phone: '555-0102', dob: '08/23/1992', procedure: 'Root Canal', dentist: 'Williams', chair: '2', status: 'in-chair' },
+    { id: '3', time: '11:30 AM', duration: 45, patient: 'Michael Chen', phone: '555-0103', dob: '02/14/1978', procedure: 'Crown Fitting', dentist: 'Davis', chair: '3', status: 'pending' },
+    { id: '4', time: '1:00 PM', duration: 30, patient: 'Emily Brown', phone: '555-0104', dob: '11/30/2005', procedure: 'Filling', dentist: 'Williams', chair: '1', status: 'confirmed' },
+    { id: '5', time: '2:00 PM', duration: 60, patient: 'David Wilson', phone: '555-0105', dob: '07/19/1968', procedure: 'Deep Cleaning', dentist: 'Davis', chair: '2', status: 'confirmed' },
+    { id: '6', time: '3:30 PM', duration: 90, patient: 'Lisa Martinez', phone: '555-0106', dob: '04/08/1990', procedure: 'Extraction', dentist: 'Williams', chair: '3', status: 'confirmed' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

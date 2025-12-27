@@ -360,6 +360,26 @@ const categoryMap = {
   // Wine
   'cellar-inventory': { category: 'wine', subcategory: 'inventory', badge: 'ENT' },
   'tasting-notes': { category: 'wine', subcategory: 'notes', badge: 'ENT' },
+
+  // Music
+  'studio-booking': { category: 'music', subcategory: 'scheduling', badge: 'ENT' },
+  'lesson-scheduler': { category: 'music', subcategory: 'education', badge: 'ENT' },
+
+  // Photography
+  'session-planner': { category: 'photography', subcategory: 'scheduling', badge: 'ENT' },
+  'gallery-manager': { category: 'photography', subcategory: 'galleries', badge: 'ENT' },
+
+  // Fitness
+  'class-schedule': { category: 'fitness', subcategory: 'scheduling', badge: 'ENT' },
+  'member-tracker': { category: 'fitness', subcategory: 'membership', badge: 'ENT' },
+
+  // Dental
+  'patient-scheduler': { category: 'dental', subcategory: 'scheduling', badge: 'ENT' },
+  'treatment-plan': { category: 'dental', subcategory: 'treatment', badge: 'ENT' },
+
+  // Veterinary
+  'clinic-scheduler': { category: 'veterinary', subcategory: 'scheduling', badge: 'ENT' },
+  'vaccination-tracker': { category: 'veterinary', subcategory: 'health', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -551,7 +571,12 @@ const widgetDirs = [
   'beauty',
   'pet',
   'jewelry',
-  'wine'
+  'wine',
+  'music',
+  'photography',
+  'fitness',
+  'dental',
+  'veterinary'
 ];
 
 // Process all widgets in all directories

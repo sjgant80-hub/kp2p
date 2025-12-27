@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Studio Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"studio-booking","name":"Studio Booking","icon":"🎙️","desc":"Manage recording studio bookings","category":"music","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.studios-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.studio-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.studio-header{padding:20px;background:linear-gradient(135deg,#1a1a1a,#2d1f4e)}
+.studio-name{font-size:1.25rem;font-weight:600}
+.studio-details{font-size:.875rem;color:#888;margin-top:5px}
+.studio-body{padding:20px}
+.equipment-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.equipment-tag{padding:4px 10px;background:#252525;border-radius:4px;font-size:.75rem}
+.availability{background:#252525;padding:15px;border-radius:8px}
+.availability h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.time-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.time-slot{padding:8px;text-align:center;border-radius:6px;font-size:.75rem;cursor:pointer}
+.time-slot.available{background:#10b98133;color:#10b981}
+.time-slot.booked{background:#ef444433;color:#ef4444}
+.time-slot.selected{background:#8b5cf6;color:#fff}
+.studio-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#8b5cf6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🎙️ Studio Booking</h1>
+<button class="btn btn-primary" onclick="alert('New booking')">+ New Booking</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalStudios">0</div><div class="stat-label">Studios</div></div>
+<div class="stat"><div class="stat-value" id="todayBookings">0</div><div class="stat-label">Today's Sessions</div></div>
+<div class="stat"><div class="stat-value" id="availableSlots">0</div><div class="stat-label">Available Slots</div></div>
+<div class="stat"><div class="stat-value" id="revenue">$0</div><div class="stat-label">Today's Revenue</div></div>
+</div>
+
+<div class="studios-grid" id="studiosGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_studio_booking';
+let studios = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(studios));
+}
+
+function updateStats() {
+  const allSlots = studios.flatMap(s => s.slots);
+  const booked = allSlots.filter(s => s.booked).length;
+  const available = allSlots.filter(s => !s.booked).length;
+  const revenue = booked * 75;
+
+  document.getElementById('totalStudios').textContent = studios.length;
+  document.getElementById('todayBookings').textContent = booked;
+  document.getElementById('availableSlots').textContent = available;
+  document.getElementById('revenue').textContent = '$' + revenue;
+}
+
+function render() {
+  const grid = document.getElementById('studiosGrid');
+
+  if (studios.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No studios configured</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = studios.map(s => `
+    <div class="studio-card">
+      <div class="studio-header">
+        <div class="studio-name">${s.name}</div>
+        <div class="studio-details">${s.size} • $${s.hourlyRate}/hr</div>
+      </div>
+      <div class="studio-body">
+        <div class="equipment-list">
+          ${s.equipment.map(e => `<span class="equipment-tag">${e}</span>`).join('')}
+        </div>
+        <div class="availability">
+          <h4>Today's Availability</h4>
+          <div class="time-slots">
+            ${s.slots.map(slot => `
+              <div class="time-slot ${slot.booked ? 'booked' : 'available'}" onclick="${slot.booked ? '' : `bookSlot('${s.id}', '${slot.time}')`}">
+                ${slot.time}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="studio-footer">
+        <button class="btn btn-primary" onclick="alert('Book studio')">📅 Book</button>
+        <button class="btn btn-secondary" onclick="alert('View schedule')">📋 Schedule</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function bookSlot(studioId, time) {
+  const studio = studios.find(s => s.id === studioId);
+  if (studio) {
+    const slot = studio.slots.find(s => s.time === time);
+    if (slot && !slot.booked) {
+      slot.booked = true;
+      save();
+      render();
+    }
+  }
+}
+
+if (studios.length === 0) {
+  studios = [
+    { id: '1', name: 'Studio A - Live Room', size: '800 sq ft', hourlyRate: 95, equipment: ['Neve Console', 'Pro Tools HDX', 'Neumann U87', 'Drum Kit'], slots: [{time:'9AM',booked:true},{time:'10AM',booked:true},{time:'11AM',booked:false},{time:'12PM',booked:false},{time:'1PM',booked:true},{time:'2PM',booked:false},{time:'3PM',booked:false},{time:'4PM',booked:true}] },
+    { id: '2', name: 'Studio B - Control Room', size: '400 sq ft', hourlyRate: 75, equipment: ['SSL Console', 'Logic Pro', 'Telefunken', 'Outboard Gear'], slots: [{time:'9AM',booked:false},{time:'10AM',booked:true},{time:'11AM',booked:true},{time:'12PM',booked:false},{time:'1PM',booked:false},{time:'2PM',booked:true},{time:'3PM',booked:true},{time:'4PM',booked:false}] },
+    { id: '3', name: 'Studio C - Podcast Suite', size: '200 sq ft', hourlyRate: 45, equipment: ['Rodecaster Pro', 'SM7B Mics', 'Soundproofing', 'Video Setup'], slots: [{time:'9AM',booked:true},{time:'10AM',booked:false},{time:'11AM',booked:false},{time:'12PM',booked:true},{time:'1PM',booked:true},{time:'2PM',booked:false},{time:'3PM',booked:false},{time:'4PM',booked:false}] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

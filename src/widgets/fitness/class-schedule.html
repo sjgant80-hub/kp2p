@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Class Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"class-schedule","name":"Class Schedule","icon":"🏋️","desc":"Manage gym class schedules","category":"fitness","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.date-nav{display:flex;align-items:center;gap:10px}
+.date-nav button{background:#333;border:none;color:#e0e0e0;padding:8px 12px;border-radius:6px;cursor:pointer}
+.current-date{font-weight:600;min-width:150px;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#22c55e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule-grid{display:flex;flex-direction:column;gap:15px}
+.class-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden;display:flex}
+.class-time{width:100px;background:#252525;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid #333}
+.time-value{font-size:1.25rem;font-weight:bold}
+.time-duration{font-size:.75rem;color:#888}
+.class-info{flex:1;padding:20px}
+.class-name{font-size:1.125rem;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:10px}
+.class-details{font-size:.875rem;color:#888;margin-bottom:10px}
+.instructor{display:flex;align-items:center;gap:10px}
+.instructor-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:.875rem}
+.class-stats{display:flex;gap:15px;align-items:center}
+.spots{padding:6px 12px;border-radius:6px;font-size:.875rem}
+.spots.available{background:#22c55e33;color:#22c55e}
+.spots.limited{background:#f59e0b33;color:#f59e0b}
+.spots.full{background:#ef444433;color:#ef4444}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#22c55e;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏋️ Class Schedule</h1>
+<div class="date-nav">
+<button onclick="changeDate(-1)">←</button>
+<span class="current-date" id="currentDate">Today</span>
+<button onclick="changeDate(1)">→</button>
+</div>
+<button class="btn btn-primary" onclick="alert('Add class')">+ Add Class</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayClasses">0</div><div class="stat-label">Today's Classes</div></div>
+<div class="stat"><div class="stat-value" id="totalSpots">0</div><div class="stat-label">Total Spots</div></div>
+<div class="stat"><div class="stat-value" id="booked">0</div><div class="stat-label">Booked</div></div>
+<div class="stat"><div class="stat-value" id="utilization">0%</div><div class="stat-label">Utilization</div></div>
+</div>
+
+<div class="schedule-grid" id="scheduleGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_fitness_classes';
+let classes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentDate = new Date();
+
+const classIcons = { yoga: '🧘', spin: '🚴', hiit: '🔥', pilates: '🤸', boxing: '🥊', strength: '💪', dance: '💃', swim: '🏊' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(classes));
+}
+
+function formatDate(date) {
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function changeDate(delta) {
+  currentDate.setDate(currentDate.getDate() + delta);
+  document.getElementById('currentDate').textContent = formatDate(currentDate);
+  render();
+}
+
+function getSpotsClass(booked, capacity) {
+  const remaining = capacity - booked;
+  if (remaining === 0) return 'full';
+  if (remaining <= 3) return 'limited';
+  return 'available';
+}
+
+function updateStats() {
+  const totalSpots = classes.reduce((s, c) => s + c.capacity, 0);
+  const booked = classes.reduce((s, c) => s + c.booked, 0);
+  const utilization = totalSpots > 0 ? Math.round((booked / totalSpots) * 100) : 0;
+
+  document.getElementById('todayClasses').textContent = classes.length;
+  document.getElementById('totalSpots').textContent = totalSpots;
+  document.getElementById('booked').textContent = booked;
+  document.getElementById('utilization').textContent = utilization + '%';
+}
+
+function render() {
+  const grid = document.getElementById('scheduleGrid');
+
+  if (classes.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No classes scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...classes].sort((a, b) => {
+    const timeA = parseInt(a.time.split(':')[0]) + (a.time.includes('PM') && !a.time.includes('12') ? 12 : 0);
+    const timeB = parseInt(b.time.split(':')[0]) + (b.time.includes('PM') && !b.time.includes('12') ? 12 : 0);
+    return timeA - timeB;
+  });
+
+  grid.innerHTML = sorted.map(c => {
+    const remaining = c.capacity - c.booked;
+    const spotsClass = getSpotsClass(c.booked, c.capacity);
+    return `
+      <div class="class-card">
+        <div class="class-time">
+          <div class="time-value">${c.time}</div>
+          <div class="time-duration">${c.duration} min</div>
+        </div>
+        <div class="class-info">
+          <div class="class-name">
+            ${classIcons[c.type] || '🏃'} ${c.name}
+          </div>
+          <div class="class-details">
+            📍 ${c.room} • ${c.intensity} Intensity
+          </div>
+          <div class="instructor">
+            <div class="instructor-avatar">${c.instructor.charAt(0)}</div>
+            <span>${c.instructor}</span>
+          </div>
+        </div>
+        <div class="class-stats">
+          <span class="spots ${spotsClass}">
+            ${remaining === 0 ? 'Full' : `${remaining} spots left`}
+          </span>
+          <button class="btn ${remaining > 0 ? 'btn-primary' : 'btn-secondary'}" onclick="alert('${remaining > 0 ? 'Book spot' : 'Join waitlist'}')">
+            ${remaining > 0 ? 'Book' : 'Waitlist'}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+if (classes.length === 0) {
+  classes = [
+    { id: '1', name: 'Morning Flow Yoga', type: 'yoga', time: '6:00 AM', duration: 60, room: 'Studio A', instructor: 'Sarah Chen', intensity: 'Low', capacity: 20, booked: 18 },
+    { id: '2', name: 'HIIT Bootcamp', type: 'hiit', time: '7:30 AM', duration: 45, room: 'Main Floor', instructor: 'Mike Torres', intensity: 'High', capacity: 25, booked: 25 },
+    { id: '3', name: 'Spin Class', type: 'spin', time: '9:00 AM', duration: 45, room: 'Spin Room', instructor: 'Lisa Park', intensity: 'High', capacity: 30, booked: 22 },
+    { id: '4', name: 'Pilates Core', type: 'pilates', time: '10:30 AM', duration: 50, room: 'Studio B', instructor: 'Emma Wilson', intensity: 'Medium', capacity: 15, booked: 10 },
+    { id: '5', name: 'Boxing Fundamentals', type: 'boxing', time: '12:00 PM', duration: 60, room: 'Boxing Gym', instructor: 'James Brown', intensity: 'High', capacity: 16, booked: 14 },
+    { id: '6', name: 'Strength Training', type: 'strength', time: '5:30 PM', duration: 60, room: 'Weight Room', instructor: 'Chris Johnson', intensity: 'High', capacity: 12, booked: 8 }
+  ];
+  save();
+}
+
+document.getElementById('currentDate').textContent = formatDate(currentDate);
+render();
+</script>
+</body>
+</html>
