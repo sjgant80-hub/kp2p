@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Helicopter Tours - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"tour-booking","name":"Tour Booking","icon":"🚁","desc":"Helicopter tour reservations","category":"helicopter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0891b2;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0891b2}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tours{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.tour{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.tour-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.tour-name{font-size:1.125rem;font-weight:bold}
+.tour-type{font-size:.75rem;color:#0891b2}
+.tour-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-limited{background:#eab30833;color:#eab308}
+.status-soldout{background:#dc262633;color:#dc2626}
+.tour-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+.tour-footer{display:flex;justify-content:space-between;align-items:center}
+.tour-price{font-size:1.25rem;font-weight:bold;color:#0891b2}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚁 Tours</h1><button class="btn">Book Tour</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">TODAY'S FLIGHTS</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">AIRCRAFT</div></div>
+<div class="stat"><div class="stat-value">38</div><div class="stat-label">PASSENGERS</div></div>
+<div class="stat"><div class="stat-value">$28K</div><div class="stat-label">TODAY'S REVENUE</div></div>
+</div>
+<div class="tours" id="tours"></div>
+<script>
+const tours=[
+{name:'City Skyline Tour',type:'SCENIC',status:'available',duration:'20 min',capacity:'3 pass',departures:'Every hour',aircraft:'Bell 407',route:'Downtown → Harbor → Beach',price:'$199/person'},
+{name:'Grand Canyon Adventure',type:'EXPEDITION',status:'limited',duration:'4 hours',capacity:'5 pass',departures:'8 AM, 1 PM',aircraft:'AS350',route:'Full canyon tour with landing',price:'$599/person'},
+{name:'Sunset Romance',type:'SPECIAL',status:'available',duration:'30 min',capacity:'2 pass',departures:'6:30 PM',aircraft:'R44',route:'Coast → City lights',price:'$450/couple'},
+{name:'Volcano Explorer',type:'EXPEDITION',status:'available',duration:'2 hours',capacity:'5 pass',departures:'9 AM, 2 PM',aircraft:'AS350',route:'Active volcano flyover',price:'$399/person'},
+{name:'Private Charter',type:'CHARTER',status:'available',duration:'Custom',capacity:'5 pass',departures:'On request',aircraft:'Bell 407',route:'Your choice',price:'$1,800/hour'},
+{name:'Photo Flight',type:'SPECIALTY',status:'soldout',duration:'45 min',capacity:'2 pass',departures:'Golden hour',aircraft:'R44 (doors off)',route:'Photographer special',price:'$350/person'}
+];
+document.getElementById('tours').innerHTML=tours.map(t=>`
+<div class="tour">
+<div class="tour-header">
+<div>
+<div class="tour-name">${t.name}</div>
+<div class="tour-type">${t.type}</div>
+</div>
+<span class="tour-status status-${t.status}">${t.status==='soldout'?'SOLD OUT':t.status.toUpperCase()}</span>
+</div>
+<div class="tour-details">
+<div class="detail"><div class="detail-label">DURATION</div><div class="detail-value">${t.duration}</div></div>
+<div class="detail"><div class="detail-label">CAPACITY</div><div class="detail-value">${t.capacity}</div></div>
+<div class="detail"><div class="detail-label">DEPARTURES</div><div class="detail-value">${t.departures}</div></div>
+<div class="detail"><div class="detail-label">AIRCRAFT</div><div class="detail-value">${t.aircraft}</div></div>
+</div>
+<div class="tour-footer">
+<span style="font-size:.875rem;color:#888">📍 ${t.route}</span>
+<span class="tour-price">${t.price}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

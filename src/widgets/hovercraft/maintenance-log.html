@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maintenance Log - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"maintenance-log","name":"Maintenance Log","icon":"🔧","desc":"Hovercraft maintenance tracking","category":"hovercraft","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#a855f7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px}
+.craft{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.craft-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.craft-name{font-size:1.125rem;font-weight:bold}
+.craft-model{font-size:.75rem;color:#a855f7}
+.craft-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-operational{background:#15803d33;color:#15803d}
+.status-maintenance{background:#eab30833;color:#eab308}
+.status-grounded{background:#dc262633;color:#dc2626}
+.craft-hours{background:#252525;padding:15px;border-radius:8px;margin-bottom:15px}
+.hours-bar{display:flex;justify-content:space-between;margin-bottom:5px}
+.hours-progress{background:#333;border-radius:4px;height:8px;overflow:hidden}
+.hours-fill{height:100%;background:#a855f7;border-radius:4px}
+.hours-label{font-size:.75rem;color:#888;margin-top:5px}
+.craft-items{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#252525;border-radius:6px;font-size:.875rem}
+.item-due{color:#dc2626}
+.item-soon{color:#eab308}
+.item-ok{color:#15803d}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔧 Maintenance</h1><button class="btn">Log Service</button></div>
+<div class="fleet" id="fleet"></div>
+<script>
+const fleet=[
+{name:'HC-ALPHA',model:'Griffon 2000TD',status:'operational',hours:1245,limit:1500,lastService:'Jan 15',items:[{task:'Skirt inspection',due:'50 hrs',status:'ok'},{task:'Engine service',due:'255 hrs',status:'ok'},{task:'Lift fan belt',due:'100 hrs',status:'ok'}]},
+{name:'HC-BETA',model:'Griffon 2000TD',status:'maintenance',hours:1480,limit:1500,lastService:'Jan 20',items:[{task:'Major overhaul',due:'NOW',status:'due'},{task:'Skirt replacement',due:'In progress',status:'soon'},{task:'Hull inspection',due:'In progress',status:'soon'}]},
+{name:'HC-GAMMA',model:'Neoteric Hovertrek',status:'operational',hours:856,limit:1000,lastService:'Jan 10',items:[{task:'Oil change',due:'44 hrs',status:'soon'},{task:'Prop inspection',due:'144 hrs',status:'ok'},{task:'Fan balancing',due:'244 hrs',status:'ok'}]}
+];
+document.getElementById('fleet').innerHTML=fleet.map(c=>{
+const pct=(c.hours/c.limit)*100;
+return`
+<div class="craft">
+<div class="craft-header">
+<div>
+<div class="craft-name">${c.name}</div>
+<div class="craft-model">${c.model}</div>
+</div>
+<span class="craft-status status-${c.status}">${c.status.toUpperCase()}</span>
+</div>
+<div class="craft-hours">
+<div class="hours-bar"><span>Operating Hours</span><span>${c.hours} / ${c.limit}</span></div>
+<div class="hours-progress"><div class="hours-fill" style="width:${pct}%"></div></div>
+<div class="hours-label">Last service: ${c.lastService}</div>
+</div>
+<div class="craft-items">
+${c.items.map(i=>`<div class="item"><span>${i.task}</span><span class="item-${i.status}">${i.due}</span></div>`).join('')}
+</div>
+</div>`}).join('');
+</script>
+</body>
+</html>

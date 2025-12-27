@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Safety Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"safety-tracker","name":"Safety Tracker","icon":"🦺","desc":"Jet ski safety management","category":"jetski","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0284c7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.conditions{background:linear-gradient(135deg,#0284c7 0%,#0369a1 100%);border-radius:12px;padding:20px;margin-bottom:20px}
+.conditions-header{font-weight:bold;margin-bottom:15px}
+.conditions-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;text-align:center}
+.cond{background:rgba(255,255,255,.1);padding:12px;border-radius:8px}
+.cond-value{font-size:1.25rem;font-weight:bold}
+.cond-label{font-size:.7rem;opacity:.8}
+.active-riders{display:flex;flex-direction:column;gap:15px}
+.rider{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.rider-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.rider-name{font-size:1.125rem;font-weight:bold}
+.rider-ski{font-size:.75rem;color:#0284c7}
+.rider-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-active{background:#15803d33;color:#15803d}
+.status-warning{background:#eab30833;color:#eab308}
+.status-overdue{background:#dc262633;color:#dc2626}
+.rider-info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🦺 Safety</h1><button class="btn">Emergency</button></div>
+<div class="conditions">
+<div class="conditions-header">CURRENT CONDITIONS</div>
+<div class="conditions-grid">
+<div class="cond"><div class="cond-value">🟢 SAFE</div><div class="cond-label">STATUS</div></div>
+<div class="cond"><div class="cond-value">2-3 ft</div><div class="cond-label">WAVES</div></div>
+<div class="cond"><div class="cond-value">12 kts</div><div class="cond-label">WIND</div></div>
+<div class="cond"><div class="cond-value">78°F</div><div class="cond-label">WATER TEMP</div></div>
+<div class="cond"><div class="cond-value">None</div><div class="cond-label">ADVISORIES</div></div>
+</div>
+</div>
+<div class="active-riders" id="riders"></div>
+<script>
+const riders=[
+{name:'Johnson Family',ski:'JS-001',status:'active',vest:'Yes',briefed:'Yes',timeOut:'1:45',returnBy:'12:00 PM',zone:'Zone A'},
+{name:'Mike Thompson',ski:'JS-002',status:'active',vest:'Yes',briefed:'Yes',timeOut:'2:15',returnBy:'1:30 PM',zone:'Zone B'},
+{name:'Chen Group',ski:'JS-003',status:'warning',vest:'Yes',briefed:'Yes',timeOut:'2:55',returnBy:'11:00 AM',zone:'Zone A'},
+{name:'Beach Resort',ski:'JS-006',status:'active',vest:'Yes',briefed:'Yes',timeOut:'3:30',returnBy:'5:00 PM',zone:'Zone C'},
+{name:'Wilson Party',ski:'JS-008, JS-009',status:'active',vest:'Yes',briefed:'Yes',timeOut:'1:00',returnBy:'2:00 PM',zone:'Zone B'}
+];
+document.getElementById('riders').innerHTML=riders.map(r=>`
+<div class="rider">
+<div class="rider-header">
+<div>
+<div class="rider-name">${r.name}</div>
+<div class="rider-ski">${r.ski}</div>
+</div>
+<span class="rider-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="rider-info">
+<div class="info"><div class="info-value">${r.vest}</div><div class="info-label">LIFE VEST</div></div>
+<div class="info"><div class="info-value">${r.timeOut}</div><div class="info-label">TIME OUT</div></div>
+<div class="info"><div class="info-value">${r.returnBy}</div><div class="info-label">RETURN BY</div></div>
+<div class="info"><div class="info-value">${r.zone}</div><div class="info-label">LOCATION</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

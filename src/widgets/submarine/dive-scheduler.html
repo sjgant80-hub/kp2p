@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dive Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"dive-scheduler","name":"Dive Scheduler","icon":"🛥️","desc":"Submarine dive scheduling","category":"submarine","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0d9488;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0d9488}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.dives{display:flex;flex-direction:column;gap:15px}
+.dive{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.dive-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.dive-name{font-size:1.125rem;font-weight:bold}
+.dive-sub{font-size:.75rem;color:#0d9488}
+.dive-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-submerged{background:#0d948833;color:#0d9488;animation:pulse 2s infinite}
+.status-surfaced{background:#15803d33;color:#15803d}
+.status-scheduled{background:#64748b33;color:#64748b}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.dive-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:15px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+.dive-route{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛥️ Dives</h1><button class="btn">Schedule Dive</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">TODAY'S DIVES</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">SUBMARINES</div></div>
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">PASSENGERS</div></div>
+<div class="stat"><div class="stat-value">$18K</div><div class="stat-label">REVENUE</div></div>
+</div>
+<div class="dives" id="dives"></div>
+<script>
+const dives=[
+{name:'Coral Reef Explorer',sub:'ATLANTIS-1',status:'submerged',time:'10:00 AM',duration:'45 min',depth:'100 ft',passengers:16,pilot:'Capt. Nemo',route:'Reef Zone A → Shipwreck → Coral Garden'},
+{name:'Deep Sea Discovery',sub:'ATLANTIS-2',status:'surfaced',time:'9:00 AM',duration:'60 min',depth:'150 ft',passengers:12,pilot:'Capt. Cousteau',route:'Completed - Returning to dock'},
+{name:'Twilight Zone Dive',sub:'ATLANTIS-1',status:'scheduled',time:'2:00 PM',duration:'75 min',depth:'200 ft',passengers:14,pilot:'Capt. Nemo',route:'Deep Canyon → Bioluminescent Zone'},
+{name:'Family Adventure',sub:'ATLANTIS-2',status:'scheduled',time:'12:30 PM',duration:'30 min',depth:'60 ft',passengers:16,pilot:'Capt. Cousteau',route:'Shallow Reef → Sea Turtle Area'},
+{name:'Night Dive Special',sub:'ATLANTIS-1',status:'scheduled',time:'7:00 PM',duration:'60 min',depth:'120 ft',passengers:10,pilot:'Capt. Nemo',route:'Nocturnal Marine Life Observation'}
+];
+document.getElementById('dives').innerHTML=dives.map(d=>`
+<div class="dive">
+<div class="dive-header">
+<div>
+<div class="dive-name">${d.name}</div>
+<div class="dive-sub">${d.sub}</div>
+</div>
+<span class="dive-status status-${d.status}">${d.status.toUpperCase()}</span>
+</div>
+<div class="dive-info">
+<div class="info"><div class="info-value">${d.time}</div><div class="info-label">TIME</div></div>
+<div class="info"><div class="info-value">${d.duration}</div><div class="info-label">DURATION</div></div>
+<div class="info"><div class="info-value">${d.depth}</div><div class="info-label">MAX DEPTH</div></div>
+<div class="info"><div class="info-value">${d.passengers}</div><div class="info-label">PASSENGERS</div></div>
+<div class="info"><div class="info-value">${d.pilot}</div><div class="info-label">PILOT</div></div>
+</div>
+<div class="dive-route">📍 ${d.route}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

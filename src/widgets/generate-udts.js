@@ -860,6 +860,26 @@ const categoryMap = {
   // Scooter
   'scooter-fleet-status': { category: 'scooter', subcategory: 'fleet', badge: 'ENT' },
   'ride-analytics': { category: 'scooter', subcategory: 'analytics', badge: 'ENT' },
+
+  // Helicopter
+  'tour-booking': { category: 'helicopter', subcategory: 'tours', badge: 'ENT' },
+  'flight-ops': { category: 'helicopter', subcategory: 'operations', badge: 'ENT' },
+
+  // Drone
+  'fleet-control': { category: 'drone', subcategory: 'fleet', badge: 'ENT' },
+  'mission-planner': { category: 'drone', subcategory: 'planning', badge: 'ENT' },
+
+  // Jetski
+  'rental-manager': { category: 'jetski', subcategory: 'rentals', badge: 'ENT' },
+  'safety-tracker': { category: 'jetski', subcategory: 'safety', badge: 'ENT' },
+
+  // Hovercraft
+  'tour-operations': { category: 'hovercraft', subcategory: 'tours', badge: 'ENT' },
+  'hovercraft-maintenance': { category: 'hovercraft', subcategory: 'maintenance', badge: 'ENT' },
+
+  // Submarine
+  'dive-scheduler': { category: 'submarine', subcategory: 'scheduling', badge: 'ENT' },
+  'systems-monitor': { category: 'submarine', subcategory: 'monitoring', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1176,7 +1196,12 @@ const widgetDirs = [
   'rv',
   'motorcycle',
   'bicycle',
-  'scooter'
+  'scooter',
+  'helicopter',
+  'drone',
+  'jetski',
+  'hovercraft',
+  'submarine'
 ];
 
 // Process all widgets in all directories

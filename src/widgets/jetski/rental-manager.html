@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jet Ski Rental - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"rental-manager","name":"Rental Manager","icon":"🏄","desc":"Jet ski rental management","category":"jetski","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0284c7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0284c7}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.rentals{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.rental{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.rental-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.rental-ski{font-size:1.125rem;font-weight:bold}
+.rental-model{font-size:.75rem;color:#0284c7}
+.rental-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-available{background:#15803d33;color:#15803d}
+.status-rented{background:#0284c733;color:#0284c7}
+.status-returning{background:#eab30833;color:#eab308}
+.rental-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:2px}
+.detail-value{font-size:.875rem}
+.rental-footer{display:flex;justify-content:space-between;align-items:center}
+.rental-rate{font-size:1rem;font-weight:bold;color:#0284c7}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏄 Jet Skis</h1><button class="btn">New Rental</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">TOTAL FLEET</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">RENTED</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">$4.2K</div><div class="stat-label">TODAY</div></div>
+</div>
+<div class="rentals" id="rentals"></div>
+<script>
+const rentals=[
+{ski:'JS-001',model:'Sea-Doo GTX 300',status:'rented',customer:'Johnson Family',start:'10:00 AM',end:'12:00 PM',duration:'2 hrs',fuel:'Full',rate:'$150/hr'},
+{ski:'JS-002',model:'Yamaha WaveRunner',status:'rented',customer:'Mike Thompson',start:'9:30 AM',end:'1:30 PM',duration:'4 hrs',fuel:'Full',rate:'$125/hr'},
+{ski:'JS-003',model:'Kawasaki Ultra 310',status:'returning',customer:'Chen Group',start:'8:00 AM',end:'11:00 AM',duration:'3 hrs',fuel:'Returning',rate:'$175/hr'},
+{ski:'JS-004',model:'Sea-Doo Spark',status:'available',customer:'--',start:'--',end:'--',duration:'--',fuel:'Full',rate:'$85/hr'},
+{ski:'JS-005',model:'Yamaha FX SVHO',status:'available',customer:'--',start:'--',end:'--',duration:'--',fuel:'Full',rate:'$165/hr'},
+{ski:'JS-006',model:'Sea-Doo GTI 130',status:'rented',customer:'Beach Resort',start:'All Day',end:'5:00 PM',duration:'8 hrs',fuel:'Full',rate:'$100/hr'}
+];
+document.getElementById('rentals').innerHTML=rentals.map(r=>`
+<div class="rental">
+<div class="rental-header">
+<div>
+<div class="rental-ski">${r.ski}</div>
+<div class="rental-model">${r.model}</div>
+</div>
+<span class="rental-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="rental-details">
+<div class="detail"><div class="detail-label">CUSTOMER</div><div class="detail-value">${r.customer}</div></div>
+<div class="detail"><div class="detail-label">START</div><div class="detail-value">${r.start}</div></div>
+<div class="detail"><div class="detail-label">END</div><div class="detail-value">${r.end}</div></div>
+<div class="detail"><div class="detail-label">FUEL</div><div class="detail-value">${r.fuel}</div></div>
+</div>
+<div class="rental-footer">
+<span style="font-size:.875rem;color:#888">⏱️ ${r.duration}</span>
+<span class="rental-rate">${r.rate}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

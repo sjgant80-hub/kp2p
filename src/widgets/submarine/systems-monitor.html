@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Systems Monitor - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"systems-monitor","name":"Systems Monitor","icon":"📊","desc":"Submarine systems monitoring","category":"submarine","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0d9488;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px}
+.sub{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.sub-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.sub-name{font-size:1.25rem;font-weight:bold}
+.sub-status{padding:6px 12px;border-radius:4px;font-size:.75rem}
+.status-diving{background:#0d948833;color:#0d9488}
+.status-surface{background:#15803d33;color:#15803d}
+.status-docked{background:#64748b33;color:#64748b}
+.systems{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.system{background:#252525;padding:12px;border-radius:8px}
+.system-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.system-name{font-size:.75rem;color:#888}
+.system-indicator{width:8px;height:8px;border-radius:50%}
+.indicator-green{background:#15803d}
+.indicator-yellow{background:#eab308}
+.indicator-red{background:#dc2626}
+.system-value{font-size:1.125rem;font-weight:bold}
+.system-bar{background:#333;border-radius:4px;height:6px;margin-top:8px;overflow:hidden}
+.system-fill{height:100%;border-radius:4px}
+.fill-green{background:#15803d}
+.fill-yellow{background:#eab308}
+.fill-blue{background:#0d9488}
+</style>
+</head>
+<body>
+<div class="header"><h1>📊 Systems</h1><button class="btn">Diagnostics</button></div>
+<div class="subs" id="subs"></div>
+<script>
+const subs=[
+{name:'ATLANTIS-1',status:'diving',depth:'95 ft',systems:[
+{name:'O2 SUPPLY',value:'92%',pct:92,indicator:'green',fill:'green'},
+{name:'CO2 SCRUBBER',value:'Normal',pct:85,indicator:'green',fill:'green'},
+{name:'BATTERY',value:'78%',pct:78,indicator:'green',fill:'blue'},
+{name:'HULL PRESSURE',value:'3.2 ATM',pct:65,indicator:'green',fill:'blue'},
+{name:'BALLAST',value:'Flooded',pct:100,indicator:'green',fill:'blue'},
+{name:'PROPULSION',value:'85%',pct:85,indicator:'green',fill:'green'}
+]},
+{name:'ATLANTIS-2',status:'surface',depth:'0 ft',systems:[
+{name:'O2 SUPPLY',value:'100%',pct:100,indicator:'green',fill:'green'},
+{name:'CO2 SCRUBBER',value:'Standby',pct:100,indicator:'green',fill:'green'},
+{name:'BATTERY',value:'45%',pct:45,indicator:'yellow',fill:'yellow'},
+{name:'HULL PRESSURE',value:'1.0 ATM',pct:20,indicator:'green',fill:'blue'},
+{name:'BALLAST',value:'Empty',pct:0,indicator:'green',fill:'blue'},
+{name:'PROPULSION',value:'100%',pct:100,indicator:'green',fill:'green'}
+]}
+];
+document.getElementById('subs').innerHTML=subs.map(s=>`
+<div class="sub">
+<div class="sub-header">
+<div>
+<div class="sub-name">${s.name}</div>
+<div style="font-size:.875rem;color:#888;margin-top:4px">Depth: ${s.depth}</div>
+</div>
+<span class="sub-status status-${s.status}">${s.status.toUpperCase()}</span>
+</div>
+<div class="systems">
+${s.systems.map(sys=>`
+<div class="system">
+<div class="system-header">
+<span class="system-name">${sys.name}</span>
+<span class="system-indicator indicator-${sys.indicator}"></span>
+</div>
+<div class="system-value">${sys.value}</div>
+<div class="system-bar"><div class="system-fill fill-${sys.fill}" style="width:${sys.pct}%"></div></div>
+</div>`).join('')}
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

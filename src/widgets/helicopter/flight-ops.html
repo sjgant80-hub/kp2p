@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flight Operations - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"flight-ops","name":"Flight Operations","icon":"📡","desc":"Helicopter flight management","category":"helicopter","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0891b2;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.weather{background:linear-gradient(135deg,#0891b2 0%,#0e7490 100%);border-radius:12px;padding:20px;margin-bottom:20px;display:grid;grid-template-columns:repeat(5,1fr);gap:15px;text-align:center}
+.wx-item{background:rgba(255,255,255,.1);padding:12px;border-radius:8px}
+.wx-value{font-size:1.25rem;font-weight:bold}
+.wx-label{font-size:.7rem;opacity:.8}
+.flights{display:flex;flex-direction:column;gap:15px}
+.flight{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.flight-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.flight-id{font-size:1.125rem;font-weight:bold}
+.flight-aircraft{font-size:.75rem;color:#0891b2}
+.flight-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-airborne{background:#0891b233;color:#0891b2;animation:pulse 2s infinite}
+.status-preflight{background:#eab30833;color:#eab308}
+.status-scheduled{background:#15803d33;color:#15803d}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.flight-info{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.info{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.info-value{font-size:.9rem;font-weight:bold}
+.info-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>📡 Flight Ops</h1><button class="btn">Dispatch</button></div>
+<div class="weather">
+<div class="wx-item"><div class="wx-value">VFR</div><div class="wx-label">CONDITIONS</div></div>
+<div class="wx-item"><div class="wx-value">72°F</div><div class="wx-label">TEMP</div></div>
+<div class="wx-item"><div class="wx-value">8 kts</div><div class="wx-label">WIND</div></div>
+<div class="wx-item"><div class="wx-value">10+ mi</div><div class="wx-label">VISIBILITY</div></div>
+<div class="wx-item"><div class="wx-value">Clear</div><div class="wx-label">CEILING</div></div>
+</div>
+<div class="flights" id="flights"></div>
+<script>
+const flights=[
+{id:'HT-101',aircraft:'N407HT • Bell 407',status:'airborne',pilot:'Capt. Johnson',tour:'City Skyline',pax:3,dept:'10:15',eta:'10:35',fuel:'85%'},
+{id:'HT-102',aircraft:'N350AS • AS350',status:'preflight',pilot:'Capt. Chen',tour:'Volcano Explorer',pax:5,dept:'11:00',eta:'13:00',fuel:'100%'},
+{id:'HT-103',aircraft:'N44RX • R44',status:'scheduled',pilot:'Capt. Martinez',tour:'Sunset Romance',pax:2,dept:'18:30',eta:'19:00',fuel:'Pending'},
+{id:'HT-104',aircraft:'N407HT • Bell 407',status:'scheduled',pilot:'Capt. Johnson',tour:'Private Charter',pax:4,dept:'14:00',eta:'16:00',fuel:'Pending'},
+{id:'HT-105',aircraft:'N350AS • AS350',status:'scheduled',pilot:'Capt. Williams',tour:'Grand Canyon',pax:5,dept:'13:00',eta:'17:00',fuel:'Pending'}
+];
+document.getElementById('flights').innerHTML=flights.map(f=>`
+<div class="flight">
+<div class="flight-header">
+<div>
+<div class="flight-id">${f.id}</div>
+<div class="flight-aircraft">${f.aircraft}</div>
+</div>
+<span class="flight-status status-${f.status}">${f.status.toUpperCase()}</span>
+</div>
+<div class="flight-info">
+<div class="info"><div class="info-value">${f.pilot}</div><div class="info-label">PILOT</div></div>
+<div class="info"><div class="info-value">${f.tour}</div><div class="info-label">MISSION</div></div>
+<div class="info"><div class="info-value">${f.pax}</div><div class="info-label">PAX</div></div>
+<div class="info"><div class="info-value">${f.dept}</div><div class="info-label">DEPART</div></div>
+<div class="info"><div class="info-value">${f.fuel}</div><div class="info-label">FUEL</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drone Fleet Control - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fleet-control","name":"Fleet Control","icon":"🛸","desc":"Drone fleet management","category":"drone","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#6366f1}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.drones{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.drone{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.drone-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.drone-id{font-size:1.125rem;font-weight:bold}
+.drone-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-flying{background:#6366f133;color:#6366f1;animation:pulse 2s infinite}
+.status-ready{background:#15803d33;color:#15803d}
+.status-charging{background:#eab30833;color:#eab308}
+.status-maintenance{background:#dc262633;color:#dc2626}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.drone-battery{margin-bottom:15px}
+.battery-bar{background:#333;border-radius:4px;height:8px;overflow:hidden}
+.battery-fill{height:100%;border-radius:4px}
+.battery-high{background:#15803d}
+.battery-medium{background:#eab308}
+.battery-low{background:#dc2626}
+.battery-info{display:flex;justify-content:space-between;font-size:.75rem;color:#888;margin-top:5px}
+.drone-specs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.spec{background:#252525;padding:8px;border-radius:6px;text-align:center}
+.spec-value{font-size:.875rem;font-weight:bold}
+.spec-label{font-size:.6rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛸 Fleet Control</h1><button class="btn">Launch Mission</button></div>
+<div class="overview">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">TOTAL DRONES</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">FLYING</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">READY</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">CHARGING</div></div>
+</div>
+<div class="drones" id="drones"></div>
+<script>
+const drones=[
+{id:'DRN-001',model:'DJI M300',status:'flying',battery:72,mission:'Survey Site A',altitude:'120m',speed:'15 m/s',flightTime:'18 min'},
+{id:'DRN-002',model:'DJI M30T',status:'flying',battery:85,mission:'Thermal Scan',altitude:'80m',speed:'12 m/s',flightTime:'12 min'},
+{id:'DRN-003',model:'DJI M300',status:'ready',battery:100,mission:'Standby',altitude:'--',speed:'--',flightTime:'--'},
+{id:'DRN-004',model:'Autel EVO II',status:'charging',battery:45,mission:'Pending',altitude:'--',speed:'--',flightTime:'~25 min'},
+{id:'DRN-005',model:'DJI M30',status:'flying',battery:54,mission:'Inspection',altitude:'50m',speed:'8 m/s',flightTime:'28 min'},
+{id:'DRN-006',model:'DJI Mavic 3E',status:'maintenance',battery:20,mission:'Gimbal Repair',altitude:'--',speed:'--',flightTime:'--'}
+];
+document.getElementById('drones').innerHTML=drones.map(d=>{
+const batteryClass=d.battery>60?'battery-high':d.battery>30?'battery-medium':'battery-low';
+return`
+<div class="drone">
+<div class="drone-header">
+<span class="drone-id">${d.id}</span>
+<span class="drone-status status-${d.status}">${d.status.toUpperCase()}</span>
+</div>
+<div class="drone-battery">
+<div class="battery-bar"><div class="battery-fill ${batteryClass}" style="width:${d.battery}%"></div></div>
+<div class="battery-info"><span>${d.battery}%</span><span>${d.model}</span></div>
+</div>
+<div class="drone-specs">
+<div class="spec"><div class="spec-value">${d.mission}</div><div class="spec-label">MISSION</div></div>
+<div class="spec"><div class="spec-value">${d.altitude}</div><div class="spec-label">ALTITUDE</div></div>
+<div class="spec"><div class="spec-value">${d.speed}</div><div class="spec-label">SPEED</div></div>
+<div class="spec"><div class="spec-value">${d.flightTime}</div><div class="spec-label">FLIGHT TIME</div></div>
+</div>
+</div>`}).join('');
+</script>
+</body>
+</html>

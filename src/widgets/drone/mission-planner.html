@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mission Planner - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"mission-planner","name":"Mission Planner","icon":"🗺️","desc":"Drone mission planning","category":"drone","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.missions{display:flex;flex-direction:column;gap:15px}
+.mission{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.mission-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.mission-name{font-size:1.125rem;font-weight:bold}
+.mission-type{font-size:.75rem;color:#6366f1}
+.mission-status{padding:4px 10px;border-radius:4px;font-size:.7rem}
+.status-active{background:#6366f133;color:#6366f1}
+.status-scheduled{background:#15803d33;color:#15803d}
+.status-draft{background:#64748b33;color:#64748b}
+.status-complete{background:#0369a133;color:#0369a1}
+.mission-params{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:15px}
+.param{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.param-value{font-size:.9rem;font-weight:bold}
+.param-label{font-size:.6rem;color:#888}
+.mission-waypoints{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+.waypoint{padding:4px 10px;background:#6366f122;border:1px solid #6366f1;border-radius:4px;font-size:.75rem}
+.mission-footer{display:flex;justify-content:space-between;align-items:center;font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🗺️ Missions</h1><button class="btn">Create Mission</button></div>
+<div class="missions" id="missions"></div>
+<script>
+const missions=[
+{name:'Site Survey Alpha',type:'MAPPING',status:'active',drone:'DRN-001',altitude:'120m',speed:'10 m/s',area:'2.5 km²',overlap:'80%',waypoints:['WP1','WP2','WP3','WP4','WP5','RTH'],created:'Today 8:00 AM',eta:'35 min remaining'},
+{name:'Thermal Inspection',type:'INSPECTION',status:'active',drone:'DRN-002',altitude:'50m',speed:'5 m/s',area:'0.5 km²',overlap:'N/A',waypoints:['Start','Building A','Building B','Building C','RTH'],created:'Today 9:15 AM',eta:'12 min remaining'},
+{name:'Crop Health Survey',type:'AGRICULTURE',status:'scheduled',drone:'DRN-003',altitude:'80m',speed:'12 m/s',area:'15 km²',overlap:'75%',waypoints:['Field 1','Field 2','Field 3','Field 4','RTH'],created:'Tomorrow 6:00 AM',eta:'Scheduled'},
+{name:'Power Line Patrol',type:'INSPECTION',status:'draft',drone:'Unassigned',altitude:'40m',speed:'8 m/s',area:'Linear 5 km',overlap:'N/A',waypoints:['Substation','Tower 1','Tower 2','Tower 3','Substation'],created:'Draft',eta:'~45 min'},
+{name:'Coastal Mapping',type:'MAPPING',status:'complete',drone:'DRN-004',altitude:'100m',speed:'15 m/s',area:'8 km²',overlap:'85%',waypoints:['Beach Start','Point A','Point B','Beach End'],created:'Yesterday',eta:'Completed'}
+];
+document.getElementById('missions').innerHTML=missions.map(m=>`
+<div class="mission">
+<div class="mission-header">
+<div>
+<div class="mission-name">${m.name}</div>
+<div class="mission-type">${m.type}</div>
+</div>
+<span class="mission-status status-${m.status}">${m.status.toUpperCase()}</span>
+</div>
+<div class="mission-params">
+<div class="param"><div class="param-value">${m.drone}</div><div class="param-label">DRONE</div></div>
+<div class="param"><div class="param-value">${m.altitude}</div><div class="param-label">ALTITUDE</div></div>
+<div class="param"><div class="param-value">${m.speed}</div><div class="param-label">SPEED</div></div>
+<div class="param"><div class="param-value">${m.area}</div><div class="param-label">COVERAGE</div></div>
+<div class="param"><div class="param-value">${m.overlap}</div><div class="param-label">OVERLAP</div></div>
+</div>
+<div class="mission-waypoints">${m.waypoints.map(w=>`<span class="waypoint">📍 ${w}</span>`).join('')}</div>
+<div class="mission-footer">
+<span>📅 ${m.created}</span>
+<span>⏱️ ${m.eta}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
