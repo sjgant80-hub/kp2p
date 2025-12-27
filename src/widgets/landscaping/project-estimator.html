@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Project Estimator - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"project-estimator","name":"Project Estimator","icon":"🌳","desc":"Estimate landscaping project costs","category":"landscaping","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#22c55e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.estimates-list{display:flex;flex-direction:column;gap:15px}
+.estimate-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.estimate-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.estimate-title{font-weight:600}
+.estimate-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.estimate-status.draft{background:#f59e0b33;color:#f59e0b}
+.estimate-status.sent{background:#3b82f633;color:#3b82f6}
+.estimate-status.accepted{background:#22c55e33;color:#22c55e}
+.estimate-status.declined{background:#ef444433;color:#ef4444}
+.estimate-body{padding:20px}
+.client-info{display:flex;justify-content:space-between;margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid #333}
+.line-items{margin-bottom:15px}
+.line-item{display:grid;grid-template-columns:1fr 80px 100px;gap:10px;padding:8px 0;border-bottom:1px solid #252525}
+.line-item.header{color:#888;font-size:.875rem}
+.item-total{text-align:right}
+.estimate-totals{background:#252525;padding:15px;border-radius:8px}
+.total-row{display:flex;justify-content:space-between;padding:5px 0}
+.total-row.grand{font-weight:bold;font-size:1.125rem;border-top:1px solid #333;padding-top:10px;margin-top:5px}
+.estimate-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#22c55e;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🌳 Project Estimator</h1>
+<button class="btn btn-primary" onclick="alert('New estimate')">+ New Estimate</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalEstimates">0</div><div class="stat-label">Total Estimates</div></div>
+<div class="stat"><div class="stat-value" id="pendingValue">$0</div><div class="stat-label">Pending Value</div></div>
+<div class="stat"><div class="stat-value" id="acceptanceRate">0%</div><div class="stat-label">Acceptance Rate</div></div>
+<div class="stat"><div class="stat-value" id="avgProject">$0</div><div class="stat-label">Avg Project Size</div></div>
+</div>
+
+<div class="estimates-list" id="estimatesList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_landscaping_estimates';
+let estimates = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(estimates));
+}
+
+function updateStats() {
+  const pending = estimates.filter(e => e.status === 'sent').reduce((s, e) => s + e.total, 0);
+  const accepted = estimates.filter(e => e.status === 'accepted').length;
+  const total = estimates.filter(e => e.status !== 'draft').length;
+  const rate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+  const avg = estimates.length > 0 ? Math.round(estimates.reduce((s, e) => s + e.total, 0) / estimates.length) : 0;
+
+  document.getElementById('totalEstimates').textContent = estimates.length;
+  document.getElementById('pendingValue').textContent = '$' + pending.toLocaleString();
+  document.getElementById('acceptanceRate').textContent = rate + '%';
+  document.getElementById('avgProject').textContent = '$' + avg.toLocaleString();
+}
+
+function render() {
+  const list = document.getElementById('estimatesList');
+
+  if (estimates.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No estimates yet</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = estimates.map(e => `
+    <div class="estimate-card">
+      <div class="estimate-header">
+        <div class="estimate-title">#${e.id} - ${e.projectName}</div>
+        <span class="estimate-status ${e.status}">${e.status}</span>
+      </div>
+      <div class="estimate-body">
+        <div class="client-info">
+          <div>
+            <strong>${e.clientName}</strong><br>
+            <span style="color:#888;font-size:.875rem">${e.address}</span>
+          </div>
+          <div style="text-align:right;color:#888;font-size:.875rem">
+            Created: ${new Date(e.createdAt).toLocaleDateString()}<br>
+            Valid until: ${new Date(e.validUntil).toLocaleDateString()}
+          </div>
+        </div>
+        <div class="line-items">
+          <div class="line-item header">
+            <span>Description</span>
+            <span>Qty</span>
+            <span style="text-align:right">Amount</span>
+          </div>
+          ${e.items.map(i => `
+            <div class="line-item">
+              <span>${i.description}</span>
+              <span>${i.qty} ${i.unit}</span>
+              <span class="item-total">$${i.amount.toLocaleString()}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="estimate-totals">
+          <div class="total-row"><span>Materials</span><span>$${e.materials.toLocaleString()}</span></div>
+          <div class="total-row"><span>Labor</span><span>$${e.labor.toLocaleString()}</span></div>
+          <div class="total-row"><span>Equipment</span><span>$${e.equipment.toLocaleString()}</span></div>
+          <div class="total-row grand"><span>Total</span><span>$${e.total.toLocaleString()}</span></div>
+        </div>
+      </div>
+      <div class="estimate-footer">
+        ${e.status === 'draft' ? `<button class="btn btn-primary" onclick="updateStatus('${e.id}', 'sent')">📤 Send</button>` : ''}
+        ${e.status === 'sent' ? `<button class="btn btn-primary" onclick="updateStatus('${e.id}', 'accepted')">✓ Mark Accepted</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('Print estimate')">🖨️ Print</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const e = estimates.find(x => x.id === id);
+  if (e) { e.status = status; save(); render(); }
+}
+
+if (estimates.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  estimates = [
+    {
+      id: 'EST-001', projectName: 'Complete Backyard Renovation', clientName: 'John Smith', address: '123 Oak Street', createdAt: past(5), validUntil: future(25), status: 'sent',
+      items: [
+        { description: 'Sod Installation', qty: 2500, unit: 'sqft', amount: 3750 },
+        { description: 'Paver Patio', qty: 400, unit: 'sqft', amount: 4800 },
+        { description: 'Irrigation System', qty: 1, unit: 'system', amount: 2500 },
+        { description: 'Landscape Lighting', qty: 12, unit: 'fixtures', amount: 1800 }
+      ],
+      materials: 6200, labor: 5400, equipment: 1250, total: 12850
+    },
+    {
+      id: 'EST-002', projectName: 'Front Yard Design', clientName: 'Sarah Johnson', address: '456 Maple Ave', createdAt: past(2), validUntil: future(28), status: 'draft',
+      items: [
+        { description: 'Plant Installation', qty: 25, unit: 'plants', amount: 1250 },
+        { description: 'Mulch', qty: 15, unit: 'yards', amount: 675 },
+        { description: 'Edging', qty: 120, unit: 'feet', amount: 480 }
+      ],
+      materials: 1500, labor: 800, equipment: 105, total: 2405
+    },
+    {
+      id: 'EST-003', projectName: 'Commercial Property Maintenance', clientName: 'ABC Corp', address: '789 Business Park', createdAt: past(15), validUntil: past(5), status: 'accepted',
+      items: [
+        { description: 'Weekly Mowing (Annual)', qty: 52, unit: 'visits', amount: 7800 },
+        { description: 'Seasonal Plantings', qty: 4, unit: 'seasons', amount: 2400 },
+        { description: 'Tree Trimming', qty: 2, unit: 'services', amount: 1600 }
+      ],
+      materials: 3200, labor: 7500, equipment: 1100, total: 11800
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

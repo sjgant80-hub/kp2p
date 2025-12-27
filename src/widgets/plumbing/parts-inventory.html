@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Parts Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"parts-inventory","name":"Parts Inventory","icon":"🔩","desc":"Track plumbing parts inventory","category":"plumbing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:300px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#3b82f6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.inventory-table{width:100%;background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.inventory-table th{text-align:left;padding:15px;background:#252525;font-size:.875rem;color:#888}
+.inventory-table td{padding:15px;border-bottom:1px solid #333}
+.inventory-table tr:last-child td{border-bottom:none}
+.part-info{display:flex;align-items:center;gap:10px}
+.part-sku{font-size:.75rem;color:#888}
+.stock-badge{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.stock-badge.in-stock{background:#22c55e33;color:#22c55e}
+.stock-badge.low-stock{background:#f59e0b33;color:#f59e0b}
+.stock-badge.out-of-stock{background:#ef444433;color:#ef4444}
+.btn{padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:.75rem}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔩 Parts Inventory</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search parts..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add part')">+ Add Part</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalParts">0</div><div class="stat-label">Total SKUs</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Inventory Value</div></div>
+<div class="stat warning"><div class="stat-value" id="lowStock">0</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value" id="outOfStock">0</div><div class="stat-label">Out of Stock</div></div>
+</div>
+
+<table class="inventory-table">
+<thead>
+<tr>
+<th>Part</th>
+<th>Category</th>
+<th>In Stock</th>
+<th>Min Level</th>
+<th>Unit Price</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="inventoryBody"></tbody>
+</table>
+
+<script>
+const STORAGE_KEY = 'kiss_parts_inventory';
+let parts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(parts));
+}
+
+function getStockStatus(qty, min) {
+  if (qty === 0) return { class: 'out-of-stock', text: 'Out of Stock' };
+  if (qty <= min) return { class: 'low-stock', text: 'Low Stock' };
+  return { class: 'in-stock', text: 'In Stock' };
+}
+
+function updateStats() {
+  const totalValue = parts.reduce((s, p) => s + (p.quantity * p.unitPrice), 0);
+  const lowStock = parts.filter(p => p.quantity > 0 && p.quantity <= p.minLevel).length;
+  const outOfStock = parts.filter(p => p.quantity === 0).length;
+
+  document.getElementById('totalParts').textContent = parts.length;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+  document.getElementById('lowStock').textContent = lowStock;
+  document.getElementById('outOfStock').textContent = outOfStock;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = parts.filter(p =>
+    p.name.toLowerCase().includes(search) ||
+    p.sku.toLowerCase().includes(search) ||
+    p.category.toLowerCase().includes(search)
+  );
+
+  const body = document.getElementById('inventoryBody');
+
+  if (filtered.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666">No parts found</td></tr>';
+    updateStats();
+    return;
+  }
+
+  body.innerHTML = filtered.map(p => {
+    const status = getStockStatus(p.quantity, p.minLevel);
+    return `
+      <tr>
+        <td>
+          <div class="part-info">
+            <div>
+              <div style="font-weight:500">${p.name}</div>
+              <div class="part-sku">SKU: ${p.sku}</div>
+            </div>
+          </div>
+        </td>
+        <td>${p.category}</td>
+        <td>${p.quantity}</td>
+        <td>${p.minLevel}</td>
+        <td>$${p.unitPrice.toFixed(2)}</td>
+        <td><span class="stock-badge ${status.class}">${status.text}</span></td>
+        <td>
+          <button class="btn btn-secondary" onclick="adjustStock('${p.id}', 1)">+</button>
+          <button class="btn btn-secondary" onclick="adjustStock('${p.id}', -1)">−</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function adjustStock(id, delta) {
+  const p = parts.find(x => x.id === id);
+  if (p) {
+    p.quantity = Math.max(0, p.quantity + delta);
+    save();
+    render();
+  }
+}
+
+if (parts.length === 0) {
+  parts = [
+    { id: '1', sku: 'PVC-2IN-90', name: '2" PVC 90° Elbow', category: 'Fittings', quantity: 45, minLevel: 20, unitPrice: 2.50 },
+    { id: '2', sku: 'COP-1/2-10', name: '1/2" Copper Pipe 10ft', category: 'Pipe', quantity: 12, minLevel: 15, unitPrice: 18.99 },
+    { id: '3', sku: 'BALL-3/4', name: '3/4" Ball Valve', category: 'Valves', quantity: 8, minLevel: 10, unitPrice: 12.50 },
+    { id: '4', sku: 'WAX-RING', name: 'Toilet Wax Ring', category: 'Toilet', quantity: 25, minLevel: 10, unitPrice: 4.99 },
+    { id: '5', sku: 'FLAP-UNI', name: 'Universal Flapper', category: 'Toilet', quantity: 3, minLevel: 15, unitPrice: 6.99 },
+    { id: '6', sku: 'FLEX-24', name: '24" Braided Supply Line', category: 'Supply', quantity: 0, minLevel: 10, unitPrice: 8.50 },
+    { id: '7', sku: 'TRAP-1.5', name: '1.5" P-Trap', category: 'Drain', quantity: 18, minLevel: 10, unitPrice: 7.25 },
+    { id: '8', sku: 'SOLDER-1', name: 'Lead-Free Solder 1lb', category: 'Supplies', quantity: 6, minLevel: 5, unitPrice: 15.99 },
+    { id: '9', sku: 'FLUX-8', name: 'Soldering Flux 8oz', category: 'Supplies', quantity: 4, minLevel: 5, unitPrice: 8.75 },
+    { id: '10', sku: 'CART-DELTA', name: 'Delta Faucet Cartridge', category: 'Faucet', quantity: 2, minLevel: 5, unitPrice: 24.99 }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

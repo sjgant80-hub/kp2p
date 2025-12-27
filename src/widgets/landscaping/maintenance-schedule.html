@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maintenance Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"maintenance-schedule","name":"Maintenance Schedule","icon":"📅","desc":"Schedule landscape maintenance","category":"landscaping","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#22c55e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.property-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.property-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.property-name{font-weight:600}
+.property-type{padding:4px 8px;border-radius:4px;font-size:.75rem;background:#22c55e33;color:#22c55e}
+.property-body{padding:15px}
+.service-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#252525;border-radius:6px;margin-bottom:8px}
+.service-info{display:flex;align-items:center;gap:10px}
+.service-icon{font-size:1.25rem}
+.service-name{font-weight:500}
+.service-freq{font-size:.875rem;color:#888}
+.next-date{text-align:right}
+.next-date .date{font-weight:500}
+.next-date .days{font-size:.75rem;color:#888}
+.next-date .days.soon{color:#f59e0b}
+.next-date .days.overdue{color:#ef4444}
+.property-footer{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#22c55e;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📅 Maintenance Schedule</h1>
+<button class="btn btn-primary" onclick="alert('Add property')">+ Add Property</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalProperties">0</div><div class="stat-label">Properties</div></div>
+<div class="stat"><div class="stat-value" id="todayServices">0</div><div class="stat-label">Today's Services</div></div>
+<div class="stat"><div class="stat-value" id="weekServices">0</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value" id="overdueServices">0</div><div class="stat-label">Overdue</div></div>
+</div>
+
+<div class="schedule-grid" id="scheduleGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_maintenance_schedule';
+let properties = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const serviceIcons = { mowing: '🌿', trimming: '✂️', fertilizing: '🧪', irrigation: '💧', cleanup: '🍂', planting: '🌱' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
+}
+
+function getDaysUntil(date) {
+  return Math.ceil((new Date(date) - new Date()) / (1000*60*60*24));
+}
+
+function getDateStatus(days) {
+  if (days < 0) return { class: 'overdue', text: `${Math.abs(days)}d overdue` };
+  if (days === 0) return { class: 'soon', text: 'Today' };
+  if (days <= 3) return { class: 'soon', text: `In ${days}d` };
+  return { class: '', text: `In ${days}d` };
+}
+
+function updateStats() {
+  const allServices = properties.flatMap(p => p.services);
+  const today = allServices.filter(s => getDaysUntil(s.nextDate) === 0).length;
+  const week = allServices.filter(s => { const d = getDaysUntil(s.nextDate); return d >= 0 && d <= 7; }).length;
+  const overdue = allServices.filter(s => getDaysUntil(s.nextDate) < 0).length;
+
+  document.getElementById('totalProperties').textContent = properties.length;
+  document.getElementById('todayServices').textContent = today;
+  document.getElementById('weekServices').textContent = week;
+  document.getElementById('overdueServices').textContent = overdue;
+}
+
+function render() {
+  const grid = document.getElementById('scheduleGrid');
+
+  if (properties.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No properties scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = properties.map(p => `
+    <div class="property-card">
+      <div class="property-header">
+        <span class="property-name">📍 ${p.name}</span>
+        <span class="property-type">${p.type}</span>
+      </div>
+      <div class="property-body">
+        ${p.services.map(s => {
+          const days = getDaysUntil(s.nextDate);
+          const status = getDateStatus(days);
+          return `
+            <div class="service-item">
+              <div class="service-info">
+                <span class="service-icon">${serviceIcons[s.type] || '🔧'}</span>
+                <div>
+                  <div class="service-name">${s.name}</div>
+                  <div class="service-freq">${s.frequency}</div>
+                </div>
+              </div>
+              <div class="next-date">
+                <div class="date">${new Date(s.nextDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                <div class="days ${status.class}">${status.text}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div class="property-footer">
+        <button class="btn btn-primary" onclick="alert('Complete service')">✓ Complete</button>
+        <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (properties.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  properties = [
+    {
+      id: '1', name: 'Smith Residence', type: 'Residential', address: '123 Oak St',
+      services: [
+        { type: 'mowing', name: 'Lawn Mowing', frequency: 'Weekly', nextDate: future(2) },
+        { type: 'trimming', name: 'Hedge Trimming', frequency: 'Bi-weekly', nextDate: future(5) },
+        { type: 'fertilizing', name: 'Fertilization', frequency: 'Quarterly', nextDate: future(45) }
+      ]
+    },
+    {
+      id: '2', name: 'ABC Corp HQ', type: 'Commercial', address: '789 Business Park',
+      services: [
+        { type: 'mowing', name: 'Lawn Mowing', frequency: 'Weekly', nextDate: future(0) },
+        { type: 'irrigation', name: 'Irrigation Check', frequency: 'Monthly', nextDate: future(12) },
+        { type: 'cleanup', name: 'Seasonal Cleanup', frequency: 'Quarterly', nextDate: past(3) }
+      ]
+    },
+    {
+      id: '3', name: 'Johnson Estate', type: 'Residential', address: '456 Maple Ave',
+      services: [
+        { type: 'mowing', name: 'Lawn Mowing', frequency: 'Weekly', nextDate: future(1) },
+        { type: 'planting', name: 'Seasonal Planting', frequency: 'Seasonal', nextDate: future(30) },
+        { type: 'trimming', name: 'Tree Trimming', frequency: 'Annually', nextDate: future(90) }
+      ]
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Menu Planner - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"menu-planner","name":"Menu Planner","icon":"🍽️","desc":"Plan catering menus for events","category":"catering","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.menus-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px}
+.menu-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.menu-header{padding:20px;background:#252525;display:flex;justify-content:space-between;align-items:flex-start}
+.menu-info h3{font-weight:600;margin-bottom:5px}
+.menu-info span{font-size:.875rem;color:#888}
+.menu-price{text-align:right}
+.menu-price strong{font-size:1.25rem;color:#f97316}
+.menu-price span{display:block;font-size:.75rem;color:#888}
+.menu-body{padding:20px}
+.category-section{margin-bottom:15px}
+.category-title{font-size:.875rem;color:#888;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.menu-items{display:flex;flex-direction:column;gap:6px}
+.menu-item{display:flex;justify-content:space-between;padding:8px 12px;background:#252525;border-radius:6px}
+.item-name{font-weight:500}
+.item-dietary{display:flex;gap:5px}
+.dietary-badge{padding:2px 6px;border-radius:3px;font-size:.65rem}
+.dietary-badge.vegan{background:#22c55e33;color:#22c55e}
+.dietary-badge.gf{background:#f59e0b33;color:#f59e0b}
+.dietary-badge.dairy{background:#3b82f633;color:#3b82f6}
+.menu-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#f97316;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🍽️ Menu Planner</h1>
+<button class="btn btn-primary" onclick="alert('Create menu')">+ New Menu</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalMenus">0</div><div class="stat-label">Active Menus</div></div>
+<div class="stat"><div class="stat-value" id="totalItems">0</div><div class="stat-label">Total Items</div></div>
+<div class="stat"><div class="stat-value" id="avgPrice">$0</div><div class="stat-label">Avg Price/Person</div></div>
+<div class="stat"><div class="stat-value" id="veganOptions">0</div><div class="stat-label">Vegan Options</div></div>
+</div>
+
+<div class="menus-grid" id="menusGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_menu_planner';
+let menus = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(menus));
+}
+
+function updateStats() {
+  const allItems = menus.flatMap(m => [...m.appetizers, ...m.mains, ...m.desserts]);
+  const veganCount = allItems.filter(i => i.dietary?.includes('vegan')).length;
+  const avgPrice = menus.length > 0 ? Math.round(menus.reduce((s, m) => s + m.pricePerPerson, 0) / menus.length) : 0;
+
+  document.getElementById('totalMenus').textContent = menus.length;
+  document.getElementById('totalItems').textContent = allItems.length;
+  document.getElementById('avgPrice').textContent = '$' + avgPrice;
+  document.getElementById('veganOptions').textContent = veganCount;
+}
+
+function renderDietary(dietary) {
+  if (!dietary || dietary.length === 0) return '';
+  return dietary.map(d => `<span class="dietary-badge ${d}">${d.toUpperCase()}</span>`).join('');
+}
+
+function render() {
+  const grid = document.getElementById('menusGrid');
+
+  if (menus.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No menus created</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = menus.map(m => `
+    <div class="menu-card">
+      <div class="menu-header">
+        <div class="menu-info">
+          <h3>${m.name}</h3>
+          <span>${m.eventType} • ${m.guestCount} guests</span>
+        </div>
+        <div class="menu-price">
+          <strong>$${m.pricePerPerson}</strong>
+          <span>per person</span>
+        </div>
+      </div>
+      <div class="menu-body">
+        <div class="category-section">
+          <div class="category-title">🥗 Appetizers (${m.appetizers.length})</div>
+          <div class="menu-items">
+            ${m.appetizers.map(i => `
+              <div class="menu-item">
+                <span class="item-name">${i.name}</span>
+                <div class="item-dietary">${renderDietary(i.dietary)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="category-section">
+          <div class="category-title">🍖 Main Courses (${m.mains.length})</div>
+          <div class="menu-items">
+            ${m.mains.map(i => `
+              <div class="menu-item">
+                <span class="item-name">${i.name}</span>
+                <div class="item-dietary">${renderDietary(i.dietary)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="category-section">
+          <div class="category-title">🍰 Desserts (${m.desserts.length})</div>
+          <div class="menu-items">
+            ${m.desserts.map(i => `
+              <div class="menu-item">
+                <span class="item-name">${i.name}</span>
+                <div class="item-dietary">${renderDietary(i.dietary)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="menu-footer">
+        <button class="btn btn-primary" onclick="alert('Edit menu')">✏️ Edit</button>
+        <button class="btn btn-secondary" onclick="alert('Export PDF')">📄 Export</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (menus.length === 0) {
+  menus = [
+    {
+      id: '1', name: 'Corporate Gala', eventType: 'Corporate', guestCount: 150, pricePerPerson: 85,
+      appetizers: [
+        { name: 'Caprese Skewers', dietary: ['vegan', 'gf'] },
+        { name: 'Shrimp Cocktail', dietary: ['gf'] },
+        { name: 'Bruschetta Trio', dietary: ['vegan'] }
+      ],
+      mains: [
+        { name: 'Filet Mignon', dietary: ['gf'] },
+        { name: 'Grilled Salmon', dietary: ['gf'] },
+        { name: 'Vegetable Wellington', dietary: ['vegan'] }
+      ],
+      desserts: [
+        { name: 'Chocolate Mousse', dietary: [] },
+        { name: 'Fruit Tart', dietary: ['vegan', 'gf'] }
+      ]
+    },
+    {
+      id: '2', name: 'Wedding Reception', eventType: 'Wedding', guestCount: 200, pricePerPerson: 120,
+      appetizers: [
+        { name: 'Oysters Rockefeller', dietary: [] },
+        { name: 'Stuffed Mushrooms', dietary: ['vegan'] },
+        { name: 'Crab Cakes', dietary: [] }
+      ],
+      mains: [
+        { name: 'Prime Rib', dietary: ['gf'] },
+        { name: 'Lobster Tail', dietary: ['gf'] },
+        { name: 'Truffle Risotto', dietary: ['vegan'] }
+      ],
+      desserts: [
+        { name: 'Wedding Cake', dietary: [] },
+        { name: 'Crème Brûlée', dietary: ['gf'] },
+        { name: 'Sorbet Selection', dietary: ['vegan', 'gf'] }
+      ]
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

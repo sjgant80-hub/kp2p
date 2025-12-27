@@ -380,6 +380,26 @@ const categoryMap = {
   // Veterinary
   'clinic-scheduler': { category: 'veterinary', subcategory: 'scheduling', badge: 'ENT' },
   'vaccination-tracker': { category: 'veterinary', subcategory: 'health', badge: 'ENT' },
+
+  // Catering
+  'menu-planner': { category: 'catering', subcategory: 'menus', badge: 'ENT' },
+  'event-orders': { category: 'catering', subcategory: 'orders', badge: 'ENT' },
+
+  // Landscaping
+  'project-estimator': { category: 'landscaping', subcategory: 'estimating', badge: 'ENT' },
+  'maintenance-schedule': { category: 'landscaping', subcategory: 'scheduling', badge: 'ENT' },
+
+  // Plumbing
+  'service-calls': { category: 'plumbing', subcategory: 'service', badge: 'ENT' },
+  'parts-inventory': { category: 'plumbing', subcategory: 'inventory', badge: 'ENT' },
+
+  // HVAC
+  'service-tickets': { category: 'hvac', subcategory: 'service', badge: 'ENT' },
+  'equipment-maintenance': { category: 'hvac', subcategory: 'maintenance', badge: 'ENT' },
+
+  // Cleaning
+  'schedule-manager': { category: 'cleaning', subcategory: 'scheduling', badge: 'ENT' },
+  'client-contracts': { category: 'cleaning', subcategory: 'contracts', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -576,7 +596,12 @@ const widgetDirs = [
   'photography',
   'fitness',
   'dental',
-  'veterinary'
+  'veterinary',
+  'catering',
+  'landscaping',
+  'plumbing',
+  'hvac',
+  'cleaning'
 ];
 
 // Process all widgets in all directories

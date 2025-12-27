@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equipment Maintenance - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"equipment-maintenance","name":"Equipment Maintenance","icon":"🛠️","desc":"Track HVAC equipment maintenance","category":"hvac","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0;max-width:250px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.equipment-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:15px}
+.equipment-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.equipment-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.equipment-name{font-weight:600}
+.equipment-type{padding:4px 8px;border-radius:4px;font-size:.75rem;background:#0ea5e933;color:#0ea5e9}
+.equipment-body{padding:15px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.info-item{padding:10px;background:#252525;border-radius:6px}
+.info-label{font-size:.75rem;color:#888;margin-bottom:4px}
+.info-value{font-weight:500}
+.maintenance-status{padding:10px 15px;border-radius:6px;display:flex;justify-content:space-between;align-items:center}
+.maintenance-status.current{background:#22c55e22;border:1px solid #22c55e33}
+.maintenance-status.due-soon{background:#f59e0b22;border:1px solid #f59e0b33}
+.maintenance-status.overdue{background:#ef444422;border:1px solid #ef444433}
+.status-text{font-weight:500}
+.status-text.current{color:#22c55e}
+.status-text.due-soon{color:#f59e0b}
+.status-text.overdue{color:#ef4444}
+.equipment-footer{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#0ea5e9;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🛠️ Equipment Maintenance</h1>
+<input type="text" id="searchInput" placeholder="Search equipment..." oninput="render()">
+<button class="btn btn-primary" onclick="alert('Add equipment')">+ Add Equipment</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalEquipment">0</div><div class="stat-label">Total Equipment</div></div>
+<div class="stat"><div class="stat-value" id="upToDate">0</div><div class="stat-label">Up to Date</div></div>
+<div class="stat warning"><div class="stat-value" id="dueSoon">0</div><div class="stat-label">Due Soon</div></div>
+<div class="stat"><div class="stat-value" id="overdue">0</div><div class="stat-label">Overdue</div></div>
+</div>
+
+<div class="equipment-grid" id="equipmentGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_hvac_equipment';
+let equipment = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(equipment));
+}
+
+function getDaysUntil(date) {
+  return Math.ceil((new Date(date) - new Date()) / (1000*60*60*24));
+}
+
+function getMaintenanceStatus(nextDate) {
+  const days = getDaysUntil(nextDate);
+  if (days < 0) return { class: 'overdue', text: `${Math.abs(days)} days overdue` };
+  if (days <= 30) return { class: 'due-soon', text: `Due in ${days} days` };
+  return { class: 'current', text: `Next: ${new Date(nextDate).toLocaleDateString()}` };
+}
+
+function updateStats() {
+  const upToDate = equipment.filter(e => getDaysUntil(e.nextMaintenance) > 30).length;
+  const dueSoon = equipment.filter(e => { const d = getDaysUntil(e.nextMaintenance); return d >= 0 && d <= 30; }).length;
+  const overdue = equipment.filter(e => getDaysUntil(e.nextMaintenance) < 0).length;
+
+  document.getElementById('totalEquipment').textContent = equipment.length;
+  document.getElementById('upToDate').textContent = upToDate;
+  document.getElementById('dueSoon').textContent = dueSoon;
+  document.getElementById('overdue').textContent = overdue;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = equipment.filter(e =>
+    e.name.toLowerCase().includes(search) ||
+    e.customer.toLowerCase().includes(search) ||
+    e.model.toLowerCase().includes(search)
+  );
+
+  const grid = document.getElementById('equipmentGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No equipment found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(e => {
+    const status = getMaintenanceStatus(e.nextMaintenance);
+    return `
+      <div class="equipment-card">
+        <div class="equipment-header">
+          <span class="equipment-name">${e.name}</span>
+          <span class="equipment-type">${e.type}</span>
+        </div>
+        <div class="equipment-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Customer</div>
+              <div class="info-value">${e.customer}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Model</div>
+              <div class="info-value">${e.model}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Serial #</div>
+              <div class="info-value">${e.serial}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Install Date</div>
+              <div class="info-value">${new Date(e.installDate).toLocaleDateString()}</div>
+            </div>
+          </div>
+          <div class="maintenance-status ${status.class}">
+            <span>Maintenance Status</span>
+            <span class="status-text ${status.class}">${status.text}</span>
+          </div>
+        </div>
+        <div class="equipment-footer">
+          <button class="btn btn-primary" onclick="completeMaintenance('${e.id}')">✓ Complete Maintenance</button>
+          <button class="btn btn-secondary" onclick="alert('View history')">📋 History</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function completeMaintenance(id) {
+  const e = equipment.find(x => x.id === id);
+  if (e) {
+    const next = new Date();
+    next.setMonth(next.getMonth() + e.intervalMonths);
+    e.lastMaintenance = new Date().toISOString().split('T')[0];
+    e.nextMaintenance = next.toISOString().split('T')[0];
+    save();
+    render();
+  }
+}
+
+if (equipment.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  equipment = [
+    { id: '1', name: 'Main AC Unit', type: 'Central AC', customer: 'Johnson Residence', model: 'Carrier 24ACC636', serial: 'CR-2023-45821', installDate: past(365*2), lastMaintenance: past(180), nextMaintenance: future(5), intervalMonths: 6 },
+    { id: '2', name: 'Rooftop Unit #1', type: 'RTU', customer: 'ABC Office Building', model: 'Trane XR15', serial: 'TR-2022-78432', installDate: past(365*3), lastMaintenance: past(60), nextMaintenance: future(30), intervalMonths: 3 },
+    { id: '3', name: 'Furnace', type: 'Gas Furnace', customer: 'Smith Family', model: 'Lennox SL280V', serial: 'LN-2021-12345', installDate: past(365*4), lastMaintenance: past(400), nextMaintenance: past(35), intervalMonths: 12 },
+    { id: '4', name: 'Mini Split System', type: 'Ductless', customer: 'Davis Home', model: 'Mitsubishi MSZ-GL09', serial: 'MT-2023-99887', installDate: past(180), lastMaintenance: past(90), nextMaintenance: future(90), intervalMonths: 6 },
+    { id: '5', name: 'Heat Pump', type: 'Heat Pump', customer: 'Green Valley Apts', model: 'Goodman GSZC18', serial: 'GM-2022-55443', installDate: past(365*2), lastMaintenance: past(120), nextMaintenance: future(60), intervalMonths: 6 }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

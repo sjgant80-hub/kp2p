@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Service Calls - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"service-calls","name":"Service Calls","icon":"🔧","desc":"Manage plumbing service calls","category":"plumbing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#3b82f6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.calls-list{display:flex;flex-direction:column;gap:15px}
+.call-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.call-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.call-priority{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.call-priority.emergency{background:#ef444433;color:#ef4444}
+.call-priority.urgent{background:#f59e0b33;color:#f59e0b}
+.call-priority.routine{background:#3b82f633;color:#3b82f6}
+.call-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.call-status.new{background:#8b5cf633;color:#8b5cf6}
+.call-status.dispatched{background:#3b82f633;color:#3b82f6}
+.call-status.in-progress{background:#f59e0b33;color:#f59e0b}
+.call-status.completed{background:#22c55e33;color:#22c55e}
+.call-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.call-details h4{font-weight:600;margin-bottom:10px}
+.detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333}
+.detail-label{color:#888}
+.call-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔧 Service Calls</h1>
+<button class="btn btn-primary" onclick="alert('New call')">+ New Call</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayCalls">0</div><div class="stat-label">Today's Calls</div></div>
+<div class="stat"><div class="stat-value" id="inProgress">0</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value" id="emergency">0</div><div class="stat-label">Emergencies</div></div>
+<div class="stat"><div class="stat-value" id="completed">0</div><div class="stat-label">Completed Today</div></div>
+</div>
+
+<div class="calls-list" id="callsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_service_calls';
+let calls = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(calls));
+}
+
+function updateStats() {
+  const inProgress = calls.filter(c => c.status === 'in-progress' || c.status === 'dispatched').length;
+  const emergency = calls.filter(c => c.priority === 'emergency' && c.status !== 'completed').length;
+  const completed = calls.filter(c => c.status === 'completed').length;
+
+  document.getElementById('todayCalls').textContent = calls.length;
+  document.getElementById('inProgress').textContent = inProgress;
+  document.getElementById('emergency').textContent = emergency;
+  document.getElementById('completed').textContent = completed;
+}
+
+function render() {
+  const list = document.getElementById('callsList');
+
+  if (calls.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No service calls</div>';
+    updateStats();
+    return;
+  }
+
+  const priorityOrder = { emergency: 0, urgent: 1, routine: 2 };
+  const statusOrder = { new: 0, dispatched: 1, 'in-progress': 2, completed: 3 };
+  const sorted = [...calls].sort((a, b) => {
+    if (a.status === 'completed' && b.status !== 'completed') return 1;
+    if (b.status === 'completed' && a.status !== 'completed') return -1;
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+
+  list.innerHTML = sorted.map(c => `
+    <div class="call-card">
+      <div class="call-header">
+        <div style="display:flex;gap:10px;align-items:center">
+          <span class="call-priority ${c.priority}">${c.priority.toUpperCase()}</span>
+          <span style="font-weight:600">#${c.id}</span>
+        </div>
+        <span class="call-status ${c.status}">${c.status.replace('-', ' ')}</span>
+      </div>
+      <div class="call-body">
+        <div class="call-details">
+          <h4>Customer Info</h4>
+          <div class="detail-row"><span class="detail-label">Name</span><span>${c.customerName}</span></div>
+          <div class="detail-row"><span class="detail-label">Phone</span><span>${c.phone}</span></div>
+          <div class="detail-row"><span class="detail-label">Address</span><span>${c.address}</span></div>
+          <div class="detail-row"><span class="detail-label">Scheduled</span><span>${c.scheduledTime}</span></div>
+        </div>
+        <div class="call-details">
+          <h4>Service Details</h4>
+          <div class="detail-row"><span class="detail-label">Issue</span><span>${c.issue}</span></div>
+          <div class="detail-row"><span class="detail-label">Type</span><span>${c.serviceType}</span></div>
+          <div class="detail-row"><span class="detail-label">Technician</span><span>${c.technician || 'Unassigned'}</span></div>
+          <div class="detail-row"><span class="detail-label">Est. Duration</span><span>${c.estimatedDuration}</span></div>
+        </div>
+      </div>
+      <div class="call-footer">
+        ${c.status === 'new' ? `<button class="btn btn-primary" onclick="updateStatus('${c.id}', 'dispatched')">📤 Dispatch</button>` : ''}
+        ${c.status === 'dispatched' ? `<button class="btn btn-primary" onclick="updateStatus('${c.id}', 'in-progress')">▶️ Start</button>` : ''}
+        ${c.status === 'in-progress' ? `<button class="btn btn-primary" onclick="updateStatus('${c.id}', 'completed')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const c = calls.find(x => x.id === id);
+  if (c) { c.status = status; save(); render(); }
+}
+
+if (calls.length === 0) {
+  calls = [
+    { id: 'SC-001', customerName: 'John Smith', phone: '555-0101', address: '123 Oak St', scheduledTime: '9:00 AM', issue: 'Burst pipe in basement', serviceType: 'Emergency Repair', technician: 'Mike Johnson', estimatedDuration: '2-3 hours', priority: 'emergency', status: 'in-progress' },
+    { id: 'SC-002', customerName: 'Sarah Wilson', phone: '555-0102', address: '456 Maple Ave', scheduledTime: '11:00 AM', issue: 'Slow draining sink', serviceType: 'Drain Cleaning', technician: 'Tom Brown', estimatedDuration: '1 hour', priority: 'routine', status: 'dispatched' },
+    { id: 'SC-003', customerName: 'Bob Martinez', phone: '555-0103', address: '789 Pine Rd', scheduledTime: '1:00 PM', issue: 'Water heater not heating', serviceType: 'Water Heater', technician: null, estimatedDuration: '1-2 hours', priority: 'urgent', status: 'new' },
+    { id: 'SC-004', customerName: 'Lisa Chen', phone: '555-0104', address: '321 Elm St', scheduledTime: '3:00 PM', issue: 'Toilet running constantly', serviceType: 'Toilet Repair', technician: 'Mike Johnson', estimatedDuration: '30 min', priority: 'routine', status: 'new' },
+    { id: 'SC-005', customerName: 'David Park', phone: '555-0105', address: '654 Cedar Ln', scheduledTime: '8:00 AM', issue: 'Kitchen faucet replacement', serviceType: 'Fixture Install', technician: 'Tom Brown', estimatedDuration: '1 hour', priority: 'routine', status: 'completed' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

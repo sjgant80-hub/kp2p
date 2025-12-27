@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Client Contracts - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"client-contracts","name":"Client Contracts","icon":"📝","desc":"Manage cleaning service contracts","category":"cleaning","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0;max-width:250px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#a855f7}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.contracts-list{display:flex;flex-direction:column;gap:15px}
+.contract-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.contract-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.contract-client{font-weight:600}
+.contract-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.contract-status.active{background:#22c55e33;color:#22c55e}
+.contract-status.expiring{background:#f59e0b33;color:#f59e0b}
+.contract-status.expired{background:#ef444433;color:#ef4444}
+.contract-status.pending{background:#3b82f633;color:#3b82f6}
+.contract-body{padding:20px}
+.contract-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:15px}
+.contract-item{padding:12px;background:#252525;border-radius:6px}
+.item-label{font-size:.75rem;color:#888;margin-bottom:4px}
+.item-value{font-weight:500}
+.services-list{display:flex;flex-wrap:wrap;gap:8px}
+.service-tag{padding:4px 10px;background:#a855f722;border:1px solid #a855f744;border-radius:4px;font-size:.75rem;color:#a855f7}
+.contract-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#a855f7;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📝 Client Contracts</h1>
+<input type="text" id="searchInput" placeholder="Search clients..." oninput="render()">
+<button class="btn btn-primary" onclick="alert('New contract')">+ New Contract</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeContracts">0</div><div class="stat-label">Active Contracts</div></div>
+<div class="stat"><div class="stat-value" id="monthlyRevenue">$0</div><div class="stat-label">Monthly Revenue</div></div>
+<div class="stat"><div class="stat-value" id="expiringContracts">0</div><div class="stat-label">Expiring Soon</div></div>
+<div class="stat"><div class="stat-value" id="renewalRate">0%</div><div class="stat-label">Renewal Rate</div></div>
+</div>
+
+<div class="contracts-list" id="contractsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_cleaning_contracts';
+let contracts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(contracts));
+}
+
+function getDaysUntil(date) {
+  return Math.ceil((new Date(date) - new Date()) / (1000*60*60*24));
+}
+
+function getContractStatus(endDate) {
+  const days = getDaysUntil(endDate);
+  if (days < 0) return { class: 'expired', text: 'Expired' };
+  if (days <= 30) return { class: 'expiring', text: 'Expiring Soon' };
+  return { class: 'active', text: 'Active' };
+}
+
+function updateStats() {
+  const active = contracts.filter(c => getDaysUntil(c.endDate) > 0).length;
+  const expiring = contracts.filter(c => { const d = getDaysUntil(c.endDate); return d > 0 && d <= 30; }).length;
+  const monthlyRevenue = contracts.filter(c => getDaysUntil(c.endDate) > 0).reduce((s, c) => s + c.monthlyRate, 0);
+
+  document.getElementById('activeContracts').textContent = active;
+  document.getElementById('monthlyRevenue').textContent = '$' + monthlyRevenue.toLocaleString();
+  document.getElementById('expiringContracts').textContent = expiring;
+  document.getElementById('renewalRate').textContent = '87%';
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = contracts.filter(c =>
+    c.clientName.toLowerCase().includes(search) ||
+    c.address.toLowerCase().includes(search)
+  );
+
+  const list = document.getElementById('contractsList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No contracts found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(c => {
+    const status = getContractStatus(c.endDate);
+    return `
+      <div class="contract-card">
+        <div class="contract-header">
+          <span class="contract-client">🏢 ${c.clientName}</span>
+          <span class="contract-status ${status.class}">${status.text}</span>
+        </div>
+        <div class="contract-body">
+          <div class="contract-grid">
+            <div class="contract-item">
+              <div class="item-label">Address</div>
+              <div class="item-value">${c.address}</div>
+            </div>
+            <div class="contract-item">
+              <div class="item-label">Frequency</div>
+              <div class="item-value">${c.frequency}</div>
+            </div>
+            <div class="contract-item">
+              <div class="item-label">Monthly Rate</div>
+              <div class="item-value">$${c.monthlyRate.toLocaleString()}</div>
+            </div>
+            <div class="contract-item">
+              <div class="item-label">Contract Period</div>
+              <div class="item-value">${new Date(c.startDate).toLocaleDateString()} - ${new Date(c.endDate).toLocaleDateString()}</div>
+            </div>
+          </div>
+          <div class="contract-item">
+            <div class="item-label">Services Included</div>
+            <div class="services-list">
+              ${c.services.map(s => `<span class="service-tag">${s}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="contract-footer">
+          <button class="btn btn-primary" onclick="alert('Renew contract')">🔄 Renew</button>
+          <button class="btn btn-secondary" onclick="alert('View contract')">📄 View</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+if (contracts.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  contracts = [
+    { id: '1', clientName: 'ABC Corp Headquarters', address: '456 Business Park', frequency: '3x per week', monthlyRate: 4500, startDate: past(365), endDate: future(90), services: ['Office Cleaning', 'Restroom Sanitation', 'Floor Care', 'Window Cleaning'] },
+    { id: '2', clientName: 'Green Valley Medical Center', address: '654 Health Way', frequency: 'Daily', monthlyRate: 8500, startDate: past(180), endDate: future(185), services: ['Medical Grade Cleaning', 'Biohazard Disposal', 'Floor Care', 'Waiting Area'] },
+    { id: '3', clientName: 'Downtown Lofts HOA', address: '321 Main St', frequency: '2x per week', monthlyRate: 2800, startDate: past(90), endDate: future(20), services: ['Common Areas', 'Lobby', 'Hallways', 'Elevator'] },
+    { id: '4', clientName: 'Tech Startup Inc.', address: '789 Innovation Dr', frequency: 'Weekly', monthlyRate: 1200, startDate: past(30), endDate: future(335), services: ['Office Cleaning', 'Kitchen', 'Restrooms'] },
+    { id: '5', clientName: 'City School District', address: 'Multiple Locations', frequency: 'Daily', monthlyRate: 15000, startDate: past(200), endDate: past(20), services: ['Classroom Cleaning', 'Cafeteria', 'Gym', 'Restrooms', 'Common Areas'] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

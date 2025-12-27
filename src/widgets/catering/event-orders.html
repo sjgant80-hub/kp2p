@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Event Orders - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"event-orders","name":"Event Orders","icon":"📋","desc":"Manage catering event orders","category":"catering","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.orders-list{display:flex;flex-direction:column;gap:15px}
+.order-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.order-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.order-date{font-weight:600}
+.order-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.order-status.confirmed{background:#10b98133;color:#10b981}
+.order-status.pending{background:#f59e0b33;color:#f59e0b}
+.order-status.in-progress{background:#3b82f633;color:#3b82f6}
+.order-status.completed{background:#8b5cf633;color:#8b5cf6}
+.order-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.order-details h4{font-weight:600;margin-bottom:10px}
+.detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333}
+.detail-label{color:#888}
+.order-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#f97316;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📋 Event Orders</h1>
+<button class="btn btn-primary" onclick="alert('New order')">+ New Order</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="upcomingOrders">0</div><div class="stat-label">Upcoming Events</div></div>
+<div class="stat"><div class="stat-value" id="thisWeek">0</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value" id="totalGuests">0</div><div class="stat-label">Total Guests</div></div>
+<div class="stat"><div class="stat-value" id="revenue">$0</div><div class="stat-label">Monthly Revenue</div></div>
+</div>
+
+<div class="orders-list" id="ordersList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_event_orders';
+let orders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+}
+
+function updateStats() {
+  const upcoming = orders.filter(o => o.status !== 'completed').length;
+  const thisWeek = orders.filter(o => {
+    const d = new Date(o.eventDate);
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7*24*60*60*1000);
+    return d >= now && d <= weekFromNow;
+  }).length;
+  const totalGuests = orders.reduce((s, o) => s + o.guestCount, 0);
+  const revenue = orders.reduce((s, o) => s + o.total, 0);
+
+  document.getElementById('upcomingOrders').textContent = upcoming;
+  document.getElementById('thisWeek').textContent = thisWeek;
+  document.getElementById('totalGuests').textContent = totalGuests;
+  document.getElementById('revenue').textContent = '$' + revenue.toLocaleString();
+}
+
+function render() {
+  const list = document.getElementById('ordersList');
+
+  if (orders.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No orders yet</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...orders].sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
+
+  list.innerHTML = sorted.map(o => `
+    <div class="order-card">
+      <div class="order-header">
+        <div class="order-date">📅 ${new Date(o.eventDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at ${o.eventTime}</div>
+        <span class="order-status ${o.status}">${o.status.replace('-', ' ')}</span>
+      </div>
+      <div class="order-body">
+        <div class="order-details">
+          <h4>Event Details</h4>
+          <div class="detail-row"><span class="detail-label">Client</span><span>${o.clientName}</span></div>
+          <div class="detail-row"><span class="detail-label">Event Type</span><span>${o.eventType}</span></div>
+          <div class="detail-row"><span class="detail-label">Venue</span><span>${o.venue}</span></div>
+          <div class="detail-row"><span class="detail-label">Guests</span><span>${o.guestCount}</span></div>
+        </div>
+        <div class="order-details">
+          <h4>Order Summary</h4>
+          <div class="detail-row"><span class="detail-label">Menu</span><span>${o.menuName}</span></div>
+          <div class="detail-row"><span class="detail-label">Price/Person</span><span>$${o.pricePerPerson}</span></div>
+          <div class="detail-row"><span class="detail-label">Service Fee</span><span>$${o.serviceFee}</span></div>
+          <div class="detail-row"><span class="detail-label">Total</span><strong>$${o.total.toLocaleString()}</strong></div>
+        </div>
+      </div>
+      <div class="order-footer">
+        ${o.status === 'pending' ? `<button class="btn btn-primary" onclick="updateStatus('${o.id}', 'confirmed')">✓ Confirm</button>` : ''}
+        ${o.status === 'confirmed' ? `<button class="btn btn-primary" onclick="updateStatus('${o.id}', 'in-progress')">🚀 Start Prep</button>` : ''}
+        ${o.status === 'in-progress' ? `<button class="btn btn-primary" onclick="updateStatus('${o.id}', 'completed')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const o = orders.find(x => x.id === id);
+  if (o) { o.status = status; save(); render(); }
+}
+
+if (orders.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  orders = [
+    { id: '1', clientName: 'Johnson Wedding', eventType: 'Wedding', eventDate: future(3), eventTime: '6:00 PM', venue: 'Grand Ballroom', guestCount: 200, menuName: 'Premium Wedding', pricePerPerson: 95, serviceFee: 500, total: 19500, status: 'confirmed' },
+    { id: '2', clientName: 'TechCorp Inc.', eventType: 'Corporate', eventDate: future(7), eventTime: '12:00 PM', venue: 'Conference Center', guestCount: 75, menuName: 'Business Lunch', pricePerPerson: 45, serviceFee: 200, total: 3575, status: 'pending' },
+    { id: '3', clientName: 'Smith Anniversary', eventType: 'Private Party', eventDate: future(1), eventTime: '7:00 PM', venue: 'Private Residence', guestCount: 50, menuName: 'Elegant Dinner', pricePerPerson: 75, serviceFee: 300, total: 4050, status: 'in-progress' },
+    { id: '4', clientName: 'City Fundraiser', eventType: 'Charity Gala', eventDate: future(14), eventTime: '6:30 PM', venue: 'Museum Hall', guestCount: 300, menuName: 'Gala Menu', pricePerPerson: 85, serviceFee: 1000, total: 26500, status: 'pending' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

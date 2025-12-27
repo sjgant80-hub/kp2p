@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Schedule Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"schedule-manager","name":"Schedule Manager","icon":"📆","desc":"Manage cleaning service schedules","category":"cleaning","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#a855f7}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule-list{display:flex;flex-direction:column;gap:15px}
+.job-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.job-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.job-time{font-weight:600;display:flex;align-items:center;gap:10px}
+.job-type{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.job-type.residential{background:#22c55e33;color:#22c55e}
+.job-type.commercial{background:#3b82f633;color:#3b82f6}
+.job-type.deep-clean{background:#a855f733;color:#a855f7}
+.job-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.job-status.scheduled{background:#f59e0b33;color:#f59e0b}
+.job-status.in-progress{background:#a855f733;color:#a855f7}
+.job-status.completed{background:#22c55e33;color:#22c55e}
+.job-body{padding:20px;display:flex;gap:20px}
+.job-info{flex:1}
+.client-name{font-weight:600;margin-bottom:5px}
+.client-details{font-size:.875rem;color:#888}
+.job-details{text-align:right}
+.crew-info{font-weight:500;margin-bottom:5px}
+.duration-info{font-size:.875rem;color:#888}
+.job-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#a855f7;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📆 Schedule Manager</h1>
+<button class="btn btn-primary" onclick="alert('Add job')">+ Add Job</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayJobs">0</div><div class="stat-label">Today's Jobs</div></div>
+<div class="stat"><div class="stat-value" id="inProgress">0</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value" id="completed">0</div><div class="stat-label">Completed</div></div>
+<div class="stat"><div class="stat-value" id="crewsActive">0</div><div class="stat-label">Active Crews</div></div>
+</div>
+
+<div class="schedule-list" id="scheduleList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_cleaning_schedule';
+let jobs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+}
+
+function updateStats() {
+  const inProgress = jobs.filter(j => j.status === 'in-progress').length;
+  const completed = jobs.filter(j => j.status === 'completed').length;
+  const crews = new Set(jobs.filter(j => j.status === 'in-progress').map(j => j.crew)).size;
+
+  document.getElementById('todayJobs').textContent = jobs.length;
+  document.getElementById('inProgress').textContent = inProgress;
+  document.getElementById('completed').textContent = completed;
+  document.getElementById('crewsActive').textContent = crews;
+}
+
+function render() {
+  const list = document.getElementById('scheduleList');
+
+  if (jobs.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No jobs scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  const statusOrder = { 'in-progress': 0, scheduled: 1, completed: 2 };
+  const sorted = [...jobs].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+
+  list.innerHTML = sorted.map(j => `
+    <div class="job-card">
+      <div class="job-header">
+        <div class="job-time">
+          🕐 ${j.time}
+          <span class="job-type ${j.type}">${j.type.replace('-', ' ')}</span>
+        </div>
+        <span class="job-status ${j.status}">${j.status.replace('-', ' ')}</span>
+      </div>
+      <div class="job-body">
+        <div class="job-info">
+          <div class="client-name">📍 ${j.clientName}</div>
+          <div class="client-details">${j.address} • ${j.sqft} sqft</div>
+        </div>
+        <div class="job-details">
+          <div class="crew-info">👥 ${j.crew}</div>
+          <div class="duration-info">Est: ${j.duration}</div>
+        </div>
+      </div>
+      <div class="job-footer">
+        ${j.status === 'scheduled' ? `<button class="btn btn-primary" onclick="updateStatus('${j.id}', 'in-progress')">▶️ Start</button>` : ''}
+        ${j.status === 'in-progress' ? `<button class="btn btn-primary" onclick="updateStatus('${j.id}', 'completed')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View checklist')">📋 Checklist</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const j = jobs.find(x => x.id === id);
+  if (j) { j.status = status; save(); render(); }
+}
+
+if (jobs.length === 0) {
+  jobs = [
+    { id: '1', time: '8:00 AM', clientName: 'Johnson Residence', address: '123 Oak St', sqft: 2500, type: 'residential', crew: 'Team Alpha', duration: '3 hours', status: 'completed' },
+    { id: '2', time: '9:30 AM', clientName: 'ABC Corp Office', address: '456 Business Park', sqft: 5000, type: 'commercial', crew: 'Team Beta', duration: '4 hours', status: 'in-progress' },
+    { id: '3', time: '11:00 AM', clientName: 'Smith Family', address: '789 Maple Ave', sqft: 1800, type: 'residential', crew: 'Team Alpha', duration: '2 hours', status: 'in-progress' },
+    { id: '4', time: '1:00 PM', clientName: 'Downtown Lofts #42', address: '321 Main St, Unit 42', sqft: 1200, type: 'deep-clean', crew: 'Team Gamma', duration: '4 hours', status: 'scheduled' },
+    { id: '5', time: '2:00 PM', clientName: 'Green Valley Medical', address: '654 Health Way', sqft: 3500, type: 'commercial', crew: 'Team Beta', duration: '3 hours', status: 'scheduled' },
+    { id: '6', time: '4:00 PM', clientName: 'Davis Home', address: '987 Pine Rd', sqft: 2200, type: 'residential', crew: 'Team Alpha', duration: '2.5 hours', status: 'scheduled' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>
