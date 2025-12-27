@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jewelry Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"inventory-tracker","name":"Jewelry Inventory","icon":"💎","desc":"Track jewelry stock and valuations","category":"jewelry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:300px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.inventory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.item-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.item-image{height:140px;background:linear-gradient(135deg,#1a1a1a,#252525);display:flex;align-items:center;justify-content:center;font-size:3rem}
+.item-body{padding:20px}
+.item-sku{font-family:monospace;font-size:.75rem;color:#888;margin-bottom:5px}
+.item-name{font-weight:500;margin-bottom:10px}
+.item-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;font-size:.875rem}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.item-price{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+.price-value{font-size:1.5rem;font-weight:bold;color:#f59e0b}
+.stock-badge{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.stock-badge.available{background:#10b98133;color:#10b981}
+.stock-badge.low{background:#f59e0b33;color:#f59e0b}
+.stock-badge.sold{background:#ef444433;color:#ef4444}
+.item-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#f59e0b;color:#000}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💎 Jewelry Inventory</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search items..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add item')">+ Add Item</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalItems">0</div><div class="stat-label">Total Items</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Inventory Value</div></div>
+<div class="stat"><div class="stat-value" id="goldWeight">0g</div><div class="stat-label">Gold Weight</div></div>
+<div class="stat"><div class="stat-value" id="diamondCarat">0ct</div><div class="stat-label">Diamond Carats</div></div>
+</div>
+
+<div class="inventory-grid" id="inventoryGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_jewelry_inventory';
+let items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const typeIcons = { ring: '💍', necklace: '📿', bracelet: '⌚', earrings: '✨', pendant: '💎' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function updateStats() {
+  const available = items.filter(i => i.status === 'available');
+  const totalValue = available.reduce((s, i) => s + i.price, 0);
+  const goldWeight = available.reduce((s, i) => s + (i.goldWeight || 0), 0);
+  const diamondCarat = available.reduce((s, i) => s + (i.diamondCarat || 0), 0);
+
+  document.getElementById('totalItems').textContent = available.length;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+  document.getElementById('goldWeight').textContent = goldWeight.toFixed(1) + 'g';
+  document.getElementById('diamondCarat').textContent = diamondCarat.toFixed(2) + 'ct';
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = items.filter(i =>
+    i.name.toLowerCase().includes(search) ||
+    i.sku.toLowerCase().includes(search) ||
+    i.type.toLowerCase().includes(search)
+  );
+
+  const grid = document.getElementById('inventoryGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No items found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(i => `
+    <div class="item-card">
+      <div class="item-image">${typeIcons[i.type] || '💎'}</div>
+      <div class="item-body">
+        <div class="item-sku">${i.sku}</div>
+        <div class="item-name">${i.name}</div>
+        <div class="item-details">
+          <div class="detail-item"><span>Metal</span><strong>${i.metal}</strong></div>
+          <div class="detail-item"><span>Gold</span><strong>${i.goldWeight}g</strong></div>
+          <div class="detail-item"><span>Stone</span><strong>${i.stone || 'N/A'}</strong></div>
+          <div class="detail-item"><span>Carat</span><strong>${i.diamondCarat ? i.diamondCarat + 'ct' : 'N/A'}</strong></div>
+        </div>
+        <div class="item-price">
+          <span class="price-value">$${i.price.toLocaleString()}</span>
+          <span class="stock-badge ${i.status}">${i.status}</span>
+        </div>
+      </div>
+      <div class="item-footer">
+        <button class="btn btn-primary" onclick="alert('View details')">📋 Details</button>
+        <button class="btn btn-secondary" onclick="alert('Print tag')">🏷️ Tag</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (items.length === 0) {
+  items = [
+    { id: '1', sku: 'JW-RNG-001', name: 'Diamond Solitaire Ring', type: 'ring', metal: '18K White Gold', goldWeight: 4.2, stone: 'Diamond', diamondCarat: 1.5, price: 8500, status: 'available' },
+    { id: '2', sku: 'JW-NCK-015', name: 'Pearl Strand Necklace', type: 'necklace', metal: '14K Yellow Gold', goldWeight: 2.8, stone: 'Pearl', diamondCarat: 0, price: 2400, status: 'available' },
+    { id: '3', sku: 'JW-BRC-008', name: 'Tennis Bracelet', type: 'bracelet', metal: '18K White Gold', goldWeight: 12.5, stone: 'Diamond', diamondCarat: 3.2, price: 12000, status: 'available' },
+    { id: '4', sku: 'JW-EAR-022', name: 'Diamond Stud Earrings', type: 'earrings', metal: '14K White Gold', goldWeight: 1.8, stone: 'Diamond', diamondCarat: 1.0, price: 4200, status: 'available' },
+    { id: '5', sku: 'JW-RNG-045', name: 'Sapphire Halo Ring', type: 'ring', metal: '18K Rose Gold', goldWeight: 3.8, stone: 'Sapphire', diamondCarat: 0.5, price: 5800, status: 'low' },
+    { id: '6', sku: 'JW-PND-012', name: 'Emerald Pendant', type: 'pendant', metal: '18K Yellow Gold', goldWeight: 2.2, stone: 'Emerald', diamondCarat: 0.25, price: 3500, status: 'sold' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

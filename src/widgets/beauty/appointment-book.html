@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Appointment Book - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"appointment-book","name":"Appointment Book","icon":"📅","desc":"Manage salon and spa appointments","category":"beauty","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.date-nav{display:flex;align-items:center;gap:10px}
+.date-nav button{background:#333;border:none;color:#e0e0e0;padding:8px 12px;border-radius:6px;cursor:pointer}
+.current-date{font-weight:600;min-width:150px;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule-grid{display:grid;grid-template-columns:80px 1fr;gap:2px;background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.time-slot{background:#252525;padding:15px 10px;text-align:center;font-size:.875rem;color:#888;border-bottom:1px solid #333}
+.appointment-slot{background:#1a1a1a;padding:10px;min-height:60px;border-bottom:1px solid #333;display:flex;gap:10px;flex-wrap:wrap}
+.appointment-card{background:#252525;border-radius:8px;padding:12px;flex:1;min-width:200px;border-left:3px solid #10b981}
+.appointment-card.haircut{border-color:#3b82f6}
+.appointment-card.color{border-color:#ec4899}
+.appointment-card.facial{border-color:#f59e0b}
+.appointment-card.massage{border-color:#8b5cf6}
+.client-name{font-weight:500;margin-bottom:5px}
+.service-info{font-size:.875rem;color:#888;display:flex;justify-content:space-between}
+.stylist-badge{padding:2px 6px;background:#33333;border-radius:4px;font-size:.75rem}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📅 Appointment Book</h1>
+<div class="date-nav">
+<button onclick="changeDate(-1)">←</button>
+<span class="current-date" id="currentDate">Today</span>
+<button onclick="changeDate(1)">→</button>
+</div>
+<button class="btn btn-primary" onclick="alert('Book appointment')">+ Book Now</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayAppts">0</div><div class="stat-label">Today's Appointments</div></div>
+<div class="stat"><div class="stat-value" id="revenue">$0</div><div class="stat-label">Expected Revenue</div></div>
+<div class="stat"><div class="stat-value" id="utilization">0%</div><div class="stat-label">Chair Utilization</div></div>
+<div class="stat"><div class="stat-value" id="walkIns">0</div><div class="stat-label">Walk-ins Available</div></div>
+</div>
+
+<div class="schedule-grid" id="scheduleGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_appointments';
+let appointments = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentDate = new Date();
+
+const serviceColors = {
+  'Haircut': 'haircut',
+  'Color': 'color',
+  'Facial': 'facial',
+  'Massage': 'massage'
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+}
+
+function formatDate(date) {
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function changeDate(delta) {
+  currentDate.setDate(currentDate.getDate() + delta);
+  document.getElementById('currentDate').textContent = formatDate(currentDate);
+  render();
+}
+
+function updateStats() {
+  const todayStr = currentDate.toISOString().split('T')[0];
+  const todayAppts = appointments.filter(a => a.date === todayStr);
+  const revenue = todayAppts.reduce((s, a) => s + a.price, 0);
+  const totalSlots = 8 * 3; // 8 hours, 3 stylists
+  const bookedSlots = todayAppts.length;
+
+  document.getElementById('todayAppts').textContent = todayAppts.length;
+  document.getElementById('revenue').textContent = '$' + revenue;
+  document.getElementById('utilization').textContent = Math.round((bookedSlots / totalSlots) * 100) + '%';
+  document.getElementById('walkIns').textContent = totalSlots - bookedSlots;
+}
+
+function render() {
+  const grid = document.getElementById('scheduleGrid');
+  const todayStr = currentDate.toISOString().split('T')[0];
+  const todayAppts = appointments.filter(a => a.date === todayStr);
+
+  const timeSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+
+  grid.innerHTML = timeSlots.map(time => {
+    const slotAppts = todayAppts.filter(a => a.time === time);
+    return `
+      <div class="time-slot">${time}</div>
+      <div class="appointment-slot">
+        ${slotAppts.map(a => `
+          <div class="appointment-card ${serviceColors[a.service] || ''}">
+            <div class="client-name">${a.client}</div>
+            <div class="service-info">
+              <span>${a.service} (${a.duration}min)</span>
+              <span class="stylist-badge">${a.stylist}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+if (appointments.length === 0) {
+  const today = new Date().toISOString().split('T')[0];
+  appointments = [
+    { id: '1', date: today, time: '9:00 AM', client: 'Emma Wilson', service: 'Haircut', duration: 45, stylist: 'Sarah', price: 65 },
+    { id: '2', date: today, time: '9:00 AM', client: 'Olivia Brown', service: 'Color', duration: 120, stylist: 'Mike', price: 150 },
+    { id: '3', date: today, time: '10:00 AM', client: 'Sophia Davis', service: 'Facial', duration: 60, stylist: 'Lisa', price: 85 },
+    { id: '4', date: today, time: '11:00 AM', client: 'Ava Martinez', service: 'Haircut', duration: 30, stylist: 'Sarah', price: 45 },
+    { id: '5', date: today, time: '12:00 PM', client: 'Isabella Garcia', service: 'Massage', duration: 60, stylist: 'Lisa', price: 95 },
+    { id: '6', date: today, time: '1:00 PM', client: 'Mia Johnson', service: 'Color', duration: 90, stylist: 'Mike', price: 120 },
+    { id: '7', date: today, time: '2:00 PM', client: 'Charlotte Lee', service: 'Haircut', duration: 45, stylist: 'Sarah', price: 65 },
+    { id: '8', date: today, time: '3:00 PM', client: 'Amelia White', service: 'Facial', duration: 75, stylist: 'Lisa', price: 110 }
+  ];
+  save();
+}
+
+document.getElementById('currentDate').textContent = formatDate(currentDate);
+render();
+</script>
+</body>
+</html>

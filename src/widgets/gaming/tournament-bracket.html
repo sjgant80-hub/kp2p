@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tournament Bracket - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"tournament-bracket","name":"Tournament Bracket","icon":"🏆","desc":"Manage esports tournament brackets","category":"gaming","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tournament-info{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.tournament-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.tournament-name{font-size:1.25rem;font-weight:600}
+.tournament-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.tournament-status.active{background:#10b98133;color:#10b981}
+.tournament-status.upcoming{background:#3b82f633;color:#3b82f6}
+.bracket-container{display:flex;gap:30px;overflow-x:auto;padding:20px 0}
+.round{display:flex;flex-direction:column;gap:20px;min-width:200px}
+.round-title{font-size:.875rem;color:#888;text-align:center;margin-bottom:10px}
+.match-card{background:#252525;border-radius:8px;border:1px solid #333;overflow:hidden}
+.team-row{display:flex;justify-content:space-between;align-items:center;padding:10px 15px;border-bottom:1px solid #333}
+.team-row:last-child{border-bottom:none}
+.team-row.winner{background:#10b98122}
+.team-name{font-weight:500;display:flex;align-items:center;gap:8px}
+.team-seed{font-size:.75rem;color:#888;width:20px}
+.team-score{font-weight:bold;font-size:1.125rem}
+.match-time{text-align:center;padding:5px;background:#1a1a1a;font-size:.75rem;color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏆 Tournament Bracket</h1>
+<button class="btn btn-primary" onclick="alert('New tournament')">+ New Tournament</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalTeams">0</div><div class="stat-label">Teams</div></div>
+<div class="stat"><div class="stat-value" id="matchesPlayed">0</div><div class="stat-label">Matches Played</div></div>
+<div class="stat"><div class="stat-value" id="matchesRemaining">0</div><div class="stat-label">Remaining</div></div>
+<div class="stat"><div class="stat-value" id="prizePool">$0</div><div class="stat-label">Prize Pool</div></div>
+</div>
+
+<div class="tournament-info">
+<div class="tournament-header">
+<span class="tournament-name" id="tournamentName">Loading...</span>
+<span class="tournament-status active" id="tournamentStatus">Active</span>
+</div>
+<div style="font-size:.875rem;color:#888" id="tournamentGame">Game: Loading...</div>
+</div>
+
+<div class="bracket-container" id="bracketContainer"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_tournament';
+let tournament = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament));
+}
+
+function updateStats() {
+  const allMatches = tournament.rounds.flat();
+  const played = allMatches.filter(m => m.completed).length;
+  const remaining = allMatches.filter(m => !m.completed).length;
+
+  document.getElementById('totalTeams').textContent = tournament.teams.length;
+  document.getElementById('matchesPlayed').textContent = played;
+  document.getElementById('matchesRemaining').textContent = remaining;
+  document.getElementById('prizePool').textContent = '$' + tournament.prizePool.toLocaleString();
+  document.getElementById('tournamentName').textContent = tournament.name;
+  document.getElementById('tournamentGame').textContent = 'Game: ' + tournament.game;
+}
+
+function render() {
+  const container = document.getElementById('bracketContainer');
+  const roundNames = ['Round 1', 'Quarterfinals', 'Semifinals', 'Finals'];
+
+  container.innerHTML = tournament.rounds.map((round, ri) => `
+    <div class="round">
+      <div class="round-title">${roundNames[ri] || 'Round ' + (ri + 1)}</div>
+      ${round.map(match => `
+        <div class="match-card">
+          <div class="match-time">${match.time || 'TBD'}</div>
+          <div class="team-row ${match.winner === 1 ? 'winner' : ''}">
+            <span class="team-name"><span class="team-seed">${match.seed1 || ''}</span>${match.team1 || 'TBD'}</span>
+            <span class="team-score">${match.score1 ?? '-'}</span>
+          </div>
+          <div class="team-row ${match.winner === 2 ? 'winner' : ''}">
+            <span class="team-name"><span class="team-seed">${match.seed2 || ''}</span>${match.team2 || 'TBD'}</span>
+            <span class="team-score">${match.score2 ?? '-'}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (!tournament) {
+  tournament = {
+    name: 'Winter Championship 2024',
+    game: 'Valorant',
+    prizePool: 50000,
+    teams: ['Team Alpha', 'Phoenix Rising', 'Dark Knights', 'Storm Chasers', 'Cyber Wolves', 'Nova Squad', 'Thunder Strike', 'Ice Dragons'],
+    rounds: [
+      [
+        { team1: 'Team Alpha', team2: 'Ice Dragons', seed1: '1', seed2: '8', score1: 2, score2: 0, winner: 1, completed: true, time: 'Completed' },
+        { team1: 'Phoenix Rising', team2: 'Thunder Strike', seed1: '2', seed2: '7', score1: 2, score2: 1, winner: 1, completed: true, time: 'Completed' },
+        { team1: 'Dark Knights', team2: 'Nova Squad', seed1: '3', seed2: '6', score1: 1, score2: 2, winner: 2, completed: true, time: 'Completed' },
+        { team1: 'Storm Chasers', team2: 'Cyber Wolves', seed1: '4', seed2: '5', score1: 2, score2: 1, winner: 1, completed: true, time: 'Completed' }
+      ],
+      [
+        { team1: 'Team Alpha', team2: 'Phoenix Rising', seed1: '1', seed2: '2', score1: 2, score2: 1, winner: 1, completed: true, time: 'Completed' },
+        { team1: 'Nova Squad', team2: 'Storm Chasers', seed1: '6', seed2: '4', score1: null, score2: null, winner: null, completed: false, time: 'Today 6:00 PM' }
+      ],
+      [
+        { team1: 'Team Alpha', team2: 'TBD', seed1: '1', seed2: '', score1: null, score2: null, winner: null, completed: false, time: 'Tomorrow 8:00 PM' }
+      ]
+    ]
+  };
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

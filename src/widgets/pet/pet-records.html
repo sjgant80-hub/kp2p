@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pet Records - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"pet-records","name":"Pet Records","icon":"🐾","desc":"Manage pet medical and grooming records","category":"pet","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:300px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.pets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.pet-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.pet-header{padding:20px;display:flex;align-items:center;gap:15px;border-bottom:1px solid #333}
+.pet-avatar{width:60px;height:60px;border-radius:50%;background:#252525;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.pet-info h3{font-weight:500;margin-bottom:5px}
+.pet-info span{font-size:.875rem;color:#888}
+.pet-body{padding:20px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.info-item span{display:block;color:#888;font-size:.75rem}
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{padding:10px;border-radius:6px;font-size:.875rem;display:flex;align-items:center;gap:10px}
+.alert.warning{background:#f59e0b22;color:#f59e0b}
+.alert.info{background:#3b82f622;color:#3b82f6}
+.alert.success{background:#10b98122;color:#10b981}
+.pet-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🐾 Pet Records</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search pets or owners..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add pet')">+ Add Pet</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalPets">0</div><div class="stat-label">Total Pets</div></div>
+<div class="stat warning"><div class="stat-value" id="vaccinesDue">0</div><div class="stat-label">Vaccines Due</div></div>
+<div class="stat"><div class="stat-value" id="groomingDue">0</div><div class="stat-label">Grooming Due</div></div>
+<div class="stat"><div class="stat-value" id="visitsMTD">0</div><div class="stat-label">Visits (MTD)</div></div>
+</div>
+
+<div class="pets-grid" id="petsGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_pet_records';
+let pets = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const petIcons = { dog: '🐕', cat: '🐱', bird: '🦜', rabbit: '🐰', hamster: '🐹' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(pets));
+}
+
+function getDaysUntil(date) {
+  return Math.ceil((new Date(date) - new Date()) / (1000*60*60*24));
+}
+
+function updateStats() {
+  const vaccinesDue = pets.filter(p => getDaysUntil(p.nextVaccine) <= 30).length;
+  const groomingDue = pets.filter(p => getDaysUntil(p.nextGrooming) <= 7).length;
+  const visits = pets.reduce((s, p) => s + (p.visitsThisMonth || 0), 0);
+
+  document.getElementById('totalPets').textContent = pets.length;
+  document.getElementById('vaccinesDue').textContent = vaccinesDue;
+  document.getElementById('groomingDue').textContent = groomingDue;
+  document.getElementById('visitsMTD').textContent = visits;
+}
+
+function getAlerts(pet) {
+  const alerts = [];
+  const vaccineDays = getDaysUntil(pet.nextVaccine);
+  const groomingDays = getDaysUntil(pet.nextGrooming);
+
+  if (vaccineDays < 0) alerts.push({ type: 'warning', text: `Vaccination overdue by ${Math.abs(vaccineDays)} days` });
+  else if (vaccineDays <= 30) alerts.push({ type: 'info', text: `Vaccination due in ${vaccineDays} days` });
+
+  if (groomingDays < 0) alerts.push({ type: 'warning', text: `Grooming overdue by ${Math.abs(groomingDays)} days` });
+  else if (groomingDays <= 7) alerts.push({ type: 'info', text: `Grooming due in ${groomingDays} days` });
+
+  if (alerts.length === 0) alerts.push({ type: 'success', text: 'All records up to date' });
+
+  return alerts;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = pets.filter(p =>
+    p.name.toLowerCase().includes(search) ||
+    p.owner.toLowerCase().includes(search) ||
+    p.breed.toLowerCase().includes(search)
+  );
+
+  const grid = document.getElementById('petsGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No pets found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => {
+    const alerts = getAlerts(p);
+    return `
+      <div class="pet-card">
+        <div class="pet-header">
+          <div class="pet-avatar">${petIcons[p.type] || '🐾'}</div>
+          <div class="pet-info">
+            <h3>${p.name}</h3>
+            <span>${p.breed} • Owner: ${p.owner}</span>
+          </div>
+        </div>
+        <div class="pet-body">
+          <div class="info-grid">
+            <div class="info-item"><span>Age</span><strong>${p.age}</strong></div>
+            <div class="info-item"><span>Weight</span><strong>${p.weight} lbs</strong></div>
+            <div class="info-item"><span>Last Visit</span><strong>${new Date(p.lastVisit).toLocaleDateString()}</strong></div>
+            <div class="info-item"><span>Microchip</span><strong>${p.microchip || 'N/A'}</strong></div>
+          </div>
+          <div class="alerts">
+            ${alerts.map(a => `<div class="alert ${a.type}">${a.text}</div>`).join('')}
+          </div>
+        </div>
+        <div class="pet-footer">
+          <button class="btn btn-primary" onclick="alert('View full record')">📋 Full Record</button>
+          <button class="btn btn-secondary" onclick="alert('Schedule visit')">📅 Schedule</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+if (pets.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  pets = [
+    { id: '1', name: 'Max', type: 'dog', breed: 'Golden Retriever', owner: 'John Smith', age: '3 years', weight: 68, microchip: 'MC-123456', lastVisit: past(14), nextVaccine: future(15), nextGrooming: future(5), visitsThisMonth: 2 },
+    { id: '2', name: 'Luna', type: 'cat', breed: 'Maine Coon', owner: 'Sarah Johnson', age: '2 years', weight: 12, microchip: 'MC-789012', lastVisit: past(45), nextVaccine: past(10), nextGrooming: future(21), visitsThisMonth: 1 },
+    { id: '3', name: 'Buddy', type: 'dog', breed: 'Labrador', owner: 'Mike Williams', age: '5 years', weight: 75, microchip: 'MC-345678', lastVisit: past(7), nextVaccine: future(60), nextGrooming: past(3), visitsThisMonth: 3 },
+    { id: '4', name: 'Whiskers', type: 'cat', breed: 'Siamese', owner: 'Emily Brown', age: '1 year', weight: 8, microchip: null, lastVisit: past(30), nextVaccine: future(90), nextGrooming: future(14), visitsThisMonth: 1 }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

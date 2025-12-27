@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Catalog - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"product-catalog","name":"Product Catalog","icon":"💄","desc":"Manage beauty product inventory","category":"beauty","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:300px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888;font-size:.875rem}
+.filter.active{background:#ec4899;color:#fff;border-color:#ec4899}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.product-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.product-image{height:120px;background:#252525;display:flex;align-items:center;justify-content:center;font-size:3rem}
+.product-body{padding:15px}
+.product-brand{font-size:.75rem;color:#ec4899;text-transform:uppercase;margin-bottom:5px}
+.product-name{font-weight:500;margin-bottom:10px}
+.product-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.product-price{font-size:1.25rem;font-weight:bold;color:#10b981}
+.stock-badge{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.stock-badge.in-stock{background:#10b98133;color:#10b981}
+.stock-badge.low{background:#f59e0b33;color:#f59e0b}
+.stock-badge.out{background:#ef444433;color:#ef4444}
+.product-footer{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#ec4899;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💄 Product Catalog</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search products..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add product')">+ Add Product</button>
+</div>
+
+<div class="filters">
+<div class="filter active" data-category="all">All</div>
+<div class="filter" data-category="haircare">Hair Care</div>
+<div class="filter" data-category="skincare">Skin Care</div>
+<div class="filter" data-category="makeup">Makeup</div>
+<div class="filter" data-category="nails">Nails</div>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalProducts">0</div><div class="stat-label">Total Products</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Inventory Value</div></div>
+<div class="stat"><div class="stat-value" id="lowStock">0</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value" id="topSeller">-</div><div class="stat-label">Top Seller</div></div>
+</div>
+
+<div class="products-grid" id="productsGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_beauty_products';
+let products = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentCategory = 'all';
+
+const categoryIcons = { haircare: '💇', skincare: '🧴', makeup: '💄', nails: '💅' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+}
+
+function getStockClass(qty, min) {
+  if (qty === 0) return 'out';
+  if (qty <= min) return 'low';
+  return 'in-stock';
+}
+
+function getStockLabel(qty, min) {
+  if (qty === 0) return 'Out of Stock';
+  if (qty <= min) return 'Low Stock';
+  return 'In Stock';
+}
+
+function updateStats() {
+  const totalValue = products.reduce((s, p) => s + (p.price * p.stock), 0);
+  const lowStock = products.filter(p => p.stock <= p.minStock).length;
+  const topSeller = products.reduce((max, p) => p.sold > (max?.sold || 0) ? p : max, null);
+
+  document.getElementById('totalProducts').textContent = products.length;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+  document.getElementById('lowStock').textContent = lowStock;
+  document.getElementById('topSeller').textContent = topSeller?.name.split(' ')[0] || '-';
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = products.filter(p =>
+    p.name.toLowerCase().includes(search) ||
+    p.brand.toLowerCase().includes(search)
+  );
+
+  if (currentCategory !== 'all') {
+    filtered = filtered.filter(p => p.category === currentCategory);
+  }
+
+  const grid = document.getElementById('productsGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No products found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => `
+    <div class="product-card">
+      <div class="product-image">${categoryIcons[p.category] || '📦'}</div>
+      <div class="product-body">
+        <div class="product-brand">${p.brand}</div>
+        <div class="product-name">${p.name}</div>
+        <div class="product-meta">
+          <span class="product-price">$${p.price.toFixed(2)}</span>
+          <span class="stock-badge ${getStockClass(p.stock, p.minStock)}">${getStockLabel(p.stock, p.minStock)}</span>
+        </div>
+        <div style="font-size:.875rem;color:#888">Stock: ${p.stock} units</div>
+      </div>
+      <div class="product-footer">
+        <button class="btn btn-primary" onclick="alert('Sell item')">Sell</button>
+        <button class="btn btn-secondary" onclick="alert('Reorder')">Reorder</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+document.querySelectorAll('.filter').forEach(f => {
+  f.addEventListener('click', () => {
+    document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
+    f.classList.add('active');
+    currentCategory = f.dataset.category;
+    render();
+  });
+});
+
+if (products.length === 0) {
+  products = [
+    { id: '1', sku: 'HC-001', name: 'Moisture Repair Shampoo', brand: 'Luxe Hair', category: 'haircare', price: 28.00, stock: 45, minStock: 10, sold: 156 },
+    { id: '2', sku: 'HC-002', name: 'Argan Oil Treatment', brand: 'Luxe Hair', category: 'haircare', price: 42.00, stock: 8, minStock: 10, sold: 89 },
+    { id: '3', sku: 'SK-001', name: 'Vitamin C Serum', brand: 'Glow Lab', category: 'skincare', price: 65.00, stock: 22, minStock: 8, sold: 234 },
+    { id: '4', sku: 'SK-002', name: 'Hydrating Face Cream', brand: 'Glow Lab', category: 'skincare', price: 48.00, stock: 0, minStock: 10, sold: 178 },
+    { id: '5', sku: 'MK-001', name: 'Velvet Matte Lipstick Set', brand: 'Rouge Beauty', category: 'makeup', price: 36.00, stock: 32, minStock: 15, sold: 312 },
+    { id: '6', sku: 'MK-002', name: 'Foundation - Medium', brand: 'Rouge Beauty', category: 'makeup', price: 45.00, stock: 18, minStock: 10, sold: 145 },
+    { id: '7', sku: 'NL-001', name: 'Gel Polish Collection', brand: 'Nail Pro', category: 'nails', price: 24.00, stock: 56, minStock: 20, sold: 98 },
+    { id: '8', sku: 'NL-002', name: 'Cuticle Oil', brand: 'Nail Pro', category: 'nails', price: 12.00, stock: 5, minStock: 15, sold: 67 }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

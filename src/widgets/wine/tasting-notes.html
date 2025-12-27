@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tasting Notes - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"tasting-notes","name":"Tasting Notes","icon":"📝","desc":"Record and browse wine tasting notes","category":"wine","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#dc2626}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.notes-list{display:flex;flex-direction:column;gap:20px}
+.note-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.note-header{display:flex;justify-content:space-between;align-items:flex-start;padding:20px;border-bottom:1px solid #333}
+.wine-info h3{font-weight:500;margin-bottom:5px}
+.wine-meta{font-size:.875rem;color:#888}
+.rating{display:flex;flex-direction:column;align-items:flex-end}
+.rating-score{font-size:2rem;font-weight:bold;color:#dc2626}
+.rating-label{font-size:.75rem;color:#888}
+.note-body{padding:20px}
+.tasting-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:20px}
+.tasting-item{text-align:center;padding:15px;background:#252525;border-radius:8px}
+.tasting-label{font-size:.75rem;color:#888;margin-bottom:5px}
+.tasting-value{font-weight:500}
+.flavor-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.flavor-tag{padding:6px 12px;background:#252525;border-radius:20px;font-size:.875rem}
+.review-text{padding:15px;background:#252525;border-radius:8px;line-height:1.6}
+.note-footer{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-top:1px solid #333}
+.tasted-date{font-size:.875rem;color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#dc2626;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📝 Tasting Notes</h1>
+<button class="btn btn-primary" onclick="alert('Add note')">+ Add Tasting</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalTastings">0</div><div class="stat-label">Total Tastings</div></div>
+<div class="stat"><div class="stat-value" id="avgRating">0</div><div class="stat-label">Avg Rating</div></div>
+<div class="stat"><div class="stat-value" id="topRated">0</div><div class="stat-label">95+ Rated</div></div>
+<div class="stat"><div class="stat-value" id="thisMonth">0</div><div class="stat-label">This Month</div></div>
+</div>
+
+<div class="notes-list" id="notesList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_tasting_notes';
+let notes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+}
+
+function updateStats() {
+  const avgRating = notes.length > 0 ? (notes.reduce((s, n) => s + n.rating, 0) / notes.length).toFixed(1) : 0;
+  const topRated = notes.filter(n => n.rating >= 95).length;
+  const thisMonth = notes.filter(n => {
+    const d = new Date(n.tastedAt);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+
+  document.getElementById('totalTastings').textContent = notes.length;
+  document.getElementById('avgRating').textContent = avgRating;
+  document.getElementById('topRated').textContent = topRated;
+  document.getElementById('thisMonth').textContent = thisMonth;
+}
+
+function render() {
+  const list = document.getElementById('notesList');
+
+  if (notes.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No tasting notes yet</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...notes].sort((a, b) => new Date(b.tastedAt) - new Date(a.tastedAt));
+
+  list.innerHTML = sorted.map(n => `
+    <div class="note-card">
+      <div class="note-header">
+        <div class="wine-info">
+          <h3>${n.vintage} ${n.wine}</h3>
+          <div class="wine-meta">${n.producer} • ${n.region}</div>
+        </div>
+        <div class="rating">
+          <span class="rating-score">${n.rating}</span>
+          <span class="rating-label">/ 100</span>
+        </div>
+      </div>
+      <div class="note-body">
+        <div class="tasting-grid">
+          <div class="tasting-item">
+            <div class="tasting-label">Appearance</div>
+            <div class="tasting-value">${n.appearance}</div>
+          </div>
+          <div class="tasting-item">
+            <div class="tasting-label">Nose</div>
+            <div class="tasting-value">${n.nose}</div>
+          </div>
+          <div class="tasting-item">
+            <div class="tasting-label">Palate</div>
+            <div class="tasting-value">${n.palate}</div>
+          </div>
+        </div>
+        <div class="flavor-tags">
+          ${n.flavors.map(f => `<span class="flavor-tag">${f}</span>`).join('')}
+        </div>
+        <div class="review-text">${n.review}</div>
+      </div>
+      <div class="note-footer">
+        <span class="tasted-date">Tasted: ${new Date(n.tastedAt).toLocaleDateString()}</span>
+        <button class="btn btn-secondary" onclick="alert('Edit note')">✏️ Edit</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (notes.length === 0) {
+  notes = [
+    {
+      id: '1',
+      vintage: 2018,
+      wine: 'Opus One',
+      producer: 'Opus One Winery',
+      region: 'Napa Valley',
+      rating: 96,
+      appearance: 'Deep ruby',
+      nose: 'Intense, complex',
+      palate: 'Full-bodied',
+      flavors: ['Blackcurrant', 'Cedar', 'Violet', 'Espresso', 'Dark Chocolate'],
+      review: 'Stunning wine with incredible depth and complexity. The tannins are silky and well-integrated, with a finish that seems to go on forever. A true masterpiece that showcases the best of Napa Valley.',
+      tastedAt: new Date(Date.now() - 7*24*60*60*1000).toISOString()
+    },
+    {
+      id: '2',
+      vintage: 2019,
+      wine: 'Caymus Special Selection',
+      producer: 'Caymus Vineyards',
+      region: 'Napa Valley',
+      rating: 93,
+      appearance: 'Opaque purple',
+      nose: 'Rich, inviting',
+      palate: 'Opulent',
+      flavors: ['Blackberry', 'Vanilla', 'Oak', 'Plum', 'Mocha'],
+      review: 'Classic Caymus style - big, bold, and unapologetically hedonistic. Ripe fruit flavors are front and center, supported by sweet oak and velvety tannins. Drinking beautifully now.',
+      tastedAt: new Date(Date.now() - 14*24*60*60*1000).toISOString()
+    },
+    {
+      id: '3',
+      vintage: 2020,
+      wine: 'Cloudy Bay Sauvignon Blanc',
+      producer: 'Cloudy Bay',
+      region: 'Marlborough',
+      rating: 89,
+      appearance: 'Pale straw',
+      nose: 'Aromatic',
+      palate: 'Crisp, refreshing',
+      flavors: ['Grapefruit', 'Passionfruit', 'Lime', 'Herbs', 'Minerals'],
+      review: 'Benchmark Marlborough Sauvignon Blanc. Vibrant and zesty with explosive aromatics. Perfect as an aperitif or with fresh seafood. Best enjoyed young.',
+      tastedAt: new Date(Date.now() - 3*24*60*60*1000).toISOString()
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

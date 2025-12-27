@@ -340,6 +340,26 @@ const categoryMap = {
   // Printing
   'print-queue': { category: 'printing', subcategory: 'queue', badge: 'ENT' },
   'job-estimator': { category: 'printing', subcategory: 'estimating', badge: 'ENT' },
+
+  // Gaming
+  'tournament-bracket': { category: 'gaming', subcategory: 'tournaments', badge: 'ENT' },
+  'player-stats': { category: 'gaming', subcategory: 'analytics', badge: 'ENT' },
+
+  // Beauty
+  'appointment-book': { category: 'beauty', subcategory: 'scheduling', badge: 'ENT' },
+  'product-catalog': { category: 'beauty', subcategory: 'inventory', badge: 'ENT' },
+
+  // Pet
+  'pet-records': { category: 'pet', subcategory: 'records', badge: 'ENT' },
+  'grooming-schedule': { category: 'pet', subcategory: 'scheduling', badge: 'ENT' },
+
+  // Jewelry
+  'inventory-tracker': { category: 'jewelry', subcategory: 'inventory', badge: 'ENT' },
+  'repair-orders': { category: 'jewelry', subcategory: 'repairs', badge: 'ENT' },
+
+  // Wine
+  'cellar-inventory': { category: 'wine', subcategory: 'inventory', badge: 'ENT' },
+  'tasting-notes': { category: 'wine', subcategory: 'notes', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -526,7 +546,12 @@ const widgetDirs = [
   'chemical',
   'textile',
   'furniture',
-  'printing'
+  'printing',
+  'gaming',
+  'beauty',
+  'pet',
+  'jewelry',
+  'wine'
 ];
 
 // Process all widgets in all directories

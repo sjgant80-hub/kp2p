@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grooming Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"grooming-schedule","name":"Grooming Schedule","icon":"✂️","desc":"Manage pet grooming appointments","category":"pet","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule-container{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.groomer-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.groomer-header{padding:15px 20px;background:#252525;display:flex;align-items:center;gap:15px}
+.groomer-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:bold}
+.groomer-name{font-weight:500}
+.groomer-specialty{font-size:.75rem;color:#888}
+.appointments-list{padding:15px}
+.appointment{background:#252525;border-radius:8px;padding:12px;margin-bottom:10px;border-left:3px solid #10b981}
+.appointment.in-progress{border-color:#3b82f6;background:#3b82f622}
+.appointment.completed{border-color:#888;opacity:.7}
+.appointment-time{font-size:.75rem;color:#888;margin-bottom:5px}
+.appointment-pet{font-weight:500;display:flex;align-items:center;gap:8px}
+.appointment-service{font-size:.875rem;color:#888;margin-top:5px}
+.appointment-status{padding:2px 6px;border-radius:4px;font-size:.65rem;margin-left:auto}
+.appointment-status.waiting{background:#f59e0b33;color:#f59e0b}
+.appointment-status.in-progress{background:#3b82f633;color:#3b82f6}
+.appointment-status.completed{background:#10b98133;color:#10b981}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-sm{padding:6px 12px;font-size:.75rem;margin-top:10px;width:100%}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>✂️ Grooming Schedule</h1>
+<button class="btn btn-primary" onclick="alert('Book appointment')">+ Book Appointment</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayAppts">0</div><div class="stat-label">Today's Appointments</div></div>
+<div class="stat"><div class="stat-value" id="inProgress">0</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value" id="completed">0</div><div class="stat-label">Completed</div></div>
+<div class="stat"><div class="stat-value" id="revenue">$0</div><div class="stat-label">Today's Revenue</div></div>
+</div>
+
+<div class="schedule-container" id="scheduleContainer"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_grooming_schedule';
+let schedule = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+const petIcons = { dog: '🐕', cat: '🐱', rabbit: '🐰' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+}
+
+function updateStats() {
+  const allAppts = schedule.groomers.flatMap(g => g.appointments);
+  const inProgress = allAppts.filter(a => a.status === 'in-progress').length;
+  const completed = allAppts.filter(a => a.status === 'completed').length;
+  const revenue = allAppts.filter(a => a.status === 'completed').reduce((s, a) => s + a.price, 0);
+
+  document.getElementById('todayAppts').textContent = allAppts.length;
+  document.getElementById('inProgress').textContent = inProgress;
+  document.getElementById('completed').textContent = completed;
+  document.getElementById('revenue').textContent = '$' + revenue;
+}
+
+function render() {
+  const container = document.getElementById('scheduleContainer');
+
+  container.innerHTML = schedule.groomers.map(g => `
+    <div class="groomer-card">
+      <div class="groomer-header">
+        <div class="groomer-avatar">${g.name.charAt(0)}</div>
+        <div>
+          <div class="groomer-name">${g.name}</div>
+          <div class="groomer-specialty">${g.specialty}</div>
+        </div>
+      </div>
+      <div class="appointments-list">
+        ${g.appointments.length === 0 ? '<div style="text-align:center;color:#666;padding:20px">No appointments</div>' : ''}
+        ${g.appointments.map(a => `
+          <div class="appointment ${a.status}">
+            <div class="appointment-time">${a.time}</div>
+            <div class="appointment-pet">
+              ${petIcons[a.petType] || '🐾'} ${a.petName}
+              <span class="appointment-status ${a.status}">${a.status}</span>
+            </div>
+            <div class="appointment-service">${a.service} • $${a.price}</div>
+          </div>
+        `).join('')}
+        <button class="btn btn-primary btn-sm" onclick="alert('Add appointment')">+ Add</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (!schedule.groomers) {
+  schedule = {
+    groomers: [
+      {
+        id: '1', name: 'Sarah', specialty: 'Dogs & Cats',
+        appointments: [
+          { id: '1', time: '9:00 AM', petName: 'Max', petType: 'dog', service: 'Full Groom', price: 65, status: 'completed' },
+          { id: '2', time: '10:30 AM', petName: 'Bella', petType: 'dog', service: 'Bath & Brush', price: 45, status: 'completed' },
+          { id: '3', time: '12:00 PM', petName: 'Luna', petType: 'cat', service: 'Full Groom', price: 55, status: 'in-progress' },
+          { id: '4', time: '2:00 PM', petName: 'Charlie', petType: 'dog', service: 'Nail Trim', price: 20, status: 'waiting' }
+        ]
+      },
+      {
+        id: '2', name: 'Mike', specialty: 'Large Breeds',
+        appointments: [
+          { id: '5', time: '9:30 AM', petName: 'Duke', petType: 'dog', service: 'Full Groom', price: 85, status: 'completed' },
+          { id: '6', time: '11:30 AM', petName: 'Zeus', petType: 'dog', service: 'De-shedding', price: 75, status: 'in-progress' },
+          { id: '7', time: '2:30 PM', petName: 'Bear', petType: 'dog', service: 'Full Groom', price: 85, status: 'waiting' }
+        ]
+      },
+      {
+        id: '3', name: 'Lisa', specialty: 'Small Pets',
+        appointments: [
+          { id: '8', time: '10:00 AM', petName: 'Coco', petType: 'rabbit', service: 'Grooming', price: 35, status: 'completed' },
+          { id: '9', time: '11:00 AM', petName: 'Mochi', petType: 'cat', service: 'Lion Cut', price: 70, status: 'waiting' },
+          { id: '10', time: '1:00 PM', petName: 'Teddy', petType: 'dog', service: 'Puppy Cut', price: 50, status: 'waiting' }
+        ]
+      }
+    ]
+  };
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

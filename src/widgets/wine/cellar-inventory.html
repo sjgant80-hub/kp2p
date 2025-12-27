@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cellar Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"cellar-inventory","name":"Cellar Inventory","icon":"🍷","desc":"Manage wine cellar inventory","category":"wine","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:300px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#dc2626}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.wines-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.wine-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.wine-header{padding:20px;background:linear-gradient(135deg,#450a0a,#1a1a1a)}
+.wine-vintage{font-size:2rem;font-weight:bold;color:#dc2626}
+.wine-name{font-size:1.125rem;font-weight:500;margin-top:5px}
+.wine-producer{font-size:.875rem;color:#888}
+.wine-body{padding:20px}
+.wine-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem;margin-bottom:15px}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.wine-notes{padding:12px;background:#252525;border-radius:8px;font-size:.875rem;color:#888;margin-bottom:15px}
+.drink-window{display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid #333}
+.drink-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.drink-status.drinking{background:#10b98133;color:#10b981}
+.drink-status.holding{background:#3b82f633;color:#3b82f6}
+.drink-status.past{background:#f59e0b33;color:#f59e0b}
+.wine-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#dc2626;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🍷 Cellar Inventory</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search wines..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="alert('Add wine')">+ Add Wine</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalBottles">0</div><div class="stat-label">Total Bottles</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Collection Value</div></div>
+<div class="stat"><div class="stat-value" id="drinkingNow">0</div><div class="stat-label">Drinking Now</div></div>
+<div class="stat"><div class="stat-value" id="regions">0</div><div class="stat-label">Regions</div></div>
+</div>
+
+<div class="wines-grid" id="winesGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_wine_cellar';
+let wines = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(wines));
+}
+
+function getDrinkStatus(window) {
+  const now = new Date().getFullYear();
+  if (now < window.start) return { class: 'holding', text: 'Hold until ' + window.start };
+  if (now > window.end) return { class: 'past', text: 'Past peak' };
+  return { class: 'drinking', text: 'Drink ' + window.start + '-' + window.end };
+}
+
+function updateStats() {
+  const totalBottles = wines.reduce((s, w) => s + w.bottles, 0);
+  const totalValue = wines.reduce((s, w) => s + (w.bottles * w.price), 0);
+  const now = new Date().getFullYear();
+  const drinkingNow = wines.filter(w => now >= w.drinkWindow.start && now <= w.drinkWindow.end).length;
+  const regions = [...new Set(wines.map(w => w.region))].length;
+
+  document.getElementById('totalBottles').textContent = totalBottles;
+  document.getElementById('totalValue').textContent = '$' + totalValue.toLocaleString();
+  document.getElementById('drinkingNow').textContent = drinkingNow;
+  document.getElementById('regions').textContent = regions;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = wines.filter(w =>
+    w.name.toLowerCase().includes(search) ||
+    w.producer.toLowerCase().includes(search) ||
+    w.region.toLowerCase().includes(search)
+  );
+
+  const grid = document.getElementById('winesGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No wines found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(w => {
+    const status = getDrinkStatus(w.drinkWindow);
+    return `
+      <div class="wine-card">
+        <div class="wine-header">
+          <div class="wine-vintage">${w.vintage}</div>
+          <div class="wine-name">${w.name}</div>
+          <div class="wine-producer">${w.producer}</div>
+        </div>
+        <div class="wine-body">
+          <div class="wine-details">
+            <div class="detail-item"><span>Region</span><strong>${w.region}</strong></div>
+            <div class="detail-item"><span>Varietal</span><strong>${w.varietal}</strong></div>
+            <div class="detail-item"><span>Bottles</span><strong>${w.bottles}</strong></div>
+            <div class="detail-item"><span>Value</span><strong>$${w.price}/btl</strong></div>
+          </div>
+          ${w.notes ? `<div class="wine-notes">"${w.notes}"</div>` : ''}
+          <div class="drink-window">
+            <span style="font-size:.875rem;color:#888">Drink Window</span>
+            <span class="drink-status ${status.class}">${status.text}</span>
+          </div>
+        </div>
+        <div class="wine-footer">
+          <button class="btn btn-primary" onclick="drinkBottle('${w.id}')">🍷 Drink</button>
+          <button class="btn btn-secondary" onclick="alert('Add note')">📝 Note</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function drinkBottle(id) {
+  const w = wines.find(x => x.id === id);
+  if (w && w.bottles > 0) {
+    w.bottles--;
+    if (w.bottles === 0) wines = wines.filter(x => x.id !== id);
+    save();
+    render();
+  }
+}
+
+if (wines.length === 0) {
+  wines = [
+    { id: '1', vintage: 2018, name: 'Opus One', producer: 'Opus One Winery', region: 'Napa Valley', varietal: 'Bordeaux Blend', bottles: 6, price: 425, drinkWindow: { start: 2023, end: 2038 }, notes: 'Exceptional vintage, dark fruit with velvet tannins' },
+    { id: '2', vintage: 2015, name: 'Château Margaux', producer: 'Château Margaux', region: 'Bordeaux', varietal: 'Cabernet Sauvignon', bottles: 3, price: 850, drinkWindow: { start: 2025, end: 2050 }, notes: 'Perfect score vintage, need patience' },
+    { id: '3', vintage: 2019, name: 'Caymus Special Selection', producer: 'Caymus Vineyards', region: 'Napa Valley', varietal: 'Cabernet Sauvignon', bottles: 12, price: 195, drinkWindow: { start: 2022, end: 2032 }, notes: 'Rich and opulent, drinking beautifully now' },
+    { id: '4', vintage: 2020, name: 'Cloudy Bay', producer: 'Cloudy Bay', region: 'Marlborough', varietal: 'Sauvignon Blanc', bottles: 4, price: 32, drinkWindow: { start: 2021, end: 2024 }, notes: null },
+    { id: '5', vintage: 2016, name: 'Penfolds Grange', producer: 'Penfolds', region: 'South Australia', varietal: 'Shiraz', bottles: 2, price: 750, drinkWindow: { start: 2026, end: 2060 }, notes: 'Iconic Australian wine, long term cellaring' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

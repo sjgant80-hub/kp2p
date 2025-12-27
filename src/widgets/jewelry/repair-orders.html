@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repair Orders - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"repair-orders","name":"Repair Orders","icon":"🔧","desc":"Track jewelry repair and custom orders","category":"jewelry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.orders-list{display:flex;flex-direction:column;gap:15px}
+.order-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.order-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.order-id{font-family:monospace;font-weight:600}
+.order-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.order-status.received{background:#3b82f633;color:#3b82f6}
+.order-status.in-progress{background:#f59e0b33;color:#f59e0b}
+.order-status.ready{background:#10b98133;color:#10b981}
+.order-status.picked-up{background:#8b5cf633;color:#8b5cf6}
+.order-body{padding:20px}
+.customer-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px}
+.customer-info h4{font-weight:500;margin-bottom:5px}
+.customer-info span{font-size:.875rem;color:#888}
+.order-price{text-align:right}
+.order-price strong{font-size:1.25rem;color:#10b981}
+.item-description{background:#252525;padding:15px;border-radius:8px;margin-bottom:15px}
+.item-type{font-weight:500;margin-bottom:5px}
+.item-work{font-size:.875rem;color:#888}
+.order-timeline{display:flex;gap:5px;margin-top:15px}
+.timeline-step{flex:1;text-align:center}
+.step-dot{width:12px;height:12px;border-radius:50%;background:#333;margin:0 auto 5px}
+.step-dot.completed{background:#10b981}
+.step-dot.active{background:#f59e0b}
+.step-label{font-size:.65rem;color:#888}
+.order-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔧 Repair Orders</h1>
+<button class="btn btn-primary" onclick="alert('New order')">+ New Order</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeOrders">0</div><div class="stat-label">Active Orders</div></div>
+<div class="stat warning"><div class="stat-value" id="dueToday">0</div><div class="stat-label">Due Today</div></div>
+<div class="stat"><div class="stat-value" id="readyPickup">0</div><div class="stat-label">Ready for Pickup</div></div>
+<div class="stat"><div class="stat-value" id="revenue">$0</div><div class="stat-label">Pending Revenue</div></div>
+</div>
+
+<div class="orders-list" id="ordersList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_repair_orders';
+let orders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const stages = ['received', 'in-progress', 'ready', 'picked-up'];
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+}
+
+function getStageIndex(status) {
+  return stages.indexOf(status);
+}
+
+function updateStats() {
+  const active = orders.filter(o => o.status !== 'picked-up').length;
+  const today = new Date().toISOString().split('T')[0];
+  const dueToday = orders.filter(o => o.dueDate === today && o.status !== 'picked-up').length;
+  const ready = orders.filter(o => o.status === 'ready').length;
+  const revenue = orders.filter(o => o.status !== 'picked-up').reduce((s, o) => s + o.price, 0);
+
+  document.getElementById('activeOrders').textContent = active;
+  document.getElementById('dueToday').textContent = dueToday;
+  document.getElementById('readyPickup').textContent = ready;
+  document.getElementById('revenue').textContent = '$' + revenue.toLocaleString();
+}
+
+function render() {
+  const list = document.getElementById('ordersList');
+
+  const active = orders.filter(o => o.status !== 'picked-up');
+
+  if (active.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No active orders</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = active.map(o => {
+    const currentStage = getStageIndex(o.status);
+    return `
+      <div class="order-card">
+        <div class="order-header">
+          <span class="order-id">🔧 ${o.orderId}</span>
+          <span class="order-status ${o.status}">${o.status.replace('-', ' ')}</span>
+        </div>
+        <div class="order-body">
+          <div class="customer-row">
+            <div class="customer-info">
+              <h4>${o.customer}</h4>
+              <span>📞 ${o.phone} • Due: ${new Date(o.dueDate).toLocaleDateString()}</span>
+            </div>
+            <div class="order-price">
+              <div style="font-size:.75rem;color:#888">Estimate</div>
+              <strong>$${o.price}</strong>
+            </div>
+          </div>
+          <div class="item-description">
+            <div class="item-type">💎 ${o.itemType}</div>
+            <div class="item-work">${o.workDescription}</div>
+          </div>
+          <div class="order-timeline">
+            ${stages.map((s, idx) => `
+              <div class="timeline-step">
+                <div class="step-dot ${idx < currentStage ? 'completed' : idx === currentStage ? 'active' : ''}"></div>
+                <div class="step-label">${s.replace('-', ' ')}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="order-footer">
+          ${o.status !== 'ready' ? `<button class="btn btn-primary" onclick="advanceOrder('${o.id}')">⏭️ Advance</button>` : ''}
+          ${o.status === 'ready' ? `<button class="btn btn-primary" onclick="completeOrder('${o.id}')">✓ Mark Picked Up</button>` : ''}
+          <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function advanceOrder(id) {
+  const o = orders.find(x => x.id === id);
+  if (o) {
+    const idx = getStageIndex(o.status);
+    if (idx < stages.length - 2) {
+      o.status = stages[idx + 1];
+      save();
+      render();
+    }
+  }
+}
+
+function completeOrder(id) {
+  const o = orders.find(x => x.id === id);
+  if (o) {
+    o.status = 'picked-up';
+    save();
+    render();
+  }
+}
+
+if (orders.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  orders = [
+    { id: '1', orderId: 'RPR-2024-0089', customer: 'Sarah Johnson', phone: '555-0101', itemType: 'Diamond Ring', workDescription: 'Resize from size 7 to size 6, prong retipping, polish', price: 185, dueDate: future(0), status: 'ready' },
+    { id: '2', orderId: 'RPR-2024-0090', customer: 'Michael Chen', phone: '555-0102', itemType: 'Gold Chain', workDescription: 'Repair broken clasp, clean and polish', price: 75, dueDate: future(2), status: 'in-progress' },
+    { id: '3', orderId: 'RPR-2024-0091', customer: 'Emily Davis', phone: '555-0103', itemType: 'Pearl Necklace', workDescription: 'Restring with new silk cord, replace clasp', price: 120, dueDate: future(5), status: 'received' },
+    { id: '4', orderId: 'RPR-2024-0092', customer: 'James Wilson', phone: '555-0104', itemType: 'Watch', workDescription: 'Battery replacement, water resistance test, polish case', price: 95, dueDate: future(1), status: 'in-progress' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>
