@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delivery Dispatch - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"delivery-dispatch","name":"Delivery Dispatch","icon":"🚚","desc":"Dispatch delivery drivers","category":"courier","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.content{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.panel-title{font-weight:600;margin-bottom:15px;display:flex;align-items:center;gap:10px}
+.driver{display:flex;align-items:center;gap:15px;padding:15px;background:#252525;border-radius:8px;margin-bottom:10px}
+.driver-avatar{width:40px;height:40px;background:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.driver-info{flex:1}
+.driver-name{font-weight:600}
+.driver-status{font-size:.75rem;color:#888}
+.driver-badge{padding:4px 8px;border-radius:4px;font-size:.65rem}
+.badge-active{background:#22c55e33;color:#22c55e}
+.badge-idle{background:#f59e0b33;color:#f59e0b}
+.order{padding:15px;background:#252525;border-radius:8px;margin-bottom:10px;border-left:3px solid #10b981}
+.order-id{font-weight:600;margin-bottom:5px}
+.order-addr{font-size:.875rem;color:#888;margin-bottom:5px}
+.order-meta{display:flex;justify-content:space-between;font-size:.75rem}
+.priority{color:#ef4444}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚚 Delivery Dispatch</h1><button class="btn">+ New Order</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Drivers Active</div></div>
+<div class="stat"><div class="stat-value">23</div><div class="stat-label">Pending</div></div>
+<div class="stat"><div class="stat-value">67</div><div class="stat-label">Delivered Today</div></div>
+<div class="stat"><div class="stat-value">24min</div><div class="stat-label">Avg Time</div></div>
+</div>
+<div class="content">
+<div class="panel">
+<div class="panel-title">👥 Available Drivers</div>
+<div id="drivers"></div>
+</div>
+<div class="panel">
+<div class="panel-title">📦 Pending Orders</div>
+<div id="orders"></div>
+</div>
+</div>
+<script>
+const drivers=[
+{name:'Mike Johnson',status:'active',deliveries:12,vehicle:'Van'},
+{name:'Sarah Chen',status:'active',deliveries:9,vehicle:'Car'},
+{name:'James Wilson',status:'idle',deliveries:0,vehicle:'Bike'},
+{name:'Emily Davis',status:'active',deliveries:15,vehicle:'Van'}
+];
+const orders=[
+{id:'ORD-2847',addr:'123 Main St, Apt 4B',time:'10 min ago',priority:true},
+{id:'ORD-2846',addr:'456 Oak Avenue',time:'15 min ago',priority:false},
+{id:'ORD-2845',addr:'789 Pine Road, Suite 200',time:'22 min ago',priority:true},
+{id:'ORD-2844',addr:'321 Elm Street',time:'28 min ago',priority:false}
+];
+document.getElementById('drivers').innerHTML=drivers.map(d=>`
+<div class="driver">
+<div class="driver-avatar">${d.name[0]}</div>
+<div class="driver-info"><div class="driver-name">${d.name}</div><div class="driver-status">${d.vehicle} • ${d.deliveries} today</div></div>
+<span class="driver-badge badge-${d.status}">${d.status.toUpperCase()}</span>
+</div>`).join('');
+document.getElementById('orders').innerHTML=orders.map(o=>`
+<div class="order">
+<div class="order-id">${o.id}${o.priority?' <span class="priority">⚡ PRIORITY</span>':''}</div>
+<div class="order-addr">📍 ${o.addr}</div>
+<div class="order-meta"><span>${o.time}</span><button class="btn" style="padding:5px 10px;font-size:.75rem">Assign</button></div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -520,6 +520,26 @@ const categoryMap = {
   // Vending
   'machine-monitor': { category: 'vending', subcategory: 'monitoring', badge: 'ENT' },
   'route-planner': { category: 'vending', subcategory: 'logistics', badge: 'ENT' },
+
+  // Rental
+  'equipment-rental': { category: 'rental', subcategory: 'equipment', badge: 'ENT' },
+  'party-supplies': { category: 'rental', subcategory: 'party', badge: 'ENT' },
+
+  // Courier
+  'delivery-dispatch': { category: 'courier', subcategory: 'dispatch', badge: 'ENT' },
+  'package-tracker': { category: 'courier', subcategory: 'tracking', badge: 'ENT' },
+
+  // Optometry
+  'eye-exam': { category: 'optometry', subcategory: 'exams', badge: 'ENT' },
+  'glasses-inventory': { category: 'optometry', subcategory: 'inventory', badge: 'ENT' },
+
+  // Chiro
+  'appointment-scheduler': { category: 'chiro', subcategory: 'scheduling', badge: 'ENT' },
+  'treatment-tracker': { category: 'chiro', subcategory: 'treatment', badge: 'ENT' },
+
+  // Photobooth
+  'event-bookings': { category: 'photobooth', subcategory: 'bookings', badge: 'ENT' },
+  'photo-gallery': { category: 'photobooth', subcategory: 'gallery', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -751,7 +771,12 @@ const widgetDirs = [
   'driving',
   'marina',
   'storage',
-  'vending'
+  'vending',
+  'rental',
+  'courier',
+  'optometry',
+  'chiro',
+  'photobooth'
 ];
 
 // Process all widgets in all directories

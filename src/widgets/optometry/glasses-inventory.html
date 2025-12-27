@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glasses Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"glasses-inventory","name":"Glasses Inventory","icon":"👓","desc":"Manage eyewear inventory","category":"optometry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;font-size:.875rem}
+.filter.active{background:#8b5cf633;border-color:#8b5cf6;color:#8b5cf6}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:15px}
+.frame{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.frame-icon{font-size:3rem;margin-bottom:10px}
+.frame-brand{font-size:.75rem;color:#8b5cf6;margin-bottom:5px}
+.frame-name{font-weight:600;margin-bottom:5px}
+.frame-details{font-size:.75rem;color:#888;margin-bottom:10px}
+.frame-price{font-size:1.25rem;font-weight:bold;margin-bottom:10px}
+.stock{display:flex;justify-content:center;gap:15px;font-size:.75rem}
+.stock-item{display:flex;align-items:center;gap:5px}
+.stock-dot{width:8px;height:8px;border-radius:50%}
+.in-stock{background:#22c55e}
+.low-stock{background:#f59e0b}
+.out-stock{background:#ef4444}
+</style>
+</head>
+<body>
+<div class="header"><h1>👓 Glasses Inventory</h1><button class="btn">+ Add Frame</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">248</div><div class="stat-label">Total Frames</div></div>
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">Brands</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value">$42k</div><div class="stat-label">Inventory Value</div></div>
+</div>
+<div class="filters">
+<div class="filter active">All</div>
+<div class="filter">Prescription</div>
+<div class="filter">Sunglasses</div>
+<div class="filter">Kids</div>
+<div class="filter">Designer</div>
+<div class="filter">Budget</div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const frames=[
+{brand:'Ray-Ban',name:'Aviator Classic',color:'Gold',size:'58-14-135',price:179,stock:'in'},
+{brand:'Oakley',name:'Holbrook',color:'Matte Black',size:'55-18-137',price:165,stock:'in'},
+{brand:'Gucci',name:'GG0061S',color:'Havana',size:'56-17-140',price:385,stock:'low'},
+{brand:'Warby Parker',name:'Durand',color:'Whiskey Tortoise',size:'52-18-145',price:95,stock:'in'},
+{brand:'Tom Ford',name:'FT5401',color:'Dark Brown',size:'51-20-145',price:425,stock:'out'},
+{brand:'Prada',name:'PR 17WS',color:'Black',size:'49-20-140',price:340,stock:'in'},
+{brand:'Nike',name:'Maverick',color:'Wolf Grey',size:'60-15-135',price:125,stock:'low'},
+{brand:'Versace',name:'VE4361',color:'Transparent Grey',size:'53-18-140',price:295,stock:'in'}
+];
+document.getElementById('grid').innerHTML=frames.map(f=>`
+<div class="frame">
+<div class="frame-icon">👓</div>
+<div class="frame-brand">${f.brand}</div>
+<div class="frame-name">${f.name}</div>
+<div class="frame-details">${f.color} • ${f.size}</div>
+<div class="frame-price">$${f.price}</div>
+<div class="stock"><div class="stock-item"><div class="stock-dot ${f.stock==='in'?'in-stock':f.stock==='low'?'low-stock':'out-stock'}"></div>${f.stock==='in'?'In Stock':f.stock==='low'?'Low Stock':'Out of Stock'}</div></div>
+</div>`).join('');
+</script>
+</body>
+</html>

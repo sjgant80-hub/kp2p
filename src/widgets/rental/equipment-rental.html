@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equipment Rental - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"equipment-rental","name":"Equipment Rental","icon":"🔧","desc":"Manage equipment rentals","category":"rental","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#06b6d4;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#06b6d4}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.item-name{font-weight:600}
+.status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status.available{background:#22c55e33;color:#22c55e}
+.status.rented{background:#f59e0b33;color:#f59e0b}
+.status.maintenance{background:#ef444433;color:#ef4444}
+.item-info{font-size:.875rem;color:#888;margin-bottom:10px}
+.rates{display:flex;gap:10px;margin-bottom:10px}
+.rate{background:#252525;padding:8px 12px;border-radius:6px;text-align:center;flex:1}
+.rate-value{font-weight:bold;color:#06b6d4}
+.rate-label{font-size:.65rem;color:#888}
+.action-btn{width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;background:#06b6d4;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔧 Equipment Rental</h1><button class="btn">+ Add Equipment</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Total Items</div></div>
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">14</div><div class="stat-label">Rented Out</div></div>
+<div class="stat"><div class="stat-value">$1.8k</div><div class="stat-label">This Week</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const equipment=[
+{name:'Bobcat Skid Steer',category:'Heavy Equipment',status:'rented',hourly:85,daily:450,customer:'ABC Construction'},
+{name:'Pressure Washer 3500PSI',category:'Cleaning',status:'available',hourly:25,daily:95},
+{name:'Concrete Mixer',category:'Construction',status:'available',hourly:35,daily:150},
+{name:'Scissor Lift 26ft',category:'Aerial',status:'rented',hourly:65,daily:275,customer:'Metro Painters'},
+{name:'Generator 10kW',category:'Power',status:'maintenance',hourly:40,daily:180},
+{name:'Trencher Walk-Behind',category:'Excavation',status:'available',hourly:55,daily:225}
+];
+document.getElementById('grid').innerHTML=equipment.map(e=>`
+<div class="card">
+<div class="card-header"><span class="item-name">${e.name}</span><span class="status ${e.status}">${e.status.charAt(0).toUpperCase()+e.status.slice(1)}</span></div>
+<div class="item-info">📁 ${e.category}${e.customer?' • 👤 '+e.customer:''}</div>
+<div class="rates">
+<div class="rate"><div class="rate-value">$${e.hourly}</div><div class="rate-label">Per Hour</div></div>
+<div class="rate"><div class="rate-value">$${e.daily}</div><div class="rate-label">Per Day</div></div>
+</div>
+<button class="action-btn">${e.status==='available'?'Rent Now':'View Details'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>

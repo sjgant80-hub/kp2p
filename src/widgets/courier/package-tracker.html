@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Package Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"package-tracker","name":"Package Tracker","icon":"📦","desc":"Track package deliveries","category":"courier","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search{flex:1;max-width:400px;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#e0e0e0;margin-left:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:10px}
+.package{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.package-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.package-id{font-weight:600;font-size:1.125rem}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem;font-weight:600}
+.status.transit{background:#3b82f633;color:#3b82f6}
+.status.out{background:#f59e0b33;color:#f59e0b}
+.status.delivered{background:#22c55e33;color:#22c55e}
+.timeline{display:flex;align-items:center;gap:5px;margin-bottom:15px}
+.step{flex:1;height:4px;background:#333;border-radius:2px}
+.step.done{background:#10b981}
+.step.current{background:#f59e0b}
+.package-details{display:grid;grid-template-columns:1fr 1fr;gap:15px;font-size:.875rem}
+.detail-label{color:#888}
+.detail-value{margin-top:2px}
+</style>
+</head>
+<body>
+<div class="header"><h1>📦 Package Tracker</h1><input type="text" class="search" placeholder="🔍 Enter tracking number..."></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">In Transit</div></div>
+<div class="stat"><div class="stat-value">34</div><div class="stat-label">Out for Delivery</div></div>
+<div class="stat"><div class="stat-value">423</div><div class="stat-label">Delivered Today</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Exceptions</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const packages=[
+{id:'PKG-2847591',status:'out',from:'LA Warehouse',to:'San Diego, CA',eta:'Today 2:30 PM',driver:'Mike J.',progress:4},
+{id:'PKG-2847590',status:'transit',from:'Phoenix Hub',to:'Las Vegas, NV',eta:'Tomorrow 10:00 AM',driver:'In Transit',progress:2},
+{id:'PKG-2847589',status:'delivered',from:'Seattle DC',to:'Portland, OR',eta:'Delivered 11:45 AM',driver:'Sarah C.',progress:5},
+{id:'PKG-2847588',status:'transit',from:'Denver Hub',to:'Salt Lake City, UT',eta:'Dec 28, 3:00 PM',driver:'In Transit',progress:3}
+];
+document.getElementById('list').innerHTML=packages.map(p=>`
+<div class="package">
+<div class="package-header">
+<span class="package-id">${p.id}</span>
+<span class="status ${p.status}">${p.status==='out'?'OUT FOR DELIVERY':p.status==='transit'?'IN TRANSIT':'DELIVERED'}</span>
+</div>
+<div class="timeline">${[1,2,3,4,5].map(i=>`<div class="step ${i<p.progress?'done':i===p.progress?'current':''}"></div>`).join('')}</div>
+<div class="package-details">
+<div><div class="detail-label">From</div><div class="detail-value">📦 ${p.from}</div></div>
+<div><div class="detail-label">To</div><div class="detail-value">📍 ${p.to}</div></div>
+<div><div class="detail-label">ETA</div><div class="detail-value">🕐 ${p.eta}</div></div>
+<div><div class="detail-label">Driver</div><div class="detail-value">🚚 ${p.driver}</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

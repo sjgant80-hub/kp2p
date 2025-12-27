@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eye Exam - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"eye-exam","name":"Eye Exam","icon":"👁️","desc":"Schedule eye examinations","category":"optometry","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.schedule{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.slot{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.slot-time{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.time{font-size:1.25rem;font-weight:bold;color:#8b5cf6}
+.type{padding:4px 10px;background:#8b5cf633;color:#8b5cf6;border-radius:4px;font-size:.75rem}
+.patient{margin-bottom:15px}
+.patient-name{font-weight:600;margin-bottom:5px}
+.patient-info{font-size:.875rem;color:#888}
+.exam-details{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.exam-tag{padding:4px 8px;background:#252525;border-radius:4px;font-size:.75rem}
+.slot-actions{display:flex;gap:10px}
+.slot-btn{flex:1;padding:8px;border:1px solid #333;background:#252525;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.slot-btn.primary{background:#8b5cf6;border-color:#8b5cf6;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>👁️ Eye Exam Schedule</h1><button class="btn">+ New Appointment</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value">45min</div><div class="stat-label">Avg Duration</div></div>
+</div>
+<div class="schedule" id="schedule"></div>
+<script>
+const slots=[
+{time:'9:00 AM',type:'Comprehensive',patient:'John Smith',age:45,lastVisit:'1 year ago',tests:['Visual Acuity','Refraction','Tonometry']},
+{time:'9:45 AM',type:'Contact Lens',patient:'Emily Chen',age:28,lastVisit:'6 months ago',tests:['Fitting','Corneal Topography']},
+{time:'10:30 AM',type:'Pediatric',patient:'Max Wilson',age:8,lastVisit:'New Patient',tests:['Visual Acuity','Color Vision','Eye Alignment']},
+{time:'11:15 AM',type:'Follow-up',patient:'Sarah Johnson',age:62,lastVisit:'2 weeks ago',tests:['Pressure Check','Dilation']},
+{time:'2:00 PM',type:'Comprehensive',patient:'Michael Brown',age:55,lastVisit:'2 years ago',tests:['Visual Acuity','Refraction','Retinal Exam']},
+{time:'2:45 PM',type:'Emergency',patient:'Lisa Davis',age:34,lastVisit:'New Patient',tests:['Slit Lamp','Foreign Body Removal']}
+];
+document.getElementById('schedule').innerHTML=slots.map(s=>`
+<div class="slot">
+<div class="slot-time"><span class="time">${s.time}</span><span class="type">${s.type}</span></div>
+<div class="patient"><div class="patient-name">${s.patient}</div><div class="patient-info">Age: ${s.age} • Last: ${s.lastVisit}</div></div>
+<div class="exam-details">${s.tests.map(t=>`<span class="exam-tag">${t}</span>`).join('')}</div>
+<div class="slot-actions"><button class="slot-btn">Reschedule</button><button class="slot-btn primary">Start Exam</button></div>
+</div>`).join('');
+</script>
+</body>
+</html>

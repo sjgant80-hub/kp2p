@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Appointment Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"appointment-scheduler","name":"Appointment Scheduler","icon":"🦴","desc":"Schedule chiropractic appointments","category":"chiro","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#14b8a6;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#14b8a6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:20px}
+.day-header{text-align:center;font-size:.75rem;color:#888;padding:10px}
+.day{background:#1a1a1a;border-radius:8px;padding:10px;min-height:100px;border:1px solid #333}
+.day-num{font-size:.875rem;margin-bottom:10px}
+.day.today{border-color:#14b8a6}
+.apt{padding:5px 8px;background:#14b8a633;border-radius:4px;font-size:.7rem;margin-bottom:5px;cursor:pointer}
+.apt:hover{background:#14b8a650}
+.list{display:flex;flex-direction:column;gap:10px}
+.appt{background:#1a1a1a;border-radius:8px;border:1px solid #333;padding:15px;display:flex;align-items:center;gap:15px}
+.appt-time{background:#14b8a6;color:#fff;padding:10px;border-radius:6px;text-align:center;min-width:80px}
+.appt-info{flex:1}
+.appt-patient{font-weight:600}
+.appt-type{font-size:.875rem;color:#888}
+.appt-actions button{padding:8px 15px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer;margin-left:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🦴 Appointment Scheduler</h1><button class="btn">+ New Appointment</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">New Patients</div></div>
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value">92%</div><div class="stat-label">Show Rate</div></div>
+</div>
+<h2 style="margin-bottom:15px;font-size:1rem">Today's Appointments</h2>
+<div class="list" id="list"></div>
+<script>
+const appointments=[
+{time:'9:00 AM',patient:'Robert Miller',type:'Initial Consultation',duration:'60 min',status:'confirmed'},
+{time:'10:00 AM',patient:'Jennifer Lee',type:'Adjustment',duration:'30 min',status:'checked-in'},
+{time:'10:30 AM',patient:'David Chen',type:'Follow-up',duration:'30 min',status:'confirmed'},
+{time:'11:00 AM',patient:'Amanda White',type:'Adjustment',duration:'30 min',status:'confirmed'},
+{time:'2:00 PM',patient:'Chris Taylor',type:'X-Ray Review',duration:'45 min',status:'confirmed'},
+{time:'2:45 PM',patient:'Michelle Brown',type:'Adjustment',duration:'30 min',status:'pending'}
+];
+document.getElementById('list').innerHTML=appointments.map(a=>`
+<div class="appt">
+<div class="appt-time">${a.time}<br><span style="font-size:.7rem">${a.duration}</span></div>
+<div class="appt-info"><div class="appt-patient">${a.patient}</div><div class="appt-type">${a.type}</div></div>
+<div class="appt-actions"><button>Check In</button><button>View</button></div>
+</div>`).join('');
+</script>
+</body>
+</html>
