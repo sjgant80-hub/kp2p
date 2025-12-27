@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claims Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"claims-tracker","name":"Claims Tracker","icon":"📋","desc":"Track and manage insurance claims","category":"insurance","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.pending .stat-value{color:#f59e0b}
+.stat.approved .stat-value{color:#10b981}
+.stat.denied .stat-value{color:#ef4444}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.filter.active{background:#10b981;color:#fff;border-color:#10b981}
+.claims-list{display:flex;flex-direction:column;gap:15px}
+.claim-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.claim-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px;flex-wrap:wrap;gap:10px}
+.claim-id{font-family:monospace;color:#888;font-size:.875rem}
+.claim-title{font-weight:600;font-size:1.125rem;margin-top:5px}
+.claim-status{padding:6px 12px;border-radius:6px;font-size:.75rem;font-weight:500}
+.claim-status.pending{background:#f59e0b33;color:#f59e0b}
+.claim-status.under-review{background:#3b82f633;color:#3b82f6}
+.claim-status.approved{background:#10b98133;color:#10b981}
+.claim-status.denied{background:#ef444433;color:#ef4444}
+.claim-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:15px}
+.detail-item span{display:block;color:#888;font-size:.75rem;margin-bottom:3px}
+.claim-timeline{border-top:1px solid #333;padding-top:15px}
+.timeline-item{display:flex;gap:15px;padding:8px 0;font-size:.875rem}
+.timeline-dot{width:10px;height:10px;background:#10b981;border-radius:50%;margin-top:5px;flex-shrink:0}
+.timeline-date{color:#888;min-width:100px}
+.claim-actions{display:flex;gap:10px;margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-danger{background:#ef4444;color:#fff}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📋 Claims Tracker</h1>
+<button class="btn btn-primary" onclick="showModal()">+ New Claim</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalClaims">0</div><div class="stat-label">Total Claims</div></div>
+<div class="stat pending"><div class="stat-value" id="pendingClaims">0</div><div class="stat-label">Pending</div></div>
+<div class="stat approved"><div class="stat-value" id="approvedClaims">0</div><div class="stat-label">Approved</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Total Value</div></div>
+</div>
+
+<div class="filters">
+<div class="filter active" data-status="all">All</div>
+<div class="filter" data-status="pending">Pending</div>
+<div class="filter" data-status="under-review">Under Review</div>
+<div class="filter" data-status="approved">Approved</div>
+<div class="filter" data-status="denied">Denied</div>
+</div>
+
+<div class="claims-list" id="claimsList"></div>
+
+<div class="modal" id="claimModal">
+<div class="modal-content">
+<h2>File New Claim</h2>
+<form id="claimForm">
+<div class="form-group">
+<label>Claim Type</label>
+<select id="claimType">
+<option value="auto">Auto</option>
+<option value="health">Health</option>
+<option value="home">Home</option>
+<option value="life">Life</option>
+<option value="property">Property</option>
+</select>
+</div>
+<div class="form-group">
+<label>Policy Number</label>
+<input type="text" id="policyNumber" required placeholder="POL-XXXXXX">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Incident Date</label>
+<input type="date" id="incidentDate" required>
+</div>
+<div class="form-group">
+<label>Claim Amount</label>
+<input type="number" id="claimAmount" min="0" step="0.01" required>
+</div>
+</div>
+<div class="form-group">
+<label>Description</label>
+<textarea id="claimDesc" rows="3" required placeholder="Describe the incident..."></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Submit Claim</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_claims';
+let claims = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(claims));
+}
+
+function generateClaimId() {
+  return 'CLM-' + Date.now().toString(36).toUpperCase();
+}
+
+function updateStats() {
+  const pending = claims.filter(c => c.status === 'pending').length;
+  const approved = claims.filter(c => c.status === 'approved').length;
+  const total = claims.reduce((sum, c) => sum + c.amount, 0);
+
+  document.getElementById('totalClaims').textContent = claims.length;
+  document.getElementById('pendingClaims').textContent = pending;
+  document.getElementById('approvedClaims').textContent = approved;
+  document.getElementById('totalValue').textContent = '$' + total.toLocaleString();
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? claims :
+    claims.filter(c => c.status === currentFilter);
+  const list = document.getElementById('claimsList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No claims found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(claim => `
+    <div class="claim-card">
+      <div class="claim-header">
+        <div>
+          <div class="claim-id">${claim.id}</div>
+          <div class="claim-title">${claim.type.charAt(0).toUpperCase() + claim.type.slice(1)} Claim - $${claim.amount.toLocaleString()}</div>
+        </div>
+        <span class="claim-status ${claim.status}">${claim.status.replace('-', ' ')}</span>
+      </div>
+      <div class="claim-details">
+        <div class="detail-item"><span>Policy</span>${claim.policyNumber}</div>
+        <div class="detail-item"><span>Incident Date</span>${new Date(claim.incidentDate).toLocaleDateString()}</div>
+        <div class="detail-item"><span>Filed Date</span>${new Date(claim.filedDate).toLocaleDateString()}</div>
+        <div class="detail-item"><span>Type</span>${claim.type}</div>
+      </div>
+      <p style="color:#888;font-size:.875rem;margin-bottom:15px">${claim.description}</p>
+      <div class="claim-timeline">
+        ${claim.timeline.map(t => `
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-date">${new Date(t.date).toLocaleDateString()}</div>
+            <div>${t.action}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="claim-actions">
+        ${claim.status === 'pending' ? `
+          <button class="btn btn-primary" onclick="updateStatus('${claim.id}', 'under-review')">Start Review</button>
+        ` : ''}
+        ${claim.status === 'under-review' ? `
+          <button class="btn btn-primary" onclick="updateStatus('${claim.id}', 'approved')">Approve</button>
+          <button class="btn btn-danger" onclick="updateStatus('${claim.id}', 'denied')">Deny</button>
+        ` : ''}
+        <button class="btn btn-secondary" onclick="deleteClaim('${claim.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('incidentDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('claimModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('claimModal').classList.remove('active');
+}
+
+document.getElementById('claimForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const claim = {
+    id: generateClaimId(),
+    type: document.getElementById('claimType').value,
+    policyNumber: document.getElementById('policyNumber').value,
+    incidentDate: document.getElementById('incidentDate').value,
+    amount: parseFloat(document.getElementById('claimAmount').value),
+    description: document.getElementById('claimDesc').value,
+    status: 'pending',
+    filedDate: new Date().toISOString(),
+    timeline: [{ date: new Date().toISOString(), action: 'Claim filed' }]
+  };
+  claims.unshift(claim);
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function updateStatus(id, status) {
+  const claim = claims.find(c => c.id === id);
+  if (claim) {
+    claim.status = status;
+    claim.timeline.push({
+      date: new Date().toISOString(),
+      action: status === 'approved' ? 'Claim approved' :
+              status === 'denied' ? 'Claim denied' :
+              status === 'under-review' ? 'Review started' : 'Status updated'
+    });
+    save();
+    render();
+  }
+}
+
+function deleteClaim(id) {
+  if (confirm('Delete this claim?')) {
+    claims = claims.filter(c => c.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.filter').forEach(f => {
+  f.addEventListener('click', () => {
+    document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
+    f.classList.add('active');
+    currentFilter = f.dataset.status;
+    render();
+  });
+});
+
+// Seed data
+if (claims.length === 0) {
+  claims = [
+    { id: 'CLM-001', type: 'auto', policyNumber: 'POL-AUTO-5521', incidentDate: '2024-12-15', amount: 4500, description: 'Rear-end collision at intersection. Bumper and tail light damage.', status: 'under-review', filedDate: '2024-12-16T10:30:00Z', timeline: [{ date: '2024-12-16T10:30:00Z', action: 'Claim filed' }, { date: '2024-12-17T09:00:00Z', action: 'Review started' }] },
+    { id: 'CLM-002', type: 'health', policyNumber: 'POL-HLT-3342', incidentDate: '2024-12-10', amount: 1250, description: 'Emergency room visit for acute appendicitis.', status: 'approved', filedDate: '2024-12-11T14:00:00Z', timeline: [{ date: '2024-12-11T14:00:00Z', action: 'Claim filed' }, { date: '2024-12-13T11:00:00Z', action: 'Review started' }, { date: '2024-12-20T16:00:00Z', action: 'Claim approved' }] },
+    { id: 'CLM-003', type: 'home', policyNumber: 'POL-HOM-7789', incidentDate: '2024-12-20', amount: 8750, description: 'Water damage from burst pipe in basement.', status: 'pending', filedDate: '2024-12-21T08:00:00Z', timeline: [{ date: '2024-12-21T08:00:00Z', action: 'Claim filed' }] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

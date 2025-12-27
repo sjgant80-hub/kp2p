@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shipment Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"shipment-tracker","name":"Shipment Tracker","icon":"📦","desc":"Track shipments and deliveries in real-time","category":"logistics","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{display:flex;gap:10px;flex:1;max-width:400px}
+.search-bar input{flex:1;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.transit .stat-value{color:#3b82f6}
+.stat.delayed .stat-value{color:#f59e0b}
+.shipments-list{display:flex;flex-direction:column;gap:15px}
+.shipment-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.shipment-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525;flex-wrap:wrap;gap:10px}
+.tracking-number{font-family:monospace;font-size:1rem;font-weight:600}
+.shipment-status{padding:6px 12px;border-radius:6px;font-size:.75rem;font-weight:500}
+.shipment-status.pending{background:#6b728033;color:#888}
+.shipment-status.picked-up{background:#8b5cf633;color:#8b5cf6}
+.shipment-status.in-transit{background:#3b82f633;color:#3b82f6}
+.shipment-status.out-for-delivery{background:#f59e0b33;color:#f59e0b}
+.shipment-status.delivered{background:#10b98133;color:#10b981}
+.shipment-body{padding:20px}
+.route-info{display:flex;align-items:center;gap:15px;margin-bottom:20px}
+.location{text-align:center;flex:1}
+.location-icon{font-size:1.5rem;margin-bottom:5px}
+.location-city{font-weight:500}
+.location-address{font-size:.75rem;color:#888}
+.route-line{flex:2;height:2px;background:linear-gradient(90deg,#10b981,#3b82f6);position:relative}
+.route-dot{position:absolute;width:12px;height:12px;background:#3b82f6;border-radius:50%;top:-5px}
+.shipment-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px;padding:15px 0;border-top:1px solid #333}
+.detail span{display:block;color:#888;font-size:.75rem;margin-bottom:3px}
+.timeline{margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.timeline h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.timeline-item{display:flex;gap:15px;padding:8px 0;font-size:.875rem}
+.timeline-icon{font-size:1rem}
+.timeline-time{color:#888;min-width:140px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📦 Shipment Tracker</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search tracking number..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="showModal()">+ New Shipment</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalShipments">0</div><div class="stat-label">Total</div></div>
+<div class="stat transit"><div class="stat-value" id="inTransit">0</div><div class="stat-label">In Transit</div></div>
+<div class="stat delayed"><div class="stat-value" id="outDelivery">0</div><div class="stat-label">Out for Delivery</div></div>
+<div class="stat"><div class="stat-value" id="delivered">0</div><div class="stat-label">Delivered</div></div>
+</div>
+
+<div class="shipments-list" id="shipmentsList"></div>
+
+<div class="modal" id="shipmentModal">
+<div class="modal-content">
+<h2>New Shipment</h2>
+<form id="shipmentForm">
+<div class="form-row">
+<div class="form-group">
+<label>Origin City</label>
+<input type="text" id="originCity" required placeholder="New York">
+</div>
+<div class="form-group">
+<label>Destination City</label>
+<input type="text" id="destCity" required placeholder="Los Angeles">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Weight (lbs)</label>
+<input type="number" id="weight" min="0" step="0.1" required>
+</div>
+<div class="form-group">
+<label>Service Type</label>
+<select id="serviceType">
+<option value="standard">Standard (5-7 days)</option>
+<option value="express">Express (2-3 days)</option>
+<option value="overnight">Overnight</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Recipient Name</label>
+<input type="text" id="recipientName" required>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Create Shipment</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_shipments';
+let shipments = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(shipments));
+}
+
+function generateTrackingNumber() {
+  return 'TRK' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+}
+
+function updateStats() {
+  const transit = shipments.filter(s => s.status === 'in-transit').length;
+  const outDel = shipments.filter(s => s.status === 'out-for-delivery').length;
+  const del = shipments.filter(s => s.status === 'delivered').length;
+
+  document.getElementById('totalShipments').textContent = shipments.length;
+  document.getElementById('inTransit').textContent = transit;
+  document.getElementById('outDelivery').textContent = outDel;
+  document.getElementById('delivered').textContent = del;
+}
+
+function getRouteProgress(status) {
+  const progress = { 'pending': 0, 'picked-up': 25, 'in-transit': 50, 'out-for-delivery': 75, 'delivered': 100 };
+  return progress[status] || 0;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = shipments.filter(s =>
+    s.trackingNumber.toLowerCase().includes(search) ||
+    s.origin.toLowerCase().includes(search) ||
+    s.destination.toLowerCase().includes(search)
+  );
+  const list = document.getElementById('shipmentsList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No shipments found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(s => {
+    const progress = getRouteProgress(s.status);
+    return `
+      <div class="shipment-card">
+        <div class="shipment-header">
+          <span class="tracking-number">${s.trackingNumber}</span>
+          <span class="shipment-status ${s.status}">${s.status.replace(/-/g, ' ')}</span>
+        </div>
+        <div class="shipment-body">
+          <div class="route-info">
+            <div class="location">
+              <div class="location-icon">📍</div>
+              <div class="location-city">${s.origin}</div>
+              <div class="location-address">Origin</div>
+            </div>
+            <div class="route-line">
+              <div class="route-dot" style="left:${progress}%"></div>
+            </div>
+            <div class="location">
+              <div class="location-icon">🏠</div>
+              <div class="location-city">${s.destination}</div>
+              <div class="location-address">Destination</div>
+            </div>
+          </div>
+          <div class="shipment-details">
+            <div class="detail"><span>Weight</span>${s.weight} lbs</div>
+            <div class="detail"><span>Service</span>${s.service}</div>
+            <div class="detail"><span>Recipient</span>${s.recipient}</div>
+            <div class="detail"><span>ETA</span>${s.eta ? new Date(s.eta).toLocaleDateString() : 'TBD'}</div>
+          </div>
+          <div class="timeline">
+            <h4>Tracking History</h4>
+            ${s.history.map(h => `
+              <div class="timeline-item">
+                <span class="timeline-icon">${h.icon}</span>
+                <span class="timeline-time">${new Date(h.time).toLocaleString()}</span>
+                <span>${h.event}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div style="display:flex;gap:10px;margin-top:15px">
+            ${s.status !== 'delivered' ? `<button class="btn btn-primary" onclick="advanceStatus('${s.id}')">Update Status</button>` : ''}
+            <button class="btn btn-secondary" onclick="deleteShipment('${s.id}')">Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('shipmentModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('shipmentModal').classList.remove('active');
+}
+
+document.getElementById('shipmentForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const eta = new Date();
+  const service = document.getElementById('serviceType').value;
+  eta.setDate(eta.getDate() + (service === 'overnight' ? 1 : service === 'express' ? 3 : 7));
+
+  shipments.unshift({
+    id: Date.now().toString(),
+    trackingNumber: generateTrackingNumber(),
+    origin: document.getElementById('originCity').value,
+    destination: document.getElementById('destCity').value,
+    weight: parseFloat(document.getElementById('weight').value),
+    service: service,
+    recipient: document.getElementById('recipientName').value,
+    status: 'pending',
+    eta: eta.toISOString(),
+    history: [{ icon: '📝', time: new Date().toISOString(), event: 'Shipment created' }]
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function advanceStatus(id) {
+  const s = shipments.find(x => x.id === id);
+  if (!s) return;
+
+  const flow = ['pending', 'picked-up', 'in-transit', 'out-for-delivery', 'delivered'];
+  const events = {
+    'picked-up': { icon: '📦', event: 'Package picked up' },
+    'in-transit': { icon: '🚚', event: 'In transit to destination' },
+    'out-for-delivery': { icon: '🛵', event: 'Out for delivery' },
+    'delivered': { icon: '✅', event: 'Delivered' }
+  };
+
+  const idx = flow.indexOf(s.status);
+  if (idx < flow.length - 1) {
+    s.status = flow[idx + 1];
+    s.history.unshift({ ...events[s.status], time: new Date().toISOString() });
+    save();
+    render();
+  }
+}
+
+function deleteShipment(id) {
+  if (confirm('Delete this shipment?')) {
+    shipments = shipments.filter(s => s.id !== id);
+    save();
+    render();
+  }
+}
+
+// Seed data
+if (shipments.length === 0) {
+  shipments = [
+    { id: '1', trackingNumber: 'TRK8F3KL2MN', origin: 'New York, NY', destination: 'Los Angeles, CA', weight: 12.5, service: 'express', recipient: 'John Smith', status: 'in-transit', eta: new Date(Date.now() + 2*24*60*60*1000).toISOString(), history: [{ icon: '🚚', time: new Date(Date.now() - 12*60*60*1000).toISOString(), event: 'In transit - Chicago hub' }, { icon: '📦', time: new Date(Date.now() - 24*60*60*1000).toISOString(), event: 'Package picked up' }, { icon: '📝', time: new Date(Date.now() - 36*60*60*1000).toISOString(), event: 'Shipment created' }] },
+    { id: '2', trackingNumber: 'TRK9P2XY7QR', origin: 'Seattle, WA', destination: 'Miami, FL', weight: 5.2, service: 'standard', recipient: 'Jane Doe', status: 'out-for-delivery', eta: new Date().toISOString(), history: [{ icon: '🛵', time: new Date(Date.now() - 2*60*60*1000).toISOString(), event: 'Out for delivery' }, { icon: '🚚', time: new Date(Date.now() - 48*60*60*1000).toISOString(), event: 'In transit' }] },
+    { id: '3', trackingNumber: 'TRK1A4BC5DE', origin: 'Chicago, IL', destination: 'Houston, TX', weight: 8.0, service: 'overnight', recipient: 'Bob Wilson', status: 'delivered', eta: new Date(Date.now() - 24*60*60*1000).toISOString(), history: [{ icon: '✅', time: new Date(Date.now() - 6*60*60*1000).toISOString(), event: 'Delivered' }] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

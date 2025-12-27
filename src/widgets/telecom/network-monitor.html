@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Network Monitor - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"network-monitor","name":"Network Monitor","icon":"📡","desc":"Monitor network infrastructure and connectivity","category":"telecom","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.status-badge{padding:6px 12px;border-radius:6px;font-size:.875rem;font-weight:500}
+.status-badge.healthy{background:#10b98133;color:#10b981}
+.status-badge.warning{background:#f59e0b33;color:#f59e0b}
+.status-badge.critical{background:#ef444433;color:#ef4444}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:20px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:2rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.warning .stat-value{color:#f59e0b}
+.stat.critical .stat-value{color:#ef4444}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px}
+.panel{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.panel-header{padding:15px 20px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+.panel-title{font-weight:600;display:flex;align-items:center;gap:8px}
+.panel-body{padding:20px}
+.device-list{display:flex;flex-direction:column;gap:10px}
+.device{display:flex;align-items:center;gap:15px;padding:12px;background:#252525;border-radius:8px}
+.device-status{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.device-status.online{background:#10b981}
+.device-status.offline{background:#ef4444}
+.device-status.warning{background:#f59e0b}
+.device-info{flex:1}
+.device-name{font-weight:500}
+.device-ip{font-size:.75rem;color:#888;font-family:monospace}
+.device-stats{text-align:right;font-size:.875rem}
+.latency{color:#10b981}
+.latency.slow{color:#f59e0b}
+.latency.timeout{color:#ef4444}
+.traffic-bar{margin-top:8px}
+.traffic-label{display:flex;justify-content:space-between;font-size:.75rem;color:#888;margin-bottom:4px}
+.traffic-track{height:4px;background:#333;border-radius:2px;overflow:hidden}
+.traffic-fill{height:100%;background:linear-gradient(90deg,#10b981,#3b82f6);border-radius:2px}
+.alerts-list{display:flex;flex-direction:column;gap:8px}
+.alert{padding:12px;border-radius:8px;display:flex;align-items:flex-start;gap:10px}
+.alert.warning{background:#f59e0b22;border-left:3px solid #f59e0b}
+.alert.critical{background:#ef444422;border-left:3px solid #ef4444}
+.alert.info{background:#3b82f622;border-left:3px solid #3b82f6}
+.alert-icon{font-size:1.25rem}
+.alert-content{flex:1}
+.alert-title{font-weight:500;margin-bottom:3px}
+.alert-time{font-size:.75rem;color:#888}
+.metrics-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px}
+.metric{padding:15px;background:#252525;border-radius:8px;text-align:center}
+.metric-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.metric-label{font-size:.75rem;color:#888;margin-top:3px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-sm{padding:4px 8px;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📡 Network Monitor</h1>
+<span class="status-badge healthy" id="overallStatus">All Systems Operational</span>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="uptime">99.9%</div><div class="stat-label">Uptime</div></div>
+<div class="stat"><div class="stat-value" id="devices">0</div><div class="stat-label">Devices</div></div>
+<div class="stat"><div class="stat-value" id="bandwidth">0 Gbps</div><div class="stat-label">Bandwidth</div></div>
+<div class="stat warning"><div class="stat-value" id="alerts">0</div><div class="stat-label">Active Alerts</div></div>
+</div>
+
+<div class="grid">
+<div class="panel">
+<div class="panel-header">
+<span class="panel-title">🖥️ Devices</span>
+<button class="btn btn-sm btn-primary" onclick="refreshDevices()">Refresh</button>
+</div>
+<div class="panel-body">
+<div class="device-list" id="deviceList"></div>
+</div>
+</div>
+
+<div class="panel">
+<div class="panel-header">
+<span class="panel-title">⚠️ Active Alerts</span>
+</div>
+<div class="panel-body">
+<div class="alerts-list" id="alertsList"></div>
+</div>
+</div>
+
+<div class="panel">
+<div class="panel-header">
+<span class="panel-title">📊 Performance Metrics</span>
+</div>
+<div class="panel-body">
+<div class="metrics-grid">
+<div class="metric"><div class="metric-value" id="avgLatency">0 ms</div><div class="metric-label">Avg Latency</div></div>
+<div class="metric"><div class="metric-value" id="packetLoss">0%</div><div class="metric-label">Packet Loss</div></div>
+<div class="metric"><div class="metric-value" id="throughput">0 Mbps</div><div class="metric-label">Throughput</div></div>
+<div class="metric"><div class="metric-value" id="connections">0</div><div class="metric-label">Connections</div></div>
+</div>
+</div>
+</div>
+
+<div class="panel">
+<div class="panel-header">
+<span class="panel-title">📈 Bandwidth Usage</span>
+</div>
+<div class="panel-body" id="bandwidthPanel"></div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_network_monitor';
+
+let networkData = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+  devices: [
+    { id: '1', name: 'Core Router', ip: '10.0.0.1', type: 'router', status: 'online', latency: 2, bandwidth: { in: 4.2, out: 3.8, max: 10 } },
+    { id: '2', name: 'Firewall-01', ip: '10.0.0.2', type: 'firewall', status: 'online', latency: 1, bandwidth: { in: 3.5, out: 3.2, max: 10 } },
+    { id: '3', name: 'Switch-Floor1', ip: '10.0.1.1', type: 'switch', status: 'online', latency: 3, bandwidth: { in: 2.1, out: 1.9, max: 5 } },
+    { id: '4', name: 'Switch-Floor2', ip: '10.0.2.1', type: 'switch', status: 'warning', latency: 45, bandwidth: { in: 4.8, out: 4.5, max: 5 } },
+    { id: '5', name: 'AP-Lobby', ip: '10.0.3.10', type: 'ap', status: 'online', latency: 5, bandwidth: { in: 0.8, out: 0.6, max: 1 } },
+    { id: '6', name: 'Backup Server', ip: '10.0.4.100', type: 'server', status: 'offline', latency: null, bandwidth: { in: 0, out: 0, max: 10 } }
+  ],
+  alerts: [
+    { id: '1', type: 'warning', title: 'High Latency Detected', message: 'Switch-Floor2 experiencing high latency', time: new Date(Date.now() - 15*60*1000).toISOString() },
+    { id: '2', type: 'critical', title: 'Device Offline', message: 'Backup Server is not responding', time: new Date(Date.now() - 5*60*1000).toISOString() },
+    { id: '3', type: 'info', title: 'Firmware Update Available', message: 'Core Router has a pending update', time: new Date(Date.now() - 60*60*1000).toISOString() }
+  ]
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(networkData));
+}
+
+function updateStats() {
+  const onlineDevices = networkData.devices.filter(d => d.status === 'online').length;
+  const totalDevices = networkData.devices.length;
+  const uptime = ((onlineDevices / totalDevices) * 100).toFixed(1);
+  const totalBandwidth = networkData.devices.reduce((sum, d) => sum + d.bandwidth.in, 0);
+  const avgLatency = networkData.devices
+    .filter(d => d.latency !== null)
+    .reduce((sum, d, _, arr) => sum + d.latency / arr.length, 0);
+
+  document.getElementById('uptime').textContent = uptime + '%';
+  document.getElementById('devices').textContent = `${onlineDevices}/${totalDevices}`;
+  document.getElementById('bandwidth').textContent = totalBandwidth.toFixed(1) + ' Gbps';
+  document.getElementById('alerts').textContent = networkData.alerts.length;
+  document.getElementById('avgLatency').textContent = Math.round(avgLatency) + ' ms';
+  document.getElementById('packetLoss').textContent = '0.02%';
+  document.getElementById('throughput').textContent = (totalBandwidth * 1000).toFixed(0) + ' Mbps';
+  document.getElementById('connections').textContent = Math.floor(Math.random() * 1000) + 500;
+
+  const hasOffline = networkData.devices.some(d => d.status === 'offline');
+  const hasWarning = networkData.devices.some(d => d.status === 'warning');
+  const statusBadge = document.getElementById('overallStatus');
+
+  if (hasOffline) {
+    statusBadge.className = 'status-badge critical';
+    statusBadge.textContent = 'Issues Detected';
+  } else if (hasWarning) {
+    statusBadge.className = 'status-badge warning';
+    statusBadge.textContent = 'Warnings Active';
+  } else {
+    statusBadge.className = 'status-badge healthy';
+    statusBadge.textContent = 'All Systems Operational';
+  }
+}
+
+function renderDevices() {
+  const list = document.getElementById('deviceList');
+  const typeIcons = { router: '🔄', firewall: '🛡️', switch: '🔌', ap: '📶', server: '🖥️' };
+
+  list.innerHTML = networkData.devices.map(d => {
+    const latencyClass = d.latency === null ? 'timeout' : d.latency > 30 ? 'slow' : '';
+    const usage = ((d.bandwidth.in / d.bandwidth.max) * 100).toFixed(0);
+
+    return `
+      <div class="device">
+        <div class="device-status ${d.status}"></div>
+        <div class="device-info">
+          <div class="device-name">${typeIcons[d.type]} ${d.name}</div>
+          <div class="device-ip">${d.ip}</div>
+        </div>
+        <div class="device-stats">
+          <div class="latency ${latencyClass}">${d.latency !== null ? d.latency + 'ms' : 'Timeout'}</div>
+          <div class="traffic-bar">
+            <div class="traffic-label">
+              <span>Traffic</span>
+              <span>${usage}%</span>
+            </div>
+            <div class="traffic-track">
+              <div class="traffic-fill" style="width:${usage}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAlerts() {
+  const list = document.getElementById('alertsList');
+  const alertIcons = { warning: '⚠️', critical: '🚨', info: 'ℹ️' };
+
+  if (networkData.alerts.length === 0) {
+    list.innerHTML = '<div style="color:#666;text-align:center;padding:20px">No active alerts</div>';
+    return;
+  }
+
+  list.innerHTML = networkData.alerts.map(a => {
+    const time = new Date(a.time);
+    const ago = Math.round((Date.now() - time) / 60000);
+
+    return `
+      <div class="alert ${a.type}">
+        <span class="alert-icon">${alertIcons[a.type]}</span>
+        <div class="alert-content">
+          <div class="alert-title">${a.title}</div>
+          <div class="alert-time">${a.message} • ${ago}m ago</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderBandwidth() {
+  const panel = document.getElementById('bandwidthPanel');
+
+  panel.innerHTML = networkData.devices.slice(0, 4).map(d => {
+    const usage = ((d.bandwidth.in / d.bandwidth.max) * 100).toFixed(0);
+    return `
+      <div class="traffic-bar" style="margin-bottom:15px">
+        <div class="traffic-label">
+          <span>${d.name}</span>
+          <span>${d.bandwidth.in.toFixed(1)} / ${d.bandwidth.max} Gbps</span>
+        </div>
+        <div class="traffic-track" style="height:8px">
+          <div class="traffic-fill" style="width:${usage}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function refreshDevices() {
+  // Simulate refresh with random latency changes
+  networkData.devices.forEach(d => {
+    if (d.status === 'online') {
+      d.latency = Math.floor(Math.random() * 20) + 1;
+      d.bandwidth.in = Math.random() * d.bandwidth.max * 0.8;
+    }
+  });
+  save();
+  render();
+}
+
+function render() {
+  renderDevices();
+  renderAlerts();
+  renderBandwidth();
+  updateStats();
+}
+
+render();
+
+// Auto-refresh every 30 seconds
+setInterval(refreshDevices, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Warehouse Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"warehouse-manager","name":"Warehouse Manager","icon":"🏭","desc":"Manage warehouse inventory and locations","category":"logistics","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;margin-bottom:20px}
+.zone{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.zone-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.zone-name{font-weight:600;display:flex;align-items:center;gap:8px}
+.zone-capacity{font-size:.875rem;color:#888}
+.capacity-bar{height:8px;background:#333;border-radius:4px;overflow:hidden;margin:10px 0}
+.capacity-fill{height:100%;border-radius:4px;transition:width .3s}
+.capacity-fill.low{background:#10b981}
+.capacity-fill.medium{background:#f59e0b}
+.capacity-fill.high{background:#ef4444}
+.zone-items{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#252525;border-radius:6px}
+.item-info{display:flex;align-items:center;gap:10px}
+.item-sku{font-family:monospace;font-size:.75rem;color:#888}
+.item-name{font-weight:500}
+.item-qty{padding:4px 10px;background:#333;border-radius:4px;font-weight:500}
+.item-qty.low{color:#ef4444}
+.inventory-table{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.table-header{display:grid;grid-template-columns:100px 1fr 100px 100px 120px 80px;padding:15px 20px;background:#252525;font-weight:600;font-size:.875rem;color:#888}
+.table-row{display:grid;grid-template-columns:100px 1fr 100px 100px 120px 80px;padding:12px 20px;border-top:1px solid #333;align-items:center}
+.table-row:hover{background:#252525}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-sm{padding:4px 8px;font-size:.75rem}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏭 Warehouse Manager</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Item</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalItems">0</div><div class="stat-label">Total SKUs</div></div>
+<div class="stat"><div class="stat-value" id="totalUnits">0</div><div class="stat-label">Total Units</div></div>
+<div class="stat"><div class="stat-value" id="lowStock">0</div><div class="stat-label">Low Stock</div></div>
+<div class="stat"><div class="stat-value" id="zones">0</div><div class="stat-label">Active Zones</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-view="zones">📍 Zone View</div>
+<div class="tab" data-view="inventory">📋 Inventory List</div>
+</div>
+
+<div id="zonesView" class="zones"></div>
+<div id="inventoryView" class="inventory-table" style="display:none"></div>
+
+<div class="modal" id="itemModal">
+<div class="modal-content">
+<h2>Add Inventory Item</h2>
+<form id="itemForm">
+<div class="form-row">
+<div class="form-group">
+<label>SKU</label>
+<input type="text" id="itemSku" required placeholder="SKU-001">
+</div>
+<div class="form-group">
+<label>Zone</label>
+<select id="itemZone">
+<option value="A">Zone A - Receiving</option>
+<option value="B">Zone B - Storage</option>
+<option value="C">Zone C - Picking</option>
+<option value="D">Zone D - Shipping</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Item Name</label>
+<input type="text" id="itemName" required placeholder="Product name">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Quantity</label>
+<input type="number" id="itemQty" min="0" required>
+</div>
+<div class="form-group">
+<label>Min Stock Level</label>
+<input type="number" id="itemMin" min="0" value="10">
+</div>
+</div>
+<div class="form-group">
+<label>Location (Aisle-Shelf-Bin)</label>
+<input type="text" id="itemLocation" placeholder="A1-S2-B3">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Item</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_warehouse';
+let items = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentView = 'zones';
+
+const zoneInfo = {
+  A: { name: 'Zone A - Receiving', icon: '📥', capacity: 500 },
+  B: { name: 'Zone B - Storage', icon: '📦', capacity: 1000 },
+  C: { name: 'Zone C - Picking', icon: '🛒', capacity: 300 },
+  D: { name: 'Zone D - Shipping', icon: '📤', capacity: 400 }
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function updateStats() {
+  const totalUnits = items.reduce((sum, i) => sum + i.quantity, 0);
+  const lowStock = items.filter(i => i.quantity <= i.minStock).length;
+  const activeZones = [...new Set(items.map(i => i.zone))].length;
+
+  document.getElementById('totalItems').textContent = items.length;
+  document.getElementById('totalUnits').textContent = totalUnits.toLocaleString();
+  document.getElementById('lowStock').textContent = lowStock;
+  document.getElementById('zones').textContent = activeZones;
+}
+
+function getCapacityLevel(used, total) {
+  const pct = (used / total) * 100;
+  if (pct > 80) return 'high';
+  if (pct > 50) return 'medium';
+  return 'low';
+}
+
+function renderZones() {
+  const container = document.getElementById('zonesView');
+  const zoneData = {};
+
+  Object.keys(zoneInfo).forEach(z => {
+    zoneData[z] = items.filter(i => i.zone === z);
+  });
+
+  container.innerHTML = Object.entries(zoneInfo).map(([key, zone]) => {
+    const zoneItems = zoneData[key];
+    const usedCapacity = zoneItems.reduce((sum, i) => sum + i.quantity, 0);
+    const pct = Math.min(100, (usedCapacity / zone.capacity) * 100);
+    const level = getCapacityLevel(usedCapacity, zone.capacity);
+
+    return `
+      <div class="zone">
+        <div class="zone-header">
+          <div class="zone-name">${zone.icon} ${zone.name}</div>
+          <div class="zone-capacity">${usedCapacity}/${zone.capacity}</div>
+        </div>
+        <div class="capacity-bar">
+          <div class="capacity-fill ${level}" style="width:${pct}%"></div>
+        </div>
+        <div class="zone-items">
+          ${zoneItems.slice(0, 4).map(item => `
+            <div class="item">
+              <div class="item-info">
+                <span class="item-sku">${item.sku}</span>
+                <span class="item-name">${item.name}</span>
+              </div>
+              <span class="item-qty${item.quantity <= item.minStock ? ' low' : ''}">${item.quantity}</span>
+            </div>
+          `).join('') || '<div style="color:#666;font-size:.875rem;padding:10px">No items in this zone</div>'}
+          ${zoneItems.length > 4 ? `<div style="color:#888;font-size:.75rem;text-align:center">+${zoneItems.length - 4} more items</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderInventory() {
+  const container = document.getElementById('inventoryView');
+
+  if (items.length === 0) {
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#666">No items in inventory</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-header">
+      <div>SKU</div>
+      <div>Name</div>
+      <div>Zone</div>
+      <div>Location</div>
+      <div>Quantity</div>
+      <div>Actions</div>
+    </div>
+    ${items.map(item => `
+      <div class="table-row">
+        <div style="font-family:monospace;font-size:.875rem">${item.sku}</div>
+        <div>${item.name}</div>
+        <div>${item.zone}</div>
+        <div style="color:#888">${item.location || '-'}</div>
+        <div>
+          <span class="${item.quantity <= item.minStock ? 'item-qty low' : ''}">${item.quantity}</span>
+          ${item.quantity <= item.minStock ? '<span style="font-size:.7rem;color:#ef4444;margin-left:5px">LOW</span>' : ''}
+        </div>
+        <div>
+          <button class="btn btn-secondary btn-sm" onclick="adjustQty('${item.id}')">±</button>
+          <button class="btn btn-secondary btn-sm" onclick="deleteItem('${item.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function render() {
+  if (currentView === 'zones') {
+    renderZones();
+    document.getElementById('zonesView').style.display = '';
+    document.getElementById('inventoryView').style.display = 'none';
+  } else {
+    renderInventory();
+    document.getElementById('zonesView').style.display = 'none';
+    document.getElementById('inventoryView').style.display = '';
+  }
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('itemModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('itemModal').classList.remove('active');
+}
+
+document.getElementById('itemForm').addEventListener('submit', e => {
+  e.preventDefault();
+  items.push({
+    id: Date.now().toString(),
+    sku: document.getElementById('itemSku').value,
+    name: document.getElementById('itemName').value,
+    zone: document.getElementById('itemZone').value,
+    quantity: parseInt(document.getElementById('itemQty').value),
+    minStock: parseInt(document.getElementById('itemMin').value) || 10,
+    location: document.getElementById('itemLocation').value
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function adjustQty(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  const adj = prompt(`Adjust quantity for ${item.name}\nCurrent: ${item.quantity}\nEnter +/- amount:`);
+  if (adj !== null) {
+    const val = parseInt(adj);
+    if (!isNaN(val)) {
+      item.quantity = Math.max(0, item.quantity + val);
+      save();
+      render();
+    }
+  }
+}
+
+function deleteItem(id) {
+  if (confirm('Remove this item from inventory?')) {
+    items = items.filter(i => i.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentView = tab.dataset.view;
+    render();
+  });
+});
+
+// Seed data
+if (items.length === 0) {
+  items = [
+    { id: '1', sku: 'SKU-001', name: 'Widget Pro X', zone: 'B', quantity: 250, minStock: 50, location: 'B1-S3-B2' },
+    { id: '2', sku: 'SKU-002', name: 'Gadget Plus', zone: 'B', quantity: 45, minStock: 100, location: 'B2-S1-B4' },
+    { id: '3', sku: 'SKU-003', name: 'Smart Sensor Kit', zone: 'C', quantity: 180, minStock: 30, location: 'C1-S2-B1' },
+    { id: '4', sku: 'SKU-004', name: 'Power Adapter', zone: 'A', quantity: 320, minStock: 50, location: 'A1-S1-B1' },
+    { id: '5', sku: 'SKU-005', name: 'USB Hub 7-Port', zone: 'C', quantity: 15, minStock: 25, location: 'C2-S3-B2' },
+    { id: '6', sku: 'SKU-006', name: 'HDMI Cable 6ft', zone: 'D', quantity: 500, minStock: 100, location: 'D1-S1-B1' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

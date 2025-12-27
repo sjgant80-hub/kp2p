@@ -280,6 +280,26 @@ const categoryMap = {
 
   // Science
   'lab-notebook': { category: 'science', subcategory: 'research', badge: 'ENT' },
+
+  // Insurance
+  'claims-tracker': { category: 'insurance', subcategory: 'claims', badge: 'ENT' },
+  'policy-manager': { category: 'insurance', subcategory: 'policies', badge: 'ENT' },
+
+  // Logistics
+  'shipment-tracker': { category: 'logistics', subcategory: 'shipping', badge: 'ENT' },
+  'warehouse-manager': { category: 'logistics', subcategory: 'inventory', badge: 'ENT' },
+
+  // Manufacturing
+  'production-scheduler': { category: 'manufacturing', subcategory: 'production', badge: 'ENT' },
+  'quality-control': { category: 'manufacturing', subcategory: 'quality', badge: 'ENT' },
+
+  // Automotive
+  'vehicle-inventory': { category: 'automotive', subcategory: 'inventory', badge: 'ENT' },
+  'service-appointments': { category: 'automotive', subcategory: 'service', badge: 'ENT' },
+
+  // Telecom
+  'network-monitor': { category: 'telecom', subcategory: 'network', badge: 'ENT' },
+  'subscriber-management': { category: 'telecom', subcategory: 'subscribers', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -451,7 +471,12 @@ const widgetDirs = [
   'government',
   'media',
   'sports',
-  'science'
+  'science',
+  'insurance',
+  'logistics',
+  'manufacturing',
+  'automotive',
+  'telecom'
 ];
 
 // Process all widgets in all directories

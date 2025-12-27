@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vehicle Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"vehicle-inventory","name":"Vehicle Inventory","icon":"🚗","desc":"Manage dealership vehicle inventory","category":"automotive","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.filter.active{background:#10b981;color:#fff;border-color:#10b981}
+.vehicles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.vehicle-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.vehicle-image{height:160px;background:linear-gradient(135deg,#252525,#1a1a1a);display:flex;align-items:center;justify-content:center;font-size:4rem}
+.vehicle-body{padding:20px}
+.vehicle-title{font-size:1.125rem;font-weight:600;margin-bottom:5px}
+.vehicle-subtitle{color:#888;font-size:.875rem;margin-bottom:15px}
+.vehicle-price{font-size:1.5rem;font-weight:bold;color:#10b981;margin-bottom:15px}
+.vehicle-specs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:15px}
+.spec-item{display:flex;align-items:center;gap:8px;font-size:.875rem}
+.spec-icon{font-size:1rem}
+.vehicle-tags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+.tag{padding:4px 10px;background:#252525;border-radius:4px;font-size:.75rem}
+.tag.new{background:#10b98133;color:#10b981}
+.tag.used{background:#3b82f633;color:#3b82f6}
+.tag.certified{background:#f59e0b33;color:#f59e0b}
+.vehicle-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.vin{font-family:monospace;font-size:.75rem;color:#666;margin-top:10px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🚗 Vehicle Inventory</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Vehicle</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalVehicles">0</div><div class="stat-label">Total Vehicles</div></div>
+<div class="stat"><div class="stat-value" id="newCount">0</div><div class="stat-label">New</div></div>
+<div class="stat"><div class="stat-value" id="usedCount">0</div><div class="stat-label">Used</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Inventory Value</div></div>
+</div>
+
+<div class="filters">
+<div class="filter active" data-type="all">All</div>
+<div class="filter" data-type="new">New</div>
+<div class="filter" data-type="used">Used</div>
+<div class="filter" data-type="certified">Certified Pre-Owned</div>
+</div>
+
+<div class="vehicles-grid" id="vehiclesGrid"></div>
+
+<div class="modal" id="vehicleModal">
+<div class="modal-content">
+<h2>Add Vehicle</h2>
+<form id="vehicleForm">
+<div class="form-row">
+<div class="form-group">
+<label>Year</label>
+<input type="number" id="year" min="1990" max="2025" required>
+</div>
+<div class="form-group">
+<label>Make</label>
+<input type="text" id="make" required placeholder="Toyota">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Model</label>
+<input type="text" id="model" required placeholder="Camry">
+</div>
+<div class="form-group">
+<label>Trim</label>
+<input type="text" id="trim" placeholder="XLE">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Condition</label>
+<select id="condition">
+<option value="new">New</option>
+<option value="used">Used</option>
+<option value="certified">Certified Pre-Owned</option>
+</select>
+</div>
+<div class="form-group">
+<label>Price</label>
+<input type="number" id="price" min="0" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Mileage</label>
+<input type="number" id="mileage" min="0" value="0">
+</div>
+<div class="form-group">
+<label>Exterior Color</label>
+<input type="text" id="color" placeholder="Silver">
+</div>
+</div>
+<div class="form-group">
+<label>VIN</label>
+<input type="text" id="vin" placeholder="1HGBH41JXMN109186" maxlength="17">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Vehicle</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_vehicles';
+let vehicles = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+const typeEmojis = {
+  sedan: '🚗', suv: '🚙', truck: '🛻', van: '🚐', coupe: '🏎️', convertible: '🚗'
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(vehicles));
+}
+
+function updateStats() {
+  const newCount = vehicles.filter(v => v.condition === 'new').length;
+  const usedCount = vehicles.filter(v => v.condition === 'used' || v.condition === 'certified').length;
+  const totalValue = vehicles.reduce((sum, v) => sum + v.price, 0);
+
+  document.getElementById('totalVehicles').textContent = vehicles.length;
+  document.getElementById('newCount').textContent = newCount;
+  document.getElementById('usedCount').textContent = usedCount;
+  document.getElementById('totalValue').textContent = '$' + (totalValue / 1000).toFixed(0) + 'K';
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? vehicles :
+    vehicles.filter(v => v.condition === currentFilter);
+  const grid = document.getElementById('vehiclesGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No vehicles found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(v => `
+    <div class="vehicle-card">
+      <div class="vehicle-image">🚗</div>
+      <div class="vehicle-body">
+        <div class="vehicle-title">${v.year} ${v.make} ${v.model}</div>
+        <div class="vehicle-subtitle">${v.trim || 'Base'} • ${v.color || 'N/A'}</div>
+        <div class="vehicle-price">$${v.price.toLocaleString()}</div>
+        <div class="vehicle-specs">
+          <div class="spec-item"><span class="spec-icon">📏</span>${v.mileage.toLocaleString()} mi</div>
+          <div class="spec-item"><span class="spec-icon">⛽</span>Gasoline</div>
+          <div class="spec-item"><span class="spec-icon">🔧</span>Automatic</div>
+          <div class="spec-item"><span class="spec-icon">🎨</span>${v.color || 'N/A'}</div>
+        </div>
+        <div class="vehicle-tags">
+          <span class="tag ${v.condition}">${v.condition === 'certified' ? 'CPO' : v.condition}</span>
+          ${v.condition === 'new' ? '<span class="tag">In Stock</span>' : ''}
+        </div>
+        <div class="vin">VIN: ${v.vin || 'N/A'}</div>
+      </div>
+      <div class="vehicle-footer">
+        <button class="btn btn-primary" onclick="alert('Contact dealer for: ${v.year} ${v.make} ${v.model}')">Contact</button>
+        <button class="btn btn-secondary" onclick="deleteVehicle('${v.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('year').value = new Date().getFullYear();
+  document.getElementById('vehicleModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('vehicleModal').classList.remove('active');
+}
+
+document.getElementById('vehicleForm').addEventListener('submit', e => {
+  e.preventDefault();
+  vehicles.push({
+    id: Date.now().toString(),
+    year: parseInt(document.getElementById('year').value),
+    make: document.getElementById('make').value,
+    model: document.getElementById('model').value,
+    trim: document.getElementById('trim').value,
+    condition: document.getElementById('condition').value,
+    price: parseFloat(document.getElementById('price').value),
+    mileage: parseInt(document.getElementById('mileage').value) || 0,
+    color: document.getElementById('color').value,
+    vin: document.getElementById('vin').value
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function deleteVehicle(id) {
+  if (confirm('Remove this vehicle from inventory?')) {
+    vehicles = vehicles.filter(v => v.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.filter').forEach(f => {
+  f.addEventListener('click', () => {
+    document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
+    f.classList.add('active');
+    currentFilter = f.dataset.type;
+    render();
+  });
+});
+
+// Seed data
+if (vehicles.length === 0) {
+  vehicles = [
+    { id: '1', year: 2024, make: 'Toyota', model: 'Camry', trim: 'XLE', condition: 'new', price: 32500, mileage: 15, color: 'Pearl White', vin: '1HGBH41JXMN109186' },
+    { id: '2', year: 2022, make: 'Honda', model: 'CR-V', trim: 'EX-L', condition: 'certified', price: 28900, mileage: 24500, color: 'Modern Steel', vin: '2HKRW2H54MH123456' },
+    { id: '3', year: 2021, make: 'Ford', model: 'F-150', trim: 'Lariat', condition: 'used', price: 42000, mileage: 35200, color: 'Oxford White', vin: '1FTFW1E50MKD12345' },
+    { id: '4', year: 2024, make: 'Tesla', model: 'Model 3', trim: 'Long Range', condition: 'new', price: 47500, mileage: 5, color: 'Midnight Silver', vin: '5YJ3E1EA4MF123789' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

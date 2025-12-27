@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quality Control - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"quality-control","name":"Quality Control","icon":"✅","desc":"Track product quality inspections and defects","category":"manufacturing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.fail .stat-value{color:#ef4444}
+.stat.warning .stat-value{color:#f59e0b}
+.quality-rate{font-size:2rem !important}
+.inspections{display:flex;flex-direction:column;gap:15px}
+.inspection-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.inspection-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid #333}
+.batch-info{display:flex;align-items:center;gap:15px}
+.batch-id{font-family:monospace;font-weight:600}
+.product-name{color:#888}
+.inspection-result{padding:6px 12px;border-radius:6px;font-size:.875rem;font-weight:500}
+.inspection-result.pass{background:#10b98133;color:#10b981}
+.inspection-result.fail{background:#ef444433;color:#ef4444}
+.inspection-result.pending{background:#f59e0b33;color:#f59e0b}
+.inspection-body{padding:20px}
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.metric{background:#252525;padding:12px;border-radius:8px;text-align:center}
+.metric-value{font-size:1.25rem;font-weight:bold}
+.metric-label{font-size:.75rem;color:#888;margin-top:3px}
+.metric.good .metric-value{color:#10b981}
+.metric.bad .metric-value{color:#ef4444}
+.defects-section{border-top:1px solid #333;padding-top:15px}
+.defects-section h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.defect-list{display:flex;flex-wrap:wrap;gap:8px}
+.defect-tag{padding:6px 12px;background:#ef444433;color:#ef4444;border-radius:6px;font-size:.75rem;display:flex;align-items:center;gap:5px}
+.defect-count{background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px;font-size:.65rem}
+.notes{margin-top:15px;padding:12px;background:#252525;border-radius:6px;font-size:.875rem;color:#888}
+.inspection-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.checkbox-item{display:flex;align-items:center;gap:5px;padding:6px 10px;background:#252525;border-radius:6px;cursor:pointer}
+.checkbox-item input{margin:0}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>✅ Quality Control</h1>
+<button class="btn btn-primary" onclick="showModal()">+ New Inspection</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value quality-rate" id="qualityRate">0%</div><div class="stat-label">Quality Rate</div></div>
+<div class="stat"><div class="stat-value" id="totalInspections">0</div><div class="stat-label">Inspections</div></div>
+<div class="stat"><div class="stat-value" id="passCount">0</div><div class="stat-label">Passed</div></div>
+<div class="stat fail"><div class="stat-value" id="failCount">0</div><div class="stat-label">Failed</div></div>
+<div class="stat warning"><div class="stat-value" id="defectCount">0</div><div class="stat-label">Total Defects</div></div>
+</div>
+
+<div class="inspections" id="inspectionsList"></div>
+
+<div class="modal" id="inspectionModal">
+<div class="modal-content">
+<h2>New Inspection</h2>
+<form id="inspectionForm">
+<div class="form-row">
+<div class="form-group">
+<label>Batch ID</label>
+<input type="text" id="batchId" required placeholder="BATCH-001">
+</div>
+<div class="form-group">
+<label>Sample Size</label>
+<input type="number" id="sampleSize" min="1" required>
+</div>
+</div>
+<div class="form-group">
+<label>Product Name</label>
+<input type="text" id="productName" required placeholder="Product name">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Defects Found</label>
+<input type="number" id="defectsFound" min="0" value="0">
+</div>
+<div class="form-group">
+<label>Result</label>
+<select id="result">
+<option value="pass">Pass</option>
+<option value="fail">Fail</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Defect Types (if any)</label>
+<div class="checkbox-group">
+<label class="checkbox-item"><input type="checkbox" value="surface"> Surface</label>
+<label class="checkbox-item"><input type="checkbox" value="dimensional"> Dimensional</label>
+<label class="checkbox-item"><input type="checkbox" value="functional"> Functional</label>
+<label class="checkbox-item"><input type="checkbox" value="cosmetic"> Cosmetic</label>
+<label class="checkbox-item"><input type="checkbox" value="material"> Material</label>
+</div>
+</div>
+<div class="form-group">
+<label>Notes</label>
+<textarea id="notes" rows="2" placeholder="Inspection notes..."></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Save Inspection</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_quality_control';
+let inspections = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections));
+}
+
+function updateStats() {
+  const passed = inspections.filter(i => i.result === 'pass').length;
+  const failed = inspections.filter(i => i.result === 'fail').length;
+  const defects = inspections.reduce((sum, i) => sum + i.defectsFound, 0);
+  const rate = inspections.length > 0 ? Math.round((passed / inspections.length) * 100) : 0;
+
+  document.getElementById('qualityRate').textContent = rate + '%';
+  document.getElementById('totalInspections').textContent = inspections.length;
+  document.getElementById('passCount').textContent = passed;
+  document.getElementById('failCount').textContent = failed;
+  document.getElementById('defectCount').textContent = defects;
+}
+
+function render() {
+  const list = document.getElementById('inspectionsList');
+
+  if (inspections.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No inspections recorded</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = inspections.slice().reverse().map(insp => {
+    const defectRate = insp.sampleSize > 0 ? ((insp.defectsFound / insp.sampleSize) * 100).toFixed(1) : 0;
+    const passRate = 100 - defectRate;
+
+    return `
+      <div class="inspection-card">
+        <div class="inspection-header">
+          <div class="batch-info">
+            <span class="batch-id">${insp.batchId}</span>
+            <span class="product-name">${insp.product}</span>
+          </div>
+          <span class="inspection-result ${insp.result}">${insp.result.toUpperCase()}</span>
+        </div>
+        <div class="inspection-body">
+          <div class="metrics-grid">
+            <div class="metric good">
+              <div class="metric-value">${passRate}%</div>
+              <div class="metric-label">Pass Rate</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${insp.sampleSize}</div>
+              <div class="metric-label">Sample Size</div>
+            </div>
+            <div class="metric ${insp.defectsFound > 0 ? 'bad' : ''}">
+              <div class="metric-value">${insp.defectsFound}</div>
+              <div class="metric-label">Defects</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${new Date(insp.date).toLocaleDateString()}</div>
+              <div class="metric-label">Date</div>
+            </div>
+          </div>
+          ${insp.defectTypes && insp.defectTypes.length > 0 ? `
+            <div class="defects-section">
+              <h4>Defect Types</h4>
+              <div class="defect-list">
+                ${insp.defectTypes.map(d => `<span class="defect-tag">${d}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+          ${insp.notes ? `<div class="notes">📝 ${insp.notes}</div>` : ''}
+        </div>
+        <div class="inspection-footer">
+          <button class="btn btn-secondary" onclick="deleteInspection('${insp.id}')">🗑️ Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('batchId').value = 'BATCH-' + Date.now().toString(36).toUpperCase();
+  document.getElementById('inspectionModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('inspectionModal').classList.remove('active');
+}
+
+document.getElementById('inspectionForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const defectTypes = [...document.querySelectorAll('.checkbox-group input:checked')].map(cb => cb.value);
+
+  inspections.push({
+    id: Date.now().toString(),
+    batchId: document.getElementById('batchId').value,
+    product: document.getElementById('productName').value,
+    sampleSize: parseInt(document.getElementById('sampleSize').value),
+    defectsFound: parseInt(document.getElementById('defectsFound').value) || 0,
+    result: document.getElementById('result').value,
+    defectTypes,
+    notes: document.getElementById('notes').value,
+    date: new Date().toISOString()
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+  document.querySelectorAll('.checkbox-group input').forEach(cb => cb.checked = false);
+});
+
+function deleteInspection(id) {
+  if (confirm('Delete this inspection record?')) {
+    inspections = inspections.filter(i => i.id !== id);
+    save();
+    render();
+  }
+}
+
+// Seed data
+if (inspections.length === 0) {
+  inspections = [
+    { id: '1', batchId: 'BATCH-2024-001', product: 'Smart Sensor v2', sampleSize: 100, defectsFound: 2, result: 'pass', defectTypes: ['cosmetic'], notes: 'Minor cosmetic issues on 2 units, within acceptable limits.', date: new Date().toISOString() },
+    { id: '2', batchId: 'BATCH-2024-002', product: 'Power Module', sampleSize: 50, defectsFound: 8, result: 'fail', defectTypes: ['functional', 'dimensional'], notes: 'Critical dimensional variance detected. Production halted for review.', date: new Date(Date.now() - 24*60*60*1000).toISOString() },
+    { id: '3', batchId: 'BATCH-2024-003', product: 'Controller Board', sampleSize: 75, defectsFound: 0, result: 'pass', defectTypes: [], notes: 'All units passed inspection.', date: new Date(Date.now() - 48*60*60*1000).toISOString() }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

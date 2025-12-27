@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Production Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"production-scheduler","name":"Production Scheduler","icon":"�icing","desc":"Schedule and track manufacturing production runs","category":"manufacturing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.running .stat-value{color:#3b82f6}
+.stat.pending .stat-value{color:#f59e0b}
+.schedule-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.job-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.job-header{padding:15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333}
+.job-id{font-family:monospace;font-weight:600}
+.job-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.job-status.scheduled{background:#6b728033;color:#888}
+.job-status.running{background:#3b82f633;color:#3b82f6}
+.job-status.completed{background:#10b98133;color:#10b981}
+.job-status.delayed{background:#ef444433;color:#ef4444}
+.job-body{padding:15px}
+.job-product{font-size:1.125rem;font-weight:500;margin-bottom:10px}
+.job-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem}
+.detail-item span{display:block;color:#888;font-size:.75rem}
+.progress-section{margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.progress-header{display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:8px}
+.progress-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:#10b981;border-radius:4px;transition:width .3s}
+.line-info{display:flex;align-items:center;gap:10px;margin-top:15px;padding:10px;background:#252525;border-radius:6px}
+.line-icon{font-size:1.5rem}
+.job-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-danger{background:#ef4444;color:#fff}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>�icing Production Scheduler</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Schedule Job</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalJobs">0</div><div class="stat-label">Total Jobs</div></div>
+<div class="stat running"><div class="stat-value" id="runningJobs">0</div><div class="stat-label">Running</div></div>
+<div class="stat pending"><div class="stat-value" id="scheduledJobs">0</div><div class="stat-label">Scheduled</div></div>
+<div class="stat"><div class="stat-value" id="completedToday">0</div><div class="stat-label">Completed Today</div></div>
+</div>
+
+<div class="schedule-grid" id="scheduleGrid"></div>
+
+<div class="modal" id="jobModal">
+<div class="modal-content">
+<h2>Schedule Production Job</h2>
+<form id="jobForm">
+<div class="form-group">
+<label>Product Name</label>
+<input type="text" id="productName" required placeholder="Widget Assembly">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Quantity</label>
+<input type="number" id="quantity" min="1" required>
+</div>
+<div class="form-group">
+<label>Priority</label>
+<select id="priority">
+<option value="low">Low</option>
+<option value="normal" selected>Normal</option>
+<option value="high">High</option>
+<option value="urgent">Urgent</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Production Line</label>
+<select id="productionLine">
+<option value="line-1">Line 1 - Assembly</option>
+<option value="line-2">Line 2 - Packaging</option>
+<option value="line-3">Line 3 - Testing</option>
+<option value="line-4">Line 4 - CNC</option>
+</select>
+</div>
+<div class="form-group">
+<label>Est. Duration (hrs)</label>
+<input type="number" id="duration" min="0.5" step="0.5" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Start Date</label>
+<input type="date" id="startDate" required>
+</div>
+<div class="form-group">
+<label>Start Time</label>
+<input type="time" id="startTime" required>
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Schedule Job</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_production';
+let jobs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const lineInfo = {
+  'line-1': { name: 'Line 1 - Assembly', icon: '🔧' },
+  'line-2': { name: 'Line 2 - Packaging', icon: '📦' },
+  'line-3': { name: 'Line 3 - Testing', icon: '🔬' },
+  'line-4': { name: 'Line 4 - CNC', icon: '⚙️' }
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+}
+
+function generateJobId() {
+  return 'JOB-' + Date.now().toString(36).toUpperCase();
+}
+
+function updateStats() {
+  const today = new Date().toDateString();
+  const running = jobs.filter(j => j.status === 'running').length;
+  const scheduled = jobs.filter(j => j.status === 'scheduled').length;
+  const completedToday = jobs.filter(j =>
+    j.status === 'completed' && new Date(j.completedAt).toDateString() === today
+  ).length;
+
+  document.getElementById('totalJobs').textContent = jobs.length;
+  document.getElementById('runningJobs').textContent = running;
+  document.getElementById('scheduledJobs').textContent = scheduled;
+  document.getElementById('completedToday').textContent = completedToday;
+}
+
+function render() {
+  const grid = document.getElementById('scheduleGrid');
+  const activeJobs = jobs.filter(j => j.status !== 'completed').sort((a, b) => {
+    const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+
+  if (activeJobs.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No active production jobs</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = activeJobs.map(job => {
+    const line = lineInfo[job.line];
+    const progress = job.status === 'completed' ? 100 : job.status === 'running' ? job.progress || 0 : 0;
+
+    return `
+      <div class="job-card">
+        <div class="job-header">
+          <span class="job-id">${job.id}</span>
+          <span class="job-status ${job.status}">${job.status}</span>
+        </div>
+        <div class="job-body">
+          <div class="job-product">${job.product}</div>
+          <div class="job-details">
+            <div class="detail-item"><span>Quantity</span>${job.quantity.toLocaleString()} units</div>
+            <div class="detail-item"><span>Priority</span><span style="text-transform:capitalize">${job.priority}</span></div>
+            <div class="detail-item"><span>Scheduled</span>${new Date(job.startDate).toLocaleDateString()}</div>
+            <div class="detail-item"><span>Duration</span>${job.duration} hrs</div>
+          </div>
+          <div class="progress-section">
+            <div class="progress-header">
+              <span>Progress</span>
+              <span>${progress}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${progress}%"></div>
+            </div>
+          </div>
+          <div class="line-info">
+            <span class="line-icon">${line.icon}</span>
+            <span>${line.name}</span>
+          </div>
+        </div>
+        <div class="job-actions">
+          ${job.status === 'scheduled' ? `<button class="btn btn-primary" onclick="startJob('${job.id}')">▶ Start</button>` : ''}
+          ${job.status === 'running' ? `
+            <button class="btn btn-primary" onclick="updateProgress('${job.id}')">📊 Update</button>
+            <button class="btn btn-secondary" onclick="completeJob('${job.id}')">✓ Complete</button>
+          ` : ''}
+          <button class="btn btn-secondary" onclick="deleteJob('${job.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  const now = new Date();
+  document.getElementById('startDate').value = now.toISOString().split('T')[0];
+  document.getElementById('startTime').value = now.toTimeString().slice(0, 5);
+  document.getElementById('jobModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('jobModal').classList.remove('active');
+}
+
+document.getElementById('jobForm').addEventListener('submit', e => {
+  e.preventDefault();
+  jobs.push({
+    id: generateJobId(),
+    product: document.getElementById('productName').value,
+    quantity: parseInt(document.getElementById('quantity').value),
+    priority: document.getElementById('priority').value,
+    line: document.getElementById('productionLine').value,
+    duration: parseFloat(document.getElementById('duration').value),
+    startDate: `${document.getElementById('startDate').value}T${document.getElementById('startTime').value}`,
+    status: 'scheduled',
+    progress: 0,
+    createdAt: new Date().toISOString()
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function startJob(id) {
+  const job = jobs.find(j => j.id === id);
+  if (job) {
+    job.status = 'running';
+    job.startedAt = new Date().toISOString();
+    save();
+    render();
+  }
+}
+
+function updateProgress(id) {
+  const job = jobs.find(j => j.id === id);
+  if (job) {
+    const progress = prompt('Enter current progress (0-100):', job.progress);
+    if (progress !== null) {
+      job.progress = Math.min(100, Math.max(0, parseInt(progress) || 0));
+      save();
+      render();
+    }
+  }
+}
+
+function completeJob(id) {
+  const job = jobs.find(j => j.id === id);
+  if (job) {
+    job.status = 'completed';
+    job.progress = 100;
+    job.completedAt = new Date().toISOString();
+    save();
+    render();
+  }
+}
+
+function deleteJob(id) {
+  if (confirm('Delete this job?')) {
+    jobs = jobs.filter(j => j.id !== id);
+    save();
+    render();
+  }
+}
+
+// Seed data
+if (jobs.length === 0) {
+  jobs = [
+    { id: 'JOB-001', product: 'Smart Sensor Assembly', quantity: 500, priority: 'high', line: 'line-1', duration: 4, startDate: new Date().toISOString(), status: 'running', progress: 65, createdAt: new Date().toISOString(), startedAt: new Date().toISOString() },
+    { id: 'JOB-002', product: 'Controller Unit v2', quantity: 200, priority: 'normal', line: 'line-4', duration: 6, startDate: new Date(Date.now() + 2*60*60*1000).toISOString(), status: 'scheduled', progress: 0, createdAt: new Date().toISOString() },
+    { id: 'JOB-003', product: 'Power Module Pack', quantity: 1000, priority: 'urgent', line: 'line-2', duration: 3, startDate: new Date().toISOString(), status: 'running', progress: 30, createdAt: new Date().toISOString(), startedAt: new Date().toISOString() }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Policy Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"policy-manager","name":"Policy Manager","icon":"📄","desc":"Manage insurance policies and coverage","category":"insurance","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888;display:flex;align-items:center;gap:8px}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.policies-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px}
+.policy-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.policy-header{padding:20px;background:linear-gradient(135deg,#1a1a1a,#252525);border-bottom:1px solid #333;display:flex;align-items:center;gap:15px}
+.policy-icon{font-size:2.5rem}
+.policy-info h3{font-size:1.125rem;margin-bottom:5px}
+.policy-number{font-family:monospace;color:#888;font-size:.875rem}
+.policy-body{padding:20px}
+.coverage-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #252525}
+.coverage-item:last-child{border:none}
+.coverage-label{color:#888}
+.coverage-value{font-weight:500}
+.policy-dates{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.date-item span{display:block;color:#888;font-size:.75rem;margin-bottom:3px}
+.policy-status{display:inline-block;padding:4px 10px;border-radius:4px;font-size:.75rem;margin-top:10px}
+.policy-status.active{background:#10b98133;color:#10b981}
+.policy-status.expiring{background:#f59e0b33;color:#f59e0b}
+.policy-status.expired{background:#ef444433;color:#ef4444}
+.policy-footer{padding:15px 20px;background:#252525;display:flex;gap:10px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📄 Policy Manager</h1>
+<button class="btn btn-primary" onclick="showModal()">+ New Policy</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalPolicies">0</div><div class="stat-label">Total Policies</div></div>
+<div class="stat"><div class="stat-value" id="activePolicies">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value" id="expiringPolicies">0</div><div class="stat-label">Expiring Soon</div></div>
+<div class="stat"><div class="stat-value" id="totalPremium">$0</div><div class="stat-label">Monthly Premium</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-type="all">📋 All</div>
+<div class="tab" data-type="auto">🚗 Auto</div>
+<div class="tab" data-type="health">🏥 Health</div>
+<div class="tab" data-type="home">🏠 Home</div>
+<div class="tab" data-type="life">❤️ Life</div>
+</div>
+
+<div class="policies-grid" id="policiesGrid"></div>
+
+<div class="modal" id="policyModal">
+<div class="modal-content">
+<h2>Add Policy</h2>
+<form id="policyForm">
+<div class="form-group">
+<label>Policy Type</label>
+<select id="policyType">
+<option value="auto">🚗 Auto Insurance</option>
+<option value="health">🏥 Health Insurance</option>
+<option value="home">🏠 Home Insurance</option>
+<option value="life">❤️ Life Insurance</option>
+</select>
+</div>
+<div class="form-group">
+<label>Provider</label>
+<input type="text" id="policyProvider" required placeholder="Insurance Company">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Coverage Amount</label>
+<input type="number" id="coverageAmount" min="0" required>
+</div>
+<div class="form-group">
+<label>Monthly Premium</label>
+<input type="number" id="monthlyPremium" min="0" step="0.01" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Start Date</label>
+<input type="date" id="startDate" required>
+</div>
+<div class="form-group">
+<label>End Date</label>
+<input type="date" id="endDate" required>
+</div>
+</div>
+<div class="form-group">
+<label>Deductible</label>
+<input type="number" id="deductible" min="0">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Policy</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_policies';
+let policies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentType = 'all';
+
+const typeIcons = { auto: '🚗', health: '🏥', home: '🏠', life: '❤️' };
+const typeNames = { auto: 'Auto Insurance', health: 'Health Insurance', home: 'Home Insurance', life: 'Life Insurance' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(policies));
+}
+
+function generatePolicyNumber(type) {
+  return `POL-${type.toUpperCase().slice(0,3)}-${Date.now().toString(36).toUpperCase()}`;
+}
+
+function getStatus(endDate) {
+  const end = new Date(endDate);
+  const now = new Date();
+  const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+  if (daysLeft < 0) return 'expired';
+  if (daysLeft < 30) return 'expiring';
+  return 'active';
+}
+
+function updateStats() {
+  const active = policies.filter(p => getStatus(p.endDate) === 'active').length;
+  const expiring = policies.filter(p => getStatus(p.endDate) === 'expiring').length;
+  const premium = policies.reduce((sum, p) => sum + p.premium, 0);
+
+  document.getElementById('totalPolicies').textContent = policies.length;
+  document.getElementById('activePolicies').textContent = active;
+  document.getElementById('expiringPolicies').textContent = expiring;
+  document.getElementById('totalPremium').textContent = '$' + premium.toLocaleString();
+}
+
+function render() {
+  const filtered = currentType === 'all' ? policies :
+    policies.filter(p => p.type === currentType);
+  const grid = document.getElementById('policiesGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No policies found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(policy => {
+    const status = getStatus(policy.endDate);
+    return `
+      <div class="policy-card">
+        <div class="policy-header">
+          <div class="policy-icon">${typeIcons[policy.type]}</div>
+          <div class="policy-info">
+            <h3>${typeNames[policy.type]}</h3>
+            <div class="policy-number">${policy.number}</div>
+          </div>
+        </div>
+        <div class="policy-body">
+          <div class="coverage-item">
+            <span class="coverage-label">Provider</span>
+            <span class="coverage-value">${policy.provider}</span>
+          </div>
+          <div class="coverage-item">
+            <span class="coverage-label">Coverage</span>
+            <span class="coverage-value">$${policy.coverage.toLocaleString()}</span>
+          </div>
+          <div class="coverage-item">
+            <span class="coverage-label">Premium</span>
+            <span class="coverage-value">$${policy.premium}/mo</span>
+          </div>
+          <div class="coverage-item">
+            <span class="coverage-label">Deductible</span>
+            <span class="coverage-value">$${policy.deductible.toLocaleString()}</span>
+          </div>
+          <div class="policy-dates">
+            <div class="date-item">
+              <span>Start Date</span>
+              ${new Date(policy.startDate).toLocaleDateString()}
+            </div>
+            <div class="date-item">
+              <span>End Date</span>
+              ${new Date(policy.endDate).toLocaleDateString()}
+            </div>
+          </div>
+          <span class="policy-status ${status}">${status === 'expiring' ? 'Expiring Soon' : status}</span>
+        </div>
+        <div class="policy-footer">
+          <button class="btn btn-secondary" onclick="renewPolicy('${policy.id}')">🔄 Renew</button>
+          <button class="btn btn-secondary" onclick="deletePolicy('${policy.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  const today = new Date();
+  const nextYear = new Date(today);
+  nextYear.setFullYear(today.getFullYear() + 1);
+  document.getElementById('startDate').value = today.toISOString().split('T')[0];
+  document.getElementById('endDate').value = nextYear.toISOString().split('T')[0];
+  document.getElementById('policyModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('policyModal').classList.remove('active');
+}
+
+document.getElementById('policyForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const type = document.getElementById('policyType').value;
+  policies.push({
+    id: Date.now().toString(),
+    number: generatePolicyNumber(type),
+    type,
+    provider: document.getElementById('policyProvider').value,
+    coverage: parseFloat(document.getElementById('coverageAmount').value),
+    premium: parseFloat(document.getElementById('monthlyPremium').value),
+    startDate: document.getElementById('startDate').value,
+    endDate: document.getElementById('endDate').value,
+    deductible: parseFloat(document.getElementById('deductible').value) || 0
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function renewPolicy(id) {
+  const policy = policies.find(p => p.id === id);
+  if (policy) {
+    const start = new Date();
+    const end = new Date(start);
+    end.setFullYear(start.getFullYear() + 1);
+    policy.startDate = start.toISOString().split('T')[0];
+    policy.endDate = end.toISOString().split('T')[0];
+    save();
+    render();
+  }
+}
+
+function deletePolicy(id) {
+  if (confirm('Delete this policy?')) {
+    policies = policies.filter(p => p.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentType = tab.dataset.type;
+    render();
+  });
+});
+
+// Seed data
+if (policies.length === 0) {
+  const today = new Date();
+  const inSixMonths = new Date(today); inSixMonths.setMonth(today.getMonth() + 6);
+  const inYear = new Date(today); inYear.setFullYear(today.getFullYear() + 1);
+  const inTwoWeeks = new Date(today); inTwoWeeks.setDate(today.getDate() + 14);
+
+  policies = [
+    { id: '1', number: 'POL-AUT-5521', type: 'auto', provider: 'SafeDrive Insurance', coverage: 100000, premium: 125, startDate: '2024-01-01', endDate: inYear.toISOString().split('T')[0], deductible: 500 },
+    { id: '2', number: 'POL-HLT-3342', type: 'health', provider: 'HealthFirst', coverage: 500000, premium: 450, startDate: '2024-06-01', endDate: inSixMonths.toISOString().split('T')[0], deductible: 1500 },
+    { id: '3', number: 'POL-HOM-7789', type: 'home', provider: 'HomeShield', coverage: 350000, premium: 175, startDate: '2024-03-15', endDate: inTwoWeeks.toISOString().split('T')[0], deductible: 1000 }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

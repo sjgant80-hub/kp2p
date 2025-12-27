@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subscriber Management - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"subscriber-management","name":"Subscriber Management","icon":"👥","desc":"Manage telecom subscribers and service plans","category":"telecom","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar{flex:1;max-width:400px;display:flex;gap:10px}
+.search-bar input{flex:1;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.subscribers-table{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.table-header{display:grid;grid-template-columns:60px 1fr 150px 120px 100px 100px 80px;padding:15px 20px;background:#252525;font-weight:600;font-size:.875rem;color:#888}
+.table-row{display:grid;grid-template-columns:60px 1fr 150px 120px 100px 100px 80px;padding:12px 20px;border-top:1px solid #333;align-items:center}
+.table-row:hover{background:#252525}
+.subscriber-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#10b981,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:600}
+.subscriber-info{display:flex;flex-direction:column}
+.subscriber-name{font-weight:500}
+.subscriber-email{font-size:.75rem;color:#888}
+.subscriber-phone{font-family:monospace;font-size:.875rem}
+.plan-badge{padding:4px 10px;border-radius:4px;font-size:.75rem;text-align:center}
+.plan-badge.basic{background:#6b728033;color:#888}
+.plan-badge.standard{background:#3b82f633;color:#3b82f6}
+.plan-badge.premium{background:#10b98133;color:#10b981}
+.plan-badge.enterprise{background:#8b5cf633;color:#8b5cf6}
+.status-badge{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status-badge.active{background:#10b98133;color:#10b981}
+.status-badge.suspended{background:#f59e0b33;color:#f59e0b}
+.status-badge.cancelled{background:#ef444433;color:#ef4444}
+.usage-bar{width:100%;height:6px;background:#333;border-radius:3px;overflow:hidden}
+.usage-fill{height:100%;background:#10b981;border-radius:3px}
+.usage-fill.high{background:#f59e0b}
+.usage-fill.exceeded{background:#ef4444}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-sm{padding:4px 8px;font-size:.75rem}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.pagination{display:flex;justify-content:center;gap:5px;margin-top:20px}
+.page-btn{padding:8px 12px;background:#252525;border:1px solid #333;border-radius:6px;cursor:pointer;color:#e0e0e0}
+.page-btn.active{background:#10b981;border-color:#10b981}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>👥 Subscriber Management</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search subscribers..." oninput="render()">
+</div>
+<button class="btn btn-primary" onclick="showModal()">+ Add Subscriber</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalSubscribers">0</div><div class="stat-label">Total Subscribers</div></div>
+<div class="stat"><div class="stat-value" id="activeSubscribers">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value" id="monthlyRevenue">$0</div><div class="stat-label">Monthly Revenue</div></div>
+<div class="stat"><div class="stat-value" id="avgUsage">0%</div><div class="stat-label">Avg Usage</div></div>
+</div>
+
+<div class="subscribers-table">
+<div class="table-header">
+<div></div>
+<div>Subscriber</div>
+<div>Phone</div>
+<div>Plan</div>
+<div>Status</div>
+<div>Usage</div>
+<div>Actions</div>
+</div>
+<div id="subscribersList"></div>
+</div>
+
+<div class="modal" id="subscriberModal">
+<div class="modal-content">
+<h2>Add Subscriber</h2>
+<form id="subscriberForm">
+<div class="form-row">
+<div class="form-group">
+<label>First Name</label>
+<input type="text" id="firstName" required>
+</div>
+<div class="form-group">
+<label>Last Name</label>
+<input type="text" id="lastName" required>
+</div>
+</div>
+<div class="form-group">
+<label>Email</label>
+<input type="email" id="email" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Phone Number</label>
+<input type="tel" id="phone" required placeholder="+1 (555) 123-4567">
+</div>
+<div class="form-group">
+<label>Plan</label>
+<select id="plan">
+<option value="basic">Basic - $29/mo</option>
+<option value="standard">Standard - $49/mo</option>
+<option value="premium">Premium - $79/mo</option>
+<option value="enterprise">Enterprise - $149/mo</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Data Limit (GB)</label>
+<input type="number" id="dataLimit" min="1" value="10">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Subscriber</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_subscribers';
+let subscribers = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const planPrices = { basic: 29, standard: 49, premium: 79, enterprise: 149 };
+const planData = { basic: 5, standard: 15, premium: 50, enterprise: 100 };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(subscribers));
+}
+
+function getInitials(first, last) {
+  return (first[0] + last[0]).toUpperCase();
+}
+
+function updateStats() {
+  const active = subscribers.filter(s => s.status === 'active');
+  const revenue = active.reduce((sum, s) => sum + planPrices[s.plan], 0);
+  const avgUsage = subscribers.length > 0 ?
+    Math.round(subscribers.reduce((sum, s) => sum + s.usage, 0) / subscribers.length) : 0;
+
+  document.getElementById('totalSubscribers').textContent = subscribers.length;
+  document.getElementById('activeSubscribers').textContent = active.length;
+  document.getElementById('monthlyRevenue').textContent = '$' + revenue.toLocaleString();
+  document.getElementById('avgUsage').textContent = avgUsage + '%';
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = subscribers.filter(s =>
+    s.firstName.toLowerCase().includes(search) ||
+    s.lastName.toLowerCase().includes(search) ||
+    s.email.toLowerCase().includes(search) ||
+    s.phone.includes(search)
+  );
+
+  const list = document.getElementById('subscribersList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="padding:40px;text-align:center;color:#666">No subscribers found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.map(s => {
+    const usageClass = s.usage > 100 ? 'exceeded' : s.usage > 80 ? 'high' : '';
+    return `
+      <div class="table-row">
+        <div class="subscriber-avatar">${getInitials(s.firstName, s.lastName)}</div>
+        <div class="subscriber-info">
+          <span class="subscriber-name">${s.firstName} ${s.lastName}</span>
+          <span class="subscriber-email">${s.email}</span>
+        </div>
+        <div class="subscriber-phone">${s.phone}</div>
+        <div><span class="plan-badge ${s.plan}">${s.plan}</span></div>
+        <div><span class="status-badge ${s.status}">${s.status}</span></div>
+        <div>
+          <div class="usage-bar"><div class="usage-fill ${usageClass}" style="width:${Math.min(100, s.usage)}%"></div></div>
+          <div style="font-size:.7rem;color:#888;margin-top:3px">${s.usage}%</div>
+        </div>
+        <div>
+          <button class="btn btn-secondary btn-sm" onclick="toggleStatus('${s.id}')">${s.status === 'active' ? '⏸️' : '▶️'}</button>
+          <button class="btn btn-secondary btn-sm" onclick="deleteSubscriber('${s.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('subscriberModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('subscriberModal').classList.remove('active');
+}
+
+document.getElementById('subscriberForm').addEventListener('submit', e => {
+  e.preventDefault();
+  subscribers.push({
+    id: Date.now().toString(),
+    firstName: document.getElementById('firstName').value,
+    lastName: document.getElementById('lastName').value,
+    email: document.getElementById('email').value,
+    phone: document.getElementById('phone').value,
+    plan: document.getElementById('plan').value,
+    dataLimit: parseInt(document.getElementById('dataLimit').value),
+    usage: Math.floor(Math.random() * 60) + 10,
+    status: 'active',
+    createdAt: new Date().toISOString()
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function toggleStatus(id) {
+  const sub = subscribers.find(s => s.id === id);
+  if (sub) {
+    sub.status = sub.status === 'active' ? 'suspended' : 'active';
+    save();
+    render();
+  }
+}
+
+function deleteSubscriber(id) {
+  if (confirm('Delete this subscriber?')) {
+    subscribers = subscribers.filter(s => s.id !== id);
+    save();
+    render();
+  }
+}
+
+// Seed data
+if (subscribers.length === 0) {
+  subscribers = [
+    { id: '1', firstName: 'John', lastName: 'Smith', email: 'john.smith@email.com', phone: '+1 (555) 123-4567', plan: 'premium', dataLimit: 50, usage: 45, status: 'active', createdAt: new Date().toISOString() },
+    { id: '2', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah.j@email.com', phone: '+1 (555) 234-5678', plan: 'standard', dataLimit: 15, usage: 82, status: 'active', createdAt: new Date().toISOString() },
+    { id: '3', firstName: 'Mike', lastName: 'Williams', email: 'mike.w@email.com', phone: '+1 (555) 345-6789', plan: 'basic', dataLimit: 5, usage: 110, status: 'active', createdAt: new Date().toISOString() },
+    { id: '4', firstName: 'Emily', lastName: 'Brown', email: 'emily.b@email.com', phone: '+1 (555) 456-7890', plan: 'enterprise', dataLimit: 100, usage: 28, status: 'active', createdAt: new Date().toISOString() },
+    { id: '5', firstName: 'David', lastName: 'Davis', email: 'david.d@email.com', phone: '+1 (555) 567-8901', plan: 'standard', dataLimit: 15, usage: 65, status: 'suspended', createdAt: new Date().toISOString() }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

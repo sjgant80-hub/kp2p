@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Service Appointments - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"service-appointments","name":"Service Appointments","icon":"🔧","desc":"Schedule and manage automotive service appointments","category":"automotive","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.stat.today .stat-value{color:#3b82f6}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.appointments-list{display:flex;flex-direction:column;gap:15px}
+.appointment-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.appointment-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid #333}
+.appointment-time{display:flex;align-items:center;gap:15px}
+.time-block{text-align:center;padding:10px 15px;background:#252525;border-radius:8px}
+.time-hour{font-size:1.25rem;font-weight:bold}
+.time-date{font-size:.75rem;color:#888}
+.customer-info h3{font-weight:600}
+.customer-info span{color:#888;font-size:.875rem}
+.appointment-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.appointment-status.scheduled{background:#3b82f633;color:#3b82f6}
+.appointment-status.in-progress{background:#f59e0b33;color:#f59e0b}
+.appointment-status.completed{background:#10b98133;color:#10b981}
+.appointment-status.cancelled{background:#ef444433;color:#ef4444}
+.appointment-body{padding:20px}
+.vehicle-info{display:flex;align-items:center;gap:15px;padding:15px;background:#252525;border-radius:8px;margin-bottom:15px}
+.vehicle-icon{font-size:2rem}
+.vehicle-details h4{font-weight:500}
+.vehicle-details span{color:#888;font-size:.875rem}
+.services-list{margin-bottom:15px}
+.services-list h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.service-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #252525}
+.service-item:last-child{border:none}
+.service-name{display:flex;align-items:center;gap:8px}
+.service-price{color:#10b981;font-weight:500}
+.total-row{display:flex;justify-content:space-between;padding:15px;background:#252525;border-radius:8px;font-weight:600}
+.appointment-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.checkbox-group{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.checkbox-item{display:flex;align-items:center;gap:10px;padding:8px;background:#252525;border-radius:6px}
+.checkbox-item input{margin:0}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔧 Service Appointments</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Book Appointment</button>
+</div>
+
+<div class="stats">
+<div class="stat today"><div class="stat-value" id="todayCount">0</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value" id="scheduledCount">0</div><div class="stat-label">Scheduled</div></div>
+<div class="stat"><div class="stat-value" id="inProgressCount">0</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value" id="completedCount">0</div><div class="stat-label">Completed</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-status="all">All</div>
+<div class="tab" data-status="scheduled">Scheduled</div>
+<div class="tab" data-status="in-progress">In Progress</div>
+<div class="tab" data-status="completed">Completed</div>
+</div>
+
+<div class="appointments-list" id="appointmentsList"></div>
+
+<div class="modal" id="appointmentModal">
+<div class="modal-content">
+<h2>Book Service Appointment</h2>
+<form id="appointmentForm">
+<div class="form-group">
+<label>Customer Name</label>
+<input type="text" id="customerName" required placeholder="John Smith">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Phone</label>
+<input type="tel" id="customerPhone" required placeholder="(555) 123-4567">
+</div>
+<div class="form-group">
+<label>Email</label>
+<input type="email" id="customerEmail" placeholder="email@example.com">
+</div>
+</div>
+<div class="form-group">
+<label>Vehicle (Year Make Model)</label>
+<input type="text" id="vehicleInfo" required placeholder="2022 Toyota Camry">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="appointmentDate" required>
+</div>
+<div class="form-group">
+<label>Time</label>
+<input type="time" id="appointmentTime" required>
+</div>
+</div>
+<div class="form-group">
+<label>Services</label>
+<div class="checkbox-group">
+<label class="checkbox-item"><input type="checkbox" value="oil" data-price="49"> Oil Change - $49</label>
+<label class="checkbox-item"><input type="checkbox" value="tires" data-price="25"> Tire Rotation - $25</label>
+<label class="checkbox-item"><input type="checkbox" value="brakes" data-price="199"> Brake Inspection - $199</label>
+<label class="checkbox-item"><input type="checkbox" value="alignment" data-price="89"> Wheel Alignment - $89</label>
+<label class="checkbox-item"><input type="checkbox" value="inspection" data-price="35"> Multi-Point Inspection - $35</label>
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Book Appointment</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_service_appointments';
+let appointments = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+const serviceDetails = {
+  oil: { name: 'Oil Change', icon: '🛢️', price: 49 },
+  tires: { name: 'Tire Rotation', icon: '🔄', price: 25 },
+  brakes: { name: 'Brake Inspection', icon: '🛑', price: 199 },
+  alignment: { name: 'Wheel Alignment', icon: '⚙️', price: 89 },
+  inspection: { name: 'Multi-Point Inspection', icon: '🔍', price: 35 }
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+}
+
+function updateStats() {
+  const today = new Date().toDateString();
+  const todayCount = appointments.filter(a => new Date(a.date).toDateString() === today && a.status !== 'cancelled').length;
+  const scheduled = appointments.filter(a => a.status === 'scheduled').length;
+  const inProgress = appointments.filter(a => a.status === 'in-progress').length;
+  const completed = appointments.filter(a => a.status === 'completed').length;
+
+  document.getElementById('todayCount').textContent = todayCount;
+  document.getElementById('scheduledCount').textContent = scheduled;
+  document.getElementById('inProgressCount').textContent = inProgress;
+  document.getElementById('completedCount').textContent = completed;
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? appointments :
+    appointments.filter(a => a.status === currentFilter);
+  const list = document.getElementById('appointmentsList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No appointments found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.sort((a, b) => new Date(a.date) - new Date(b.date)).map(apt => {
+    const date = new Date(apt.date);
+    const total = apt.services.reduce((sum, s) => sum + serviceDetails[s].price, 0);
+
+    return `
+      <div class="appointment-card">
+        <div class="appointment-header">
+          <div class="appointment-time">
+            <div class="time-block">
+              <div class="time-hour">${apt.time}</div>
+              <div class="time-date">${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+            </div>
+            <div class="customer-info">
+              <h3>${apt.customerName}</h3>
+              <span>${apt.phone}</span>
+            </div>
+          </div>
+          <span class="appointment-status ${apt.status}">${apt.status.replace('-', ' ')}</span>
+        </div>
+        <div class="appointment-body">
+          <div class="vehicle-info">
+            <span class="vehicle-icon">🚗</span>
+            <div class="vehicle-details">
+              <h4>${apt.vehicle}</h4>
+              <span>Customer Vehicle</span>
+            </div>
+          </div>
+          <div class="services-list">
+            <h4>Services</h4>
+            ${apt.services.map(s => `
+              <div class="service-item">
+                <span class="service-name">${serviceDetails[s].icon} ${serviceDetails[s].name}</span>
+                <span class="service-price">$${serviceDetails[s].price}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="total-row">
+            <span>Total</span>
+            <span>$${total}</span>
+          </div>
+        </div>
+        <div class="appointment-footer">
+          ${apt.status === 'scheduled' ? `<button class="btn btn-primary" onclick="updateStatus('${apt.id}', 'in-progress')">Start Service</button>` : ''}
+          ${apt.status === 'in-progress' ? `<button class="btn btn-primary" onclick="updateStatus('${apt.id}', 'completed')">Complete</button>` : ''}
+          ${apt.status !== 'completed' && apt.status !== 'cancelled' ? `<button class="btn btn-secondary" onclick="updateStatus('${apt.id}', 'cancelled')">Cancel</button>` : ''}
+          <button class="btn btn-secondary" onclick="deleteAppointment('${apt.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('appointmentDate').value = tomorrow.toISOString().split('T')[0];
+  document.getElementById('appointmentTime').value = '09:00';
+  document.getElementById('appointmentModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('appointmentModal').classList.remove('active');
+}
+
+document.getElementById('appointmentForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const services = [...document.querySelectorAll('.checkbox-group input:checked')].map(cb => cb.value);
+
+  if (services.length === 0) {
+    alert('Please select at least one service');
+    return;
+  }
+
+  appointments.push({
+    id: Date.now().toString(),
+    customerName: document.getElementById('customerName').value,
+    phone: document.getElementById('customerPhone').value,
+    email: document.getElementById('customerEmail').value,
+    vehicle: document.getElementById('vehicleInfo').value,
+    date: document.getElementById('appointmentDate').value,
+    time: document.getElementById('appointmentTime').value,
+    services,
+    status: 'scheduled',
+    createdAt: new Date().toISOString()
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+  document.querySelectorAll('.checkbox-group input').forEach(cb => cb.checked = false);
+});
+
+function updateStatus(id, status) {
+  const apt = appointments.find(a => a.id === id);
+  if (apt) {
+    apt.status = status;
+    save();
+    render();
+  }
+}
+
+function deleteAppointment(id) {
+  if (confirm('Delete this appointment?')) {
+    appointments = appointments.filter(a => a.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.status;
+    render();
+  });
+});
+
+// Seed data
+if (appointments.length === 0) {
+  const today = new Date();
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
+  appointments = [
+    { id: '1', customerName: 'John Smith', phone: '(555) 123-4567', email: 'john@email.com', vehicle: '2022 Toyota Camry', date: today.toISOString().split('T')[0], time: '09:00', services: ['oil', 'tires'], status: 'in-progress', createdAt: new Date().toISOString() },
+    { id: '2', customerName: 'Sarah Johnson', phone: '(555) 987-6543', email: 'sarah@email.com', vehicle: '2021 Honda CR-V', date: today.toISOString().split('T')[0], time: '11:30', services: ['brakes', 'inspection'], status: 'scheduled', createdAt: new Date().toISOString() },
+    { id: '3', customerName: 'Mike Davis', phone: '(555) 456-7890', email: 'mike@email.com', vehicle: '2020 Ford F-150', date: tomorrow.toISOString().split('T')[0], time: '14:00', services: ['oil', 'alignment', 'tires'], status: 'scheduled', createdAt: new Date().toISOString() }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>
