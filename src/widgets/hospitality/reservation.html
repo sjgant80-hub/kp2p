@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reservation System - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"reservation","name":"Reservation System","icon":"🛎️","desc":"Manage hotel and restaurant reservations","category":"hospitality","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.date-nav{display:flex;align-items:center;gap:10px}
+.date-nav button{padding:8px 12px;background:#333;border:none;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.date-nav span{font-size:1.125rem;min-width:180px;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-value.warning{color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-danger{background:#ef4444;color:#fff}
+.reservations{display:flex;flex-direction:column;gap:10px}
+.reservation-card{display:flex;align-items:center;gap:15px;background:#1a1a1a;padding:15px;border-radius:12px;border:1px solid #333}
+.res-time{background:#252525;padding:10px 15px;border-radius:8px;text-align:center;min-width:80px}
+.res-time .time{font-size:1.25rem;font-weight:bold}
+.res-time .period{font-size:.75rem;color:#888}
+.res-info{flex:1}
+.res-name{font-weight:600;margin-bottom:3px}
+.res-details{font-size:.875rem;color:#888;display:flex;gap:15px}
+.res-status{padding:4px 10px;border-radius:12px;font-size:.75rem}
+.res-status.confirmed{background:#10b98133;color:#10b981}
+.res-status.pending{background:#f59e0b33;color:#f59e0b}
+.res-status.seated{background:#3b82f633;color:#3b82f6}
+.res-status.completed{background:#6b728033;color:#888}
+.res-status.cancelled{background:#ef444433;color:#ef4444}
+.res-actions{display:flex;gap:8px}
+.timeline{display:grid;grid-template-columns:80px 1fr;gap:1px;background:#333;border-radius:12px;overflow:hidden}
+.timeline-hour{background:#1a1a1a;padding:10px;text-align:center;color:#888;font-size:.875rem}
+.timeline-slots{background:#1a1a1a;padding:10px;display:flex;gap:5px;flex-wrap:wrap}
+.slot{padding:5px 10px;background:#252525;border-radius:4px;font-size:.75rem;cursor:pointer}
+.slot.booked{background:#10b98133;color:#10b981}
+.slot:hover{background:#333}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.empty{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🛎️ Reservations</h1>
+<div class="date-nav">
+<button onclick="changeDate(-1)">←</button>
+<span id="currentDate"></span>
+<button onclick="changeDate(1)">→</button>
+</div>
+<button class="btn btn-primary" onclick="showModal()">+ New Reservation</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="todayCount">0</div><div class="stat-label">Today's Reservations</div></div>
+<div class="stat"><div class="stat-value" id="guestsCount">0</div><div class="stat-label">Expected Guests</div></div>
+<div class="stat"><div class="stat-value warning" id="pendingCount">0</div><div class="stat-label">Pending Confirm</div></div>
+<div class="stat"><div class="stat-value" id="occupancy">0%</div><div class="stat-label">Occupancy</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-view="list">📋 List View</div>
+<div class="tab" data-view="timeline">📊 Timeline</div>
+</div>
+
+<div id="listView" class="reservations"></div>
+<div id="timelineView" class="timeline" style="display:none"></div>
+
+<div class="modal" id="resModal">
+<div class="modal-content">
+<h2 id="modalTitle">New Reservation</h2>
+<form id="resForm">
+<input type="hidden" id="resId">
+<div class="form-row">
+<div class="form-group">
+<label>Guest Name</label>
+<input type="text" id="guestName" required>
+</div>
+<div class="form-group">
+<label>Phone</label>
+<input type="tel" id="guestPhone">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="resDate" required>
+</div>
+<div class="form-group">
+<label>Time</label>
+<input type="time" id="resTime" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Party Size</label>
+<select id="partySize">
+<option value="1">1 Guest</option>
+<option value="2" selected>2 Guests</option>
+<option value="3">3 Guests</option>
+<option value="4">4 Guests</option>
+<option value="5">5 Guests</option>
+<option value="6">6 Guests</option>
+<option value="7">7 Guests</option>
+<option value="8">8+ Guests</option>
+</select>
+</div>
+<div class="form-group">
+<label>Table/Room</label>
+<select id="tableNum">
+<option value="">Auto-assign</option>
+<option value="1">Table 1</option>
+<option value="2">Table 2</option>
+<option value="3">Table 3</option>
+<option value="4">Table 4</option>
+<option value="5">Table 5</option>
+<option value="patio">Patio</option>
+<option value="private">Private Room</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Special Requests</label>
+<textarea id="resNotes" rows="2" placeholder="Birthday, dietary restrictions, etc."></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Save Reservation</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_reservations';
+let reservations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentDate = new Date();
+let currentView = 'list';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reservations));
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+function formatTime(timeStr) {
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h);
+  return {
+    time: (hour % 12 || 12) + ':' + m,
+    period: hour >= 12 ? 'PM' : 'AM'
+  };
+}
+
+function updateDateDisplay() {
+  document.getElementById('currentDate').textContent = formatDate(currentDate);
+}
+
+function changeDate(delta) {
+  currentDate.setDate(currentDate.getDate() + delta);
+  updateDateDisplay();
+  render();
+}
+
+function updateStats() {
+  const dateStr = currentDate.toISOString().split('T')[0];
+  const todayRes = reservations.filter(r => r.date === dateStr);
+  const pending = todayRes.filter(r => r.status === 'pending');
+  const guests = todayRes.reduce((sum, r) => sum + parseInt(r.partySize), 0);
+  const maxCapacity = 50; // Example capacity
+
+  document.getElementById('todayCount').textContent = todayRes.length;
+  document.getElementById('guestsCount').textContent = guests;
+  document.getElementById('pendingCount').textContent = pending.length;
+  document.getElementById('occupancy').textContent = Math.round((guests / maxCapacity) * 100) + '%';
+}
+
+function render() {
+  if (currentView === 'list') {
+    renderList();
+  } else {
+    renderTimeline();
+  }
+  updateStats();
+}
+
+function renderList() {
+  const dateStr = currentDate.toISOString().split('T')[0];
+  const dayRes = reservations
+    .filter(r => r.date === dateStr)
+    .sort((a, b) => a.time.localeCompare(b.time));
+
+  const list = document.getElementById('listView');
+
+  if (dayRes.length === 0) {
+    list.innerHTML = '<div class="empty">No reservations for this day</div>';
+    return;
+  }
+
+  list.innerHTML = dayRes.map(res => {
+    const time = formatTime(res.time);
+    return `
+      <div class="reservation-card">
+        <div class="res-time">
+          <div class="time">${time.time}</div>
+          <div class="period">${time.period}</div>
+        </div>
+        <div class="res-info">
+          <div class="res-name">${res.guestName}</div>
+          <div class="res-details">
+            <span>👥 ${res.partySize} guests</span>
+            <span>📍 ${res.table || 'TBA'}</span>
+            ${res.phone ? `<span>📞 ${res.phone}</span>` : ''}
+          </div>
+          ${res.notes ? `<div style="font-size:.75rem;color:#666;margin-top:5px">${res.notes}</div>` : ''}
+        </div>
+        <span class="res-status ${res.status}">${res.status}</span>
+        <div class="res-actions">
+          ${res.status === 'pending' ? `<button class="btn btn-primary" onclick="updateStatus('${res.id}', 'confirmed')">✓</button>` : ''}
+          ${res.status === 'confirmed' ? `<button class="btn btn-primary" onclick="updateStatus('${res.id}', 'seated')">🪑</button>` : ''}
+          ${res.status === 'seated' ? `<button class="btn btn-primary" onclick="updateStatus('${res.id}', 'completed')">✓</button>` : ''}
+          <button class="btn btn-secondary" onclick="editRes('${res.id}')">✏️</button>
+          <button class="btn btn-danger" onclick="cancelRes('${res.id}')">✗</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTimeline() {
+  const dateStr = currentDate.toISOString().split('T')[0];
+  const dayRes = reservations.filter(r => r.date === dateStr);
+  const timeline = document.getElementById('timelineView');
+
+  let html = '';
+  for (let hour = 11; hour <= 22; hour++) {
+    const hourStr = hour.toString().padStart(2, '0');
+    const hourRes = dayRes.filter(r => r.time.startsWith(hourStr));
+    const displayHour = hour > 12 ? hour - 12 : hour;
+    const period = hour >= 12 ? 'PM' : 'AM';
+
+    html += `
+      <div class="timeline-hour">${displayHour} ${period}</div>
+      <div class="timeline-slots">
+        ${hourRes.map(r => `
+          <div class="slot booked" onclick="editRes('${r.id}')">${r.guestName} (${r.partySize})</div>
+        `).join('') || '<div class="slot" onclick="quickBook(\'${hourStr}:00\')">Available</div>'}
+      </div>
+    `;
+  }
+
+  timeline.innerHTML = html;
+}
+
+function showModal(res = null) {
+  document.getElementById('modalTitle').textContent = res ? 'Edit Reservation' : 'New Reservation';
+  document.getElementById('resId').value = res?.id || '';
+  document.getElementById('guestName').value = res?.guestName || '';
+  document.getElementById('guestPhone').value = res?.phone || '';
+  document.getElementById('resDate').value = res?.date || currentDate.toISOString().split('T')[0];
+  document.getElementById('resTime').value = res?.time || '19:00';
+  document.getElementById('partySize').value = res?.partySize || '2';
+  document.getElementById('tableNum').value = res?.table || '';
+  document.getElementById('resNotes').value = res?.notes || '';
+
+  document.getElementById('resModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('resModal').classList.remove('active');
+}
+
+document.getElementById('resForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  const id = document.getElementById('resId').value;
+  const resData = {
+    id: id || Date.now().toString(),
+    guestName: document.getElementById('guestName').value,
+    phone: document.getElementById('guestPhone').value,
+    date: document.getElementById('resDate').value,
+    time: document.getElementById('resTime').value,
+    partySize: document.getElementById('partySize').value,
+    table: document.getElementById('tableNum').value,
+    notes: document.getElementById('resNotes').value,
+    status: id ? reservations.find(r => r.id === id)?.status || 'pending' : 'pending',
+    createdAt: id ? reservations.find(r => r.id === id)?.createdAt : new Date().toISOString()
+  };
+
+  if (id) {
+    const idx = reservations.findIndex(r => r.id === id);
+    if (idx !== -1) reservations[idx] = resData;
+  } else {
+    reservations.push(resData);
+  }
+
+  save();
+  render();
+  hideModal();
+});
+
+function editRes(id) {
+  const res = reservations.find(r => r.id === id);
+  if (res) showModal(res);
+}
+
+function updateStatus(id, status) {
+  const res = reservations.find(r => r.id === id);
+  if (res) {
+    res.status = status;
+    save();
+    render();
+  }
+}
+
+function cancelRes(id) {
+  if (confirm('Cancel this reservation?')) {
+    const res = reservations.find(r => r.id === id);
+    if (res) {
+      res.status = 'cancelled';
+      save();
+      render();
+    }
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentView = tab.dataset.view;
+    document.getElementById('listView').style.display = currentView === 'list' ? 'flex' : 'none';
+    document.getElementById('timelineView').style.display = currentView === 'timeline' ? 'grid' : 'none';
+    render();
+  });
+});
+
+// Seed data
+if (reservations.length === 0) {
+  const today = new Date().toISOString().split('T')[0];
+  reservations = [
+    { id: '1', guestName: 'Smith Family', phone: '555-0101', date: today, time: '18:00', partySize: '4', table: '3', notes: 'Birthday celebration', status: 'confirmed', createdAt: new Date().toISOString() },
+    { id: '2', guestName: 'Johnson', phone: '555-0102', date: today, time: '19:00', partySize: '2', table: '1', notes: '', status: 'pending', createdAt: new Date().toISOString() },
+    { id: '3', guestName: 'Chen Party', phone: '555-0103', date: today, time: '19:30', partySize: '6', table: 'private', notes: 'Business dinner', status: 'confirmed', createdAt: new Date().toISOString() }
+  ];
+  save();
+}
+
+updateDateDisplay();
+render();
+</script>
+</body>
+</html>

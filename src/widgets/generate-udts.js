@@ -228,6 +228,41 @@ const categoryMap = {
 
   // Events
   'event-builder': { category: 'events', subcategory: 'management', badge: 'ENT' },
+
+  // Additional Finance
+  'accounts-receivable': { category: 'finance', subcategory: 'receivables', badge: 'ENT' },
+  'payroll': { category: 'finance', subcategory: 'payroll', badge: 'ENT' },
+  'expense-reimbursement': { category: 'finance', subcategory: 'expenses', badge: 'ENT' },
+
+  // Additional Service
+  'knowledge-base': { category: 'service', subcategory: 'documentation', badge: 'ENT' },
+  'sla-tracker': { category: 'service', subcategory: 'sla', badge: 'ENT' },
+
+  // Additional Marketing
+  'social-scheduler': { category: 'marketing', subcategory: 'social', badge: 'ENT' },
+  'landing-page': { category: 'marketing', subcategory: 'web', badge: 'ENT' },
+
+  // Additional Legal
+  'e-signature': { category: 'legal', subcategory: 'signatures', badge: 'ENT' },
+  'compliance-tracker': { category: 'legal', subcategory: 'compliance', badge: 'ENT' },
+
+  // Real Estate
+  'property-listing': { category: 'realestate', subcategory: 'listings', badge: 'ENT' },
+
+  // Hospitality
+  'reservation': { category: 'hospitality', subcategory: 'reservations', badge: 'ENT' },
+
+  // Transport
+  'fleet-tracker': { category: 'transport', subcategory: 'fleet', badge: 'ENT' },
+
+  // Government
+  'permit-portal': { category: 'government', subcategory: 'permits', badge: 'ENT' },
+
+  // Nonprofit
+  'donor-management': { category: 'nonprofit', subcategory: 'donors', badge: 'ENT' },
+
+  // Construction
+  'project-tracker': { category: 'construction', subcategory: 'projects', badge: 'ENT' },
 };
 
 // Default fallback values

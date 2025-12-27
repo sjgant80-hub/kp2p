@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SLA Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"sla-tracker","name":"SLA Tracker","icon":"⏱️","desc":"Monitor service level agreement compliance","category":"service","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:20px;border-radius:8px;border:1px solid #333}
+.stat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.stat-label{color:#888;font-size:.875rem}
+.stat-value{font-size:2rem;font-weight:bold}
+.stat-value.good{color:#10b981}
+.stat-value.warning{color:#f59e0b}
+.stat-value.danger{color:#ef4444}
+.progress-bar{height:8px;background:#333;border-radius:4px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;border-radius:4px;transition:width .3s}
+.progress-fill.good{background:#10b981}
+.progress-fill.warning{background:#f59e0b}
+.progress-fill.danger{background:#ef4444}
+.sla-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;margin-bottom:20px}
+.sla-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.sla-header{padding:15px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+.sla-name{font-weight:600}
+.sla-status{padding:4px 10px;border-radius:12px;font-size:.75rem;font-weight:500}
+.sla-status.met{background:#10b98133;color:#10b981}
+.sla-status.at-risk{background:#f59e0b33;color:#f59e0b}
+.sla-status.breached{background:#ef444433;color:#ef4444}
+.sla-body{padding:15px}
+.sla-metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:15px}
+.metric{text-align:center}
+.metric-value{font-size:1.5rem;font-weight:bold;font-family:monospace}
+.metric-label{font-size:.75rem;color:#888}
+.sla-chart{height:60px;margin-top:15px;display:flex;align-items:end;gap:2px}
+.chart-bar{flex:1;background:#333;border-radius:2px 2px 0 0;transition:height .3s}
+.chart-bar.good{background:#10b981}
+.chart-bar.warning{background:#f59e0b}
+.chart-bar.danger{background:#ef4444}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.incidents{margin-top:20px}
+.incidents h3{margin-bottom:15px;font-size:1rem}
+.incident-list{display:flex;flex-direction:column;gap:10px}
+.incident{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#1a1a1a;border-radius:8px;border:1px solid #333}
+.incident-info{flex:1}
+.incident-title{font-weight:500}
+.incident-meta{font-size:.75rem;color:#888;margin-top:3px}
+.incident-time{font-family:monospace;font-size:.875rem}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>⏱️ SLA Tracker</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add SLA</button>
+</div>
+
+<div class="stats">
+<div class="stat">
+<div class="stat-header">
+<span class="stat-label">Overall Compliance</span>
+<span class="stat-value good" id="overallCompliance">98.5%</span>
+</div>
+<div class="progress-bar"><div class="progress-fill good" id="complianceBar" style="width:98.5%"></div></div>
+</div>
+<div class="stat">
+<div class="stat-header">
+<span class="stat-label">SLAs Met</span>
+<span class="stat-value good" id="slasMet">12/13</span>
+</div>
+</div>
+<div class="stat">
+<div class="stat-header">
+<span class="stat-label">At Risk</span>
+<span class="stat-value warning" id="atRisk">1</span>
+</div>
+</div>
+<div class="stat">
+<div class="stat-header">
+<span class="stat-label">Breached (30d)</span>
+<span class="stat-value danger" id="breached">0</span>
+</div>
+</div>
+</div>
+
+<div class="sla-grid" id="slaGrid"></div>
+
+<div class="incidents">
+<h3>Recent Incidents</h3>
+<div class="incident-list" id="incidentList"></div>
+</div>
+
+<div class="modal" id="slaModal">
+<div class="modal-content">
+<h2>Add SLA</h2>
+<form id="slaForm">
+<div class="form-group">
+<label>SLA Name</label>
+<input type="text" id="slaName" placeholder="e.g., Response Time" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Metric Type</label>
+<select id="slaType">
+<option value="response">Response Time</option>
+<option value="resolution">Resolution Time</option>
+<option value="uptime">Uptime</option>
+<option value="availability">Availability</option>
+<option value="throughput">Throughput</option>
+</select>
+</div>
+<div class="form-group">
+<label>Target</label>
+<input type="text" id="slaTarget" placeholder="e.g., < 4 hours, 99.9%" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Current Value</label>
+<input type="text" id="slaCurrent" placeholder="e.g., 2.5 hours, 99.95%">
+</div>
+<div class="form-group">
+<label>Priority</label>
+<select id="slaPriority">
+<option value="critical">Critical</option>
+<option value="high">High</option>
+<option value="medium" selected>Medium</option>
+<option value="low">Low</option>
+</select>
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add SLA</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_sla_tracker';
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+  slas: [
+    { id: '1', name: 'First Response Time', type: 'response', target: '< 1 hour', current: '45 min', compliance: 99.2, priority: 'critical', history: [98, 99, 99, 100, 99, 98, 99] },
+    { id: '2', name: 'Resolution Time (P1)', type: 'resolution', target: '< 4 hours', current: '3.2 hours', compliance: 97.5, priority: 'critical', history: [95, 97, 98, 99, 96, 98, 97] },
+    { id: '3', name: 'Resolution Time (P2)', type: 'resolution', target: '< 24 hours', current: '18 hours', compliance: 98.8, priority: 'high', history: [99, 98, 99, 100, 98, 99, 99] },
+    { id: '4', name: 'System Uptime', type: 'uptime', target: '99.9%', current: '99.95%', compliance: 100, priority: 'critical', history: [100, 100, 100, 100, 100, 99, 100] },
+    { id: '5', name: 'API Response Time', type: 'response', target: '< 200ms', current: '145ms', compliance: 99.8, priority: 'high', history: [99, 100, 99, 100, 100, 99, 100] },
+    { id: '6', name: 'Customer Satisfaction', type: 'availability', target: '> 90%', current: '92%', compliance: 95.0, priority: 'medium', history: [94, 92, 95, 93, 96, 95, 95] }
+  ],
+  incidents: [
+    { id: '1', slaId: '2', title: 'P1 ticket exceeded target', time: '2:15 over', date: '2024-12-26' },
+    { id: '2', slaId: '4', title: 'Brief outage during deployment', time: '3 min', date: '2024-12-20' }
+  ]
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getStatus(compliance) {
+  if (compliance >= 99) return 'met';
+  if (compliance >= 95) return 'at-risk';
+  return 'breached';
+}
+
+function getStatusClass(compliance) {
+  if (compliance >= 99) return 'good';
+  if (compliance >= 95) return 'warning';
+  return 'danger';
+}
+
+function updateStats() {
+  const total = data.slas.length;
+  const met = data.slas.filter(s => s.compliance >= 95).length;
+  const atRisk = data.slas.filter(s => s.compliance >= 90 && s.compliance < 95).length;
+  const breached = data.slas.filter(s => s.compliance < 90).length;
+  const avgCompliance = (data.slas.reduce((sum, s) => sum + s.compliance, 0) / total).toFixed(1);
+
+  document.getElementById('overallCompliance').textContent = avgCompliance + '%';
+  document.getElementById('overallCompliance').className = 'stat-value ' + getStatusClass(avgCompliance);
+  document.getElementById('complianceBar').style.width = avgCompliance + '%';
+  document.getElementById('complianceBar').className = 'progress-fill ' + getStatusClass(avgCompliance);
+  document.getElementById('slasMet').textContent = `${met}/${total}`;
+  document.getElementById('atRisk').textContent = atRisk;
+  document.getElementById('breached').textContent = breached;
+}
+
+function render() {
+  const grid = document.getElementById('slaGrid');
+
+  grid.innerHTML = data.slas.map(sla => {
+    const status = getStatus(sla.compliance);
+    const statusClass = getStatusClass(sla.compliance);
+
+    return `
+      <div class="sla-card">
+        <div class="sla-header">
+          <span class="sla-name">${sla.name}</span>
+          <span class="sla-status ${status}">${status.toUpperCase()}</span>
+        </div>
+        <div class="sla-body">
+          <div class="sla-metrics">
+            <div class="metric">
+              <div class="metric-value ${statusClass}">${sla.compliance}%</div>
+              <div class="metric-label">Compliance</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${sla.current}</div>
+              <div class="metric-label">Current</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">${sla.target}</div>
+              <div class="metric-label">Target</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" style="text-transform:capitalize">${sla.priority}</div>
+              <div class="metric-label">Priority</div>
+            </div>
+          </div>
+          <div class="sla-chart">
+            ${sla.history.map(v => `
+              <div class="chart-bar ${getStatusClass(v)}" style="height:${v}%"></div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const incidentList = document.getElementById('incidentList');
+  incidentList.innerHTML = data.incidents.slice(0, 5).map(inc => {
+    const sla = data.slas.find(s => s.id === inc.slaId);
+    return `
+      <div class="incident">
+        <div class="incident-info">
+          <div class="incident-title">${inc.title}</div>
+          <div class="incident-meta">${sla ? sla.name : 'Unknown SLA'} • ${inc.date}</div>
+        </div>
+        <div class="incident-time">${inc.time}</div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('slaModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('slaModal').classList.remove('active');
+}
+
+document.getElementById('slaForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  data.slas.push({
+    id: Date.now().toString(),
+    name: document.getElementById('slaName').value,
+    type: document.getElementById('slaType').value,
+    target: document.getElementById('slaTarget').value,
+    current: document.getElementById('slaCurrent').value || 'N/A',
+    compliance: 100,
+    priority: document.getElementById('slaPriority').value,
+    history: [100, 100, 100, 100, 100, 100, 100]
+  });
+
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+render();
+</script>
+</body>
+</html>

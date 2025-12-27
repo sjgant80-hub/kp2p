@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fleet Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fleet-tracker","name":"Fleet Tracker","icon":"🚛","desc":"Track and manage vehicle fleet","category":"transport","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-value.active{color:#10b981}
+.stat-value.idle{color:#f59e0b}
+.stat-value.maintenance{color:#ef4444}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.map-placeholder{background:#1a1a1a;border-radius:12px;height:300px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;border:1px solid #333;position:relative;overflow:hidden}
+.map-grid{position:absolute;inset:0;background-image:linear-gradient(#333 1px,transparent 1px),linear-gradient(90deg,#333 1px,transparent 1px);background-size:50px 50px;opacity:.3}
+.vehicle-dot{position:absolute;width:30px;height:30px;background:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;cursor:pointer;transition:transform .2s}
+.vehicle-dot:hover{transform:scale(1.2)}
+.vehicle-dot.idle{background:#f59e0b}
+.vehicle-dot.offline{background:#ef4444}
+.vehicle-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.vehicle-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.vehicle-header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #333}
+.vehicle-id{font-weight:600;display:flex;align-items:center;gap:8px}
+.vehicle-status{padding:4px 10px;border-radius:12px;font-size:.75rem}
+.vehicle-status.active{background:#10b98133;color:#10b981}
+.vehicle-status.idle{background:#f59e0b33;color:#f59e0b}
+.vehicle-status.maintenance{background:#ef444433;color:#ef4444}
+.vehicle-status.offline{background:#6b728033;color:#888}
+.vehicle-body{padding:15px}
+.vehicle-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.info-item{font-size:.875rem}
+.info-label{color:#888;font-size:.75rem}
+.progress-bar{height:6px;background:#333;border-radius:3px;margin-top:5px}
+.progress-fill{height:100%;border-radius:3px}
+.progress-fill.good{background:#10b981}
+.progress-fill.warning{background:#f59e0b}
+.progress-fill.danger{background:#ef4444}
+.vehicle-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🚛 Fleet Tracker</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Vehicle</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value active" id="activeCount">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value idle" id="idleCount">0</div><div class="stat-label">Idle</div></div>
+<div class="stat"><div class="stat-value maintenance" id="maintenanceCount">0</div><div class="stat-label">Maintenance</div></div>
+<div class="stat"><div class="stat-value" id="totalMiles">0</div><div class="stat-label">Miles Today</div></div>
+</div>
+
+<div class="map-placeholder" id="map">
+<div class="map-grid"></div>
+</div>
+
+<div class="vehicle-grid" id="vehicleGrid"></div>
+
+<div class="modal" id="vehicleModal">
+<div class="modal-content">
+<h2>Add Vehicle</h2>
+<form id="vehicleForm">
+<div class="form-row">
+<div class="form-group">
+<label>Vehicle ID</label>
+<input type="text" id="vehId" placeholder="e.g., TRK-001" required>
+</div>
+<div class="form-group">
+<label>Type</label>
+<select id="vehType">
+<option value="truck">🚛 Truck</option>
+<option value="van">🚐 Van</option>
+<option value="car">🚗 Car</option>
+<option value="bus">🚌 Bus</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Driver</label>
+<input type="text" id="vehDriver" placeholder="Driver name">
+</div>
+<div class="form-group">
+<label>License Plate</label>
+<input type="text" id="vehPlate">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Fuel Capacity (gal)</label>
+<input type="number" id="vehFuel" value="50">
+</div>
+<div class="form-group">
+<label>Current Fuel %</label>
+<input type="number" id="vehFuelLevel" value="100" min="0" max="100">
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Vehicle</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_fleet';
+let vehicles = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const typeIcons = { truck: '🚛', van: '🚐', car: '🚗', bus: '🚌' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(vehicles));
+}
+
+function updateStats() {
+  const active = vehicles.filter(v => v.status === 'active').length;
+  const idle = vehicles.filter(v => v.status === 'idle').length;
+  const maintenance = vehicles.filter(v => v.status === 'maintenance').length;
+  const miles = vehicles.reduce((sum, v) => sum + (v.milesToday || 0), 0);
+
+  document.getElementById('activeCount').textContent = active;
+  document.getElementById('idleCount').textContent = idle;
+  document.getElementById('maintenanceCount').textContent = maintenance;
+  document.getElementById('totalMiles').textContent = miles.toLocaleString();
+}
+
+function renderMap() {
+  const map = document.getElementById('map');
+  // Clear existing dots
+  map.querySelectorAll('.vehicle-dot').forEach(d => d.remove());
+
+  vehicles.forEach((v, i) => {
+    const dot = document.createElement('div');
+    dot.className = `vehicle-dot ${v.status}`;
+    dot.innerHTML = typeIcons[v.type];
+    dot.style.left = (20 + (i % 5) * 18) + '%';
+    dot.style.top = (20 + Math.floor(i / 5) * 25) + '%';
+    dot.title = `${v.id} - ${v.driver}`;
+    dot.onclick = () => showVehicleDetails(v.id);
+    map.appendChild(dot);
+  });
+}
+
+function render() {
+  const grid = document.getElementById('vehicleGrid');
+
+  if (vehicles.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No vehicles in fleet</div>';
+    updateStats();
+    renderMap();
+    return;
+  }
+
+  grid.innerHTML = vehicles.map(v => {
+    const fuelClass = v.fuelLevel > 50 ? 'good' : v.fuelLevel > 20 ? 'warning' : 'danger';
+    return `
+      <div class="vehicle-card">
+        <div class="vehicle-header">
+          <div class="vehicle-id">${typeIcons[v.type]} ${v.id}</div>
+          <span class="vehicle-status ${v.status}">${v.status}</span>
+        </div>
+        <div class="vehicle-body">
+          <div class="vehicle-info">
+            <div class="info-item">
+              <div class="info-label">Driver</div>
+              <div>${v.driver || 'Unassigned'}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Plate</div>
+              <div>${v.plate || 'N/A'}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Speed</div>
+              <div>${v.status === 'active' ? Math.floor(Math.random() * 40 + 30) : 0} mph</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Miles Today</div>
+              <div>${v.milesToday || 0}</div>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Fuel Level (${v.fuelLevel}%)</div>
+            <div class="progress-bar">
+              <div class="progress-fill ${fuelClass}" style="width:${v.fuelLevel}%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="vehicle-actions">
+          <button class="btn btn-secondary" onclick="toggleStatus('${v.id}')">${v.status === 'active' ? '⏸️ Stop' : '▶️ Start'}</button>
+          <button class="btn btn-secondary" onclick="refuel('${v.id}')">⛽</button>
+          <button class="btn btn-secondary" onclick="deleteVehicle('${v.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+  renderMap();
+}
+
+function showModal() {
+  document.getElementById('vehicleModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('vehicleModal').classList.remove('active');
+}
+
+document.getElementById('vehicleForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  vehicles.push({
+    id: document.getElementById('vehId').value,
+    type: document.getElementById('vehType').value,
+    driver: document.getElementById('vehDriver').value,
+    plate: document.getElementById('vehPlate').value,
+    fuelCapacity: parseInt(document.getElementById('vehFuel').value),
+    fuelLevel: parseInt(document.getElementById('vehFuelLevel').value),
+    status: 'idle',
+    milesToday: 0,
+    createdAt: new Date().toISOString()
+  });
+
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function toggleStatus(id) {
+  const v = vehicles.find(v => v.id === id);
+  if (v) {
+    v.status = v.status === 'active' ? 'idle' : 'active';
+    save();
+    render();
+  }
+}
+
+function refuel(id) {
+  const v = vehicles.find(v => v.id === id);
+  if (v) {
+    v.fuelLevel = 100;
+    save();
+    render();
+  }
+}
+
+function deleteVehicle(id) {
+  if (confirm('Remove this vehicle?')) {
+    vehicles = vehicles.filter(v => v.id !== id);
+    save();
+    render();
+  }
+}
+
+// Seed data
+if (vehicles.length === 0) {
+  vehicles = [
+    { id: 'TRK-001', type: 'truck', driver: 'John Smith', plate: 'ABC-1234', fuelCapacity: 50, fuelLevel: 75, status: 'active', milesToday: 145 },
+    { id: 'VAN-002', type: 'van', driver: 'Maria Garcia', plate: 'XYZ-5678', fuelCapacity: 30, fuelLevel: 45, status: 'active', milesToday: 89 },
+    { id: 'TRK-003', type: 'truck', driver: 'Bob Wilson', plate: 'DEF-9012', fuelCapacity: 50, fuelLevel: 20, status: 'idle', milesToday: 0 },
+    { id: 'CAR-004', type: 'car', driver: '', plate: 'GHI-3456', fuelCapacity: 15, fuelLevel: 90, status: 'maintenance', milesToday: 0 }
+  ];
+  save();
+}
+
+render();
+
+// Simulate movement
+setInterval(() => {
+  vehicles.forEach(v => {
+    if (v.status === 'active') {
+      v.milesToday += Math.floor(Math.random() * 3);
+      v.fuelLevel = Math.max(0, v.fuelLevel - 0.1);
+      if (v.fuelLevel < 5) v.status = 'idle';
+    }
+  });
+  save();
+  render();
+}, 10000);
+</script>
+</body>
+</html>

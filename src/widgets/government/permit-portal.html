@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Permit Portal - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"permit-portal","name":"Permit Portal","icon":"🏛️","desc":"Submit and track government permits","category":"government","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-value.pending{color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.permit-list{display:flex;flex-direction:column;gap:15px}
+.permit-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.permit-header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #333}
+.permit-id{font-weight:600;font-family:monospace}
+.permit-type{font-size:.875rem;color:#888}
+.permit-status{padding:4px 10px;border-radius:12px;font-size:.75rem}
+.permit-status.draft{background:#6b728033;color:#888}
+.permit-status.submitted{background:#3b82f633;color:#3b82f6}
+.permit-status.under-review{background:#f59e0b33;color:#f59e0b}
+.permit-status.approved{background:#10b98133;color:#10b981}
+.permit-status.rejected{background:#ef444433;color:#ef4444}
+.permit-body{padding:15px}
+.permit-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:15px}
+.detail-item{font-size:.875rem}
+.detail-label{color:#888;font-size:.75rem;margin-bottom:3px}
+.timeline{display:flex;gap:10px;overflow-x:auto;padding:10px 0}
+.timeline-step{display:flex;flex-direction:column;align-items:center;min-width:100px}
+.step-dot{width:20px;height:20px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:.6rem}
+.step-dot.completed{background:#10b981}
+.step-dot.current{background:#3b82f6}
+.step-line{flex:1;height:2px;background:#333;margin-top:10px}
+.step-label{font-size:.7rem;color:#888;margin-top:5px;text-align:center}
+.permit-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.empty{text-align:center;padding:40px;color:#666}
+.fee{font-size:1.25rem;font-weight:bold;color:#10b981}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏛️ Permit Portal</h1>
+<button class="btn btn-primary" onclick="showModal()">+ New Application</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalPermits">0</div><div class="stat-label">Total Applications</div></div>
+<div class="stat"><div class="stat-value pending" id="pendingCount">0</div><div class="stat-label">Under Review</div></div>
+<div class="stat"><div class="stat-value" id="approvedCount">0</div><div class="stat-label">Approved</div></div>
+<div class="stat"><div class="stat-value" id="avgDays">0</div><div class="stat-label">Avg Processing (days)</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-filter="all">All</div>
+<div class="tab" data-filter="draft">Drafts</div>
+<div class="tab" data-filter="submitted">Submitted</div>
+<div class="tab" data-filter="under-review">Under Review</div>
+<div class="tab" data-filter="approved">Approved</div>
+</div>
+
+<div class="permit-list" id="permitList"></div>
+
+<div class="modal" id="permitModal">
+<div class="modal-content">
+<h2>New Permit Application</h2>
+<form id="permitForm">
+<div class="form-group">
+<label>Permit Type</label>
+<select id="permitType">
+<option value="building">🏗️ Building Permit</option>
+<option value="business">🏪 Business License</option>
+<option value="event">🎉 Event Permit</option>
+<option value="food">🍽️ Food Service License</option>
+<option value="sign">📋 Sign Permit</option>
+<option value="zoning">🗺️ Zoning Variance</option>
+</select>
+</div>
+<div class="form-group">
+<label>Project/Business Name</label>
+<input type="text" id="projectName" required>
+</div>
+<div class="form-group">
+<label>Location/Address</label>
+<input type="text" id="projectAddress" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Applicant Name</label>
+<input type="text" id="applicantName" required>
+</div>
+<div class="form-group">
+<label>Contact Email</label>
+<input type="email" id="applicantEmail" required>
+</div>
+</div>
+<div class="form-group">
+<label>Description</label>
+<textarea id="projectDesc" rows="3" placeholder="Describe your project or business..."></textarea>
+</div>
+<div class="form-group">
+<label>Estimated Cost/Value</label>
+<input type="number" id="projectValue" placeholder="$">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="button" class="btn btn-secondary" onclick="saveDraft()">Save Draft</button>
+<button type="submit" class="btn btn-primary">Submit Application</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_permits';
+let permits = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+const typeInfo = {
+  building: { icon: '🏗️', name: 'Building Permit', fee: 250 },
+  business: { icon: '🏪', name: 'Business License', fee: 150 },
+  event: { icon: '🎉', name: 'Event Permit', fee: 75 },
+  food: { icon: '🍽️', name: 'Food Service License', fee: 200 },
+  sign: { icon: '📋', name: 'Sign Permit', fee: 50 },
+  zoning: { icon: '🗺️', name: 'Zoning Variance', fee: 500 }
+};
+
+const steps = ['Draft', 'Submitted', 'Under Review', 'Approved'];
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(permits));
+}
+
+function generateId() {
+  return 'PRM-' + new Date().getFullYear() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+function updateStats() {
+  const underReview = permits.filter(p => p.status === 'under-review').length;
+  const approved = permits.filter(p => p.status === 'approved').length;
+
+  const completedPermits = permits.filter(p => p.status === 'approved' && p.approvedAt);
+  const avgDays = completedPermits.length ? Math.round(
+    completedPermits.reduce((sum, p) => {
+      return sum + (new Date(p.approvedAt) - new Date(p.submittedAt)) / (1000 * 60 * 60 * 24);
+    }, 0) / completedPermits.length
+  ) : 0;
+
+  document.getElementById('totalPermits').textContent = permits.length;
+  document.getElementById('pendingCount').textContent = underReview;
+  document.getElementById('approvedCount').textContent = approved;
+  document.getElementById('avgDays').textContent = avgDays;
+}
+
+function getStepIndex(status) {
+  const map = { 'draft': 0, 'submitted': 1, 'under-review': 2, 'approved': 3, 'rejected': 3 };
+  return map[status] || 0;
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? permits :
+    permits.filter(p => p.status === currentFilter);
+
+  const list = document.getElementById('permitList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">No permit applications found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(permit => {
+      const info = typeInfo[permit.type] || { icon: '📄', name: 'Permit', fee: 0 };
+      const stepIndex = getStepIndex(permit.status);
+
+      return `
+        <div class="permit-card">
+          <div class="permit-header">
+            <div>
+              <div class="permit-id">${permit.id}</div>
+              <div class="permit-type">${info.icon} ${info.name}</div>
+            </div>
+            <span class="permit-status ${permit.status}">${permit.status.replace('-', ' ')}</span>
+          </div>
+          <div class="permit-body">
+            <div class="permit-details">
+              <div class="detail-item">
+                <div class="detail-label">Project/Business</div>
+                <div>${permit.projectName}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Location</div>
+                <div>${permit.address}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Applicant</div>
+                <div>${permit.applicantName}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Fee</div>
+                <div class="fee">$${info.fee}</div>
+              </div>
+            </div>
+            <div class="timeline">
+              ${steps.map((step, i) => `
+                <div class="timeline-step">
+                  <div class="step-dot ${i < stepIndex ? 'completed' : i === stepIndex ? 'current' : ''}">${i < stepIndex ? '✓' : ''}</div>
+                  <div class="step-label">${step}</div>
+                </div>
+                ${i < steps.length - 1 ? '<div class="step-line"></div>' : ''}
+              `).join('')}
+            </div>
+          </div>
+          <div class="permit-actions">
+            ${permit.status === 'draft' ? `
+              <button class="btn btn-primary" onclick="submitPermit('${permit.id}')">Submit Application</button>
+            ` : ''}
+            ${permit.status === 'submitted' ? `
+              <button class="btn btn-primary" onclick="reviewPermit('${permit.id}')">Begin Review</button>
+            ` : ''}
+            ${permit.status === 'under-review' ? `
+              <button class="btn btn-primary" onclick="approvePermit('${permit.id}')">Approve</button>
+              <button class="btn btn-secondary" onclick="rejectPermit('${permit.id}')">Reject</button>
+            ` : ''}
+            ${permit.status === 'approved' ? `
+              <button class="btn btn-secondary" onclick="downloadPermit('${permit.id}')">📥 Download</button>
+            ` : ''}
+            <button class="btn btn-secondary" onclick="deletePermit('${permit.id}')">🗑️</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('permitModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('permitModal').classList.remove('active');
+}
+
+function createPermit(status) {
+  return {
+    id: generateId(),
+    type: document.getElementById('permitType').value,
+    projectName: document.getElementById('projectName').value,
+    address: document.getElementById('projectAddress').value,
+    applicantName: document.getElementById('applicantName').value,
+    email: document.getElementById('applicantEmail').value,
+    description: document.getElementById('projectDesc').value,
+    value: document.getElementById('projectValue').value,
+    status,
+    createdAt: new Date().toISOString(),
+    submittedAt: status !== 'draft' ? new Date().toISOString() : null
+  };
+}
+
+document.getElementById('permitForm').addEventListener('submit', e => {
+  e.preventDefault();
+  permits.push(createPermit('submitted'));
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+  alert('Application submitted successfully!');
+});
+
+function saveDraft() {
+  permits.push(createPermit('draft'));
+  save();
+  render();
+  hideModal();
+  document.getElementById('permitForm').reset();
+}
+
+function submitPermit(id) {
+  const permit = permits.find(p => p.id === id);
+  if (permit) {
+    permit.status = 'submitted';
+    permit.submittedAt = new Date().toISOString();
+    save();
+    render();
+  }
+}
+
+function reviewPermit(id) {
+  const permit = permits.find(p => p.id === id);
+  if (permit) {
+    permit.status = 'under-review';
+    save();
+    render();
+  }
+}
+
+function approvePermit(id) {
+  const permit = permits.find(p => p.id === id);
+  if (permit) {
+    permit.status = 'approved';
+    permit.approvedAt = new Date().toISOString();
+    save();
+    render();
+    alert('Permit approved!');
+  }
+}
+
+function rejectPermit(id) {
+  if (confirm('Reject this permit application?')) {
+    const permit = permits.find(p => p.id === id);
+    if (permit) {
+      permit.status = 'rejected';
+      save();
+      render();
+    }
+  }
+}
+
+function downloadPermit(id) {
+  alert('Downloading permit certificate...');
+}
+
+function deletePermit(id) {
+  if (confirm('Delete this application?')) {
+    permits = permits.filter(p => p.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+// Seed data
+if (permits.length === 0) {
+  permits = [
+    { id: 'PRM-2024-A1B2C3', type: 'building', projectName: 'Downtown Office Renovation', address: '123 Main St', applicantName: 'Acme Corp', email: 'permits@acme.com', status: 'approved', createdAt: '2024-11-01', submittedAt: '2024-11-01', approvedAt: '2024-11-15' },
+    { id: 'PRM-2024-D4E5F6', type: 'event', projectName: 'Summer Music Festival', address: 'Central Park', applicantName: 'Event Planners LLC', email: 'info@eventplanners.com', status: 'under-review', createdAt: '2024-12-10', submittedAt: '2024-12-10' },
+    { id: 'PRM-2024-G7H8I9', type: 'business', projectName: 'Coffee Corner Cafe', address: '456 Oak Ave', applicantName: 'Jane Doe', email: 'jane@coffeecorner.com', status: 'submitted', createdAt: '2024-12-20', submittedAt: '2024-12-20' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

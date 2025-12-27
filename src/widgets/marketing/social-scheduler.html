@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Social Media Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"social-scheduler","name":"Social Scheduler","icon":"📱","desc":"Schedule and manage social media posts","category":"marketing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.platforms{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.platform{display:flex;align-items:center;gap:8px;padding:8px 15px;background:#1a1a1a;border:1px solid #333;border-radius:20px;cursor:pointer}
+.platform.active{border-color:#10b981;background:#10b98120}
+.platform-icon{font-size:1.25rem}
+.platform-name{font-size:.875rem}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:20px}
+.calendar-header{padding:10px;text-align:center;color:#888;font-size:.75rem;font-weight:600}
+.calendar-day{background:#1a1a1a;border-radius:8px;min-height:100px;padding:10px;border:1px solid #333}
+.calendar-day.today{border-color:#10b981}
+.calendar-day.other-month{opacity:.4}
+.day-number{font-size:.875rem;margin-bottom:8px;color:#888}
+.day-number.today{color:#10b981;font-weight:bold}
+.post-preview{font-size:.7rem;padding:5px;background:#252525;border-radius:4px;margin-bottom:5px;cursor:pointer;border-left:3px solid #10b981}
+.post-preview.twitter{border-color:#1da1f2}
+.post-preview.instagram{border-color:#e1306c}
+.post-preview.linkedin{border-color:#0077b5}
+.post-preview.facebook{border-color:#4267b2}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-group textarea{min-height:100px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.platform-select{display:flex;gap:10px;flex-wrap:wrap}
+.platform-check{display:flex;align-items:center;gap:5px;padding:8px 12px;background:#252525;border-radius:6px;cursor:pointer}
+.platform-check input{display:none}
+.platform-check.selected{background:#10b98130;border:1px solid #10b981}
+.char-count{text-align:right;font-size:.75rem;color:#888;margin-top:5px}
+.char-count.warning{color:#f59e0b}
+.char-count.danger{color:#ef4444}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.queue{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333}
+.queue h3{margin-bottom:15px}
+.queue-item{display:flex;gap:15px;padding:15px;background:#252525;border-radius:8px;margin-bottom:10px}
+.queue-platforms{display:flex;gap:5px}
+.queue-content{flex:1}
+.queue-text{font-size:.875rem;margin-bottom:5px}
+.queue-time{font-size:.75rem;color:#888}
+.queue-actions{display:flex;gap:5px}
+.queue-actions button{padding:5px 10px;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📱 Social Media Scheduler</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Create Post</button>
+</div>
+
+<div class="platforms">
+<div class="platform active" data-platform="all"><span class="platform-icon">📊</span><span class="platform-name">All</span></div>
+<div class="platform" data-platform="twitter"><span class="platform-icon">🐦</span><span class="platform-name">Twitter</span></div>
+<div class="platform" data-platform="instagram"><span class="platform-icon">📸</span><span class="platform-name">Instagram</span></div>
+<div class="platform" data-platform="linkedin"><span class="platform-icon">💼</span><span class="platform-name">LinkedIn</span></div>
+<div class="platform" data-platform="facebook"><span class="platform-icon">👤</span><span class="platform-name">Facebook</span></div>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="scheduledCount">0</div><div class="stat-label">Scheduled</div></div>
+<div class="stat"><div class="stat-value" id="publishedCount">0</div><div class="stat-label">Published</div></div>
+<div class="stat"><div class="stat-value" id="draftsCount">0</div><div class="stat-label">Drafts</div></div>
+<div class="stat"><div class="stat-value" id="thisWeek">0</div><div class="stat-label">This Week</div></div>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+<div class="queue">
+<h3>📋 Upcoming Posts</h3>
+<div id="queueList"></div>
+</div>
+
+<div class="modal" id="postModal">
+<div class="modal-content">
+<h2>Create Post</h2>
+<form id="postForm">
+<div class="form-group">
+<label>Platforms</label>
+<div class="platform-select" id="platformSelect">
+<label class="platform-check"><input type="checkbox" value="twitter" checked><span>🐦 Twitter</span></label>
+<label class="platform-check selected"><input type="checkbox" value="instagram"><span>📸 Instagram</span></label>
+<label class="platform-check"><input type="checkbox" value="linkedin"><span>💼 LinkedIn</span></label>
+<label class="platform-check"><input type="checkbox" value="facebook"><span>👤 Facebook</span></label>
+</div>
+</div>
+<div class="form-group">
+<label>Content</label>
+<textarea id="postContent" placeholder="What would you like to share?" oninput="updateCharCount()"></textarea>
+<div class="char-count" id="charCount">0 / 280</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Schedule Date</label>
+<input type="date" id="postDate" required>
+</div>
+<div class="form-group">
+<label>Schedule Time</label>
+<input type="time" id="postTime" required>
+</div>
+</div>
+<div class="form-group">
+<label>Media URL (optional)</label>
+<input type="text" id="postMedia" placeholder="https://example.com/image.jpg">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="saveDraft()">Save Draft</button>
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Schedule</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_social_scheduler';
+let posts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentPlatform = 'all';
+
+const platformIcons = {
+  twitter: '🐦',
+  instagram: '📸',
+  linkedin: '💼',
+  facebook: '👤'
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+}
+
+function updateStats() {
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+
+  const scheduled = posts.filter(p => p.status === 'scheduled' && new Date(p.datetime) > now).length;
+  const published = posts.filter(p => p.status === 'published').length;
+  const drafts = posts.filter(p => p.status === 'draft').length;
+  const thisWeek = posts.filter(p => new Date(p.datetime) >= weekStart).length;
+
+  document.getElementById('scheduledCount').textContent = scheduled;
+  document.getElementById('publishedCount').textContent = published;
+  document.getElementById('draftsCount').textContent = drafts;
+  document.getElementById('thisWeek').textContent = thisWeek;
+}
+
+function renderCalendar() {
+  const calendar = document.getElementById('calendar');
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDay = firstDay.getDay();
+
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  let html = days.map(d => `<div class="calendar-header">${d}</div>`).join('');
+
+  // Previous month days
+  for (let i = 0; i < startDay; i++) {
+    const d = new Date(year, month, -startDay + i + 1);
+    html += `<div class="calendar-day other-month"><div class="day-number">${d.getDate()}</div></div>`;
+  }
+
+  // Current month days
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(year, month, d);
+    const dateStr = date.toISOString().split('T')[0];
+    const isToday = d === now.getDate();
+    const dayPosts = posts.filter(p => p.datetime.startsWith(dateStr) &&
+      (currentPlatform === 'all' || p.platforms.includes(currentPlatform)));
+
+    html += `<div class="calendar-day${isToday ? ' today' : ''}">
+      <div class="day-number${isToday ? ' today' : ''}">${d}</div>
+      ${dayPosts.slice(0, 3).map(p => `
+        <div class="post-preview ${p.platforms[0]}" onclick="editPost('${p.id}')">
+          ${p.content.substring(0, 30)}...
+        </div>
+      `).join('')}
+      ${dayPosts.length > 3 ? `<div style="font-size:.7rem;color:#888">+${dayPosts.length - 3} more</div>` : ''}
+    </div>`;
+  }
+
+  calendar.innerHTML = html;
+}
+
+function renderQueue() {
+  const now = new Date();
+  const upcoming = posts
+    .filter(p => p.status === 'scheduled' && new Date(p.datetime) > now)
+    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
+    .slice(0, 5);
+
+  const list = document.getElementById('queueList');
+
+  if (upcoming.length === 0) {
+    list.innerHTML = '<div style="color:#666;text-align:center;padding:20px">No upcoming posts scheduled</div>';
+    return;
+  }
+
+  list.innerHTML = upcoming.map(post => `
+    <div class="queue-item">
+      <div class="queue-platforms">
+        ${post.platforms.map(p => `<span>${platformIcons[p]}</span>`).join('')}
+      </div>
+      <div class="queue-content">
+        <div class="queue-text">${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}</div>
+        <div class="queue-time">📅 ${new Date(post.datetime).toLocaleString()}</div>
+      </div>
+      <div class="queue-actions">
+        <button class="btn btn-secondary" onclick="editPost('${post.id}')">✏️</button>
+        <button class="btn btn-secondary" onclick="deletePost('${post.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showModal() {
+  const now = new Date();
+  now.setHours(now.getHours() + 1, 0, 0, 0);
+  document.getElementById('postDate').value = now.toISOString().split('T')[0];
+  document.getElementById('postTime').value = now.toTimeString().substring(0, 5);
+  document.getElementById('postModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('postModal').classList.remove('active');
+  document.getElementById('postForm').reset();
+}
+
+function updateCharCount() {
+  const content = document.getElementById('postContent').value;
+  const count = content.length;
+  const el = document.getElementById('charCount');
+  el.textContent = `${count} / 280`;
+  el.className = 'char-count' + (count > 280 ? ' danger' : count > 250 ? ' warning' : '');
+}
+
+document.querySelectorAll('.platform-check').forEach(el => {
+  el.addEventListener('click', () => {
+    const input = el.querySelector('input');
+    input.checked = !input.checked;
+    el.classList.toggle('selected', input.checked);
+  });
+});
+
+document.querySelectorAll('.platform').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.platform').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    currentPlatform = el.dataset.platform;
+    renderCalendar();
+  });
+});
+
+document.getElementById('postForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  const platforms = Array.from(document.querySelectorAll('.platform-check input:checked')).map(i => i.value);
+  if (platforms.length === 0) {
+    alert('Please select at least one platform');
+    return;
+  }
+
+  posts.push({
+    id: Date.now().toString(),
+    content: document.getElementById('postContent').value,
+    platforms,
+    datetime: `${document.getElementById('postDate').value}T${document.getElementById('postTime').value}`,
+    media: document.getElementById('postMedia').value,
+    status: 'scheduled',
+    createdAt: new Date().toISOString()
+  });
+
+  save();
+  renderCalendar();
+  renderQueue();
+  updateStats();
+  hideModal();
+});
+
+function saveDraft() {
+  const platforms = Array.from(document.querySelectorAll('.platform-check input:checked')).map(i => i.value);
+
+  posts.push({
+    id: Date.now().toString(),
+    content: document.getElementById('postContent').value,
+    platforms,
+    datetime: `${document.getElementById('postDate').value}T${document.getElementById('postTime').value}`,
+    media: document.getElementById('postMedia').value,
+    status: 'draft',
+    createdAt: new Date().toISOString()
+  });
+
+  save();
+  updateStats();
+  hideModal();
+  alert('Draft saved!');
+}
+
+function deletePost(id) {
+  if (confirm('Delete this post?')) {
+    posts = posts.filter(p => p.id !== id);
+    save();
+    renderCalendar();
+    renderQueue();
+    updateStats();
+  }
+}
+
+function editPost(id) {
+  const post = posts.find(p => p.id === id);
+  if (!post) return;
+
+  document.getElementById('postContent').value = post.content;
+  document.getElementById('postDate').value = post.datetime.split('T')[0];
+  document.getElementById('postTime').value = post.datetime.split('T')[1].substring(0, 5);
+  document.getElementById('postMedia').value = post.media || '';
+
+  document.querySelectorAll('.platform-check').forEach(el => {
+    const input = el.querySelector('input');
+    const selected = post.platforms.includes(input.value);
+    input.checked = selected;
+    el.classList.toggle('selected', selected);
+  });
+
+  updateCharCount();
+  showModal();
+
+  // Remove old post on submit
+  const form = document.getElementById('postForm');
+  const originalSubmit = form.onsubmit;
+  form.onsubmit = (e) => {
+    posts = posts.filter(p => p.id !== id);
+    originalSubmit?.(e);
+    form.onsubmit = originalSubmit;
+  };
+}
+
+renderCalendar();
+renderQueue();
+updateStats();
+</script>
+</body>
+</html>

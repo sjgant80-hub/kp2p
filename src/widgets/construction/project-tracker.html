@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Construction Project Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"project-tracker","name":"Construction Project Tracker","icon":"🏗️","desc":"Track construction projects and milestones","category":"construction","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-value.warning{color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.project-list{display:flex;flex-direction:column;gap:20px}
+.project-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.project-header{display:flex;justify-content:space-between;align-items:center;padding:20px;border-bottom:1px solid #333}
+.project-title{font-size:1.125rem;font-weight:600}
+.project-meta{font-size:.875rem;color:#888;margin-top:5px}
+.project-status{padding:6px 12px;border-radius:20px;font-size:.75rem;font-weight:600}
+.project-status.planning{background:#3b82f633;color:#3b82f6}
+.project-status.in-progress{background:#10b98133;color:#10b981}
+.project-status.on-hold{background:#f59e0b33;color:#f59e0b}
+.project-status.completed{background:#6b728033;color:#888}
+.project-body{padding:20px}
+.progress-section{margin-bottom:20px}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:10px}
+.progress-label{font-size:.875rem;color:#888}
+.progress-value{font-weight:bold}
+.progress-bar{height:12px;background:#333;border-radius:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#10b981,#3b82f6);transition:width .3s}
+.milestones{margin-top:20px}
+.milestones h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.milestone-list{display:flex;flex-direction:column;gap:8px}
+.milestone{display:flex;align-items:center;gap:10px;padding:10px;background:#252525;border-radius:6px}
+.milestone-check{width:20px;height:20px;border-radius:50%;border:2px solid #333;display:flex;align-items:center;justify-content:center;font-size:.7rem;cursor:pointer}
+.milestone-check.done{background:#10b981;border-color:#10b981;color:#fff}
+.milestone-info{flex:1}
+.milestone-name{font-size:.875rem}
+.milestone-date{font-size:.75rem;color:#888}
+.milestone-date.overdue{color:#ef4444}
+.budget-section{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:20px;padding-top:20px;border-top:1px solid #333}
+.budget-item{text-align:center}
+.budget-value{font-size:1.25rem;font-weight:bold}
+.budget-value.over{color:#ef4444}
+.budget-label{font-size:.75rem;color:#888}
+.project-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏗️ Construction Projects</h1>
+<button class="btn btn-primary" onclick="showModal()">+ New Project</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeProjects">0</div><div class="stat-label">Active Projects</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Total Value</div></div>
+<div class="stat"><div class="stat-value warning" id="behindSchedule">0</div><div class="stat-label">Behind Schedule</div></div>
+<div class="stat"><div class="stat-value" id="avgProgress">0%</div><div class="stat-label">Avg Progress</div></div>
+</div>
+
+<div class="project-list" id="projectList"></div>
+
+<div class="modal" id="projectModal">
+<div class="modal-content">
+<h2>New Project</h2>
+<form id="projectForm">
+<div class="form-group">
+<label>Project Name</label>
+<input type="text" id="projectName" required>
+</div>
+<div class="form-group">
+<label>Location</label>
+<input type="text" id="projectLocation" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Start Date</label>
+<input type="date" id="startDate" required>
+</div>
+<div class="form-group">
+<label>End Date</label>
+<input type="date" id="endDate" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Budget</label>
+<input type="number" id="projectBudget" min="0" required>
+</div>
+<div class="form-group">
+<label>Project Type</label>
+<select id="projectType">
+<option>Residential</option>
+<option>Commercial</option>
+<option>Industrial</option>
+<option>Infrastructure</option>
+<option>Renovation</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Description</label>
+<textarea id="projectDesc" rows="2"></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Create Project</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_construction';
+let projects = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const defaultMilestones = [
+  { name: 'Site Preparation', daysFromStart: 0 },
+  { name: 'Foundation', daysFromStart: 14 },
+  { name: 'Framing', daysFromStart: 45 },
+  { name: 'Roofing', daysFromStart: 75 },
+  { name: 'Plumbing & Electrical', daysFromStart: 90 },
+  { name: 'Interior Finishing', daysFromStart: 120 },
+  { name: 'Final Inspection', daysFromStart: 150 }
+];
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+}
+
+function formatCurrency(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + (n / 1000).toFixed(0) + 'K';
+  return '$' + n.toLocaleString();
+}
+
+function calculateProgress(project) {
+  const completed = project.milestones.filter(m => m.completed).length;
+  return Math.round((completed / project.milestones.length) * 100);
+}
+
+function getStatus(project) {
+  const progress = calculateProgress(project);
+  if (progress === 100) return 'completed';
+  if (project.onHold) return 'on-hold';
+
+  const now = new Date();
+  const start = new Date(project.startDate);
+  const end = new Date(project.endDate);
+  const expectedProgress = Math.min(100, Math.round(((now - start) / (end - start)) * 100));
+
+  if (progress < expectedProgress - 10) return 'in-progress'; // behind but still in progress
+  return 'in-progress';
+}
+
+function updateStats() {
+  const active = projects.filter(p => getStatus(p) === 'in-progress').length;
+  const totalValue = projects.reduce((sum, p) => sum + p.budget, 0);
+  const behind = projects.filter(p => {
+    const progress = calculateProgress(p);
+    const now = new Date();
+    const start = new Date(p.startDate);
+    const end = new Date(p.endDate);
+    const expected = Math.min(100, Math.round(((now - start) / (end - start)) * 100));
+    return progress < expected - 15 && getStatus(p) !== 'completed';
+  }).length;
+  const avgProgress = projects.length ? Math.round(projects.reduce((sum, p) => sum + calculateProgress(p), 0) / projects.length) : 0;
+
+  document.getElementById('activeProjects').textContent = active;
+  document.getElementById('totalValue').textContent = formatCurrency(totalValue);
+  document.getElementById('behindSchedule').textContent = behind;
+  document.getElementById('avgProgress').textContent = avgProgress + '%';
+}
+
+function render() {
+  const list = document.getElementById('projectList');
+
+  if (projects.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No projects yet</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = projects.map(project => {
+    const progress = calculateProgress(project);
+    const status = getStatus(project);
+    const spent = project.spent || 0;
+    const remaining = project.budget - spent;
+    const isOverBudget = spent > project.budget;
+
+    return `
+      <div class="project-card">
+        <div class="project-header">
+          <div>
+            <div class="project-title">${project.name}</div>
+            <div class="project-meta">📍 ${project.location} • ${project.type}</div>
+          </div>
+          <span class="project-status ${status}">${status.replace('-', ' ')}</span>
+        </div>
+        <div class="project-body">
+          <div class="progress-section">
+            <div class="progress-header">
+              <span class="progress-label">Overall Progress</span>
+              <span class="progress-value">${progress}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${progress}%"></div>
+            </div>
+          </div>
+
+          <div class="milestones">
+            <h4>Milestones</h4>
+            <div class="milestone-list">
+              ${project.milestones.map((m, i) => {
+                const dueDate = new Date(project.startDate);
+                dueDate.setDate(dueDate.getDate() + m.daysFromStart);
+                const isOverdue = !m.completed && dueDate < new Date();
+                return `
+                  <div class="milestone">
+                    <div class="milestone-check ${m.completed ? 'done' : ''}" onclick="toggleMilestone('${project.id}', ${i})">${m.completed ? '✓' : ''}</div>
+                    <div class="milestone-info">
+                      <div class="milestone-name">${m.name}</div>
+                      <div class="milestone-date${isOverdue ? ' overdue' : ''}">${dueDate.toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div class="budget-section">
+            <div class="budget-item">
+              <div class="budget-value">${formatCurrency(project.budget)}</div>
+              <div class="budget-label">Budget</div>
+            </div>
+            <div class="budget-item">
+              <div class="budget-value${isOverBudget ? ' over' : ''}">${formatCurrency(spent)}</div>
+              <div class="budget-label">Spent</div>
+            </div>
+            <div class="budget-item">
+              <div class="budget-value${isOverBudget ? ' over' : ''}">${formatCurrency(Math.abs(remaining))}</div>
+              <div class="budget-label">${isOverBudget ? 'Over Budget' : 'Remaining'}</div>
+            </div>
+          </div>
+        </div>
+        <div class="project-actions">
+          <button class="btn btn-secondary" onclick="addExpense('${project.id}')">💰 Add Expense</button>
+          <button class="btn btn-secondary" onclick="toggleHold('${project.id}')">${project.onHold ? '▶️ Resume' : '⏸️ Hold'}</button>
+          <button class="btn btn-secondary" onclick="deleteProject('${project.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+  const endDate = new Date();
+  endDate.setMonth(endDate.getMonth() + 6);
+  document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+  document.getElementById('projectModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('projectModal').classList.remove('active');
+}
+
+document.getElementById('projectForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  const startDate = document.getElementById('startDate').value;
+  projects.push({
+    id: Date.now().toString(),
+    name: document.getElementById('projectName').value,
+    location: document.getElementById('projectLocation').value,
+    startDate,
+    endDate: document.getElementById('endDate').value,
+    budget: parseFloat(document.getElementById('projectBudget').value),
+    spent: 0,
+    type: document.getElementById('projectType').value,
+    description: document.getElementById('projectDesc').value,
+    milestones: defaultMilestones.map(m => ({ ...m, completed: false })),
+    onHold: false,
+    createdAt: new Date().toISOString()
+  });
+
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function toggleMilestone(projectId, index) {
+  const project = projects.find(p => p.id === projectId);
+  if (project) {
+    project.milestones[index].completed = !project.milestones[index].completed;
+    save();
+    render();
+  }
+}
+
+function addExpense(projectId) {
+  const amount = prompt('Enter expense amount:');
+  if (amount && !isNaN(amount)) {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      project.spent = (project.spent || 0) + parseFloat(amount);
+      save();
+      render();
+    }
+  }
+}
+
+function toggleHold(projectId) {
+  const project = projects.find(p => p.id === projectId);
+  if (project) {
+    project.onHold = !project.onHold;
+    save();
+    render();
+  }
+}
+
+function deleteProject(projectId) {
+  if (confirm('Delete this project?')) {
+    projects = projects.filter(p => p.id !== projectId);
+    save();
+    render();
+  }
+}
+
+// Seed data
+if (projects.length === 0) {
+  const today = new Date();
+  const threeMonthsAgo = new Date(today);
+  threeMonthsAgo.setMonth(today.getMonth() - 3);
+
+  projects = [{
+    id: '1',
+    name: 'Sunset Heights Condos',
+    location: '123 Sunset Blvd, Austin TX',
+    startDate: threeMonthsAgo.toISOString().split('T')[0],
+    endDate: new Date(today.getFullYear() + 1, 2, 1).toISOString().split('T')[0],
+    budget: 2500000,
+    spent: 850000,
+    type: 'Residential',
+    milestones: [
+      { name: 'Site Preparation', daysFromStart: 0, completed: true },
+      { name: 'Foundation', daysFromStart: 14, completed: true },
+      { name: 'Framing', daysFromStart: 45, completed: true },
+      { name: 'Roofing', daysFromStart: 75, completed: false },
+      { name: 'Plumbing & Electrical', daysFromStart: 90, completed: false },
+      { name: 'Interior Finishing', daysFromStart: 120, completed: false },
+      { name: 'Final Inspection', daysFromStart: 150, completed: false }
+    ],
+    onHold: false
+  }];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

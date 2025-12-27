@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Landing Page Builder - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"landing-page","name":"Landing Page Builder","icon":"🎨","desc":"Create and publish landing pages","category":"marketing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh;display:flex}
+.sidebar{width:280px;background:#1a1a1a;border-right:1px solid #333;padding:20px;display:flex;flex-direction:column}
+.sidebar h2{font-size:1.125rem;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.pages-list{flex:1;overflow-y:auto}
+.page-item{padding:12px;background:#252525;border-radius:8px;margin-bottom:10px;cursor:pointer;border:1px solid transparent}
+.page-item:hover,.page-item.active{border-color:#10b981}
+.page-item h3{font-size:.875rem;margin-bottom:4px}
+.page-item span{font-size:.75rem;color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;width:100%}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.editor{flex:1;display:flex;flex-direction:column}
+.editor-toolbar{display:flex;gap:10px;padding:15px;background:#1a1a1a;border-bottom:1px solid #333;flex-wrap:wrap}
+.tool-group{display:flex;gap:5px}
+.tool-btn{padding:8px 12px;background:#252525;border:1px solid #333;border-radius:6px;color:#e0e0e0;cursor:pointer;font-size:.875rem}
+.tool-btn:hover,.tool-btn.active{background:#333;border-color:#10b981}
+.canvas-container{flex:1;overflow:auto;padding:20px;display:flex;justify-content:center}
+.canvas{width:100%;max-width:800px;min-height:600px;background:#fff;color:#333;border-radius:8px;overflow:hidden}
+.block{padding:40px 20px;border:2px dashed transparent;cursor:pointer;position:relative}
+.block:hover,.block.selected{border-color:#10b981}
+.block-actions{position:absolute;top:5px;right:5px;display:none;gap:5px}
+.block:hover .block-actions{display:flex}
+.block-btn{padding:4px 8px;background:#10b981;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.75rem}
+.block-btn.delete{background:#ef4444}
+.hero-block{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-align:center;padding:80px 20px}
+.hero-block h1{font-size:2.5rem;margin-bottom:15px}
+.hero-block p{font-size:1.125rem;opacity:.9;margin-bottom:25px}
+.hero-block button{padding:12px 30px;background:#fff;color:#667eea;border:none;border-radius:6px;font-size:1rem;cursor:pointer}
+.features-block{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;padding:60px 40px}
+.feature{text-align:center}
+.feature-icon{font-size:2.5rem;margin-bottom:15px}
+.feature h3{margin-bottom:10px}
+.feature p{color:#666;font-size:.875rem}
+.cta-block{text-align:center;background:#f8f9fa;padding:60px 20px}
+.cta-block h2{margin-bottom:15px}
+.cta-block input{padding:12px 20px;border:1px solid #ddd;border-radius:6px;width:300px;max-width:100%;margin-right:10px}
+.cta-block button{padding:12px 25px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.text-block{padding:40px}
+.text-block h2{margin-bottom:15px}
+.text-block p{line-height:1.8;color:#555}
+.components{padding:15px}
+.component-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.component{padding:15px;background:#252525;border-radius:8px;text-align:center;cursor:grab;border:1px solid #333}
+.component:hover{border-color:#10b981}
+.component-icon{font-size:1.5rem;margin-bottom:5px}
+.component-name{font-size:.75rem;color:#888}
+.empty-canvas{display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;color:#999}
+.empty-canvas span{font-size:3rem;margin-bottom:15px}
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h2>🎨 Pages</h2>
+<button class="btn btn-primary" onclick="createPage()" style="margin-bottom:15px">+ New Page</button>
+<div class="pages-list" id="pagesList"></div>
+<div class="components">
+<h3 style="font-size:.875rem;margin-bottom:10px;color:#888">Components</h3>
+<div class="component-grid">
+<div class="component" draggable="true" data-type="hero"><div class="component-icon">🦸</div><div class="component-name">Hero</div></div>
+<div class="component" draggable="true" data-type="features"><div class="component-icon">⭐</div><div class="component-name">Features</div></div>
+<div class="component" draggable="true" data-type="cta"><div class="component-icon">📧</div><div class="component-name">CTA</div></div>
+<div class="component" draggable="true" data-type="text"><div class="component-icon">📝</div><div class="component-name">Text</div></div>
+</div>
+</div>
+</div>
+<div class="editor">
+<div class="editor-toolbar">
+<div class="tool-group">
+<button class="tool-btn" onclick="savePage()">💾 Save</button>
+<button class="tool-btn" onclick="previewPage()">👁️ Preview</button>
+<button class="tool-btn" onclick="publishPage()">🚀 Publish</button>
+</div>
+<div class="tool-group">
+<select class="tool-btn" id="deviceSelect" onchange="changeDevice()">
+<option value="desktop">💻 Desktop</option>
+<option value="tablet">📱 Tablet</option>
+<option value="mobile">📲 Mobile</option>
+</select>
+</div>
+</div>
+<div class="canvas-container">
+<div class="canvas" id="canvas"></div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_landing_pages';
+let pages = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentPage = null;
+let selectedBlock = null;
+
+const blockTemplates = {
+  hero: `<div class="hero-block block" data-type="hero">
+    <div class="block-actions">
+      <button class="block-btn" onclick="editBlock(this.parentElement.parentElement)">✏️</button>
+      <button class="block-btn delete" onclick="deleteBlock(this.parentElement.parentElement)">🗑️</button>
+    </div>
+    <h1>Your Amazing Product</h1>
+    <p>The best solution for your business needs</p>
+    <button>Get Started</button>
+  </div>`,
+  features: `<div class="features-block block" data-type="features">
+    <div class="block-actions">
+      <button class="block-btn" onclick="editBlock(this.parentElement.parentElement)">✏️</button>
+      <button class="block-btn delete" onclick="deleteBlock(this.parentElement.parentElement)">🗑️</button>
+    </div>
+    <div class="feature"><div class="feature-icon">⚡</div><h3>Fast</h3><p>Lightning-fast performance</p></div>
+    <div class="feature"><div class="feature-icon">🔒</div><h3>Secure</h3><p>Enterprise-grade security</p></div>
+    <div class="feature"><div class="feature-icon">🎯</div><h3>Simple</h3><p>Easy to use interface</p></div>
+  </div>`,
+  cta: `<div class="cta-block block" data-type="cta">
+    <div class="block-actions">
+      <button class="block-btn" onclick="editBlock(this.parentElement.parentElement)">✏️</button>
+      <button class="block-btn delete" onclick="deleteBlock(this.parentElement.parentElement)">🗑️</button>
+    </div>
+    <h2>Ready to get started?</h2>
+    <div><input type="email" placeholder="Enter your email"><button>Subscribe</button></div>
+  </div>`,
+  text: `<div class="text-block block" data-type="text">
+    <div class="block-actions">
+      <button class="block-btn" onclick="editBlock(this.parentElement.parentElement)">✏️</button>
+      <button class="block-btn delete" onclick="deleteBlock(this.parentElement.parentElement)">🗑️</button>
+    </div>
+    <h2>About Us</h2>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</p>
+  </div>`
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(pages));
+}
+
+function renderPagesList() {
+  const list = document.getElementById('pagesList');
+  list.innerHTML = pages.map(page => `
+    <div class="page-item${currentPage?.id === page.id ? ' active' : ''}" onclick="loadPage('${page.id}')">
+      <h3>${page.name}</h3>
+      <span>${page.status} • ${new Date(page.updatedAt).toLocaleDateString()}</span>
+    </div>
+  `).join('') || '<div style="color:#666;text-align:center;padding:20px">No pages yet</div>';
+}
+
+function createPage() {
+  const name = prompt('Page name:', 'New Landing Page');
+  if (!name) return;
+
+  const page = {
+    id: Date.now().toString(),
+    name,
+    blocks: [],
+    status: 'draft',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  pages.push(page);
+  save();
+  loadPage(page.id);
+}
+
+function loadPage(id) {
+  currentPage = pages.find(p => p.id === id);
+  if (!currentPage) return;
+
+  renderPagesList();
+  renderCanvas();
+}
+
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+
+  if (!currentPage || currentPage.blocks.length === 0) {
+    canvas.innerHTML = `<div class="empty-canvas"><span>📄</span><p>Drag components here to build your page</p></div>`;
+    return;
+  }
+
+  canvas.innerHTML = currentPage.blocks.map(block => blockTemplates[block.type] || '').join('');
+}
+
+function deleteBlock(el) {
+  if (!currentPage) return;
+  const index = Array.from(el.parentElement.children).indexOf(el);
+  currentPage.blocks.splice(index, 1);
+  currentPage.updatedAt = new Date().toISOString();
+  save();
+  renderCanvas();
+}
+
+function editBlock(el) {
+  const type = el.dataset.type;
+  const heading = el.querySelector('h1, h2');
+  const text = el.querySelector('p');
+
+  if (heading) {
+    const newText = prompt('Edit heading:', heading.textContent);
+    if (newText) heading.textContent = newText;
+  }
+  if (text) {
+    const newText = prompt('Edit text:', text.textContent);
+    if (newText) text.textContent = newText;
+  }
+
+  saveCanvasState();
+}
+
+function saveCanvasState() {
+  if (!currentPage) return;
+  const canvas = document.getElementById('canvas');
+  const blocks = Array.from(canvas.querySelectorAll('.block')).map(el => ({
+    type: el.dataset.type,
+    html: el.outerHTML
+  }));
+  currentPage.blocks = blocks;
+  currentPage.updatedAt = new Date().toISOString();
+  save();
+}
+
+function savePage() {
+  if (!currentPage) return alert('No page selected');
+  saveCanvasState();
+  alert('Page saved!');
+}
+
+function previewPage() {
+  if (!currentPage) return;
+  const canvas = document.getElementById('canvas');
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html>
+    <html><head><title>${currentPage.name}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
+      .block{padding:40px 20px}
+      .hero-block{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-align:center;padding:80px 20px}
+      .hero-block h1{font-size:2.5rem;margin-bottom:15px}
+      .hero-block p{font-size:1.125rem;opacity:.9;margin-bottom:25px}
+      .hero-block button{padding:12px 30px;background:#fff;color:#667eea;border:none;border-radius:6px;font-size:1rem;cursor:pointer}
+      .features-block{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;padding:60px 40px}
+      .feature{text-align:center}
+      .feature-icon{font-size:2.5rem;margin-bottom:15px}
+      .feature h3{margin-bottom:10px}
+      .feature p{color:#666;font-size:.875rem}
+      .cta-block{text-align:center;background:#f8f9fa;padding:60px 20px}
+      .cta-block h2{margin-bottom:15px}
+      .cta-block input{padding:12px 20px;border:1px solid #ddd;border-radius:6px;width:300px}
+      .cta-block button{padding:12px 25px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer}
+      .text-block{padding:40px}
+      .text-block h2{margin-bottom:15px}
+      .text-block p{line-height:1.8;color:#555}
+      .block-actions{display:none!important}
+    </style></head>
+    <body>${canvas.innerHTML}</body></html>
+  `);
+  win.document.close();
+}
+
+function publishPage() {
+  if (!currentPage) return;
+  currentPage.status = 'published';
+  currentPage.updatedAt = new Date().toISOString();
+  save();
+  renderPagesList();
+  alert('Page published!');
+}
+
+function changeDevice() {
+  const device = document.getElementById('deviceSelect').value;
+  const canvas = document.getElementById('canvas');
+  canvas.style.maxWidth = device === 'mobile' ? '375px' : device === 'tablet' ? '768px' : '800px';
+}
+
+// Drag and drop
+document.querySelectorAll('.component').forEach(comp => {
+  comp.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('type', comp.dataset.type);
+  });
+});
+
+document.getElementById('canvas').addEventListener('dragover', e => {
+  e.preventDefault();
+});
+
+document.getElementById('canvas').addEventListener('drop', e => {
+  e.preventDefault();
+  if (!currentPage) {
+    createPage();
+  }
+
+  const type = e.dataTransfer.getData('type');
+  if (type && blockTemplates[type]) {
+    currentPage.blocks.push({ type });
+    save();
+    renderCanvas();
+  }
+});
+
+// Initialize
+if (pages.length > 0) {
+  loadPage(pages[0].id);
+} else {
+  document.getElementById('canvas').innerHTML = `<div class="empty-canvas"><span>📄</span><p>Create a new page to get started</p></div>`;
+}
+renderPagesList();
+</script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Donor Management - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"donor-management","name":"Donor Management","icon":"💝","desc":"Track donors and donations for nonprofits","category":"nonprofit","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid #333}
+.stat-value{font-size:2rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.875rem;color:#888;margin-top:5px}
+.stat-change{font-size:.75rem;margin-top:5px}
+.stat-change.up{color:#10b981}
+.stat-change.down{color:#ef4444}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.donor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:15px}
+.donor-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.donor-header{display:flex;align-items:center;gap:15px;padding:15px;border-bottom:1px solid #333}
+.donor-avatar{width:50px;height:50px;border-radius:50%;background:#252525;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.donor-info h3{font-size:1rem;margin-bottom:3px}
+.donor-info span{font-size:.875rem;color:#888}
+.donor-tier{padding:4px 10px;border-radius:12px;font-size:.75rem;margin-left:auto}
+.donor-tier.platinum{background:#a855f733;color:#a855f7}
+.donor-tier.gold{background:#f59e0b33;color:#f59e0b}
+.donor-tier.silver{background:#6b728033;color:#9ca3af}
+.donor-tier.bronze{background:#b4540033;color:#d97706}
+.donor-body{padding:15px}
+.donor-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;margin-bottom:15px}
+.donor-stat-value{font-size:1.25rem;font-weight:bold}
+.donor-stat-label{font-size:.7rem;color:#888}
+.recent-donations{font-size:.875rem}
+.recent-donations h4{color:#888;font-size:.75rem;margin-bottom:8px}
+.donation-item{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #252525}
+.donation-item:last-child{border:none}
+.donor-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.empty{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💝 Donor Management</h1>
+<div style="display:flex;gap:10px">
+<button class="btn btn-secondary" onclick="showDonationModal()">+ Record Donation</button>
+<button class="btn btn-primary" onclick="showDonorModal()">+ Add Donor</button>
+</div>
+</div>
+
+<div class="stats">
+<div class="stat">
+<div class="stat-value" id="totalRaised">$0</div>
+<div class="stat-label">Total Raised (YTD)</div>
+<div class="stat-change up">↑ 15% vs last year</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="donorCount">0</div>
+<div class="stat-label">Active Donors</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="avgDonation">$0</div>
+<div class="stat-label">Average Donation</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="recurring">0</div>
+<div class="stat-label">Monthly Recurring</div>
+</div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-filter="all">All Donors</div>
+<div class="tab" data-filter="platinum">Platinum</div>
+<div class="tab" data-filter="gold">Gold</div>
+<div class="tab" data-filter="silver">Silver</div>
+<div class="tab" data-filter="bronze">Bronze</div>
+</div>
+
+<div class="donor-grid" id="donorGrid"></div>
+
+<div class="modal" id="donorModal">
+<div class="modal-content">
+<h2>Add Donor</h2>
+<form id="donorForm">
+<div class="form-row">
+<div class="form-group">
+<label>First Name</label>
+<input type="text" id="donorFirst" required>
+</div>
+<div class="form-group">
+<label>Last Name</label>
+<input type="text" id="donorLast" required>
+</div>
+</div>
+<div class="form-group">
+<label>Email</label>
+<input type="email" id="donorEmail" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Phone</label>
+<input type="tel" id="donorPhone">
+</div>
+<div class="form-group">
+<label>Preferred Contact</label>
+<select id="donorContact">
+<option>Email</option>
+<option>Phone</option>
+<option>Mail</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Address</label>
+<input type="text" id="donorAddress" placeholder="Street, City, State ZIP">
+</div>
+<div class="form-group">
+<label>Notes</label>
+<textarea id="donorNotes" rows="2"></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Donor</button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="modal" id="donationModal">
+<div class="modal-content">
+<h2>Record Donation</h2>
+<form id="donationForm">
+<div class="form-group">
+<label>Donor</label>
+<select id="donationDonor" required></select>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Amount</label>
+<input type="number" id="donationAmount" min="1" step="0.01" required>
+</div>
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="donationDate" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Type</label>
+<select id="donationType">
+<option value="one-time">One-time</option>
+<option value="monthly">Monthly Recurring</option>
+<option value="annual">Annual</option>
+</select>
+</div>
+<div class="form-group">
+<label>Method</label>
+<select id="donationMethod">
+<option>Credit Card</option>
+<option>Check</option>
+<option>Cash</option>
+<option>Bank Transfer</option>
+<option>Stock</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Campaign/Fund</label>
+<select id="donationCampaign">
+<option>General Fund</option>
+<option>Annual Appeal</option>
+<option>Capital Campaign</option>
+<option>Scholarship Fund</option>
+<option>Emergency Relief</option>
+</select>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Record Donation</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_donors';
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || { donors: [], donations: [] };
+let currentFilter = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function formatCurrency(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function getTier(totalDonated) {
+  if (totalDonated >= 10000) return 'platinum';
+  if (totalDonated >= 5000) return 'gold';
+  if (totalDonated >= 1000) return 'silver';
+  return 'bronze';
+}
+
+function getDonorStats(donorId) {
+  const donations = data.donations.filter(d => d.donorId === donorId);
+  const total = donations.reduce((sum, d) => sum + d.amount, 0);
+  const count = donations.length;
+  const lastDonation = donations.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+  return { total, count, lastDonation, recent: donations.slice(0, 3) };
+}
+
+function updateStats() {
+  const totalRaised = data.donations.reduce((sum, d) => sum + d.amount, 0);
+  const recurring = data.donations.filter(d => d.type === 'monthly').length;
+  const avgDonation = data.donations.length ? totalRaised / data.donations.length : 0;
+
+  document.getElementById('totalRaised').textContent = formatCurrency(totalRaised);
+  document.getElementById('donorCount').textContent = data.donors.length;
+  document.getElementById('avgDonation').textContent = formatCurrency(avgDonation);
+  document.getElementById('recurring').textContent = recurring;
+}
+
+function render() {
+  let donors = data.donors.map(d => ({
+    ...d,
+    stats: getDonorStats(d.id),
+    tier: getTier(getDonorStats(d.id).total)
+  }));
+
+  if (currentFilter !== 'all') {
+    donors = donors.filter(d => d.tier === currentFilter);
+  }
+
+  const grid = document.getElementById('donorGrid');
+
+  if (donors.length === 0) {
+    grid.innerHTML = '<div class="empty">No donors found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = donors.sort((a, b) => b.stats.total - a.stats.total)
+    .map(donor => `
+      <div class="donor-card">
+        <div class="donor-header">
+          <div class="donor-avatar">${donor.firstName[0]}${donor.lastName[0]}</div>
+          <div class="donor-info">
+            <h3>${donor.firstName} ${donor.lastName}</h3>
+            <span>${donor.email}</span>
+          </div>
+          <span class="donor-tier ${donor.tier}">${donor.tier}</span>
+        </div>
+        <div class="donor-body">
+          <div class="donor-stats">
+            <div>
+              <div class="donor-stat-value">${formatCurrency(donor.stats.total)}</div>
+              <div class="donor-stat-label">Total Given</div>
+            </div>
+            <div>
+              <div class="donor-stat-value">${donor.stats.count}</div>
+              <div class="donor-stat-label">Donations</div>
+            </div>
+            <div>
+              <div class="donor-stat-value">${donor.stats.lastDonation ? new Date(donor.stats.lastDonation.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : 'N/A'}</div>
+              <div class="donor-stat-label">Last Gift</div>
+            </div>
+          </div>
+          ${donor.stats.recent.length > 0 ? `
+            <div class="recent-donations">
+              <h4>Recent Donations</h4>
+              ${donor.stats.recent.map(d => `
+                <div class="donation-item">
+                  <span>${new Date(d.date).toLocaleDateString()}</span>
+                  <span>${formatCurrency(d.amount)}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+        <div class="donor-actions">
+          <button class="btn btn-primary" onclick="emailDonor('${donor.id}')">📧 Email</button>
+          <button class="btn btn-secondary" onclick="thankDonor('${donor.id}')">💌 Thank</button>
+          <button class="btn btn-secondary" onclick="deleteDonor('${donor.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+
+  updateStats();
+}
+
+function showDonorModal() {
+  document.getElementById('donorModal').classList.add('active');
+}
+
+function showDonationModal() {
+  const select = document.getElementById('donationDonor');
+  select.innerHTML = data.donors.map(d => `<option value="${d.id}">${d.firstName} ${d.lastName}</option>`).join('');
+  document.getElementById('donationDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('donationModal').classList.add('active');
+}
+
+function hideModal() {
+  document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+}
+
+document.getElementById('donorForm').addEventListener('submit', e => {
+  e.preventDefault();
+  data.donors.push({
+    id: Date.now().toString(),
+    firstName: document.getElementById('donorFirst').value,
+    lastName: document.getElementById('donorLast').value,
+    email: document.getElementById('donorEmail').value,
+    phone: document.getElementById('donorPhone').value,
+    preferredContact: document.getElementById('donorContact').value,
+    address: document.getElementById('donorAddress').value,
+    notes: document.getElementById('donorNotes').value,
+    createdAt: new Date().toISOString()
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+document.getElementById('donationForm').addEventListener('submit', e => {
+  e.preventDefault();
+  data.donations.push({
+    id: Date.now().toString(),
+    donorId: document.getElementById('donationDonor').value,
+    amount: parseFloat(document.getElementById('donationAmount').value),
+    date: document.getElementById('donationDate').value,
+    type: document.getElementById('donationType').value,
+    method: document.getElementById('donationMethod').value,
+    campaign: document.getElementById('donationCampaign').value
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function emailDonor(id) {
+  const donor = data.donors.find(d => d.id === id);
+  if (donor) alert(`Opening email to ${donor.email}...`);
+}
+
+function thankDonor(id) {
+  alert('Thank you letter queued for sending!');
+}
+
+function deleteDonor(id) {
+  if (confirm('Delete this donor?')) {
+    data.donors = data.donors.filter(d => d.id !== id);
+    data.donations = data.donations.filter(d => d.donorId !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+// Seed data
+if (data.donors.length === 0) {
+  data.donors = [
+    { id: '1', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah@example.com', phone: '555-0101' },
+    { id: '2', firstName: 'Michael', lastName: 'Chen', email: 'mchen@example.com', phone: '555-0102' },
+    { id: '3', firstName: 'Emily', lastName: 'Williams', email: 'emily.w@example.com', phone: '555-0103' }
+  ];
+  data.donations = [
+    { id: '1', donorId: '1', amount: 5000, date: '2024-01-15', type: 'one-time', method: 'Check', campaign: 'Annual Appeal' },
+    { id: '2', donorId: '1', amount: 2500, date: '2024-06-01', type: 'one-time', method: 'Credit Card', campaign: 'General Fund' },
+    { id: '3', donorId: '2', amount: 100, date: '2024-02-01', type: 'monthly', method: 'Credit Card', campaign: 'General Fund' },
+    { id: '4', donorId: '2', amount: 100, date: '2024-03-01', type: 'monthly', method: 'Credit Card', campaign: 'General Fund' },
+    { id: '5', donorId: '2', amount: 100, date: '2024-04-01', type: 'monthly', method: 'Credit Card', campaign: 'General Fund' },
+    { id: '6', donorId: '3', amount: 250, date: '2024-05-20', type: 'one-time', method: 'Cash', campaign: 'Scholarship Fund' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

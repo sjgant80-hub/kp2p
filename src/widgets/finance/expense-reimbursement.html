@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Expense Reimbursement - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"expense-reimbursement","name":"Expense Reimbursement","icon":"🧾","desc":"Submit and approve expense reimbursements","category":"finance","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-value.pending{color:#f59e0b}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-approve{background:#10b981;color:#fff}
+.btn-reject{background:#ef4444;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.expense-list{display:flex;flex-direction:column;gap:15px}
+.expense-card{background:#1a1a1a;border-radius:8px;border:1px solid #333;overflow:hidden}
+.expense-header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #333}
+.expense-title{font-weight:bold}
+.expense-amount{font-size:1.25rem;font-weight:bold;color:#10b981;font-family:monospace}
+.expense-body{padding:15px}
+.expense-meta{display:flex;gap:20px;color:#888;font-size:.875rem;margin-bottom:10px;flex-wrap:wrap}
+.expense-items{margin-top:10px}
+.expense-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #252525}
+.expense-item:last-child{border:none}
+.expense-footer{display:flex;justify-content:space-between;align-items:center;padding:15px;background:#252525}
+.status{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.status.pending{background:#f59e0b33;color:#f59e0b}
+.status.approved{background:#10b98133;color:#10b981}
+.status.rejected{background:#ef444433;color:#ef4444}
+.status.paid{background:#3b82f633;color:#3b82f6}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.modal h2{margin-bottom:20px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.line-items{margin:15px 0}
+.line-item{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end}
+.line-item input{padding:8px;border:1px solid #333;border-radius:4px;background:#252525;color:#e0e0e0}
+.add-line{color:#10b981;cursor:pointer;font-size:.875rem}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.remove-line{background:#ef4444;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer}
+.empty{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🧾 Expense Reimbursement</h1>
+<button class="btn btn-primary" onclick="showModal()">+ New Request</button>
+</div>
+
+<div class="stats">
+<div class="stat">
+<div class="stat-value pending" id="pendingAmount">$0</div>
+<div class="stat-label">Pending Approval</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="approvedAmount">$0</div>
+<div class="stat-label">Approved (This Month)</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="paidAmount">$0</div>
+<div class="stat-label">Paid (This Month)</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="totalRequests">0</div>
+<div class="stat-label">Total Requests</div>
+</div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-filter="all">All</div>
+<div class="tab" data-filter="pending">Pending</div>
+<div class="tab" data-filter="approved">Approved</div>
+<div class="tab" data-filter="rejected">Rejected</div>
+<div class="tab" data-filter="paid">Paid</div>
+</div>
+
+<div class="expense-list" id="expenseList"></div>
+
+<div class="modal" id="expenseModal">
+<div class="modal-content">
+<h2>New Expense Request</h2>
+<form id="expenseForm">
+<div class="form-row">
+<div class="form-group">
+<label>Title</label>
+<input type="text" id="expenseTitle" placeholder="e.g., Client Dinner" required>
+</div>
+<div class="form-group">
+<label>Category</label>
+<select id="expenseCategory">
+<option>Travel</option>
+<option>Meals</option>
+<option>Lodging</option>
+<option>Transportation</option>
+<option>Supplies</option>
+<option>Equipment</option>
+<option>Training</option>
+<option>Other</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Description / Business Purpose</label>
+<textarea id="expenseDesc" rows="2" placeholder="Explain the business purpose..." required></textarea>
+</div>
+<div class="line-items">
+<label style="color:#888;font-size:.875rem">Line Items</label>
+<div id="lineItems">
+<div class="line-item">
+<input type="text" placeholder="Description" class="item-desc" required>
+<input type="date" class="item-date" required>
+<input type="number" placeholder="Amount" class="item-amount" step="0.01" min="0" required>
+<button type="button" class="remove-line" onclick="removeLine(this)">×</button>
+</div>
+</div>
+<div class="add-line" onclick="addLine()">+ Add Line Item</div>
+</div>
+<div class="form-group">
+<label>Attachments (Receipt descriptions)</label>
+<input type="text" id="expenseAttachments" placeholder="e.g., receipt.pdf, hotel_invoice.pdf">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Submit Request</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_expense_reimb';
+let requests = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
+}
+
+function formatCurrency(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function updateStats() {
+  const now = new Date();
+  const thisMonth = requests.filter(r => {
+    const d = new Date(r.submittedAt);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  const pending = requests.filter(r => r.status === 'pending').reduce((s, r) => s + r.total, 0);
+  const approved = thisMonth.filter(r => r.status === 'approved').reduce((s, r) => s + r.total, 0);
+  const paid = thisMonth.filter(r => r.status === 'paid').reduce((s, r) => s + r.total, 0);
+
+  document.getElementById('pendingAmount').textContent = formatCurrency(pending);
+  document.getElementById('approvedAmount').textContent = formatCurrency(approved);
+  document.getElementById('paidAmount').textContent = formatCurrency(paid);
+  document.getElementById('totalRequests').textContent = requests.length;
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? requests :
+    requests.filter(r => r.status === currentFilter);
+
+  const list = document.getElementById('expenseList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">No expense requests found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+    .map(req => `
+      <div class="expense-card">
+        <div class="expense-header">
+          <div>
+            <div class="expense-title">${req.title}</div>
+            <div style="color:#888;font-size:.875rem">${req.id}</div>
+          </div>
+          <div class="expense-amount">${formatCurrency(req.total)}</div>
+        </div>
+        <div class="expense-body">
+          <div class="expense-meta">
+            <span>📁 ${req.category}</span>
+            <span>📅 ${new Date(req.submittedAt).toLocaleDateString()}</span>
+            <span>👤 ${req.submittedBy || 'You'}</span>
+          </div>
+          <p style="color:#aaa;font-size:.875rem">${req.description}</p>
+          <div class="expense-items">
+            ${req.items.map(item => `
+              <div class="expense-item">
+                <span>${item.desc} <small style="color:#666">(${new Date(item.date).toLocaleDateString()})</small></span>
+                <span>${formatCurrency(item.amount)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="expense-footer">
+          <span class="status ${req.status}">${req.status}</span>
+          <div>
+            ${req.status === 'pending' ? `
+              <button class="btn btn-approve" onclick="updateStatus('${req.id}', 'approved')">✓ Approve</button>
+              <button class="btn btn-reject" onclick="updateStatus('${req.id}', 'rejected')">✗ Reject</button>
+            ` : ''}
+            ${req.status === 'approved' ? `
+              <button class="btn btn-primary" onclick="updateStatus('${req.id}', 'paid')">💳 Mark Paid</button>
+            ` : ''}
+            <button class="btn btn-secondary" onclick="deleteRequest('${req.id}')">🗑️</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('expenseModal').classList.add('active');
+  document.querySelector('.item-date').value = new Date().toISOString().split('T')[0];
+}
+
+function hideModal() {
+  document.getElementById('expenseModal').classList.remove('active');
+}
+
+function addLine() {
+  const container = document.getElementById('lineItems');
+  const div = document.createElement('div');
+  div.className = 'line-item';
+  div.innerHTML = `
+    <input type="text" placeholder="Description" class="item-desc" required>
+    <input type="date" class="item-date" value="${new Date().toISOString().split('T')[0]}" required>
+    <input type="number" placeholder="Amount" class="item-amount" step="0.01" min="0" required>
+    <button type="button" class="remove-line" onclick="removeLine(this)">×</button>
+  `;
+  container.appendChild(div);
+}
+
+function removeLine(btn) {
+  const items = document.querySelectorAll('.line-item');
+  if (items.length > 1) btn.parentElement.remove();
+}
+
+document.getElementById('expenseForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  const items = [];
+  document.querySelectorAll('.line-item').forEach(row => {
+    items.push({
+      desc: row.querySelector('.item-desc').value,
+      date: row.querySelector('.item-date').value,
+      amount: parseFloat(row.querySelector('.item-amount').value)
+    });
+  });
+
+  const total = items.reduce((s, i) => s + i.amount, 0);
+
+  requests.push({
+    id: 'EXP-' + Date.now().toString(36).toUpperCase(),
+    title: document.getElementById('expenseTitle').value,
+    category: document.getElementById('expenseCategory').value,
+    description: document.getElementById('expenseDesc').value,
+    items,
+    total,
+    attachments: document.getElementById('expenseAttachments').value,
+    status: 'pending',
+    submittedAt: new Date().toISOString(),
+    submittedBy: 'You'
+  });
+
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+  document.getElementById('lineItems').innerHTML = `
+    <div class="line-item">
+      <input type="text" placeholder="Description" class="item-desc" required>
+      <input type="date" class="item-date" required>
+      <input type="number" placeholder="Amount" class="item-amount" step="0.01" min="0" required>
+      <button type="button" class="remove-line" onclick="removeLine(this)">×</button>
+    </div>
+  `;
+});
+
+function updateStatus(id, status) {
+  const req = requests.find(r => r.id === id);
+  if (req) {
+    req.status = status;
+    req[status + 'At'] = new Date().toISOString();
+    save();
+    render();
+  }
+}
+
+function deleteRequest(id) {
+  if (confirm('Delete this expense request?')) {
+    requests = requests.filter(r => r.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

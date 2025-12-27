@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Knowledge Base - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"knowledge-base","name":"Knowledge Base","icon":"📚","desc":"Self-service documentation and help articles","category":"service","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+.header{text-align:center;padding:40px 20px;background:linear-gradient(135deg,#1a1a1a,#252525);border-radius:12px;margin-bottom:30px}
+h1{font-size:2rem;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:10px}
+.search-box{max-width:600px;margin:0 auto}
+.search-box input{width:100%;padding:15px 20px;border:1px solid #333;border-radius:8px;background:#0a0a0a;color:#e0e0e0;font-size:1rem}
+.search-box input:focus{outline:none;border-color:#10b981}
+.categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px}
+.category-card{background:#1a1a1a;border-radius:12px;padding:25px;border:1px solid #333;cursor:pointer;transition:all .2s}
+.category-card:hover{border-color:#10b981;transform:translateY(-2px)}
+.category-icon{font-size:2rem;margin-bottom:10px}
+.category-title{font-size:1.125rem;font-weight:600;margin-bottom:5px}
+.category-count{color:#888;font-size:.875rem}
+.articles-section{background:#1a1a1a;border-radius:12px;padding:25px;border:1px solid #333}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.section-title{font-size:1.25rem;font-weight:600}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.article-list{display:flex;flex-direction:column;gap:10px}
+.article-item{display:flex;align-items:center;gap:15px;padding:15px;background:#252525;border-radius:8px;cursor:pointer;transition:background .2s}
+.article-item:hover{background:#333}
+.article-icon{font-size:1.5rem}
+.article-info{flex:1}
+.article-title{font-weight:500;margin-bottom:3px}
+.article-meta{color:#888;font-size:.75rem;display:flex;gap:15px}
+.article-view{display:none;background:#1a1a1a;border-radius:12px;padding:25px;border:1px solid #333}
+.article-view.active{display:block}
+.article-view h2{margin-bottom:10px}
+.article-view .meta{color:#888;font-size:.875rem;margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #333}
+.article-content{line-height:1.8}
+.article-content h3{margin:20px 0 10px;color:#10b981}
+.article-content p{margin-bottom:15px}
+.article-content ul{margin:10px 0 15px 20px}
+.article-content li{margin-bottom:8px}
+.article-content code{background:#252525;padding:2px 6px;border-radius:4px;font-family:monospace}
+.back-btn{display:inline-flex;align-items:center;gap:5px;color:#10b981;cursor:pointer;margin-bottom:20px}
+.helpful{margin-top:30px;padding-top:20px;border-top:1px solid #333;text-align:center}
+.helpful span{margin-right:15px;color:#888}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:700px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-group textarea{min-height:200px;font-family:inherit}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.empty{text-align:center;padding:40px;color:#666}
+.tag{display:inline-block;padding:2px 8px;background:#333;border-radius:4px;font-size:.75rem;margin-right:5px}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>📚 Knowledge Base</h1>
+<p style="color:#888;margin-bottom:20px">Find answers to common questions</p>
+<div class="search-box">
+<input type="text" id="searchInput" placeholder="Search articles..." oninput="searchArticles()">
+</div>
+</div>
+
+<div id="categoriesView">
+<div class="categories" id="categoryGrid"></div>
+
+<div class="articles-section">
+<div class="section-header">
+<div class="section-title">📝 Recent Articles</div>
+<button class="btn btn-primary" onclick="showModal()">+ New Article</button>
+</div>
+<div class="article-list" id="recentArticles"></div>
+</div>
+</div>
+
+<div class="article-view" id="articleView">
+<div class="back-btn" onclick="showCategories()">← Back to Articles</div>
+<div id="articleContent"></div>
+</div>
+</div>
+
+<div class="modal" id="articleModal">
+<div class="modal-content">
+<h2>New Article</h2>
+<form id="articleForm">
+<div class="form-group">
+<label>Title</label>
+<input type="text" id="articleTitle" required>
+</div>
+<div class="form-group">
+<label>Category</label>
+<select id="articleCategory">
+<option value="getting-started">🚀 Getting Started</option>
+<option value="account">👤 Account & Billing</option>
+<option value="features">⚡ Features & How-To</option>
+<option value="troubleshooting">🔧 Troubleshooting</option>
+<option value="integrations">🔌 Integrations</option>
+<option value="security">🔒 Security & Privacy</option>
+</select>
+</div>
+<div class="form-group">
+<label>Tags (comma-separated)</label>
+<input type="text" id="articleTags" placeholder="e.g., setup, password, login">
+</div>
+<div class="form-group">
+<label>Content (Markdown supported)</label>
+<textarea id="articleBody" placeholder="Write your article content here..." required></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Publish</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_knowledge_base';
+const categories = {
+  'getting-started': { icon: '🚀', name: 'Getting Started' },
+  'account': { icon: '👤', name: 'Account & Billing' },
+  'features': { icon: '⚡', name: 'Features & How-To' },
+  'troubleshooting': { icon: '🔧', name: 'Troubleshooting' },
+  'integrations': { icon: '🔌', name: 'Integrations' },
+  'security': { icon: '🔒', name: 'Security & Privacy' }
+};
+
+let articles = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+// Seed with sample articles if empty
+if (articles.length === 0) {
+  articles = [
+    { id: '1', title: 'How to Get Started', category: 'getting-started', tags: ['setup', 'beginner'], content: '## Welcome!\n\nThis guide will help you get started with our platform.\n\n### Step 1: Create an Account\n\nClick the Sign Up button and fill in your details.\n\n### Step 2: Configure Your Settings\n\nNavigate to Settings and customize your preferences.\n\n### Step 3: Explore Features\n\nCheck out our Features section to see what you can do!', views: 150, helpful: 45, createdAt: '2024-01-15' },
+    { id: '2', title: 'Reset Your Password', category: 'account', tags: ['password', 'login', 'security'], content: '## Resetting Your Password\n\nIf you\'ve forgotten your password, follow these steps:\n\n1. Click "Forgot Password" on the login page\n2. Enter your email address\n3. Check your inbox for the reset link\n4. Create a new secure password\n\n**Tip:** Use a password manager for better security.', views: 89, helpful: 32, createdAt: '2024-02-10' },
+    { id: '3', title: 'Troubleshooting Connection Issues', category: 'troubleshooting', tags: ['connection', 'error', 'network'], content: '## Connection Issues\n\nTry these solutions:\n\n### Clear Your Cache\n\nSometimes cached data can cause issues.\n\n### Check Your Network\n\nEnsure you have a stable internet connection.\n\n### Disable Extensions\n\nBrowser extensions may interfere with the app.', views: 67, helpful: 28, createdAt: '2024-03-05' }
+  ];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
+}
+
+function renderCategories() {
+  const grid = document.getElementById('categoryGrid');
+  grid.innerHTML = Object.entries(categories).map(([key, cat]) => {
+    const count = articles.filter(a => a.category === key).length;
+    return `
+      <div class="category-card" onclick="showCategory('${key}')">
+        <div class="category-icon">${cat.icon}</div>
+        <div class="category-title">${cat.name}</div>
+        <div class="category-count">${count} article${count !== 1 ? 's' : ''}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRecent() {
+  const list = document.getElementById('recentArticles');
+  const recent = articles.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+
+  if (recent.length === 0) {
+    list.innerHTML = '<div class="empty">No articles yet. Create your first article!</div>';
+    return;
+  }
+
+  list.innerHTML = recent.map(article => {
+    const cat = categories[article.category];
+    return `
+      <div class="article-item" onclick="viewArticle('${article.id}')">
+        <div class="article-icon">${cat.icon}</div>
+        <div class="article-info">
+          <div class="article-title">${article.title}</div>
+          <div class="article-meta">
+            <span>${cat.name}</span>
+            <span>👁️ ${article.views} views</span>
+            <span>👍 ${article.helpful} found helpful</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function showCategory(categoryKey) {
+  const cat = categories[categoryKey];
+  const catArticles = articles.filter(a => a.category === categoryKey);
+
+  document.getElementById('categoriesView').style.display = 'none';
+  document.getElementById('articleView').classList.add('active');
+
+  document.getElementById('articleContent').innerHTML = `
+    <h2>${cat.icon} ${cat.name}</h2>
+    <div class="article-list" style="margin-top:20px">
+      ${catArticles.length === 0 ? '<div class="empty">No articles in this category</div>' :
+        catArticles.map(article => `
+          <div class="article-item" onclick="viewArticle('${article.id}')">
+            <div class="article-icon">📄</div>
+            <div class="article-info">
+              <div class="article-title">${article.title}</div>
+              <div class="article-meta">
+                <span>👁️ ${article.views} views</span>
+                ${article.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+              </div>
+            </div>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+}
+
+function viewArticle(id) {
+  const article = articles.find(a => a.id === id);
+  if (!article) return;
+
+  article.views++;
+  save();
+
+  const cat = categories[article.category];
+  document.getElementById('categoriesView').style.display = 'none';
+  document.getElementById('articleView').classList.add('active');
+
+  // Simple markdown rendering
+  let content = article.content
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(.+)$/gm, (m) => m.startsWith('<') ? m : `<p>${m}</p>`);
+
+  document.getElementById('articleContent').innerHTML = `
+    <h2>${article.title}</h2>
+    <div class="meta">
+      ${cat.icon} ${cat.name} • 👁️ ${article.views} views • Last updated ${new Date(article.createdAt).toLocaleDateString()}
+      ${article.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+    </div>
+    <div class="article-content">${content}</div>
+    <div class="helpful">
+      <span>Was this article helpful?</span>
+      <button class="btn btn-primary" onclick="markHelpful('${id}')">👍 Yes</button>
+      <button class="btn btn-secondary" onclick="showCategories()">👎 No</button>
+    </div>
+  `;
+}
+
+function showCategories() {
+  document.getElementById('categoriesView').style.display = 'block';
+  document.getElementById('articleView').classList.remove('active');
+  renderCategories();
+  renderRecent();
+}
+
+function markHelpful(id) {
+  const article = articles.find(a => a.id === id);
+  if (article) {
+    article.helpful++;
+    save();
+    alert('Thanks for your feedback!');
+  }
+}
+
+function searchArticles() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  if (query.length < 2) {
+    showCategories();
+    return;
+  }
+
+  const results = articles.filter(a =>
+    a.title.toLowerCase().includes(query) ||
+    a.content.toLowerCase().includes(query) ||
+    a.tags.some(t => t.toLowerCase().includes(query))
+  );
+
+  document.getElementById('categoriesView').style.display = 'none';
+  document.getElementById('articleView').classList.add('active');
+
+  document.getElementById('articleContent').innerHTML = `
+    <h2>Search Results for "${query}"</h2>
+    <div class="article-list" style="margin-top:20px">
+      ${results.length === 0 ? '<div class="empty">No articles found</div>' :
+        results.map(article => {
+          const cat = categories[article.category];
+          return `
+            <div class="article-item" onclick="viewArticle('${article.id}')">
+              <div class="article-icon">${cat.icon}</div>
+              <div class="article-info">
+                <div class="article-title">${article.title}</div>
+                <div class="article-meta">
+                  <span>${cat.name}</span>
+                  ${article.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')
+      }
+    </div>
+  `;
+}
+
+function showModal() {
+  document.getElementById('articleModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('articleModal').classList.remove('active');
+}
+
+document.getElementById('articleForm').addEventListener('submit', e => {
+  e.preventDefault();
+  articles.push({
+    id: Date.now().toString(),
+    title: document.getElementById('articleTitle').value,
+    category: document.getElementById('articleCategory').value,
+    tags: document.getElementById('articleTags').value.split(',').map(t => t.trim()).filter(Boolean),
+    content: document.getElementById('articleBody').value,
+    views: 0,
+    helpful: 0,
+    createdAt: new Date().toISOString().split('T')[0]
+  });
+  save();
+  showCategories();
+  hideModal();
+  e.target.reset();
+});
+
+showCategories();
+</script>
+</body>
+</html>

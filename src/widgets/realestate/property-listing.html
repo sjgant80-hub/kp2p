@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Property Listings - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"property-listing","name":"Property Listings","icon":"🏠","desc":"Manage real estate property listings","category":"realestate","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter-group{display:flex;align-items:center;gap:8px}
+.filter-group label{font-size:.875rem;color:#888}
+.filter-group select,.filter-group input{padding:8px 12px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.property-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.property-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.property-image{height:180px;background:linear-gradient(135deg,#252525,#333);display:flex;align-items:center;justify-content:center;font-size:4rem;position:relative}
+.property-badge{position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:4px;font-size:.75rem;font-weight:600}
+.property-badge.active{background:#10b981;color:#fff}
+.property-badge.pending{background:#f59e0b;color:#fff}
+.property-badge.sold{background:#ef4444;color:#fff}
+.property-badge.rented{background:#3b82f6;color:#fff}
+.property-content{padding:15px}
+.property-price{font-size:1.5rem;font-weight:bold;color:#10b981;margin-bottom:5px}
+.property-price span{font-size:.875rem;color:#888;font-weight:normal}
+.property-address{color:#888;font-size:.875rem;margin-bottom:10px}
+.property-details{display:flex;gap:15px;margin-bottom:10px}
+.property-detail{display:flex;align-items:center;gap:5px;font-size:.875rem}
+.property-detail span{color:#888}
+.property-type{font-size:.75rem;color:#888;text-transform:uppercase}
+.property-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.empty{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏠 Property Listings</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Property</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalListings">0</div><div class="stat-label">Total Listings</div></div>
+<div class="stat"><div class="stat-value" id="activeListings">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value" id="totalValue">$0</div><div class="stat-label">Portfolio Value</div></div>
+<div class="stat"><div class="stat-value" id="avgPrice">$0</div><div class="stat-label">Avg Price</div></div>
+</div>
+
+<div class="filters">
+<div class="filter-group">
+<label>Type:</label>
+<select id="filterType" onchange="render()">
+<option value="">All Types</option>
+<option value="house">House</option>
+<option value="apartment">Apartment</option>
+<option value="condo">Condo</option>
+<option value="townhouse">Townhouse</option>
+<option value="land">Land</option>
+<option value="commercial">Commercial</option>
+</select>
+</div>
+<div class="filter-group">
+<label>Status:</label>
+<select id="filterStatus" onchange="render()">
+<option value="">All</option>
+<option value="active">Active</option>
+<option value="pending">Pending</option>
+<option value="sold">Sold</option>
+<option value="rented">Rented</option>
+</select>
+</div>
+<div class="filter-group">
+<label>Price:</label>
+<select id="filterPrice" onchange="render()">
+<option value="">Any Price</option>
+<option value="0-250000">Under $250K</option>
+<option value="250000-500000">$250K - $500K</option>
+<option value="500000-1000000">$500K - $1M</option>
+<option value="1000000-">$1M+</option>
+</select>
+</div>
+</div>
+
+<div class="property-grid" id="propertyGrid"></div>
+
+<div class="modal" id="propertyModal">
+<div class="modal-content">
+<h2 id="modalTitle">Add Property</h2>
+<form id="propertyForm">
+<input type="hidden" id="propertyId">
+<div class="form-row">
+<div class="form-group">
+<label>Property Type</label>
+<select id="propType">
+<option value="house">🏠 House</option>
+<option value="apartment">🏢 Apartment</option>
+<option value="condo">🏬 Condo</option>
+<option value="townhouse">🏘️ Townhouse</option>
+<option value="land">🌳 Land</option>
+<option value="commercial">🏪 Commercial</option>
+</select>
+</div>
+<div class="form-group">
+<label>Listing Type</label>
+<select id="listingType">
+<option value="sale">For Sale</option>
+<option value="rent">For Rent</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Address</label>
+<input type="text" id="propAddress" required placeholder="123 Main St, City, State ZIP">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Price</label>
+<input type="number" id="propPrice" required min="0" step="1000">
+</div>
+<div class="form-group">
+<label>Status</label>
+<select id="propStatus">
+<option value="active">Active</option>
+<option value="pending">Pending</option>
+<option value="sold">Sold</option>
+<option value="rented">Rented</option>
+</select>
+</div>
+</div>
+<div class="form-row three">
+<div class="form-group">
+<label>Bedrooms</label>
+<input type="number" id="propBeds" min="0" value="3">
+</div>
+<div class="form-group">
+<label>Bathrooms</label>
+<input type="number" id="propBaths" min="0" step="0.5" value="2">
+</div>
+<div class="form-group">
+<label>Sq Ft</label>
+<input type="number" id="propSqft" min="0" value="1500">
+</div>
+</div>
+<div class="form-group">
+<label>Description</label>
+<textarea id="propDesc" rows="3" placeholder="Property description..."></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Save Property</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_property_listings';
+let properties = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const typeIcons = {
+  house: '🏠',
+  apartment: '🏢',
+  condo: '🏬',
+  townhouse: '🏘️',
+  land: '🌳',
+  commercial: '🏪'
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
+}
+
+function formatCurrency(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + (n / 1000).toFixed(0) + 'K';
+  return '$' + n.toLocaleString();
+}
+
+function updateStats() {
+  const active = properties.filter(p => p.status === 'active');
+  const totalValue = properties.reduce((sum, p) => sum + p.price, 0);
+  const avgPrice = properties.length ? totalValue / properties.length : 0;
+
+  document.getElementById('totalListings').textContent = properties.length;
+  document.getElementById('activeListings').textContent = active.length;
+  document.getElementById('totalValue').textContent = formatCurrency(totalValue);
+  document.getElementById('avgPrice').textContent = formatCurrency(avgPrice);
+}
+
+function render() {
+  const typeFilter = document.getElementById('filterType').value;
+  const statusFilter = document.getElementById('filterStatus').value;
+  const priceFilter = document.getElementById('filterPrice').value;
+
+  let filtered = properties;
+
+  if (typeFilter) filtered = filtered.filter(p => p.type === typeFilter);
+  if (statusFilter) filtered = filtered.filter(p => p.status === statusFilter);
+  if (priceFilter) {
+    const [min, max] = priceFilter.split('-').map(Number);
+    filtered = filtered.filter(p => p.price >= min && (!max || p.price <= max));
+  }
+
+  const grid = document.getElementById('propertyGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="empty">No properties found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(prop => `
+    <div class="property-card">
+      <div class="property-image">
+        ${typeIcons[prop.type] || '🏠'}
+        <span class="property-badge ${prop.status}">${prop.status}</span>
+      </div>
+      <div class="property-content">
+        <div class="property-price">
+          ${formatCurrency(prop.price)}
+          ${prop.listingType === 'rent' ? '<span>/mo</span>' : ''}
+        </div>
+        <div class="property-address">${prop.address}</div>
+        <div class="property-details">
+          <div class="property-detail">🛏️ ${prop.beds} <span>beds</span></div>
+          <div class="property-detail">🛁 ${prop.baths} <span>baths</span></div>
+          <div class="property-detail">📐 ${prop.sqft.toLocaleString()} <span>sqft</span></div>
+        </div>
+        <div class="property-type">${prop.type} • For ${prop.listingType}</div>
+      </div>
+      <div class="property-actions">
+        <button class="btn btn-secondary" onclick="editProperty('${prop.id}')">✏️ Edit</button>
+        <button class="btn btn-secondary" onclick="deleteProperty('${prop.id}')">🗑️</button>
+        ${prop.status === 'active' ? `<button class="btn btn-primary" onclick="markPending('${prop.id}')">📋</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function showModal(prop = null) {
+  document.getElementById('modalTitle').textContent = prop ? 'Edit Property' : 'Add Property';
+  document.getElementById('propertyId').value = prop?.id || '';
+  document.getElementById('propType').value = prop?.type || 'house';
+  document.getElementById('listingType').value = prop?.listingType || 'sale';
+  document.getElementById('propAddress').value = prop?.address || '';
+  document.getElementById('propPrice').value = prop?.price || '';
+  document.getElementById('propStatus').value = prop?.status || 'active';
+  document.getElementById('propBeds').value = prop?.beds ?? 3;
+  document.getElementById('propBaths').value = prop?.baths ?? 2;
+  document.getElementById('propSqft').value = prop?.sqft ?? 1500;
+  document.getElementById('propDesc').value = prop?.description || '';
+
+  document.getElementById('propertyModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('propertyModal').classList.remove('active');
+}
+
+document.getElementById('propertyForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  const id = document.getElementById('propertyId').value;
+  const propData = {
+    id: id || Date.now().toString(),
+    type: document.getElementById('propType').value,
+    listingType: document.getElementById('listingType').value,
+    address: document.getElementById('propAddress').value,
+    price: parseFloat(document.getElementById('propPrice').value),
+    status: document.getElementById('propStatus').value,
+    beds: parseInt(document.getElementById('propBeds').value),
+    baths: parseFloat(document.getElementById('propBaths').value),
+    sqft: parseInt(document.getElementById('propSqft').value),
+    description: document.getElementById('propDesc').value,
+    createdAt: id ? properties.find(p => p.id === id)?.createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (id) {
+    const idx = properties.findIndex(p => p.id === id);
+    if (idx !== -1) properties[idx] = propData;
+  } else {
+    properties.push(propData);
+  }
+
+  save();
+  render();
+  hideModal();
+});
+
+function editProperty(id) {
+  const prop = properties.find(p => p.id === id);
+  if (prop) showModal(prop);
+}
+
+function deleteProperty(id) {
+  if (confirm('Delete this property listing?')) {
+    properties = properties.filter(p => p.id !== id);
+    save();
+    render();
+  }
+}
+
+function markPending(id) {
+  const prop = properties.find(p => p.id === id);
+  if (prop) {
+    prop.status = 'pending';
+    save();
+    render();
+  }
+}
+
+// Seed data if empty
+if (properties.length === 0) {
+  properties = [
+    { id: '1', type: 'house', listingType: 'sale', address: '123 Oak Street, Austin, TX 78701', price: 450000, status: 'active', beds: 4, baths: 2.5, sqft: 2200, description: 'Beautiful family home', createdAt: new Date().toISOString() },
+    { id: '2', type: 'apartment', listingType: 'rent', address: '456 Downtown Ave #1205, Austin, TX 78702', price: 2500, status: 'active', beds: 2, baths: 2, sqft: 1100, description: 'Modern downtown apartment', createdAt: new Date().toISOString() },
+    { id: '3', type: 'condo', listingType: 'sale', address: '789 Lake View Dr, Austin, TX 78703', price: 325000, status: 'pending', beds: 3, baths: 2, sqft: 1650, description: 'Lake view condo', createdAt: new Date().toISOString() }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

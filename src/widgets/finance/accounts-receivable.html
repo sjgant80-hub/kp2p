@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accounts Receivable - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"accounts-receivable","name":"Accounts Receivable","icon":"💰","desc":"Track customer invoices and payments","category":"finance","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-value.overdue{color:#ef4444}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:#1a1a1a;border-radius:8px;overflow:hidden}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #333}
+th{background:#252525;color:#888;font-weight:500;font-size:.75rem;text-transform:uppercase}
+.status{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.status.paid{background:#10b98133;color:#10b981}
+.status.pending{background:#f59e0b33;color:#f59e0b}
+.status.overdue{background:#ef444433;color:#ef4444}
+.status.partial{background:#3b82f633;color:#3b82f6}
+.amount{font-family:monospace}
+.aging{font-size:.75rem;color:#888}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal h2{margin-bottom:20px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.action-btn{padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:.75rem;background:#333;color:#e0e0e0}
+.action-btn:hover{background:#444}
+.empty{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💰 Accounts Receivable</h1>
+<div class="actions">
+<button class="btn btn-primary" onclick="showModal('invoice')">+ New Invoice</button>
+<button class="btn btn-secondary" onclick="showModal('payment')">Record Payment</button>
+</div>
+</div>
+
+<div class="stats">
+<div class="stat">
+<div class="stat-value" id="totalOutstanding">$0</div>
+<div class="stat-label">Total Outstanding</div>
+</div>
+<div class="stat">
+<div class="stat-value overdue" id="totalOverdue">$0</div>
+<div class="stat-label">Overdue Amount</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="avgDays">0</div>
+<div class="stat-label">Avg Days Outstanding</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="collectionRate">0%</div>
+<div class="stat-label">Collection Rate (30d)</div>
+</div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-filter="all">All</div>
+<div class="tab" data-filter="pending">Pending</div>
+<div class="tab" data-filter="overdue">Overdue</div>
+<div class="tab" data-filter="partial">Partial</div>
+<div class="tab" data-filter="paid">Paid</div>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Invoice #</th>
+<th>Customer</th>
+<th>Issue Date</th>
+<th>Due Date</th>
+<th>Amount</th>
+<th>Paid</th>
+<th>Balance</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="invoiceList"></tbody>
+</table>
+</div>
+
+<div class="modal" id="invoiceModal">
+<div class="modal-content">
+<h2>New Invoice</h2>
+<form id="invoiceForm">
+<div class="form-group">
+<label>Customer Name</label>
+<input type="text" id="customerName" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Invoice Amount</label>
+<input type="number" id="invoiceAmount" step="0.01" min="0" required>
+</div>
+<div class="form-group">
+<label>Due Date</label>
+<input type="date" id="dueDate" required>
+</div>
+</div>
+<div class="form-group">
+<label>Description</label>
+<textarea id="invoiceDesc" rows="2"></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Create Invoice</button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="modal" id="paymentModal">
+<div class="modal-content">
+<h2>Record Payment</h2>
+<form id="paymentForm">
+<div class="form-group">
+<label>Select Invoice</label>
+<select id="paymentInvoice" required></select>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Payment Amount</label>
+<input type="number" id="paymentAmount" step="0.01" min="0" required>
+</div>
+<div class="form-group">
+<label>Payment Date</label>
+<input type="date" id="paymentDate" required>
+</div>
+</div>
+<div class="form-group">
+<label>Payment Method</label>
+<select id="paymentMethod">
+<option value="check">Check</option>
+<option value="ach">ACH Transfer</option>
+<option value="wire">Wire Transfer</option>
+<option value="card">Credit Card</option>
+<option value="cash">Cash</option>
+</select>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Record Payment</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_ar_invoices';
+let invoices = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+
+function generateId() {
+  return 'INV-' + Date.now().toString(36).toUpperCase();
+}
+
+function formatCurrency(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getStatus(inv) {
+  const balance = inv.amount - inv.paid;
+  if (balance <= 0) return 'paid';
+  if (inv.paid > 0) return 'partial';
+  if (new Date(inv.dueDate) < new Date()) return 'overdue';
+  return 'pending';
+}
+
+function getDaysOutstanding(inv) {
+  const issued = new Date(inv.issueDate);
+  const now = new Date();
+  return Math.floor((now - issued) / (1000 * 60 * 60 * 24));
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+}
+
+function updateStats() {
+  const outstanding = invoices.reduce((sum, inv) => sum + (inv.amount - inv.paid), 0);
+  const overdue = invoices.filter(inv => getStatus(inv) === 'overdue')
+    .reduce((sum, inv) => sum + (inv.amount - inv.paid), 0);
+
+  const unpaid = invoices.filter(inv => inv.amount > inv.paid);
+  const avgDays = unpaid.length ?
+    Math.round(unpaid.reduce((sum, inv) => sum + getDaysOutstanding(inv), 0) / unpaid.length) : 0;
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recentInvoices = invoices.filter(inv => new Date(inv.issueDate) >= thirtyDaysAgo);
+  const recentTotal = recentInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+  const recentPaid = recentInvoices.reduce((sum, inv) => sum + inv.paid, 0);
+  const rate = recentTotal > 0 ? Math.round((recentPaid / recentTotal) * 100) : 0;
+
+  document.getElementById('totalOutstanding').textContent = formatCurrency(outstanding);
+  document.getElementById('totalOverdue').textContent = formatCurrency(overdue);
+  document.getElementById('avgDays').textContent = avgDays;
+  document.getElementById('collectionRate').textContent = rate + '%';
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? invoices :
+    invoices.filter(inv => getStatus(inv) === currentFilter);
+
+  const list = document.getElementById('invoiceList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<tr><td colspan="9" class="empty">No invoices found</td></tr>';
+    return;
+  }
+
+  list.innerHTML = filtered.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate))
+    .map(inv => {
+      const status = getStatus(inv);
+      const balance = inv.amount - inv.paid;
+      const days = getDaysOutstanding(inv);
+      return `<tr>
+        <td><strong>${inv.id}</strong></td>
+        <td>${inv.customer}</td>
+        <td>${new Date(inv.issueDate).toLocaleDateString()}</td>
+        <td>${new Date(inv.dueDate).toLocaleDateString()}</td>
+        <td class="amount">${formatCurrency(inv.amount)}</td>
+        <td class="amount">${formatCurrency(inv.paid)}</td>
+        <td class="amount"><strong>${formatCurrency(balance)}</strong></td>
+        <td><span class="status ${status}">${status}</span> <span class="aging">${days}d</span></td>
+        <td>
+          <button class="action-btn" onclick="sendReminder('${inv.id}')">📧</button>
+          <button class="action-btn" onclick="deleteInvoice('${inv.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+  updateStats();
+}
+
+function showModal(type) {
+  if (type === 'invoice') {
+    document.getElementById('dueDate').value = new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0];
+    document.getElementById('invoiceModal').classList.add('active');
+  } else {
+    const select = document.getElementById('paymentInvoice');
+    const unpaid = invoices.filter(inv => inv.amount > inv.paid);
+    select.innerHTML = unpaid.map(inv =>
+      `<option value="${inv.id}">${inv.id} - ${inv.customer} (${formatCurrency(inv.amount - inv.paid)} due)</option>`
+    ).join('');
+    document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('paymentModal').classList.add('active');
+  }
+}
+
+function hideModal() {
+  document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+}
+
+document.getElementById('invoiceForm').addEventListener('submit', e => {
+  e.preventDefault();
+  invoices.push({
+    id: generateId(),
+    customer: document.getElementById('customerName').value,
+    amount: parseFloat(document.getElementById('invoiceAmount').value),
+    paid: 0,
+    dueDate: document.getElementById('dueDate').value,
+    issueDate: new Date().toISOString().split('T')[0],
+    desc: document.getElementById('invoiceDesc').value,
+    payments: []
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+document.getElementById('paymentForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const invId = document.getElementById('paymentInvoice').value;
+  const inv = invoices.find(i => i.id === invId);
+  if (inv) {
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    inv.paid += amount;
+    inv.payments.push({
+      amount,
+      date: document.getElementById('paymentDate').value,
+      method: document.getElementById('paymentMethod').value
+    });
+    save();
+    render();
+  }
+  hideModal();
+  e.target.reset();
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+function sendReminder(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (inv) alert(`Reminder sent to ${inv.customer} for invoice ${inv.id}`);
+}
+
+function deleteInvoice(id) {
+  if (confirm('Delete this invoice?')) {
+    invoices = invoices.filter(i => i.id !== id);
+    save();
+    render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>

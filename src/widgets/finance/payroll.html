@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payroll Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"payroll","name":"Payroll Manager","icon":"💵","desc":"Process employee payroll and track compensation","category":"finance","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.period-select{display:flex;align-items:center;gap:10px}
+.period-select select{padding:8px 12px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-run{background:#3b82f6;color:#fff}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:#1a1a1a;border-radius:8px;overflow:hidden}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #333}
+th{background:#252525;color:#888;font-weight:500;font-size:.75rem;text-transform:uppercase}
+.amount{font-family:monospace;text-align:right}
+.status{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.status.pending{background:#f59e0b33;color:#f59e0b}
+.status.processed{background:#10b98133;color:#10b981}
+.status.paid{background:#3b82f633;color:#3b82f6}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.modal h2{margin-bottom:20px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.payslip{background:#252525;padding:15px;border-radius:8px;margin-top:15px}
+.payslip h3{margin-bottom:10px;font-size:1rem}
+.payslip-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.payslip-row:last-child{border:none}
+.payslip-row.total{font-weight:bold;color:#10b981;border-top:2px solid #333;margin-top:10px;padding-top:10px}
+.deduction{color:#ef4444}
+.empty{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>💵 Payroll Manager</h1>
+<div class="period-select">
+<select id="payPeriod">
+<option value="2024-01">January 2024</option>
+<option value="2024-02">February 2024</option>
+<option value="2024-03">March 2024</option>
+<option value="2024-12" selected>December 2024</option>
+</select>
+<button class="btn btn-run" onclick="runPayroll()">▶ Run Payroll</button>
+</div>
+</div>
+
+<div class="stats">
+<div class="stat">
+<div class="stat-value" id="totalGross">$0</div>
+<div class="stat-label">Total Gross Pay</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="totalDeductions">$0</div>
+<div class="stat-label">Total Deductions</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="totalNet">$0</div>
+<div class="stat-label">Total Net Pay</div>
+</div>
+<div class="stat">
+<div class="stat-value" id="employeeCount">0</div>
+<div class="stat-label">Employees</div>
+</div>
+</div>
+
+<div style="display:flex;gap:10px;margin-bottom:20px">
+<button class="btn btn-primary" onclick="showModal('employee')">+ Add Employee</button>
+<button class="btn btn-secondary" onclick="exportPayroll()">📥 Export</button>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Employee</th>
+<th>Department</th>
+<th>Pay Type</th>
+<th class="amount">Hours/Salary</th>
+<th class="amount">Gross Pay</th>
+<th class="amount">Deductions</th>
+<th class="amount">Net Pay</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="payrollList"></tbody>
+</table>
+</div>
+
+<div class="modal" id="employeeModal">
+<div class="modal-content">
+<h2>Add Employee</h2>
+<form id="employeeForm">
+<div class="form-row">
+<div class="form-group">
+<label>First Name</label>
+<input type="text" id="empFirst" required>
+</div>
+<div class="form-group">
+<label>Last Name</label>
+<input type="text" id="empLast" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Department</label>
+<select id="empDept">
+<option>Engineering</option>
+<option>Sales</option>
+<option>Marketing</option>
+<option>HR</option>
+<option>Finance</option>
+<option>Operations</option>
+</select>
+</div>
+<div class="form-group">
+<label>Pay Type</label>
+<select id="empPayType">
+<option value="salary">Salary</option>
+<option value="hourly">Hourly</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Rate (Annual Salary or Hourly Rate)</label>
+<input type="number" id="empRate" step="0.01" min="0" required>
+</div>
+<div class="form-group">
+<label>Tax Filing Status</label>
+<select id="empTax">
+<option value="single">Single</option>
+<option value="married">Married</option>
+<option value="head">Head of Household</option>
+</select>
+</div>
+</div>
+<div class="form-row three">
+<div class="form-group">
+<label>Federal Allowances</label>
+<input type="number" id="empFedAllow" value="1" min="0">
+</div>
+<div class="form-group">
+<label>401k %</label>
+<input type="number" id="emp401k" value="6" min="0" max="100" step="0.5">
+</div>
+<div class="form-group">
+<label>Health Plan</label>
+<select id="empHealth">
+<option value="0">None</option>
+<option value="200">Individual ($200)</option>
+<option value="500">Family ($500)</option>
+</select>
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Employee</button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="modal" id="payslipModal">
+<div class="modal-content">
+<h2>Pay Stub</h2>
+<div id="payslipContent"></div>
+<div class="btn-row">
+<button class="btn btn-secondary" onclick="hideModal()">Close</button>
+<button class="btn btn-primary" onclick="printPayslip()">🖨️ Print</button>
+</div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_payroll';
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"employees":[],"runs":{}}');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function formatCurrency(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function calculatePay(emp, hours = 80) {
+  let gross = 0;
+  if (emp.payType === 'salary') {
+    gross = emp.rate / 24; // Semi-monthly
+  } else {
+    gross = emp.rate * hours;
+  }
+
+  // Calculate deductions
+  const federalTax = gross * 0.22; // Simplified
+  const stateTax = gross * 0.05;
+  const socialSecurity = gross * 0.062;
+  const medicare = gross * 0.0145;
+  const retirement = gross * (emp.retirement401k / 100);
+  const health = emp.healthPlan;
+
+  const totalDeductions = federalTax + stateTax + socialSecurity + medicare + retirement + health;
+  const net = gross - totalDeductions;
+
+  return {
+    gross,
+    deductions: {
+      federal: federalTax,
+      state: stateTax,
+      socialSecurity,
+      medicare,
+      retirement,
+      health
+    },
+    totalDeductions,
+    net,
+    hours
+  };
+}
+
+function updateStats() {
+  const period = document.getElementById('payPeriod').value;
+  const run = data.runs[period] || {};
+
+  let totalGross = 0, totalDed = 0, totalNet = 0;
+
+  data.employees.forEach(emp => {
+    const empRun = run[emp.id];
+    if (empRun) {
+      totalGross += empRun.gross;
+      totalDed += empRun.totalDeductions;
+      totalNet += empRun.net;
+    } else {
+      const calc = calculatePay(emp);
+      totalGross += calc.gross;
+      totalDed += calc.totalDeductions;
+      totalNet += calc.net;
+    }
+  });
+
+  document.getElementById('totalGross').textContent = formatCurrency(totalGross);
+  document.getElementById('totalDeductions').textContent = formatCurrency(totalDed);
+  document.getElementById('totalNet').textContent = formatCurrency(totalNet);
+  document.getElementById('employeeCount').textContent = data.employees.length;
+}
+
+function render() {
+  const period = document.getElementById('payPeriod').value;
+  const run = data.runs[period] || {};
+  const list = document.getElementById('payrollList');
+
+  if (data.employees.length === 0) {
+    list.innerHTML = '<tr><td colspan="9" class="empty">No employees. Add your first employee to get started.</td></tr>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = data.employees.map(emp => {
+    const empRun = run[emp.id];
+    const calc = empRun || calculatePay(emp);
+    const status = empRun ? (empRun.paid ? 'paid' : 'processed') : 'pending';
+
+    return `<tr>
+      <td><strong>${emp.firstName} ${emp.lastName}</strong></td>
+      <td>${emp.department}</td>
+      <td>${emp.payType === 'salary' ? 'Salary' : 'Hourly'}</td>
+      <td class="amount">${emp.payType === 'salary' ? formatCurrency(emp.rate) + '/yr' : calc.hours + ' hrs'}</td>
+      <td class="amount">${formatCurrency(calc.gross)}</td>
+      <td class="amount deduction">${formatCurrency(calc.totalDeductions)}</td>
+      <td class="amount"><strong>${formatCurrency(calc.net)}</strong></td>
+      <td><span class="status ${status}">${status}</span></td>
+      <td>
+        <button class="btn btn-secondary" style="padding:4px 8px;font-size:.75rem" onclick="viewPayslip('${emp.id}')">View</button>
+        <button class="btn btn-secondary" style="padding:4px 8px;font-size:.75rem" onclick="deleteEmployee('${emp.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal(type) {
+  document.getElementById('employeeModal').classList.add('active');
+}
+
+function hideModal() {
+  document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+}
+
+document.getElementById('employeeForm').addEventListener('submit', e => {
+  e.preventDefault();
+  data.employees.push({
+    id: 'EMP-' + Date.now().toString(36).toUpperCase(),
+    firstName: document.getElementById('empFirst').value,
+    lastName: document.getElementById('empLast').value,
+    department: document.getElementById('empDept').value,
+    payType: document.getElementById('empPayType').value,
+    rate: parseFloat(document.getElementById('empRate').value),
+    taxStatus: document.getElementById('empTax').value,
+    federalAllowances: parseInt(document.getElementById('empFedAllow').value),
+    retirement401k: parseFloat(document.getElementById('emp401k').value),
+    healthPlan: parseFloat(document.getElementById('empHealth').value)
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function runPayroll() {
+  const period = document.getElementById('payPeriod').value;
+  if (!data.runs[period]) data.runs[period] = {};
+
+  data.employees.forEach(emp => {
+    data.runs[period][emp.id] = calculatePay(emp);
+  });
+
+  save();
+  render();
+  alert('Payroll processed for ' + data.employees.length + ' employees!');
+}
+
+function viewPayslip(empId) {
+  const emp = data.employees.find(e => e.id === empId);
+  const period = document.getElementById('payPeriod').value;
+  const run = data.runs[period]?.[empId] || calculatePay(emp);
+
+  const content = document.getElementById('payslipContent');
+  content.innerHTML = `
+    <div class="payslip">
+      <h3>${emp.firstName} ${emp.lastName} - ${period}</h3>
+      <div class="payslip-row"><span>Gross Pay</span><span>${formatCurrency(run.gross)}</span></div>
+      <div class="payslip-row"><span>Federal Tax</span><span class="deduction">-${formatCurrency(run.deductions.federal)}</span></div>
+      <div class="payslip-row"><span>State Tax</span><span class="deduction">-${formatCurrency(run.deductions.state)}</span></div>
+      <div class="payslip-row"><span>Social Security</span><span class="deduction">-${formatCurrency(run.deductions.socialSecurity)}</span></div>
+      <div class="payslip-row"><span>Medicare</span><span class="deduction">-${formatCurrency(run.deductions.medicare)}</span></div>
+      <div class="payslip-row"><span>401(k)</span><span class="deduction">-${formatCurrency(run.deductions.retirement)}</span></div>
+      <div class="payslip-row"><span>Health Insurance</span><span class="deduction">-${formatCurrency(run.deductions.health)}</span></div>
+      <div class="payslip-row total"><span>Net Pay</span><span>${formatCurrency(run.net)}</span></div>
+    </div>
+  `;
+  document.getElementById('payslipModal').classList.add('active');
+}
+
+function deleteEmployee(id) {
+  if (confirm('Remove this employee?')) {
+    data.employees = data.employees.filter(e => e.id !== id);
+    save();
+    render();
+  }
+}
+
+function exportPayroll() {
+  const period = document.getElementById('payPeriod').value;
+  let csv = 'Employee,Department,Gross,Deductions,Net\n';
+  data.employees.forEach(emp => {
+    const run = data.runs[period]?.[emp.id] || calculatePay(emp);
+    csv += `"${emp.firstName} ${emp.lastName}",${emp.department},${run.gross.toFixed(2)},${run.totalDeductions.toFixed(2)},${run.net.toFixed(2)}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `payroll-${period}.csv`;
+  a.click();
+}
+
+function printPayslip() {
+  window.print();
+}
+
+document.getElementById('payPeriod').addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

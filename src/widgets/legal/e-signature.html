@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>E-Signature - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"e-signature","name":"E-Signature","icon":"✍️","desc":"Create and sign documents electronically","category":"legal","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.doc-list{display:flex;flex-direction:column;gap:15px}
+.doc-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.doc-header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #333}
+.doc-title{font-weight:600;display:flex;align-items:center;gap:8px}
+.doc-status{padding:4px 10px;border-radius:12px;font-size:.75rem}
+.doc-status.draft{background:#f59e0b33;color:#f59e0b}
+.doc-status.pending{background:#3b82f633;color:#3b82f6}
+.doc-status.completed{background:#10b98133;color:#10b981}
+.doc-status.declined{background:#ef444433;color:#ef4444}
+.doc-body{padding:15px}
+.signers{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px}
+.signer{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#252525;border-radius:6px}
+.signer-status{width:8px;height:8px;border-radius:50%}
+.signer-status.pending{background:#f59e0b}
+.signer-status.signed{background:#10b981}
+.signer-status.declined{background:#ef4444}
+.doc-meta{font-size:.75rem;color:#888;display:flex;gap:15px}
+.doc-actions{display:flex;gap:10px;padding:15px;background:#252525}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.signers-input{display:flex;flex-direction:column;gap:10px}
+.signer-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.signer-row input{padding:8px}
+.add-signer{color:#10b981;cursor:pointer;font-size:.875rem}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.sign-modal .modal-content{max-width:500px}
+.signature-pad{border:2px dashed #333;border-radius:8px;height:150px;margin:15px 0;position:relative;background:#252525}
+.signature-pad canvas{width:100%;height:100%;border-radius:6px}
+.signature-types{display:flex;gap:10px;margin-bottom:15px}
+.sig-type{flex:1;padding:10px;text-align:center;background:#252525;border:1px solid #333;border-radius:6px;cursor:pointer}
+.sig-type.active{border-color:#10b981;background:#10b98120}
+.typed-sig{font-family:'Brush Script MT',cursive;font-size:2rem;text-align:center;padding:20px}
+.empty{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>✍️ E-Signature</h1>
+<button class="btn btn-primary" onclick="showCreateModal()">+ New Document</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="pendingCount">0</div><div class="stat-label">Pending</div></div>
+<div class="stat"><div class="stat-value" id="completedCount">0</div><div class="stat-label">Completed</div></div>
+<div class="stat"><div class="stat-value" id="sentCount">0</div><div class="stat-label">Sent This Month</div></div>
+<div class="stat"><div class="stat-value" id="avgTime">0d</div><div class="stat-label">Avg Sign Time</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-filter="all">All</div>
+<div class="tab" data-filter="draft">Drafts</div>
+<div class="tab" data-filter="pending">Pending</div>
+<div class="tab" data-filter="completed">Completed</div>
+</div>
+
+<div class="doc-list" id="docList"></div>
+
+<div class="modal" id="createModal">
+<div class="modal-content">
+<h2>Create Document</h2>
+<form id="createForm">
+<div class="form-group">
+<label>Document Name</label>
+<input type="text" id="docName" required placeholder="e.g., Service Agreement">
+</div>
+<div class="form-group">
+<label>Document Type</label>
+<select id="docType">
+<option>Contract</option>
+<option>NDA</option>
+<option>Agreement</option>
+<option>Consent Form</option>
+<option>Release Form</option>
+<option>Other</option>
+</select>
+</div>
+<div class="form-group">
+<label>Description</label>
+<textarea id="docDesc" rows="2" placeholder="Brief description..."></textarea>
+</div>
+<div class="form-group">
+<label>Signers</label>
+<div class="signers-input" id="signersInput">
+<div class="signer-row">
+<input type="text" placeholder="Name" class="signer-name">
+<input type="email" placeholder="Email" class="signer-email">
+<button type="button" class="btn btn-secondary" onclick="removeSigner(this)">×</button>
+</div>
+</div>
+<div class="add-signer" onclick="addSigner()">+ Add Signer</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="button" class="btn btn-secondary" onclick="saveDraft()">Save Draft</button>
+<button type="submit" class="btn btn-primary">Send for Signature</button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="modal sign-modal" id="signModal">
+<div class="modal-content">
+<h2>Sign Document</h2>
+<p style="color:#888;margin-bottom:15px" id="signDocName"></p>
+<div class="signature-types">
+<div class="sig-type active" data-type="draw" onclick="selectSigType('draw')">✏️ Draw</div>
+<div class="sig-type" data-type="type" onclick="selectSigType('type')">⌨️ Type</div>
+</div>
+<div id="drawPad" class="signature-pad">
+<canvas id="sigCanvas"></canvas>
+</div>
+<div id="typePad" style="display:none">
+<input type="text" id="typedName" placeholder="Type your full name" style="width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0">
+<div class="typed-sig" id="typedSig"></div>
+</div>
+<div class="btn-row">
+<button class="btn btn-secondary" onclick="clearSignature()">Clear</button>
+<button class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button class="btn btn-primary" onclick="applySignature()">Apply Signature</button>
+</div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_esignature';
+let documents = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentFilter = 'all';
+let currentSignDoc = null;
+let sigType = 'draw';
+let canvas, ctx;
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(documents));
+}
+
+function updateStats() {
+  const pending = documents.filter(d => d.status === 'pending').length;
+  const completed = documents.filter(d => d.status === 'completed').length;
+  const thisMonth = documents.filter(d => {
+    const date = new Date(d.sentAt || d.createdAt);
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+  }).length;
+
+  const signedDocs = documents.filter(d => d.status === 'completed' && d.completedAt);
+  const avgDays = signedDocs.length ? Math.round(
+    signedDocs.reduce((sum, d) => {
+      const sent = new Date(d.sentAt);
+      const completed = new Date(d.completedAt);
+      return sum + (completed - sent) / (1000 * 60 * 60 * 24);
+    }, 0) / signedDocs.length
+  ) : 0;
+
+  document.getElementById('pendingCount').textContent = pending;
+  document.getElementById('completedCount').textContent = completed;
+  document.getElementById('sentCount').textContent = thisMonth;
+  document.getElementById('avgTime').textContent = avgDays + 'd';
+}
+
+function render() {
+  const filtered = currentFilter === 'all' ? documents :
+    documents.filter(d => d.status === currentFilter);
+
+  const list = document.getElementById('docList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">No documents found</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(doc => `
+      <div class="doc-card">
+        <div class="doc-header">
+          <div class="doc-title">📄 ${doc.name}</div>
+          <span class="doc-status ${doc.status}">${doc.status}</span>
+        </div>
+        <div class="doc-body">
+          <div class="signers">
+            ${doc.signers.map(s => `
+              <div class="signer">
+                <div class="signer-status ${s.status}"></div>
+                <span>${s.name}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="doc-meta">
+            <span>📁 ${doc.type}</span>
+            <span>📅 Created ${new Date(doc.createdAt).toLocaleDateString()}</span>
+            ${doc.sentAt ? `<span>✉️ Sent ${new Date(doc.sentAt).toLocaleDateString()}</span>` : ''}
+          </div>
+        </div>
+        <div class="doc-actions">
+          ${doc.status === 'draft' ? `
+            <button class="btn btn-primary" onclick="sendDoc('${doc.id}')">📤 Send</button>
+          ` : ''}
+          ${doc.status === 'pending' ? `
+            <button class="btn btn-primary" onclick="openSignModal('${doc.id}')">✍️ Sign</button>
+            <button class="btn btn-secondary" onclick="sendReminder('${doc.id}')">🔔 Remind</button>
+          ` : ''}
+          ${doc.status === 'completed' ? `
+            <button class="btn btn-secondary" onclick="downloadDoc('${doc.id}')">📥 Download</button>
+          ` : ''}
+          <button class="btn btn-secondary" onclick="deleteDoc('${doc.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+
+  updateStats();
+}
+
+function showCreateModal() {
+  document.getElementById('createModal').classList.add('active');
+}
+
+function hideModal() {
+  document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+}
+
+function addSigner() {
+  const container = document.getElementById('signersInput');
+  const row = document.createElement('div');
+  row.className = 'signer-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Name" class="signer-name">
+    <input type="email" placeholder="Email" class="signer-email">
+    <button type="button" class="btn btn-secondary" onclick="removeSigner(this)">×</button>
+  `;
+  container.appendChild(row);
+}
+
+function removeSigner(btn) {
+  const rows = document.querySelectorAll('.signer-row');
+  if (rows.length > 1) btn.parentElement.remove();
+}
+
+function getSigners() {
+  return Array.from(document.querySelectorAll('.signer-row')).map(row => ({
+    name: row.querySelector('.signer-name').value,
+    email: row.querySelector('.signer-email').value,
+    status: 'pending'
+  })).filter(s => s.name && s.email);
+}
+
+function createDoc(status) {
+  const signers = getSigners();
+  if (signers.length === 0) {
+    alert('Please add at least one signer');
+    return null;
+  }
+
+  return {
+    id: Date.now().toString(),
+    name: document.getElementById('docName').value,
+    type: document.getElementById('docType').value,
+    description: document.getElementById('docDesc').value,
+    signers,
+    status,
+    createdAt: new Date().toISOString(),
+    sentAt: status === 'pending' ? new Date().toISOString() : null
+  };
+}
+
+document.getElementById('createForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const doc = createDoc('pending');
+  if (doc) {
+    documents.push(doc);
+    save();
+    render();
+    hideModal();
+    e.target.reset();
+    document.getElementById('signersInput').innerHTML = `
+      <div class="signer-row">
+        <input type="text" placeholder="Name" class="signer-name">
+        <input type="email" placeholder="Email" class="signer-email">
+        <button type="button" class="btn btn-secondary" onclick="removeSigner(this)">×</button>
+      </div>
+    `;
+  }
+});
+
+function saveDraft() {
+  const doc = createDoc('draft');
+  if (doc) {
+    documents.push(doc);
+    save();
+    render();
+    hideModal();
+    document.getElementById('createForm').reset();
+  }
+}
+
+function sendDoc(id) {
+  const doc = documents.find(d => d.id === id);
+  if (doc) {
+    doc.status = 'pending';
+    doc.sentAt = new Date().toISOString();
+    save();
+    render();
+    alert('Document sent to signers!');
+  }
+}
+
+function openSignModal(id) {
+  currentSignDoc = documents.find(d => d.id === id);
+  if (!currentSignDoc) return;
+
+  document.getElementById('signDocName').textContent = currentSignDoc.name;
+  document.getElementById('signModal').classList.add('active');
+
+  // Initialize canvas
+  canvas = document.getElementById('sigCanvas');
+  ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+
+  let drawing = false;
+  canvas.onmousedown = () => drawing = true;
+  canvas.onmouseup = () => drawing = false;
+  canvas.onmousemove = e => {
+    if (!drawing) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+  };
+}
+
+function selectSigType(type) {
+  sigType = type;
+  document.querySelectorAll('.sig-type').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.sig-type[data-type="${type}"]`).classList.add('active');
+  document.getElementById('drawPad').style.display = type === 'draw' ? 'block' : 'none';
+  document.getElementById('typePad').style.display = type === 'type' ? 'block' : 'none';
+}
+
+document.getElementById('typedName')?.addEventListener('input', e => {
+  document.getElementById('typedSig').textContent = e.target.value;
+});
+
+function clearSignature() {
+  if (canvas && ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  document.getElementById('typedName').value = '';
+  document.getElementById('typedSig').textContent = '';
+}
+
+function applySignature() {
+  if (!currentSignDoc) return;
+
+  // Mark first pending signer as signed
+  const signer = currentSignDoc.signers.find(s => s.status === 'pending');
+  if (signer) {
+    signer.status = 'signed';
+    signer.signedAt = new Date().toISOString();
+  }
+
+  // Check if all signed
+  if (currentSignDoc.signers.every(s => s.status === 'signed')) {
+    currentSignDoc.status = 'completed';
+    currentSignDoc.completedAt = new Date().toISOString();
+  }
+
+  save();
+  render();
+  hideModal();
+  alert('Signature applied!');
+}
+
+function sendReminder(id) {
+  alert('Reminder sent to pending signers!');
+}
+
+function downloadDoc(id) {
+  const doc = documents.find(d => d.id === id);
+  if (doc) {
+    alert(`Downloading ${doc.name}...`);
+  }
+}
+
+function deleteDoc(id) {
+  if (confirm('Delete this document?')) {
+    documents = documents.filter(d => d.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
