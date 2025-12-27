@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order Terminal - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"order-terminal","name":"Order Terminal","icon":"📱","desc":"Coffee order POS terminal","category":"coffee","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#92400e}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.order-num{font-weight:600;font-size:1.25rem}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.new{background:#3b82f633;color:#3b82f6}
+.status.making{background:#92400e33;color:#fbbf24}
+.status.ready{background:#22c55e33;color:#22c55e}
+.items{background:#252525;padding:15px;border-radius:8px;margin-bottom:15px}
+.item{display:flex;justify-content:space-between;padding:5px 0}
+.footer{display:flex;justify-content:space-between;align-items:center}
+.customer{color:#888}
+.total{font-weight:600;color:#fbbf24}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#92400e;color:#fbbf24}
+</style>
+</head>
+<body>
+<div class="header"><h1>📱 Order Terminal</h1><button class="btn" onclick="alert('New')">+ New Order</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">In Queue</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">Making</div></div>
+<div class="stat"><div class="stat-value">45</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">$485</div><div class="stat-label">Revenue</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const orders=[
+{num:'042',customer:'Sarah',items:[{name:'Oat Latte',size:'L',price:5.50},{name:'Blueberry Muffin',size:'',price:3.50}],status:'making'},
+{num:'043',customer:'Mike',items:[{name:'Americano',size:'M',price:3.50},{name:'Croissant',size:'',price:4.00}],status:'new'},
+{num:'044',customer:'Emma',items:[{name:'Iced Mocha',size:'L',price:6.00}],status:'new'},
+{num:'041',customer:'Tom',items:[{name:'Cappuccino',size:'M',price:4.50},{name:'Espresso',size:'S',price:2.50}],status:'ready'}
+];
+document.getElementById('list').innerHTML=orders.map(o=>`
+<div class="card">
+<div class="card-header"><span class="order-num">#${o.num}</span><span class="status ${o.status}">${o.status==='making'?'Making':o.status==='ready'?'Ready':'New'}</span></div>
+<div class="items">${o.items.map(i=>`<div class="item"><span>${i.name}${i.size?' ('+i.size+')':''}</span><span>$${i.price.toFixed(2)}</span></div>`).join('')}</div>
+<div class="footer"><span class="customer">👤 ${o.customer}</span><span class="total">$${o.items.reduce((a,i)=>a+i.price,0).toFixed(2)}</span></div>
+</div>`).join('');
+</script>
+</body>
+</html>

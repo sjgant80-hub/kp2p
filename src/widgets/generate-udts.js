@@ -480,6 +480,26 @@ const categoryMap = {
   // Laundry
   'laundry-order-tracker': { category: 'laundry', subcategory: 'orders', badge: 'ENT' },
   'machine-status': { category: 'laundry', subcategory: 'equipment', badge: 'ENT' },
+
+  // Coffee
+  'drink-menu': { category: 'coffee', subcategory: 'menu', badge: 'ENT' },
+  'order-terminal': { category: 'coffee', subcategory: 'pos', badge: 'ENT' },
+
+  // Gym
+  'workout-tracker': { category: 'gym', subcategory: 'workouts', badge: 'ENT' },
+  'member-checkin': { category: 'gym', subcategory: 'attendance', badge: 'ENT' },
+
+  // Tattoo
+  'design-gallery': { category: 'tattoo', subcategory: 'portfolio', badge: 'ENT' },
+  'tattoo-appointments': { category: 'tattoo', subcategory: 'scheduling', badge: 'ENT' },
+
+  // Escape
+  'room-scheduler': { category: 'escape', subcategory: 'scheduling', badge: 'ENT' },
+  'game-master': { category: 'escape', subcategory: 'control', badge: 'ENT' },
+
+  // Arcade
+  'token-sales': { category: 'arcade', subcategory: 'sales', badge: 'ENT' },
+  'prize-counter': { category: 'arcade', subcategory: 'prizes', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -701,7 +721,12 @@ const widgetDirs = [
   'spa',
   'brewery',
   'carwash',
-  'laundry'
+  'laundry',
+  'coffee',
+  'gym',
+  'tattoo',
+  'escape',
+  'arcade'
 ];
 
 // Process all widgets in all directories

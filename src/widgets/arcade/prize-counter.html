@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prize Counter - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"prize-counter","name":"Prize Counter","icon":"🎁","desc":"Arcade prize redemption","category":"arcade","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.card-image{height:100px;background:linear-gradient(135deg,#ec4899,#f472b6);display:flex;align-items:center;justify-content:center;font-size:2.5rem}
+.card-body{padding:15px}
+.card-name{font-weight:600;margin-bottom:5px}
+.card-stock{font-size:.75rem;color:#888;margin-bottom:10px}
+.card-tickets{display:flex;align-items:center;gap:5px;margin-bottom:15px}
+.ticket-icon{font-size:1rem}
+.ticket-count{font-weight:bold;color:#fbbf24}
+.btn{width:100%;padding:8px;border:none;border-radius:6px;cursor:pointer;background:#ec4899;color:#fff;font-size:.875rem}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎁 Prize Counter</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Prizes Redeemed</div></div>
+<div class="stat"><div class="stat-value">45k</div><div class="stat-label">Tickets Today</div></div>
+<div class="stat"><div class="stat-value">89</div><div class="stat-label">Prize Types</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Low Stock</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const prizes=[
+{icon:'🧸',name:'Giant Teddy Bear',tickets:5000,stock:8},
+{icon:'🎧',name:'Wireless Headphones',tickets:3500,stock:12},
+{icon:'🎮',name:'Gaming Controller',tickets:4000,stock:5},
+{icon:'🍭',name:'Candy Pack',tickets:50,stock:200},
+{icon:'🏀',name:'Mini Basketball',tickets:150,stock:45},
+{icon:'🎪',name:'Inflatable Sword',tickets:100,stock:0},
+{icon:'🧩',name:'Puzzle Set',tickets:250,stock:30},
+{icon:'🎯',name:'Dart Board',tickets:800,stock:15}
+];
+document.getElementById('grid').innerHTML=prizes.map(p=>`
+<div class="card">
+<div class="card-image">${p.icon}</div>
+<div class="card-body">
+<div class="card-name">${p.name}</div>
+<div class="card-stock">${p.stock>0?`${p.stock} in stock`:'Out of stock'}</div>
+<div class="card-tickets"><span class="ticket-icon">🎟️</span><span class="ticket-count">${p.tickets.toLocaleString()}</span></div>
+<button class="btn" ${p.stock===0?'disabled':''} onclick="alert('Redeem')">${p.stock>0?'Redeem':'Sold Out'}</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

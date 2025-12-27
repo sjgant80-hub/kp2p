@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workout Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"workout-tracker","name":"Workout Tracker","icon":"💪","desc":"Track gym workouts","category":"gym","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ef4444}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.workout{font-weight:600;display:flex;align-items:center;gap:8px}
+.duration{color:#888;font-size:.875rem}
+.exercises{display:flex;flex-direction:column;gap:10px}
+.exercise{background:#252525;padding:12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+.exercise-name{font-weight:500}
+.sets{display:flex;gap:5px}
+.set{padding:4px 8px;background:#333;border-radius:4px;font-size:.75rem}
+.set.done{background:#22c55e33;color:#22c55e}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#ef4444;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>💪 Workout Tracker</h1><button class="btn" onclick="alert('Start')">+ Start Workout</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value">8.5k</div><div class="stat-label">Calories</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Total Sets</div></div>
+<div class="stat"><div class="stat-value">28</div><div class="stat-label">PR's</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const workouts=[
+{name:'Push Day',icon:'🏋️',duration:'1h 15m',date:'Today',exercises:[{name:'Bench Press',sets:['135x10','155x8','175x6','175x6'],done:4},{name:'Overhead Press',sets:['95x10','105x8','115x6'],done:3},{name:'Tricep Dips',sets:['BWx12','BWx12','BWx10'],done:2}]},
+{name:'Pull Day',icon:'🏋️',duration:'1h 05m',date:'Yesterday',exercises:[{name:'Deadlift',sets:['225x8','275x6','315x4'],done:3},{name:'Pull-ups',sets:['BWx10','BWx8','BWx8'],done:3},{name:'Barbell Rows',sets:['135x10','155x8'],done:2}]}
+];
+document.getElementById('list').innerHTML=workouts.map(w=>`
+<div class="card">
+<div class="card-header"><span class="workout">${w.icon} ${w.name}</span><span class="duration">⏱️ ${w.duration} • ${w.date}</span></div>
+<div class="exercises">${w.exercises.map(e=>`<div class="exercise"><span class="exercise-name">${e.name}</span><div class="sets">${e.sets.map((s,i)=>`<span class="set ${i<e.done?'done':''}">${s}</span>`).join('')}</div></div>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

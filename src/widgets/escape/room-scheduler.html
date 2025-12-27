@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Room Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"room-scheduler","name":"Room Scheduler","icon":"🔐","desc":"Escape room scheduling","category":"escape","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.room{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.room-header{padding:15px;background:linear-gradient(135deg,#1a1a1a,#252525);border-bottom:1px solid #333}
+.room-name{font-weight:600;font-size:1.125rem;margin-bottom:5px}
+.room-meta{font-size:.75rem;color:#888}
+.slots{padding:15px;display:flex;flex-direction:column;gap:10px}
+.slot{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#252525;border-radius:6px}
+.slot-time{font-weight:500}
+.slot-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.slot-status.available{background:#22c55e33;color:#22c55e}
+.slot-status.booked{background:#f9731633;color:#f97316}
+.btn{padding:6px 12px;border:none;border-radius:4px;cursor:pointer;background:#f97316;color:#fff;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔐 Room Scheduler</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">Rooms</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Today's Sessions</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">72%</div><div class="stat-label">Escape Rate</div></div>
+</div>
+<div class="rooms" id="rooms"></div>
+<script>
+const rooms=[
+{name:'The Heist',icon:'🏦',difficulty:'Hard',duration:'60 min',players:'2-6',slots:[{time:'10:00 AM',status:'booked',group:'Johnson Party'},{time:'12:00 PM',status:'available'},{time:'2:00 PM',status:'booked',group:'Smith Corp'},{time:'4:00 PM',status:'available'}]},
+{name:'Haunted Manor',icon:'👻',difficulty:'Medium',duration:'60 min',players:'2-8',slots:[{time:'10:00 AM',status:'available'},{time:'12:00 PM',status:'booked',group:'Birthday Group'},{time:'2:00 PM',status:'available'},{time:'4:00 PM',status:'booked',group:'Team Building'}]},
+{name:'Space Station',icon:'🚀',difficulty:'Expert',duration:'75 min',players:'3-6',slots:[{time:'11:00 AM',status:'booked',group:'Tech Team'},{time:'2:00 PM',status:'available'},{time:'5:00 PM',status:'available'}]}
+];
+document.getElementById('rooms').innerHTML=rooms.map(r=>`
+<div class="room">
+<div class="room-header"><div class="room-name">${r.icon} ${r.name}</div><div class="room-meta">⏱️ ${r.duration} • 👥 ${r.players} • ⭐ ${r.difficulty}</div></div>
+<div class="slots">${r.slots.map(s=>`<div class="slot"><span class="slot-time">${s.time}</span>${s.status==='available'?`<button class="btn" onclick="alert('Book')">Book</button>`:`<span class="slot-status booked">${s.group}</span>`}</div>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

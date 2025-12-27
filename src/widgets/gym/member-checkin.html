@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Member Check-in - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"member-checkin","name":"Member Check-in","icon":"🏃","desc":"Gym member check-in","category":"gym","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ef4444}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.search{width:100%;padding:15px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#e0e0e0;margin-bottom:20px;font-size:1rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.member{font-weight:600}
+.status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status.active{background:#22c55e33;color:#22c55e}
+.status.expired{background:#ef444433;color:#ef4444}
+.info{font-size:.875rem;color:#888;margin-bottom:10px}
+.visits{background:#252525;padding:10px;border-radius:6px;margin-bottom:15px;text-align:center}
+.visits-count{font-size:1.5rem;font-weight:bold;color:#ef4444}
+.btn{width:100%;padding:12px;border:none;border-radius:6px;cursor:pointer;background:#ef4444;color:#fff;font-weight:600}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏃 Member Check-in</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">42</div><div class="stat-label">Checked In</div></div>
+<div class="stat"><div class="stat-value">125</div><div class="stat-label">Capacity</div></div>
+<div class="stat"><div class="stat-value">285</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">1.2k</div><div class="stat-label">Active Members</div></div>
+</div>
+<input type="text" class="search" placeholder="🔍 Scan card or search member...">
+<div class="grid" id="grid"></div>
+<script>
+const members=[
+{name:'John Smith',id:'GYM-1234',plan:'Premium',expires:'Mar 2025',visits:48,status:'active',checkedIn:'2:15 PM'},
+{name:'Sarah Johnson',id:'GYM-2345',plan:'Basic',expires:'Feb 2025',visits:22,status:'active',checkedIn:'1:45 PM'},
+{name:'Mike Davis',id:'GYM-3456',plan:'Premium',expires:'Dec 2024',visits:65,status:'expired',checkedIn:null},
+{name:'Emma Wilson',id:'GYM-4567',plan:'Student',expires:'Jun 2025',visits:15,status:'active',checkedIn:'3:00 PM'}
+];
+document.getElementById('grid').innerHTML=members.map(m=>`
+<div class="card">
+<div class="card-header"><span class="member">${m.name}</span><span class="status ${m.status}">${m.status==='active'?'Active':'Expired'}</span></div>
+<div class="info">🆔 ${m.id} • ${m.plan} Plan</div>
+<div class="info">📅 Expires: ${m.expires}</div>
+<div class="visits"><div class="visits-count">${m.visits}</div><div style="font-size:.75rem;color:#888">Visits this month</div></div>
+${m.checkedIn?`<div style="text-align:center;color:#22c55e;margin-bottom:10px">✓ Checked in at ${m.checkedIn}</div>`:''}
+<button class="btn" onclick="alert('${m.checkedIn?'Check Out':'Check In'}')">${m.checkedIn?'Check Out':'Check In'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>
