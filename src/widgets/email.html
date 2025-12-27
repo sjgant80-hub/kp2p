@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 KONOMI EMAIL - Serverless Email Composer
-Mailto + EmailJS integration. No server needed. $0 forever.
+Multiple sending options. No server needed. $0 forever.
 Kills: Email clients, Mailchimp forms
 -->
 <html lang="en">
@@ -12,7 +12,7 @@ Kills: Email clients, Mailchimp forms
     "name": "Email",
     "icon": "📧",
     "desc": "Serverless email composer",
-    "body": "Beautiful email composer with templates. Uses mailto: or EmailJS for sending. No backend required. Template library included.",
+    "body": "Beautiful email composer with templates. Multiple sending options: Web3Forms (free, instant), EmailJS, or mailto. No backend required.",
     "kills": ["Mailchimp $13/mo", "SendGrid $15/mo", "Email clients"],
     "price": 15,
     "color": "#3b82f6",
@@ -33,6 +33,7 @@ Kills: Email clients, Mailchimp forms
       --text: #fff;
       --text-dim: #888;
       --success: #22c55e;
+      --warning: #f59e0b;
     }
 
     body {
@@ -53,6 +54,8 @@ Kills: Email clients, Mailchimp forms
       justify-content: space-between;
       align-items: center;
       margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
     .header h1 {
@@ -74,15 +77,36 @@ Kills: Email clients, Mailchimp forms
       background: none;
       border: none;
       color: var(--text-dim);
-      padding: 8px 16px;
+      padding: 8px 12px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
 
     .mode-btn.active {
       background: var(--accent);
       color: white;
+    }
+
+    .mode-info {
+      background: var(--surface);
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mode-info.warning {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid var(--warning);
+    }
+
+    .mode-info.success {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid var(--success);
     }
 
     .compose-card {
@@ -156,28 +180,10 @@ Kills: Email clients, Mailchimp forms
       color: var(--text-dim);
     }
 
-    .attachments {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-
-    .attachment {
-      background: var(--surface2);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .attachment button {
-      background: none;
-      border: none;
+    .field-note {
+      font-size: 0.8rem;
       color: var(--text-dim);
-      cursor: pointer;
+      margin-top: 4px;
     }
 
     .toolbar {
@@ -223,6 +229,11 @@ Kills: Email clients, Mailchimp forms
 
     .send-btn:hover {
       background: #2563eb;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .templates-panel {
@@ -295,6 +306,10 @@ Kills: Email clients, Mailchimp forms
       margin-top: 12px;
     }
 
+    .config-note a {
+      color: var(--accent);
+    }
+
     .success-msg {
       background: var(--success);
       color: white;
@@ -308,6 +323,20 @@ Kills: Email clients, Mailchimp forms
     .success-msg.show {
       display: block;
     }
+
+    .error-msg {
+      background: #ef4444;
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .error-msg.show {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -315,13 +344,23 @@ Kills: Email clients, Mailchimp forms
     <div class="header">
       <h1>📧 Email</h1>
       <div class="mode-toggle">
+        <button class="mode-btn" onclick="setMode('web3forms')">Web3Forms</button>
         <button class="mode-btn active" onclick="setMode('mailto')">Mailto</button>
         <button class="mode-btn" onclick="setMode('emailjs')">EmailJS</button>
       </div>
     </div>
 
+    <div class="mode-info warning" id="mode-info">
+      <span>ℹ️</span>
+      <span id="mode-desc">Mailto opens your email client (Gmail, Outlook) - you still need to click Send there.</span>
+    </div>
+
     <div class="success-msg" id="success-msg">
       ✓ Email sent successfully!
+    </div>
+
+    <div class="error-msg" id="error-msg">
+      ✕ Failed to send email
     </div>
 
     <div class="compose-card">
@@ -330,6 +369,10 @@ Kills: Email clients, Mailchimp forms
         <button class="template-btn" onclick="toggleTemplates()">📋 Templates</button>
       </div>
       <div class="compose-body">
+        <div class="field" id="from-field" style="display: none;">
+          <label>Your Email (required for Web3Forms)</label>
+          <input type="email" id="from" placeholder="your@email.com">
+        </div>
         <div class="field">
           <label>To</label>
           <input type="email" id="to" placeholder="recipient@example.com">
@@ -350,8 +393,8 @@ Kills: Email clients, Mailchimp forms
           <button class="tool-btn" onclick="insertLink()" title="Link">🔗</button>
           <button class="tool-btn" onclick="clearForm()" title="Clear">🗑️</button>
         </div>
-        <button class="send-btn" onclick="sendEmail()">
-          <span>Send</span>
+        <button class="send-btn" id="send-btn" onclick="sendEmail()">
+          <span id="send-text">Send</span>
           <span>→</span>
         </button>
       </div>
@@ -362,8 +405,27 @@ Kills: Email clients, Mailchimp forms
       <div class="template-grid" id="template-grid"></div>
     </div>
 
+    <!-- Web3Forms Config -->
+    <div class="config-panel" id="web3forms-config" style="display: none;">
+      <h3>🔧 Web3Forms Setup (Free - No Signup!)</h3>
+      <div class="field">
+        <label>Access Key</label>
+        <input type="text" id="web3forms-key" placeholder="Get free key from web3forms.com">
+        <div class="field-note">Takes 10 seconds - just enter your email to receive emails</div>
+      </div>
+      <button class="send-btn" onclick="saveWeb3FormsConfig()" style="margin-top: 8px;">Save Key</button>
+      <div class="config-note">
+        <strong>How it works:</strong><br>
+        1. Go to <a href="https://web3forms.com/" target="_blank">web3forms.com</a><br>
+        2. Enter YOUR email address (where you want to receive emails)<br>
+        3. Copy the Access Key they give you<br>
+        4. Paste it above - done! All emails go to YOUR inbox.
+      </div>
+    </div>
+
+    <!-- EmailJS Config -->
     <div class="config-panel" id="emailjs-config" style="display: none;">
-      <h3>EmailJS Configuration</h3>
+      <h3>🔧 EmailJS Configuration</h3>
       <div class="field">
         <label>Public Key</label>
         <input type="text" id="emailjs-key" placeholder="Your EmailJS public key">
@@ -376,10 +438,10 @@ Kills: Email clients, Mailchimp forms
         <label>Template ID</label>
         <input type="text" id="emailjs-template" placeholder="Your template ID">
       </div>
-      <button class="send-btn" onclick="saveConfig()" style="margin-top: 8px;">Save Config</button>
+      <button class="send-btn" onclick="saveEmailJSConfig()" style="margin-top: 8px;">Save Config</button>
       <div class="config-note">
-        Get your free EmailJS account at <a href="https://emailjs.com" target="_blank" style="color: var(--accent);">emailjs.com</a>.
-        Free tier: 200 emails/month.
+        Get your free EmailJS account at <a href="https://emailjs.com" target="_blank">emailjs.com</a>.
+        Free tier: 200 emails/month. Requires creating email template.
       </div>
     </div>
   </div>
@@ -449,15 +511,15 @@ Best regards,
 
 Here's a quick update on [Project Name]:
 
-**Completed:**
+Completed:
 - [Item 1]
 - [Item 2]
 
-**In Progress:**
+In Progress:
 - [Item 1]
 - [Item 2]
 
-**Next Steps:**
+Next Steps:
 - [Item 1]
 - [Item 2]
 
@@ -467,20 +529,35 @@ Best regards,
 [Your name]`
       },
       {
-        name: 'Cold Outreach',
-        subject: '[Personalized Subject]',
+        name: 'Quick Question',
+        subject: 'Quick Question',
         body: `Hi [Name],
 
-I noticed [observation about them/their company] and thought I'd reach out.
+I have a quick question for you:
 
-[Value proposition - how you can help]
+[Your question]
 
-Would you be open to a quick chat this week?
+Thanks in advance for your help!
 
 Best,
 [Your name]`
       }
     ];
+
+    const MODE_INFO = {
+      mailto: {
+        text: 'Mailto opens your email client (Gmail, Outlook) - you still need to click Send there.',
+        type: 'warning'
+      },
+      web3forms: {
+        text: 'Web3Forms sends directly from browser - emails go to YOUR inbox. Free, no signup!',
+        type: 'success'
+      },
+      emailjs: {
+        text: 'EmailJS sends from browser using your SMTP. Requires setup but very flexible.',
+        type: 'warning'
+      }
+    };
 
     let mode = 'mailto';
     let config = {};
@@ -489,27 +566,55 @@ Best,
       const saved = localStorage.getItem('konomi_email_config');
       if (saved) config = JSON.parse(saved);
 
-      if (config.key) document.getElementById('emailjs-key').value = config.key;
-      if (config.service) document.getElementById('emailjs-service').value = config.service;
-      if (config.template) document.getElementById('emailjs-template').value = config.template;
+      if (config.emailjs?.key) document.getElementById('emailjs-key').value = config.emailjs.key;
+      if (config.emailjs?.service) document.getElementById('emailjs-service').value = config.emailjs.service;
+      if (config.emailjs?.template) document.getElementById('emailjs-template').value = config.emailjs.template;
+      if (config.web3forms?.key) document.getElementById('web3forms-key').value = config.web3forms.key;
     }
 
     function saveConfig() {
-      config = {
+      localStorage.setItem('konomi_email_config', JSON.stringify(config));
+    }
+
+    function saveWeb3FormsConfig() {
+      config.web3forms = {
+        key: document.getElementById('web3forms-key').value
+      };
+      saveConfig();
+      alert('Web3Forms key saved! You can now send emails.');
+    }
+
+    function saveEmailJSConfig() {
+      config.emailjs = {
         key: document.getElementById('emailjs-key').value,
         service: document.getElementById('emailjs-service').value,
         template: document.getElementById('emailjs-template').value
       };
-      localStorage.setItem('konomi_email_config', JSON.stringify(config));
-      alert('Configuration saved!');
+      saveConfig();
+      alert('EmailJS configuration saved!');
     }
 
     function setMode(m) {
       mode = m;
       document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(m));
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(m.replace('3', '')));
       });
+
+      // Update mode info
+      const info = MODE_INFO[m];
+      const infoEl = document.getElementById('mode-info');
+      document.getElementById('mode-desc').textContent = info.text;
+      infoEl.className = 'mode-info ' + info.type;
+
+      // Show/hide config panels
       document.getElementById('emailjs-config').style.display = m === 'emailjs' ? 'block' : 'none';
+      document.getElementById('web3forms-config').style.display = m === 'web3forms' ? 'block' : 'none';
+
+      // Show/hide from field
+      document.getElementById('from-field').style.display = m === 'web3forms' ? 'block' : 'none';
+
+      // Update send button text
+      document.getElementById('send-text').textContent = m === 'mailto' ? 'Open Email Client' : 'Send';
     }
 
     function toggleTemplates() {
@@ -575,49 +680,91 @@ Best,
       document.getElementById('to').value = '';
       document.getElementById('subject').value = '';
       document.getElementById('body').value = '';
+      document.getElementById('from').value = '';
     }
 
     async function sendEmail() {
       const to = document.getElementById('to').value;
       const subject = document.getElementById('subject').value;
       const body = document.getElementById('body').value;
+      const from = document.getElementById('from').value;
 
       if (!to || !subject || !body) {
         alert('Please fill in all fields');
         return;
       }
 
-      if (mode === 'mailto') {
-        // Use mailto link
-        const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.location.href = mailtoUrl;
-        showSuccess();
-      } else {
-        // Use EmailJS
-        if (!config.key || !config.service || !config.template) {
-          alert('Please configure EmailJS settings first');
-          return;
-        }
+      const btn = document.getElementById('send-btn');
+      btn.disabled = true;
 
-        try {
+      try {
+        if (mode === 'mailto') {
+          // Use mailto link
+          const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          window.location.href = mailtoUrl;
+          showSuccess('Email client opened!');
+
+        } else if (mode === 'web3forms') {
+          // Use Web3Forms API
+          if (!config.web3forms?.key) {
+            alert('Please configure your Web3Forms access key first');
+            btn.disabled = false;
+            return;
+          }
+
+          const response = await fetch('https://api.web3forms.com/submit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              access_key: config.web3forms.key,
+              from_name: from || 'Contact Form',
+              email: from,
+              to: to,
+              subject: subject,
+              message: body
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            showSuccess('Email sent successfully!');
+            clearFormSilent();
+          } else {
+            showError('Failed: ' + (result.message || 'Unknown error'));
+          }
+
+        } else if (mode === 'emailjs') {
+          // Use EmailJS
+          if (!config.emailjs?.key || !config.emailjs?.service || !config.emailjs?.template) {
+            alert('Please configure EmailJS settings first');
+            btn.disabled = false;
+            return;
+          }
+
           // Load EmailJS SDK if not loaded
           if (!window.emailjs) {
             await loadEmailJS();
           }
 
-          emailjs.init(config.key);
-          await emailjs.send(config.service, config.template, {
+          emailjs.init(config.emailjs.key);
+          await emailjs.send(config.emailjs.service, config.emailjs.template, {
             to_email: to,
+            from_email: from,
             subject: subject,
             message: body
           });
 
-          showSuccess();
-          clearForm();
-        } catch (err) {
-          alert('Failed to send email: ' + err.message);
+          showSuccess('Email sent successfully!');
+          clearFormSilent();
         }
+      } catch (err) {
+        showError('Failed: ' + err.message);
       }
+
+      btn.disabled = false;
     }
 
     function loadEmailJS() {
@@ -630,15 +777,30 @@ Best,
       });
     }
 
-    function showSuccess() {
+    function showSuccess(text) {
       const msg = document.getElementById('success-msg');
+      msg.textContent = '✓ ' + text;
       msg.classList.add('show');
-      setTimeout(() => msg.classList.remove('show'), 3000);
+      setTimeout(() => msg.classList.remove('show'), 4000);
+    }
+
+    function showError(text) {
+      const msg = document.getElementById('error-msg');
+      msg.textContent = '✕ ' + text;
+      msg.classList.add('show');
+      setTimeout(() => msg.classList.remove('show'), 4000);
+    }
+
+    function clearFormSilent() {
+      document.getElementById('to').value = '';
+      document.getElementById('subject').value = '';
+      document.getElementById('body').value = '';
     }
 
     // Init
     loadConfig();
     renderTemplates();
+    setMode('mailto');
   </script>
 </body>
 </html>
