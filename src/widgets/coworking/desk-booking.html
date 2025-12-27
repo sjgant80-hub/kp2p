@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desk Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"desk-booking","name":"Desk Booking","icon":"💺","desc":"Reserve workspaces","category":"coworking","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.date-select{display:flex;gap:10px;margin-bottom:20px;align-items:center}
+.nav-btn{padding:8px 15px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.current-date{font-size:1.125rem;font-weight:bold}
+.floors{display:flex;gap:10px;margin-bottom:20px}
+.floor{padding:10px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.floor.active{background:#2563eb;border-color:#2563eb}
+.floor-stats{display:flex;gap:5px;font-size:.75rem;opacity:.8}
+.desks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.desk{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.desk.available{cursor:pointer}
+.desk.available:hover{border-color:#2563eb}
+.desk.booked{opacity:.6}
+.desk-icon{font-size:2rem;margin-bottom:10px}
+.desk-number{font-weight:bold;margin-bottom:5px}
+.desk-type{font-size:.75rem;color:#888;margin-bottom:10px}
+.desk-amenities{display:flex;justify-content:center;gap:8px;margin-bottom:15px;font-size:.875rem}
+.desk-status{padding:6px 15px;border-radius:6px;font-size:.75rem}
+.status-available{background:#22c55e33;color:#22c55e}
+.status-booked{background:#ef444433;color:#ef4444}
+.desk-booker{font-size:.75rem;color:#888;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>💺 Desk Booking</h1><button class="btn">My Bookings</button></div>
+<div class="date-select">
+<button class="nav-btn">←</button>
+<span class="current-date">Monday, January 20</span>
+<button class="nav-btn">→</button>
+</div>
+<div class="floors">
+<button class="floor active">Floor 1 <span class="floor-stats">(12/20)</span></button>
+<button class="floor">Floor 2 <span class="floor-stats">(8/20)</span></button>
+<button class="floor">Floor 3 <span class="floor-stats">(15/18)</span></button>
+</div>
+<div class="desks" id="desks"></div>
+<script>
+const desks=[
+{number:'1-01',type:'Hot Desk',amenities:['🖥️','🔌'],status:'available',booker:null},
+{number:'1-02',type:'Hot Desk',amenities:['🖥️','🔌'],status:'booked',booker:'Sarah M.'},
+{number:'1-03',type:'Standing Desk',amenities:['🖥️','🔌','⬆️'],status:'available',booker:null},
+{number:'1-04',type:'Hot Desk',amenities:['🖥️','🔌'],status:'booked',booker:'James K.'},
+{number:'1-05',type:'Private Pod',amenities:['🖥️','🔌','🔇'],status:'available',booker:null},
+{number:'1-06',type:'Hot Desk',amenities:['🖥️','🔌'],status:'booked',booker:'Mike T.'},
+{number:'1-07',type:'Standing Desk',amenities:['🖥️','🔌','⬆️'],status:'booked',booker:'Emma W.'},
+{number:'1-08',type:'Hot Desk',amenities:['🖥️','🔌'],status:'available',booker:null}
+];
+document.getElementById('desks').innerHTML=desks.map(d=>`
+<div class="desk ${d.status}">
+<div class="desk-icon">💺</div>
+<div class="desk-number">Desk ${d.number}</div>
+<div class="desk-type">${d.type}</div>
+<div class="desk-amenities">${d.amenities.join(' ')}</div>
+<span class="desk-status status-${d.status}">${d.status.toUpperCase()}</span>
+${d.booker?`<div class="desk-booker">Booked by ${d.booker}</div>`:''}
+</div>`).join('');
+</script>
+</body>
+</html>

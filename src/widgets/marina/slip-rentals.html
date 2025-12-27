@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slip Rentals - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"slip-rentals","name":"Slip Rentals","icon":"⚓","desc":"Manage boat slips","category":"marina","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0369a1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#0369a1}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.docks{display:flex;gap:10px;margin-bottom:20px}
+.dock{padding:10px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.dock.active{background:#0369a1;border-color:#0369a1}
+.slips{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.slip{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.slip-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.slip-number{font-size:1.25rem;font-weight:bold}
+.slip-status{padding:4px 12px;border-radius:4px;font-size:.75rem}
+.status-occupied{background:#22c55e33;color:#22c55e}
+.status-available{background:#0369a133;color:#0369a1}
+.status-reserved{background:#f59e0b33;color:#f59e0b}
+.slip-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:3px}
+.detail-value{font-size:.875rem}
+.slip-tenant{background:#252525;padding:12px;border-radius:6px}
+.tenant-name{font-weight:bold;margin-bottom:3px}
+.tenant-boat{font-size:.875rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>⚓ Slip Rentals</h1><button class="btn">Add Rental</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">TOTAL SLIPS</div></div>
+<div class="stat"><div class="stat-value">42</div><div class="stat-label">OCCUPIED</div></div>
+<div class="stat"><div class="stat-value">4</div><div class="stat-label">AVAILABLE</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">RESERVED</div></div>
+</div>
+<div class="docks">
+<button class="dock active">Dock A</button>
+<button class="dock">Dock B</button>
+<button class="dock">Dock C</button>
+<button class="dock">Transient</button>
+</div>
+<div class="slips" id="slips"></div>
+<script>
+const slips=[
+{number:'A-01',length:40,width:14,depth:8,power:'50A',status:'occupied',tenant:'James Wilson',boat:'Sea Breeze (42\' Sailboat)'},
+{number:'A-02',length:35,width:12,depth:8,power:'30A',status:'occupied',tenant:'Sarah Chen',boat:'Coastal Dream (36\' Cruiser)'},
+{number:'A-03',length:50,width:16,depth:10,power:'100A',status:'occupied',tenant:'Michael Torres',boat:'Ocean King (52\' Yacht)'},
+{number:'A-04',length:30,width:12,depth:6,power:'30A',status:'available',tenant:null,boat:null},
+{number:'A-05',length:45,width:14,depth:8,power:'50A',status:'reserved',tenant:'Robert Johnson',boat:'Wind Dancer (Arriving Jan 25)'},
+{number:'A-06',length:35,width:12,depth:8,power:'30A',status:'available',tenant:null,boat:null}
+];
+document.getElementById('slips').innerHTML=slips.map(s=>`
+<div class="slip">
+<div class="slip-header">
+<span class="slip-number">Slip ${s.number}</span>
+<span class="slip-status status-${s.status}">${s.status.toUpperCase()}</span>
+</div>
+<div class="slip-details">
+<div class="detail"><div class="detail-label">LENGTH</div><div class="detail-value">${s.length} ft</div></div>
+<div class="detail"><div class="detail-label">WIDTH</div><div class="detail-value">${s.width} ft</div></div>
+<div class="detail"><div class="detail-label">DEPTH</div><div class="detail-value">${s.depth} ft</div></div>
+<div class="detail"><div class="detail-label">POWER</div><div class="detail-value">${s.power}</div></div>
+</div>
+${s.tenant?`<div class="slip-tenant"><div class="tenant-name">${s.tenant}</div><div class="tenant-boat">🚤 ${s.boat}</div></div>`:'<button class="btn" style="width:100%">Reserve Slip</button>'}
+</div>`).join('');
+</script>
+</body>
+</html>

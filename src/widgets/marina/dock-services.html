@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dock Services - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"dock-services","name":"Dock Services","icon":"🛥️","desc":"Request marina services","category":"marina","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0369a1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:15px;margin-bottom:25px}
+.service-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s}
+.service-card:hover{border-color:#0369a1}
+.service-icon{font-size:2rem;margin-bottom:10px}
+.service-name{font-weight:bold;margin-bottom:5px}
+.service-price{font-size:.875rem;color:#22c55e}
+.requests-header{font-size:1rem;font-weight:bold;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center}
+.requests{display:flex;flex-direction:column;gap:12px}
+.request{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:grid;grid-template-columns:1fr auto;gap:15px;align-items:center}
+.request-info h4{margin-bottom:5px}
+.request-meta{font-size:.875rem;color:#888}
+.request-slip{font-size:.75rem;color:#0369a1;margin-top:5px}
+.request-status{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.status-badge{padding:4px 12px;border-radius:4px;font-size:.75rem}
+.status-pending{background:#f59e0b33;color:#f59e0b}
+.status-progress{background:#0369a133;color:#0369a1}
+.status-complete{background:#22c55e33;color:#22c55e}
+.request-time{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🛥️ Dock Services</h1><button class="btn">Request Service</button></div>
+<div class="services-grid">
+<div class="service-card"><div class="service-icon">⛽</div><div class="service-name">Fuel</div><div class="service-price">Market Rate</div></div>
+<div class="service-card"><div class="service-icon">🔌</div><div class="service-name">Electric</div><div class="service-price">$0.18/kWh</div></div>
+<div class="service-card"><div class="service-icon">💧</div><div class="service-name">Water</div><div class="service-price">Included</div></div>
+<div class="service-card"><div class="service-icon">🚿</div><div class="service-name">Pump Out</div><div class="service-price">$35</div></div>
+<div class="service-card"><div class="service-icon">🧊</div><div class="service-name">Ice</div><div class="service-price">$8/bag</div></div>
+<div class="service-card"><div class="service-icon">🧹</div><div class="service-name">Cleaning</div><div class="service-price">From $150</div></div>
+</div>
+<div class="requests-header"><span>Recent Requests</span><span style="font-size:.875rem;color:#888">Today</span></div>
+<div class="requests" id="requests"></div>
+<script>
+const requests=[
+{service:'Fuel Delivery',details:'150 gallons diesel',slip:'A-03',boat:'Ocean King',status:'progress',time:'In progress'},
+{service:'Pump Out Service',details:'Holding tank',slip:'B-12',boat:'Sunset Cruiser',status:'pending',time:'Scheduled 2:00 PM'},
+{service:'Boat Cleaning',details:'Full exterior wash',slip:'A-01',boat:'Sea Breeze',status:'complete',time:'Completed 10:30 AM'},
+{service:'Electric Service',details:'50A hookup inspection',slip:'C-08',boat:'Wind Runner',status:'pending',time:'Scheduled 3:30 PM'},
+{service:'Ice Delivery',details:'4 bags',slip:'A-02',boat:'Coastal Dream',status:'complete',time:'Completed 9:15 AM'}
+];
+document.getElementById('requests').innerHTML=requests.map(r=>`
+<div class="request">
+<div class="request-info">
+<h4>${r.service}</h4>
+<div class="request-meta">${r.details}</div>
+<div class="request-slip">📍 Slip ${r.slip} • ${r.boat}</div>
+</div>
+<div class="request-status">
+<span class="status-badge status-${r.status}">${r.status.toUpperCase()}</span>
+<span class="request-time">${r.time}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

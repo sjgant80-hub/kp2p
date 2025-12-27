@@ -760,6 +760,26 @@ const categoryMap = {
   // Memorial
   'plot-locator': { category: 'memorial', subcategory: 'navigation', badge: 'ENT' },
   'memorial-services': { category: 'memorial', subcategory: 'scheduling', badge: 'ENT' },
+
+  // Winery
+  'wine-tastings': { category: 'winery', subcategory: 'experiences', badge: 'ENT' },
+  'cellar-inventory': { category: 'winery', subcategory: 'inventory', badge: 'ENT' },
+
+  // Marina
+  'slip-rentals': { category: 'marina', subcategory: 'rentals', badge: 'ENT' },
+  'dock-services': { category: 'marina', subcategory: 'services', badge: 'ENT' },
+
+  // Stable
+  'horse-boarding': { category: 'stable', subcategory: 'boarding', badge: 'ENT' },
+  'riding-lessons': { category: 'stable', subcategory: 'lessons', badge: 'ENT' },
+
+  // Kennel
+  'pet-boarding': { category: 'kennel', subcategory: 'boarding', badge: 'ENT' },
+  'grooming-appointments': { category: 'kennel', subcategory: 'grooming', badge: 'ENT' },
+
+  // Coworking
+  'desk-booking': { category: 'coworking', subcategory: 'desks', badge: 'ENT' },
+  'meeting-rooms': { category: 'coworking', subcategory: 'meetings', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1051,7 +1071,12 @@ const widgetDirs = [
   'resort',
   'stadium',
   'convention',
-  'memorial'
+  'memorial',
+  'winery',
+  'marina',
+  'stable',
+  'kennel',
+  'coworking'
 ];
 
 // Process all widgets in all directories

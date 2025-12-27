@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pet Boarding - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"pet-boarding","name":"Pet Boarding","icon":"🐕","desc":"Manage pet stays","category":"kennel","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#9333ea;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#9333ea}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#9333ea;border-color:#9333ea}
+.guests{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.guest{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.guest-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.guest-name{font-size:1.125rem;font-weight:bold;display:flex;align-items:center;gap:8px}
+.guest-suite{font-size:.75rem;color:#9333ea}
+.guest-body{padding:20px}
+.guest-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#1f1f1f;padding:10px;border-radius:6px}
+.detail-label{font-size:.65rem;color:#888;margin-bottom:3px}
+.detail-value{font-size:.875rem}
+.guest-stay{background:#252525;padding:12px;border-radius:6px;margin-bottom:10px}
+.stay-dates{display:flex;justify-content:space-between;font-size:.875rem}
+.stay-label{font-size:.65rem;color:#888;margin-bottom:3px}
+.guest-services{display:flex;gap:8px;flex-wrap:wrap}
+.service-tag{padding:4px 10px;background:#9333ea33;color:#9333ea;border-radius:4px;font-size:.7rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🐕 Pet Boarding</h1><button class="btn">New Reservation</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">TOTAL SUITES</div></div>
+<div class="stat"><div class="stat-value">28</div><div class="stat-label">OCCUPIED</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">CHECK-OUTS TODAY</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">ARRIVALS TODAY</div></div>
+</div>
+<div class="filters">
+<button class="filter active">All Guests</button>
+<button class="filter">🐕 Dogs</button>
+<button class="filter">🐈 Cats</button>
+<button class="filter">Checking Out</button>
+</div>
+<div class="guests" id="guests"></div>
+<script>
+const guests=[
+{name:'Max',type:'🐕',breed:'Golden Retriever',suite:'Luxury Suite 1',checkIn:'Jan 18',checkOut:'Jan 22',owner:'Sarah Johnson',services:['Grooming','Extra Walks','Webcam']},
+{name:'Luna',type:'🐈',breed:'Persian',suite:'Cat Condo 3',checkIn:'Jan 19',checkOut:'Jan 25',owner:'Mike Chen',services:['Brushing','Playtime']},
+{name:'Buddy',type:'🐕',breed:'Labrador',suite:'Standard Run 5',checkIn:'Jan 17',checkOut:'Jan 20',owner:'Emma Wilson',services:['Training','Extra Walks']},
+{name:'Whiskers',type:'🐈',breed:'Siamese',suite:'Cat Condo 1',checkIn:'Jan 20',checkOut:'Jan 24',owner:'James Lee',services:['Medication','Webcam']},
+{name:'Rocky',type:'🐕',breed:'German Shepherd',suite:'Luxury Suite 3',checkIn:'Jan 16',checkOut:'Jan 23',owner:'Lisa Anderson',services:['Grooming','Training','Pool Time']},
+{name:'Bella',type:'🐕',breed:'French Bulldog',suite:'Standard Run 2',checkIn:'Jan 19',checkOut:'Jan 21',owner:'Tom Baker',services:['Extra Walks']}
+];
+document.getElementById('guests').innerHTML=guests.map(g=>`
+<div class="guest">
+<div class="guest-header">
+<span class="guest-name">${g.type} ${g.name}</span>
+<span class="guest-suite">${g.suite}</span>
+</div>
+<div class="guest-body">
+<div class="guest-details">
+<div class="detail"><div class="detail-label">BREED</div><div class="detail-value">${g.breed}</div></div>
+<div class="detail"><div class="detail-label">OWNER</div><div class="detail-value">${g.owner}</div></div>
+</div>
+<div class="guest-stay">
+<div class="stay-dates">
+<div><div class="stay-label">CHECK-IN</div>${g.checkIn}</div>
+<div><div class="stay-label">CHECK-OUT</div>${g.checkOut}</div>
+</div>
+</div>
+<div class="guest-services">${g.services.map(s=>`<span class="service-tag">${s}</span>`).join('')}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Riding Lessons - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"riding-lessons","name":"Riding Lessons","icon":"🏇","desc":"Schedule riding lessons","category":"stable","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#854d0e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.schedule-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.date-nav{display:flex;gap:10px;align-items:center}
+.nav-btn{padding:8px 15px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.current-date{font-size:1.125rem;font-weight:bold}
+.arenas{display:flex;gap:10px;margin-bottom:20px}
+.arena{padding:8px 16px;background:#252525;border-radius:6px;font-size:.875rem;cursor:pointer}
+.arena.active{background:#854d0e33;color:#854d0e}
+.lessons{display:flex;flex-direction:column;gap:12px}
+.lesson{background:#1a1a1a;border-radius:12px;border:1px solid #333;display:grid;grid-template-columns:100px 1fr auto;overflow:hidden}
+.lesson-time{padding:20px;background:#252525;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.time-start{font-size:1.125rem;font-weight:bold}
+.time-duration{font-size:.75rem;color:#888}
+.lesson-info{padding:20px}
+.lesson-type{font-size:.7rem;color:#854d0e;margin-bottom:5px}
+.lesson-title{font-size:1rem;font-weight:bold;margin-bottom:5px}
+.lesson-meta{font-size:.875rem;color:#888}
+.lesson-actions{padding:20px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:8px;border-left:1px solid #333}
+.spots-left{font-size:.75rem;color:#888}
+.book-btn{padding:8px 20px;background:#854d0e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.full{background:#333;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏇 Riding Lessons</h1><button class="btn">My Schedule</button></div>
+<div class="schedule-header">
+<div class="date-nav">
+<button class="nav-btn">←</button>
+<span class="current-date">Monday, January 20</span>
+<button class="nav-btn">→</button>
+</div>
+</div>
+<div class="arenas">
+<span class="arena active">All Arenas</span>
+<span class="arena">Indoor Arena</span>
+<span class="arena">Outdoor Ring</span>
+<span class="arena">Trail</span>
+</div>
+<div class="lessons" id="lessons"></div>
+<script>
+const lessons=[
+{time:'8:00 AM',duration:60,type:'BEGINNER',title:'Introduction to Riding',instructor:'Coach Sarah',arena:'Indoor Arena',capacity:4,enrolled:3},
+{time:'9:30 AM',duration:60,type:'INTERMEDIATE',title:'Jumping Fundamentals',instructor:'Coach Mike',arena:'Outdoor Ring',capacity:6,enrolled:6},
+{time:'11:00 AM',duration:90,type:'ADVANCED',title:'Dressage Training',instructor:'Coach Elena',arena:'Indoor Arena',capacity:4,enrolled:2},
+{time:'1:00 PM',duration:45,type:'KIDS',title:'Pony Club (Ages 6-10)',instructor:'Coach Lisa',arena:'Indoor Arena',capacity:8,enrolled:7},
+{time:'3:00 PM',duration:120,type:'TRAIL',title:'Guided Trail Ride',instructor:'Guide Tom',arena:'Meadow Trail',capacity:6,enrolled:4},
+{time:'5:00 PM',duration:60,type:'PRIVATE',title:'Private Lesson',instructor:'Coach Sarah',arena:'Indoor Arena',capacity:1,enrolled:1}
+];
+document.getElementById('lessons').innerHTML=lessons.map(l=>`
+<div class="lesson">
+<div class="lesson-time">
+<div class="time-start">${l.time}</div>
+<div class="time-duration">${l.duration} min</div>
+</div>
+<div class="lesson-info">
+<div class="lesson-type">${l.type}</div>
+<div class="lesson-title">${l.title}</div>
+<div class="lesson-meta">👤 ${l.instructor} • 📍 ${l.arena}</div>
+</div>
+<div class="lesson-actions">
+<span class="spots-left">${l.enrolled>=l.capacity?'Class Full':l.capacity-l.enrolled+' spots left'}</span>
+<button class="book-btn${l.enrolled>=l.capacity?' full':''}"${l.enrolled>=l.capacity?' disabled':''}>${l.enrolled>=l.capacity?'Waitlist':'Book'}</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

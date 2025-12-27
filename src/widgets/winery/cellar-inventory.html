@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cellar Inventory - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"cellar-inventory","name":"Cellar Inventory","icon":"🍾","desc":"Track wine inventory","category":"winery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#7c2d12;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#7c2d12}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#7c2d12;border-color:#7c2d12}
+.inventory{display:flex;flex-direction:column;gap:12px}
+.wine{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;display:grid;grid-template-columns:1fr auto auto auto;gap:20px;align-items:center}
+.wine-info h4{margin-bottom:5px}
+.wine-vintage{font-size:.875rem;color:#888}
+.wine-varietal{font-size:.75rem;color:#7c2d12}
+.wine-location{text-align:center}
+.wine-location-label{font-size:.65rem;color:#888}
+.wine-location-value{font-weight:bold}
+.wine-stock{text-align:center}
+.wine-stock-value{font-size:1.5rem;font-weight:bold}
+.wine-stock-label{font-size:.65rem;color:#888}
+.wine-value{text-align:right}
+.wine-value-amount{font-size:1.125rem;font-weight:bold;color:#22c55e}
+.wine-value-label{font-size:.65rem;color:#888}
+.low-stock{color:#f59e0b}
+</style>
+</head>
+<body>
+<div class="header"><h1>🍾 Cellar Inventory</h1><button class="btn">Add Wine</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">2,847</div><div class="stat-label">TOTAL BOTTLES</div></div>
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">UNIQUE WINES</div></div>
+<div class="stat"><div class="stat-value">$284K</div><div class="stat-label">CELLAR VALUE</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">LOW STOCK</div></div>
+</div>
+<div class="filters">
+<button class="filter active">All Wines</button>
+<button class="filter">Red</button>
+<button class="filter">White</button>
+<button class="filter">Sparkling</button>
+<button class="filter">Low Stock</button>
+</div>
+<div class="inventory" id="inventory"></div>
+<script>
+const wines=[
+{name:'Estate Cabernet Sauvignon',vintage:2019,varietal:'Cabernet Sauvignon',bin:'A1-12',cases:24,bottles:288,value:85,low:false},
+{name:'Reserve Chardonnay',vintage:2021,varietal:'Chardonnay',bin:'B2-08',cases:18,bottles:216,value:55,low:false},
+{name:'Old Vine Zinfandel',vintage:2020,varietal:'Zinfandel',bin:'C3-15',cases:8,bottles:96,value:45,low:false},
+{name:'Vintage Port',vintage:2015,varietal:'Port',bin:'D4-02',cases:2,bottles:24,value:125,low:true},
+{name:'Sparkling Brut',vintage:2022,varietal:'Sparkling',bin:'E1-20',cases:30,bottles:360,value:38,low:false},
+{name:'Late Harvest Riesling',vintage:2020,varietal:'Riesling',bin:'F2-05',cases:3,bottles:36,value:65,low:true}
+];
+document.getElementById('inventory').innerHTML=wines.map(w=>`
+<div class="wine">
+<div class="wine-info">
+<h4>${w.name}</h4>
+<div class="wine-vintage">${w.vintage} Vintage</div>
+<div class="wine-varietal">${w.varietal.toUpperCase()}</div>
+</div>
+<div class="wine-location">
+<div class="wine-location-label">BIN LOCATION</div>
+<div class="wine-location-value">${w.bin}</div>
+</div>
+<div class="wine-stock">
+<div class="wine-stock-value ${w.low?'low-stock':''}">${w.bottles}</div>
+<div class="wine-stock-label">${w.cases} CASES</div>
+</div>
+<div class="wine-value">
+<div class="wine-value-amount">$${(w.bottles*w.value).toLocaleString()}</div>
+<div class="wine-value-label">$${w.value}/BOTTLE</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

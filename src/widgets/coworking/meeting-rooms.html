@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meeting Rooms - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"meeting-rooms","name":"Meeting Rooms","icon":"🏢","desc":"Book meeting spaces","category":"coworking","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.filters{display:flex;gap:15px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-group{display:flex;gap:10px;align-items:center}
+.filter-label{font-size:.875rem;color:#888}
+.filter-btn{padding:6px 12px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer;font-size:.875rem}
+.filter-btn.active{background:#2563eb;border-color:#2563eb}
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px}
+.room{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.room-header{padding:20px;background:#252525;display:flex;justify-content:space-between;align-items:start}
+.room-name{font-size:1.125rem;font-weight:bold}
+.room-capacity{font-size:.875rem;color:#888;margin-top:3px}
+.room-status{padding:4px 12px;border-radius:4px;font-size:.75rem}
+.status-available{background:#22c55e33;color:#22c55e}
+.status-busy{background:#ef444433;color:#ef4444}
+.status-soon{background:#f59e0b33;color:#f59e0b}
+.room-body{padding:20px}
+.room-amenities{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.amenity{padding:6px 12px;background:#252525;border-radius:6px;font-size:.75rem;display:flex;align-items:center;gap:5px}
+.room-schedule{margin-bottom:15px}
+.schedule-label{font-size:.75rem;color:#888;margin-bottom:8px}
+.time-slots{display:flex;gap:5px;flex-wrap:wrap}
+.slot{padding:6px 10px;background:#252525;border-radius:4px;font-size:.7rem}
+.slot.booked{background:#ef444433;color:#ef4444}
+.slot.available{background:#22c55e33;color:#22c55e;cursor:pointer}
+.room-price{display:flex;justify-content:space-between;align-items:center}
+.price{font-size:1.125rem;font-weight:bold;color:#22c55e}
+.book-btn{padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏢 Meeting Rooms</h1><button class="btn">My Bookings</button></div>
+<div class="filters">
+<div class="filter-group">
+<span class="filter-label">Capacity:</span>
+<button class="filter-btn active">Any</button>
+<button class="filter-btn">2-4</button>
+<button class="filter-btn">5-8</button>
+<button class="filter-btn">10+</button>
+</div>
+<div class="filter-group">
+<span class="filter-label">Amenities:</span>
+<button class="filter-btn">📺 Display</button>
+<button class="filter-btn">📹 Video</button>
+<button class="filter-btn">🎤 Whiteboard</button>
+</div>
+</div>
+<div class="rooms" id="rooms"></div>
+<script>
+const rooms=[
+{name:'Innovation Hub',capacity:8,amenities:['📺 4K Display','📹 Video Conf','🎤 Whiteboard','☕ Coffee'],status:'available',slots:['9:00','10:00','11:00','12:00','1:00','2:00'],bookedSlots:[1,2],price:45},
+{name:'Focus Room A',capacity:4,amenities:['📺 Display','📹 Video Conf'],status:'busy',slots:['9:00','10:00','11:00','12:00','1:00','2:00'],bookedSlots:[0,1,2,3],price:30},
+{name:'Boardroom',capacity:14,amenities:['📺 Dual Displays','📹 Video Conf','🎤 Whiteboard','☕ Catering'],status:'available',slots:['9:00','10:00','11:00','12:00','1:00','2:00'],bookedSlots:[3],price:85},
+{name:'Focus Room B',capacity:4,amenities:['📺 Display','🎤 Whiteboard'],status:'soon',slots:['9:00','10:00','11:00','12:00','1:00','2:00'],bookedSlots:[0,1],price:30},
+{name:'Creative Studio',capacity:10,amenities:['📺 4K Display','🎤 Whiteboard','🎨 Art Supplies'],status:'available',slots:['9:00','10:00','11:00','12:00','1:00','2:00'],bookedSlots:[],price:55},
+{name:'Phone Booth 1',capacity:1,amenities:['🔇 Soundproof'],status:'busy',slots:['9:00','10:00','11:00','12:00','1:00','2:00'],bookedSlots:[0,1,2,3,4,5],price:10}
+];
+document.getElementById('rooms').innerHTML=rooms.map(r=>`
+<div class="room">
+<div class="room-header">
+<div>
+<div class="room-name">${r.name}</div>
+<div class="room-capacity">👥 Up to ${r.capacity} people</div>
+</div>
+<span class="room-status status-${r.status}">${r.status==='soon'?'AVAILABLE SOON':r.status.toUpperCase()}</span>
+</div>
+<div class="room-body">
+<div class="room-amenities">${r.amenities.map(a=>`<span class="amenity">${a}</span>`).join('')}</div>
+<div class="room-schedule">
+<div class="schedule-label">TODAY'S AVAILABILITY</div>
+<div class="time-slots">${r.slots.map((s,i)=>`<span class="slot ${r.bookedSlots.includes(i)?'booked':'available'}">${s}</span>`).join('')}</div>
+</div>
+<div class="room-price">
+<span class="price">$${r.price}/hr</span>
+<button class="book-btn">Book Now</button>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
