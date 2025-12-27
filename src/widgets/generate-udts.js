@@ -700,6 +700,26 @@ const categoryMap = {
   // Museum
   'exhibit-gallery': { category: 'museum', subcategory: 'exhibits', badge: 'ENT' },
   'museum-tours': { category: 'museum', subcategory: 'tours', badge: 'ENT' },
+
+  // Concert
+  'concert-calendar': { category: 'concert', subcategory: 'scheduling', badge: 'ENT' },
+  'ticket-scanner': { category: 'concert', subcategory: 'admission', badge: 'ENT' },
+
+  // Planetarium
+  'show-schedule': { category: 'planetarium', subcategory: 'shows', badge: 'ENT' },
+  'star-catalog': { category: 'planetarium', subcategory: 'database', badge: 'ENT' },
+
+  // Library
+  'book-catalog': { category: 'library', subcategory: 'catalog', badge: 'ENT' },
+  'circulation-desk': { category: 'library', subcategory: 'circulation', badge: 'ENT' },
+
+  // Theater
+  'performance-schedule': { category: 'theater', subcategory: 'scheduling', badge: 'ENT' },
+  'seat-map': { category: 'theater', subcategory: 'seating', badge: 'ENT' },
+
+  // Fairground
+  'ride-status': { category: 'fairground', subcategory: 'rides', badge: 'ENT' },
+  'game-booth': { category: 'fairground', subcategory: 'games', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -976,7 +996,12 @@ const widgetDirs = [
   'casino',
   'aquarium',
   'zoo',
-  'museum'
+  'museum',
+  'concert',
+  'planetarium',
+  'library',
+  'theater',
+  'fairground'
 ];
 
 // Process all widgets in all directories

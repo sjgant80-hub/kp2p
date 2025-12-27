@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book Catalog - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"book-catalog","name":"Book Catalog","icon":"📚","desc":"Library catalog search","category":"library","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.search{display:flex;gap:10px;margin-bottom:20px}
+.search input{flex:1;padding:12px 15px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px}
+.search button{padding:12px 20px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#059669;border-color:#059669}
+.books{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.book{background:#1a1a1a;border-radius:12px;border:1px solid #333;display:grid;grid-template-columns:80px 1fr;overflow:hidden}
+.book-cover{background:linear-gradient(135deg,#059669 0%,#047857 100%);display:flex;align-items:center;justify-content:center;font-size:2.5rem}
+.book-info{padding:15px}
+.book-title{font-size:1rem;font-weight:bold;margin-bottom:5px}
+.book-author{font-size:.875rem;color:#888;margin-bottom:10px}
+.book-meta{font-size:.75rem;color:#888;margin-bottom:10px}
+.book-status{display:flex;justify-content:space-between;align-items:center}
+.status-badge{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status-available{background:#22c55e33;color:#22c55e}
+.status-checkout{background:#f59e0b33;color:#f59e0b}
+.status-hold{background:#6366f133;color:#6366f1}
+.book-location{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>📚 Book Catalog</h1><button class="btn">My Account</button></div>
+<div class="search">
+<input type="text" placeholder="Search by title, author, or ISBN...">
+<button>🔍 Search</button>
+</div>
+<div class="filters">
+<button class="filter active">All</button>
+<button class="filter">Fiction</button>
+<button class="filter">Non-Fiction</button>
+<button class="filter">Science</button>
+<button class="filter">History</button>
+<button class="filter">Children</button>
+</div>
+<div class="books" id="books"></div>
+<script>
+const books=[
+{title:'The Great Gatsby',author:'F. Scott Fitzgerald',genre:'Fiction',year:'1925',isbn:'978-0743273565',status:'available',location:'FIC-GAT-001'},
+{title:'A Brief History of Time',author:'Stephen Hawking',genre:'Science',year:'1988',isbn:'978-0553380163',status:'checkout',location:'SCI-HAW-012'},
+{title:'1984',author:'George Orwell',genre:'Fiction',year:'1949',isbn:'978-0451524935',status:'available',location:'FIC-ORW-003'},
+{title:'Sapiens',author:'Yuval Noah Harari',genre:'History',year:'2011',isbn:'978-0062316097',status:'hold',location:'HIS-HAR-007'},
+{title:'Pride and Prejudice',author:'Jane Austen',genre:'Fiction',year:'1813',isbn:'978-0141439518',status:'available',location:'FIC-AUS-002'},
+{title:'The Origin of Species',author:'Charles Darwin',genre:'Science',year:'1859',isbn:'978-0451529060',status:'checkout',location:'SCI-DAR-001'}
+];
+document.getElementById('books').innerHTML=books.map(b=>`
+<div class="book">
+<div class="book-cover">📖</div>
+<div class="book-info">
+<div class="book-title">${b.title}</div>
+<div class="book-author">by ${b.author}</div>
+<div class="book-meta">${b.genre} • ${b.year} • ISBN: ${b.isbn}</div>
+<div class="book-status">
+<span class="status-badge status-${b.status}">${b.status==='checkout'?'Checked Out':b.status==='hold'?'On Hold':'Available'}</span>
+<span class="book-location">📍 ${b.location}</span>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Concert Calendar - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"concert-calendar","name":"Concert Calendar","icon":"🎸","desc":"Upcoming concert schedule","category":"concert","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#ec4899;border-color:#ec4899}
+.events{display:flex;flex-direction:column;gap:15px}
+.event{background:#1a1a1a;border-radius:12px;border:1px solid #333;display:grid;grid-template-columns:100px 1fr auto;overflow:hidden}
+.event-date{background:linear-gradient(135deg,#ec4899 0%,#db2777 100%);padding:20px;text-align:center;display:flex;flex-direction:column;justify-content:center}
+.date-month{font-size:.75rem;text-transform:uppercase;opacity:.9}
+.date-day{font-size:2rem;font-weight:bold}
+.date-dow{font-size:.75rem;opacity:.8}
+.event-info{padding:20px}
+.event-artist{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.event-genre{font-size:.75rem;color:#ec4899;margin-bottom:8px}
+.event-meta{font-size:.875rem;color:#888;display:flex;gap:15px}
+.event-actions{padding:20px;display:flex;flex-direction:column;justify-content:center;gap:10px;border-left:1px solid #333}
+.event-price{font-size:1.25rem;font-weight:bold;color:#22c55e;text-align:right}
+.btn-sm{padding:8px 15px;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎸 Concerts</h1><button class="btn">My Tickets</button></div>
+<div class="filters">
+<button class="filter active">All Shows</button>
+<button class="filter">Rock</button>
+<button class="filter">Pop</button>
+<button class="filter">Jazz</button>
+<button class="filter">Classical</button>
+<button class="filter">EDM</button>
+</div>
+<div class="events" id="events"></div>
+<script>
+const events=[
+{artist:'The Electric Hearts',genre:'Rock',date:{month:'JAN',day:'15',dow:'Friday'},venue:'Main Stage Arena',time:'8:00 PM',price:75},
+{artist:'Luna Wave',genre:'Pop',date:{month:'JAN',day:'18',dow:'Monday'},venue:'Sunset Amphitheater',time:'7:30 PM',price:55},
+{artist:'Midnight Jazz Quartet',genre:'Jazz',date:{month:'JAN',day:'22',dow:'Friday'},venue:'Blue Note Lounge',time:'9:00 PM',price:45},
+{artist:'Symphony No. 9',genre:'Classical',date:{month:'JAN',day:'25',dow:'Monday'},venue:'Grand Concert Hall',time:'7:00 PM',price:85},
+{artist:'DJ Pulse',genre:'EDM',date:{month:'JAN',day:'28',dow:'Thursday'},venue:'Club Neon',time:'10:00 PM',price:40},
+{artist:'Acoustic Dreams',genre:'Folk',date:{month:'FEB',day:'02',dow:'Tuesday'},venue:'The Garden Stage',time:'6:30 PM',price:35}
+];
+document.getElementById('events').innerHTML=events.map(e=>`
+<div class="event">
+<div class="event-date">
+<div class="date-month">${e.date.month}</div>
+<div class="date-day">${e.date.day}</div>
+<div class="date-dow">${e.date.dow}</div>
+</div>
+<div class="event-info">
+<div class="event-artist">${e.artist}</div>
+<div class="event-genre">${e.genre.toUpperCase()}</div>
+<div class="event-meta">
+<span>📍 ${e.venue}</span>
+<span>🕐 ${e.time}</span>
+</div>
+</div>
+<div class="event-actions">
+<div class="event-price">$${e.price}</div>
+<button class="btn btn-sm">Get Tickets</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

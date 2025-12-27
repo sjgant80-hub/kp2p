@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ride Status - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"ride-status","name":"Ride Status","icon":"🎡","desc":"Attraction status board","category":"fairground","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.rides{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.ride{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.ride-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.ride-icon{font-size:2.5rem}
+.ride-status{padding:6px 12px;border-radius:6px;font-size:.75rem;font-weight:600}
+.status-open{background:#22c55e33;color:#22c55e}
+.status-closed{background:#ef444433;color:#ef4444}
+.status-limited{background:#f59e0b33;color:#f59e0b}
+.ride-name{font-size:1.125rem;font-weight:bold;margin-bottom:10px}
+.ride-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.meta-item{background:#252525;padding:10px;border-radius:6px}
+.meta-label{font-size:.65rem;color:#888;margin-bottom:3px}
+.meta-value{font-size:.875rem;font-weight:500}
+.wait-high{color:#ef4444}
+.wait-medium{color:#f59e0b}
+.wait-low{color:#22c55e}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎡 Ride Status</h1><button class="btn">Park Map</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">Rides Open</div></div>
+<div class="stat"><div class="stat-value">2</div><div class="stat-label">Closed</div></div>
+<div class="stat"><div class="stat-value">25 min</div><div class="stat-label">Avg Wait</div></div>
+<div class="stat"><div class="stat-value">8,542</div><div class="stat-label">Visitors Today</div></div>
+</div>
+<div class="rides" id="rides"></div>
+<script>
+const rides=[
+{icon:'🎢',name:'Thunder Coaster',status:'open',wait:45,height:'48"',thrill:'Extreme'},
+{icon:'🎡',name:'Giant Wheel',status:'open',wait:15,height:'Any',thrill:'Mild'},
+{icon:'🎠',name:'Carousel',status:'open',wait:5,height:'Any',thrill:'Mild'},
+{icon:'💧',name:'Log Flume',status:'open',wait:30,height:'42"',thrill:'Moderate'},
+{icon:'🚀',name:'Space Launch',status:'limited',wait:60,height:'52"',thrill:'Extreme'},
+{icon:'👻',name:'Haunted Mansion',status:'open',wait:20,height:'36"',thrill:'Moderate'},
+{icon:'🏎️',name:'Bumper Cars',status:'open',wait:10,height:'36"',thrill:'Mild'},
+{icon:'🎪',name:'Tilt-A-Whirl',status:'closed',wait:0,height:'42"',thrill:'Moderate'}
+];
+function getWaitClass(wait){
+if(wait>=40)return 'wait-high';
+if(wait>=20)return 'wait-medium';
+return 'wait-low';
+}
+document.getElementById('rides').innerHTML=rides.map(r=>`
+<div class="ride">
+<div class="ride-header">
+<span class="ride-icon">${r.icon}</span>
+<span class="ride-status status-${r.status}">${r.status.toUpperCase()}</span>
+</div>
+<div class="ride-name">${r.name}</div>
+<div class="ride-meta">
+<div class="meta-item">
+<div class="meta-label">WAIT TIME</div>
+<div class="meta-value ${getWaitClass(r.wait)}">${r.status==='closed'?'—':r.wait+' min'}</div>
+</div>
+<div class="meta-item">
+<div class="meta-label">HEIGHT REQ</div>
+<div class="meta-value">${r.height}</div>
+</div>
+<div class="meta-item">
+<div class="meta-label">THRILL LEVEL</div>
+<div class="meta-value">${r.thrill}</div>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

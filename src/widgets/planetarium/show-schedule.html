@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Show Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"show-schedule","name":"Show Schedule","icon":"🌟","desc":"Planetarium show times","category":"planetarium","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.now-showing{background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);border-radius:12px;padding:25px;margin-bottom:20px}
+.now-label{font-size:.875rem;opacity:.8;margin-bottom:5px}
+.now-title{font-size:1.5rem;font-weight:bold;margin-bottom:10px}
+.now-info{display:flex;gap:20px;font-size:.875rem;opacity:.9}
+.shows{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.show{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.show-visual{height:120px;background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%);display:flex;align-items:center;justify-content:center;font-size:3rem}
+.show-body{padding:20px}
+.show-title{font-size:1.125rem;font-weight:bold;margin-bottom:5px}
+.show-desc{font-size:.875rem;color:#888;margin-bottom:15px;line-height:1.5}
+.show-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.show-duration{font-size:.75rem;color:#888}
+.show-audience{padding:4px 10px;background:#6366f133;color:#6366f1;border-radius:4px;font-size:.75rem}
+.show-times{display:flex;flex-wrap:wrap;gap:8px}
+.time-btn{padding:8px 15px;background:#252525;border-radius:6px;font-size:.875rem;cursor:pointer}
+.time-btn:hover{background:#6366f133}
+.time-btn.sold-out{opacity:.5;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="header"><h1>🌟 Planetarium Shows</h1><button class="btn">My Tickets</button></div>
+<div class="now-showing">
+<div class="now-label">NOW SHOWING</div>
+<div class="now-title">Journey Through the Solar System</div>
+<div class="now-info">
+<span>🕐 Started 15 min ago</span>
+<span>⏱️ 30 min remaining</span>
+<span>👥 142/160 seats</span>
+</div>
+</div>
+<div class="shows" id="shows"></div>
+<script>
+const shows=[
+{title:'Stars of the Southern Sky',icon:'⭐',desc:'Explore constellations visible from the southern hemisphere and learn ancient navigation techniques.',duration:'45 min',audience:'All Ages',times:[{t:'11:00 AM',avail:true},{t:'2:00 PM',avail:true},{t:'5:00 PM',avail:false}]},
+{title:'Black Holes: The Great Mystery',icon:'🕳️',desc:'Dive into the physics of black holes and discover what happens at the event horizon.',duration:'50 min',audience:'Ages 12+',times:[{t:'12:30 PM',avail:true},{t:'4:00 PM',avail:true}]},
+{title:'Space Explorers',icon:'🚀',desc:'Interactive show for young astronomers featuring planets, moons, and future space missions.',duration:'30 min',audience:'Ages 5-10',times:[{t:'10:00 AM',avail:true},{t:'1:00 PM',avail:true},{t:'3:30 PM',avail:true}]},
+{title:'Cosmic Collisions',icon:'💥',desc:'Witness the most violent events in the universe: supernovae, galaxy mergers, and asteroid impacts.',duration:'55 min',audience:'Ages 14+',times:[{t:'6:00 PM',avail:true},{t:'8:00 PM',avail:true}]}
+];
+document.getElementById('shows').innerHTML=shows.map(s=>`
+<div class="show">
+<div class="show-visual">${s.icon}</div>
+<div class="show-body">
+<div class="show-title">${s.title}</div>
+<div class="show-desc">${s.desc}</div>
+<div class="show-meta">
+<span class="show-duration">⏱️ ${s.duration}</span>
+<span class="show-audience">${s.audience}</span>
+</div>
+<div class="show-times">${s.times.map(t=>`<div class="time-btn${!t.avail?' sold-out':''}">${t.t}${!t.avail?' SOLD OUT':''}</div>`).join('')}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

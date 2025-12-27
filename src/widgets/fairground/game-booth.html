@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Booth - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"game-booth","name":"Game Booth","icon":"🎯","desc":"Carnival game management","category":"fairground","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.game{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.game-header{padding:20px;background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);display:flex;justify-content:space-between;align-items:center}
+.game-name{font-size:1.125rem;font-weight:bold}
+.game-price{padding:6px 12px;background:#00000033;border-radius:6px}
+.game-body{padding:20px}
+.game-prizes{margin-bottom:15px}
+.prizes-label{font-size:.75rem;color:#888;margin-bottom:8px}
+.prizes-list{display:flex;gap:10px}
+.prize{text-align:center}
+.prize-icon{font-size:1.5rem}
+.prize-level{font-size:.65rem;color:#888;margin-top:3px}
+.game-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.game-stat{text-align:center}
+.stat-mini-value{font-size:1rem;font-weight:bold}
+.stat-mini-label{font-size:.65rem;color:#888}
+.game-footer{padding:15px 20px;border-top:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+.inventory{font-size:.875rem;color:#888}
+.inventory span{color:#22c55e;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎯 Game Booths</h1><button class="btn">Prize Inventory</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">$2,847</div><div class="stat-label">Today's Revenue</div></div>
+<div class="stat"><div class="stat-value">523</div><div class="stat-label">Games Played</div></div>
+<div class="stat"><div class="stat-value">89</div><div class="stat-label">Prizes Won</div></div>
+<div class="stat"><div class="stat-value">17%</div><div class="stat-label">Win Rate</div></div>
+</div>
+<div class="games" id="games"></div>
+<script>
+const games=[
+{name:'Ring Toss',price:'$5',prizes:[{icon:'🧸',level:'Grand'},{icon:'🎈',level:'Medium'},{icon:'🍭',level:'Small'}],played:142,wins:18,revenue:710,inventory:45},
+{name:'Balloon Darts',price:'$3',prizes:[{icon:'🦄',level:'Grand'},{icon:'🐻',level:'Medium'},{icon:'🎀',level:'Small'}],played:98,wins:22,revenue:294,inventory:38},
+{name:'Basketball Shoot',price:'$4',prizes:[{icon:'🏀',level:'Grand'},{icon:'🎾',level:'Medium'},{icon:'⚾',level:'Small'}],played:87,wins:12,revenue:348,inventory:52},
+{name:'Water Gun Race',price:'$5',prizes:[{icon:'🐬',level:'Grand'},{icon:'🐙',level:'Medium'},{icon:'🐠',level:'Small'}],played:76,wins:15,revenue:380,inventory:29},
+{name:'Milk Bottle',price:'$4',prizes:[{icon:'🐘',level:'Grand'},{icon:'🦁',level:'Medium'},{icon:'🐵',level:'Small'}],played:65,wins:8,revenue:260,inventory:41},
+{name:'Duck Pond',price:'$2',prizes:[{icon:'🦆',level:'Any'},{icon:'🐤',level:'Any'},{icon:'🌟',level:'Any'}],played:55,wins:55,revenue:110,inventory:120}
+];
+document.getElementById('games').innerHTML=games.map(g=>`
+<div class="game">
+<div class="game-header">
+<span class="game-name">${g.name}</span>
+<span class="game-price">${g.price}/play</span>
+</div>
+<div class="game-body">
+<div class="game-prizes">
+<div class="prizes-label">PRIZES</div>
+<div class="prizes-list">${g.prizes.map(p=>`<div class="prize"><div class="prize-icon">${p.icon}</div><div class="prize-level">${p.level}</div></div>`).join('')}</div>
+</div>
+<div class="game-stats">
+<div class="game-stat"><div class="stat-mini-value">${g.played}</div><div class="stat-mini-label">Played</div></div>
+<div class="game-stat"><div class="stat-mini-value">${g.wins}</div><div class="stat-mini-label">Wins</div></div>
+<div class="game-stat"><div class="stat-mini-value">$${g.revenue}</div><div class="stat-mini-label">Revenue</div></div>
+</div>
+</div>
+<div class="game-footer">
+<span class="inventory">Prizes: <span>${g.inventory}</span> in stock</span>
+<button class="btn" style="font-size:.75rem;padding:6px 12px">Restock</button>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

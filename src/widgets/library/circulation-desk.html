@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circulation Desk - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"circulation-desk","name":"Circulation Desk","icon":"🔄","desc":"Book check-in/check-out","category":"library","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.mode-toggle{display:flex;gap:5px}
+.mode-btn{padding:10px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer;font-weight:600}
+.mode-btn.active{background:#059669;border-color:#059669;color:#fff}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#059669}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.scanner{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:30px;margin-bottom:20px}
+.scanner-input{display:flex;gap:10px;margin-bottom:20px}
+.scanner-input input{flex:1;padding:15px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:6px;font-size:1rem}
+.scanner-input button{padding:15px 25px;background:#059669;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.recent{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.recent-header{padding:15px 20px;border-bottom:1px solid #333;font-weight:bold}
+.transaction{display:grid;grid-template-columns:auto 1fr auto auto;gap:15px;align-items:center;padding:15px 20px;border-bottom:1px solid #333}
+.transaction:last-child{border-bottom:none}
+.tx-icon{font-size:1.5rem}
+.tx-info h4{margin-bottom:3px}
+.tx-info span{font-size:.75rem;color:#888}
+.tx-type{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.type-out{background:#f59e0b33;color:#f59e0b}
+.type-in{background:#22c55e33;color:#22c55e}
+.type-renew{background:#6366f133;color:#6366f1}
+.tx-time{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔄 Circulation Desk</h1>
+<div class="mode-toggle">
+<button class="mode-btn active">Check Out</button>
+<button class="mode-btn">Check In</button>
+</div>
+</div>
+<div class="stats">
+<div class="stat"><div class="stat-value">47</div><div class="stat-label">Today's Checkouts</div></div>
+<div class="stat"><div class="stat-value">38</div><div class="stat-label">Today's Returns</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Renewals</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Overdue</div></div>
+</div>
+<div class="scanner">
+<div class="scanner-input">
+<input type="text" placeholder="Scan barcode or enter ISBN/Patron ID...">
+<button>Process</button>
+</div>
+</div>
+<div class="recent">
+<div class="recent-header">Recent Transactions</div>
+<div id="transactions"></div>
+</div>
+<script>
+const transactions=[
+{icon:'📗',title:'To Kill a Mockingbird',patron:'Sarah J. (P-1042)',type:'out',time:'1m ago'},
+{icon:'📘',title:'The Catcher in the Rye',patron:'Mike R. (P-2031)',type:'in',time:'5m ago'},
+{icon:'📙',title:'Brave New World',patron:'Emma L. (P-1587)',type:'renew',time:'8m ago'},
+{icon:'📕',title:'The Lord of the Rings',patron:'John D. (P-0892)',type:'out',time:'12m ago'},
+{icon:'📗',title:'Harry Potter and the Sorcerer\'s Stone',patron:'Lisa K. (P-2103)',type:'in',time:'15m ago'},
+{icon:'📘',title:'The Alchemist',patron:'David M. (P-1456)',type:'out',time:'20m ago'}
+];
+document.getElementById('transactions').innerHTML=transactions.map(t=>`
+<div class="transaction">
+<span class="tx-icon">${t.icon}</span>
+<div class="tx-info">
+<h4>${t.title}</h4>
+<span>${t.patron}</span>
+</div>
+<span class="tx-type type-${t.type}">${t.type==='out'?'CHECK OUT':t.type==='in'?'RETURN':'RENEW'}</span>
+<span class="tx-time">${t.time}</span>
+</div>`).join('');
+</script>
+</body>
+</html>

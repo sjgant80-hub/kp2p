@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ticket Scanner - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"ticket-scanner","name":"Ticket Scanner","icon":"📱","desc":"Venue admission scanner","category":"concert","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#ec4899;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.scanner{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:30px;text-align:center;margin-bottom:20px}
+.scanner-area{width:200px;height:200px;margin:0 auto 20px;border:3px dashed #ec4899;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:4rem}
+.scanner-status{font-size:1.25rem;font-weight:bold;margin-bottom:10px}
+.scanner-msg{font-size:.875rem;color:#888}
+.recent{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.recent-header{padding:15px 20px;border-bottom:1px solid #333;font-weight:bold}
+.scan-item{display:grid;grid-template-columns:auto 1fr auto auto;gap:15px;align-items:center;padding:15px 20px;border-bottom:1px solid #333}
+.scan-item:last-child{border-bottom:none}
+.scan-icon{font-size:1.5rem}
+.scan-info h4{margin-bottom:3px}
+.scan-info span{font-size:.75rem;color:#888}
+.scan-status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status-valid{background:#22c55e33;color:#22c55e}
+.status-vip{background:#f59e0b33;color:#f59e0b}
+.status-invalid{background:#ef444433;color:#ef4444}
+.scan-time{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>📱 Ticket Scanner</h1><button class="btn">Manual Entry</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">1,247</div><div class="stat-label">Scanned In</div></div>
+<div class="stat"><div class="stat-value">753</div><div class="stat-label">Remaining</div></div>
+<div class="stat"><div class="stat-value">62%</div><div class="stat-label">Capacity</div></div>
+<div class="stat"><div class="stat-value">23</div><div class="stat-label">VIP Check-ins</div></div>
+</div>
+<div class="scanner">
+<div class="scanner-area">📷</div>
+<div class="scanner-status">Ready to Scan</div>
+<div class="scanner-msg">Position barcode in the scanner area</div>
+</div>
+<div class="recent">
+<div class="recent-header">Recent Scans</div>
+<div id="scans"></div>
+</div>
+<script>
+const scans=[
+{name:'Sarah M.',ticket:'GA-4521',status:'valid',time:'2s ago'},
+{name:'Mike R.',ticket:'VIP-089',status:'vip',time:'15s ago'},
+{name:'Emma L.',ticket:'GA-4520',status:'valid',time:'45s ago'},
+{name:'John D.',ticket:'GA-4519',status:'valid',time:'1m ago'},
+{name:'Unknown',ticket:'FAKE-001',status:'invalid',time:'2m ago'},
+{name:'Lisa K.',ticket:'VIP-088',status:'vip',time:'3m ago'}
+];
+document.getElementById('scans').innerHTML=scans.map(s=>`
+<div class="scan-item">
+<span class="scan-icon">${s.status==='vip'?'⭐':s.status==='valid'?'✅':'❌'}</span>
+<div class="scan-info">
+<h4>${s.name}</h4>
+<span>Ticket: ${s.ticket}</span>
+</div>
+<span class="scan-status status-${s.status}">${s.status.toUpperCase()}</span>
+<span class="scan-time">${s.time}</span>
+</div>`).join('');
+</script>
+</body>
+</html>
