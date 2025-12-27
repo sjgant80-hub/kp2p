@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Student Progress - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"student-progress","name":"Student Progress","icon":"📊","desc":"Track driving student progress","category":"driving","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.student{font-weight:600}
+.status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status.active{background:#10b98133;color:#10b981}
+.status.ready{background:#3b82f633;color:#3b82f6}
+.status.passed{background:#22c55e33;color:#22c55e}
+.progress-bar{height:8px;background:#333;border-radius:4px;margin:15px 0}
+.progress-fill{height:100%;background:#10b981;border-radius:4px}
+.skills{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0}
+.skill{display:flex;justify-content:space-between;font-size:.875rem}
+.skill-name{color:#888}
+.skill-level{color:#10b981}
+.info{font-size:.875rem;color:#888;margin-bottom:15px}
+.btn{width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;background:#10b981;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>📊 Student Progress</h1></div>
+<div class="grid" id="grid"></div>
+<script>
+const students=[
+{name:'Emma Johnson',phone:'555-0101',status:'active',lessons:3,total:10,skills:{parking:3,turns:4,highway:2,parallel:1},nextTest:null},
+{name:'Liam Smith',phone:'555-0102',status:'ready',lessons:10,total:10,skills:{parking:5,turns:5,highway:5,parallel:4},nextTest:'Jan 5'},
+{name:'Olivia Davis',phone:'555-0103',status:'passed',lessons:10,total:10,skills:{parking:5,turns:5,highway:5,parallel:5},nextTest:null},
+{name:'Noah Wilson',phone:'555-0104',status:'active',lessons:1,total:10,skills:{parking:1,turns:1,highway:0,parallel:0},nextTest:null}
+];
+document.getElementById('grid').innerHTML=students.map(s=>`
+<div class="card">
+<div class="card-header"><span class="student">${s.name}</span><span class="status ${s.status}">${s.status==='active'?'In Training':s.status==='ready'?'Test Ready':'Passed!'}</span></div>
+<div class="info">📞 ${s.phone}</div>
+<div style="font-size:.875rem">Lessons: ${s.lessons}/${s.total}</div>
+<div class="progress-bar"><div class="progress-fill" style="width:${(s.lessons/s.total)*100}%"></div></div>
+<div class="skills">
+<div class="skill"><span class="skill-name">Parking</span><span class="skill-level">${'⭐'.repeat(s.skills.parking)}</span></div>
+<div class="skill"><span class="skill-name">Turns</span><span class="skill-level">${'⭐'.repeat(s.skills.turns)}</span></div>
+<div class="skill"><span class="skill-name">Highway</span><span class="skill-level">${'⭐'.repeat(s.skills.highway)||'—'}</span></div>
+<div class="skill"><span class="skill-name">Parallel</span><span class="skill-level">${'⭐'.repeat(s.skills.parallel)||'—'}</span></div>
+</div>
+${s.nextTest?`<div class="info">🗓️ Road Test: ${s.nextTest}</div>`:''}
+<button class="btn" onclick="alert('View')">${s.status==='passed'?'View Certificate':'View Details'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Machine Monitor - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"machine-monitor","name":"Machine Monitor","icon":"🤖","desc":"Monitor vending machines","category":"vending","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.machine-id{font-weight:600}
+.status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status.online{background:#22c55e33;color:#22c55e}
+.status.low{background:#f59e0b33;color:#f59e0b}
+.status.offline{background:#ef444433;color:#ef4444}
+.location{font-size:.875rem;color:#888;margin-bottom:15px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.metric{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.metric-value{font-size:1.125rem;font-weight:bold;color:#8b5cf6}
+.metric-label{font-size:.65rem;color:#888}
+.bar{height:6px;background:#333;border-radius:3px;margin-bottom:5px}
+.fill{height:100%;border-radius:3px}
+.inventory{font-size:.75rem;color:#888;display:flex;justify-content:space-between}
+.btn{width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;background:#8b5cf6;color:#fff;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🤖 Machine Monitor</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Machines</div></div>
+<div class="stat"><div class="stat-value">22</div><div class="stat-label">Online</div></div>
+<div class="stat"><div class="stat-value">$2.4k</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Need Restock</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const machines=[
+{id:'VM-001',location:'Office Building A',status:'online',sales:245,inventory:75},
+{id:'VM-002',location:'Mall - 2nd Floor',status:'online',sales:380,inventory:45},
+{id:'VM-003',location:'Hospital Lobby',status:'low',sales:156,inventory:22},
+{id:'VM-004',location:'University Library',status:'online',sales:520,inventory:60},
+{id:'VM-005',location:'Train Station',status:'offline',sales:0,inventory:80},
+{id:'VM-006',location:'Gym Entrance',status:'low',sales:190,inventory:18}
+];
+document.getElementById('grid').innerHTML=machines.map(m=>`
+<div class="card">
+<div class="card-header"><span class="machine-id">${m.id}</span><span class="status ${m.status}">${m.status==='online'?'Online':m.status==='low'?'Low Stock':'Offline'}</span></div>
+<div class="location">📍 ${m.location}</div>
+<div class="metrics">
+<div class="metric"><div class="metric-value">$${m.sales}</div><div class="metric-label">Today's Sales</div></div>
+<div class="metric"><div class="metric-value">${m.inventory}%</div><div class="metric-label">Inventory</div></div>
+</div>
+<div class="bar"><div class="fill" style="width:${m.inventory}%;background:${m.inventory<30?'#ef4444':m.inventory<50?'#f59e0b':'#22c55e'}"></div></div>
+<div class="inventory"><span>Last restocked: 2 days ago</span><span>${m.inventory<30?'⚠️ Restock':''}</span></div>
+<button class="btn" onclick="alert('View')">View Details</button>
+</div>`).join('');
+</script>
+</body>
+</html>

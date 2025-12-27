@@ -500,6 +500,26 @@ const categoryMap = {
   // Arcade
   'token-sales': { category: 'arcade', subcategory: 'sales', badge: 'ENT' },
   'prize-counter': { category: 'arcade', subcategory: 'prizes', badge: 'ENT' },
+
+  // Notary
+  'signing-scheduler': { category: 'notary', subcategory: 'scheduling', badge: 'ENT' },
+  'document-log': { category: 'notary', subcategory: 'records', badge: 'ENT' },
+
+  // Driving
+  'lesson-planner': { category: 'driving', subcategory: 'scheduling', badge: 'ENT' },
+  'student-progress': { category: 'driving', subcategory: 'tracking', badge: 'ENT' },
+
+  // Marina
+  'slip-manager': { category: 'marina', subcategory: 'slips', badge: 'ENT' },
+  'fuel-dock': { category: 'marina', subcategory: 'fuel', badge: 'ENT' },
+
+  // Storage
+  'unit-manager': { category: 'storage', subcategory: 'units', badge: 'ENT' },
+  'access-log': { category: 'storage', subcategory: 'security', badge: 'ENT' },
+
+  // Vending
+  'machine-monitor': { category: 'vending', subcategory: 'monitoring', badge: 'ENT' },
+  'route-planner': { category: 'vending', subcategory: 'logistics', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -726,7 +746,12 @@ const widgetDirs = [
   'gym',
   'tattoo',
   'escape',
-  'arcade'
+  'arcade',
+  'notary',
+  'driving',
+  'marina',
+  'storage',
+  'vending'
 ];
 
 // Process all widgets in all directories

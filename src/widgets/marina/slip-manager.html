@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slip Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"slip-manager","name":"Slip Manager","icon":"⛵","desc":"Manage marina boat slips","category":"marina","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#0ea5e9}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:15px}
+.slip{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;text-align:center}
+.slip.occupied{border-color:#0ea5e9}
+.slip.available{border-color:#22c55e}
+.slip.reserved{border-color:#f59e0b}
+.slip-num{font-size:1.5rem;font-weight:bold;margin-bottom:5px}
+.slip-size{font-size:.75rem;color:#888;margin-bottom:10px}
+.slip-status{padding:4px 10px;border-radius:4px;font-size:.75rem;margin-bottom:10px;display:inline-block}
+.occupied .slip-status{background:#0ea5e933;color:#0ea5e9}
+.available .slip-status{background:#22c55e33;color:#22c55e}
+.reserved .slip-status{background:#f59e0b33;color:#f59e0b}
+.boat-name{font-size:.875rem;margin-bottom:5px}
+.owner{font-size:.75rem;color:#888}
+.btn{width:100%;padding:8px;border:none;border-radius:6px;cursor:pointer;background:#0ea5e9;color:#fff;font-size:.875rem;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>⛵ Slip Manager</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">48</div><div class="stat-label">Total Slips</div></div>
+<div class="stat"><div class="stat-value">38</div><div class="stat-label">Occupied</div></div>
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">$45k</div><div class="stat-label">Monthly Rev</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const slips=[
+{num:'A-01',size:'40ft',status:'occupied',boat:'Sea Breeze',owner:'Johnson'},
+{num:'A-02',size:'35ft',status:'occupied',boat:'Wanderer',owner:'Smith'},
+{num:'A-03',size:'40ft',status:'available',boat:null,owner:null},
+{num:'A-04',size:'50ft',status:'reserved',boat:'Pending',owner:'Davis'},
+{num:'B-01',size:'30ft',status:'occupied',boat:'Wave Runner',owner:'Wilson'},
+{num:'B-02',size:'35ft',status:'available',boat:null,owner:null},
+{num:'B-03',size:'30ft',status:'occupied',boat:'Sunset',owner:'Brown'},
+{num:'B-04',size:'45ft',status:'occupied',boat:'Blue Horizon',owner:'Miller'}
+];
+document.getElementById('grid').innerHTML=slips.map(s=>`
+<div class="slip ${s.status}">
+<div class="slip-num">${s.num}</div>
+<div class="slip-size">${s.size}</div>
+<div class="slip-status">${s.status.charAt(0).toUpperCase()+s.status.slice(1)}</div>
+${s.boat?`<div class="boat-name">🚤 ${s.boat}</div><div class="owner">${s.owner}</div>`:''}
+<button class="btn" onclick="alert('${s.status==='available'?'Reserve':'Manage'}')">${s.status==='available'?'Reserve':'Manage'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>

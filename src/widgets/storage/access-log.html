@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Access Log - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"access-log","name":"Access Log","icon":"🔑","desc":"Storage facility access log","category":"storage","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:10px}
+.entry{background:#1a1a1a;border-radius:8px;border:1px solid #333;padding:15px;display:flex;justify-content:space-between;align-items:center}
+.entry-info{display:flex;align-items:center;gap:15px}
+.entry-icon{font-size:1.5rem}
+.entry-details{display:flex;flex-direction:column}
+.entry-unit{font-weight:600}
+.entry-tenant{font-size:.875rem;color:#888}
+.entry-time{text-align:right}
+.entry-action{font-size:.875rem;margin-bottom:5px}
+.entry-action.entry{color:#22c55e}
+.entry-action.exit{color:#f59e0b}
+.entry-timestamp{font-size:.75rem;color:#888}
+.search{width:100%;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#e0e0e0;margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🔑 Access Log</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">45</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Currently Inside</div></div>
+<div class="stat"><div class="stat-value">18min</div><div class="stat-label">Avg Duration</div></div>
+<div class="stat"><div class="stat-value">0</div><div class="stat-label">Alerts</div></div>
+</div>
+<input type="text" class="search" placeholder="🔍 Search by unit or tenant...">
+<div class="list" id="list"></div>
+<script>
+const entries=[
+{unit:'045',tenant:'John Smith',action:'entry',time:'2:45 PM',icon:'🚪'},
+{unit:'128',tenant:'Sarah Johnson',action:'exit',time:'2:38 PM',duration:'25 min',icon:'🚪'},
+{unit:'067',tenant:'Mike Davis',action:'entry',time:'2:30 PM',icon:'🚪'},
+{unit:'092',tenant:'Lisa Wilson',action:'exit',time:'2:15 PM',duration:'45 min',icon:'🚪'},
+{unit:'045',tenant:'John Smith',action:'exit',time:'1:45 PM',duration:'15 min',icon:'🚪'},
+{unit:'103',tenant:'ABC Storage LLC',action:'entry',time:'1:30 PM',icon:'🚗'},
+{unit:'045',tenant:'John Smith',action:'entry',time:'1:30 PM',icon:'🚪'}
+];
+document.getElementById('list').innerHTML=entries.map(e=>`
+<div class="entry">
+<div class="entry-info">
+<div class="entry-icon">${e.icon}</div>
+<div class="entry-details"><div class="entry-unit">Unit #${e.unit}</div><div class="entry-tenant">${e.tenant}</div></div>
+</div>
+<div class="entry-time"><div class="entry-action ${e.action}">${e.action==='entry'?'↗️ Entry':'↙️ Exit'}${e.duration?' ('+e.duration+')':''}</div><div class="entry-timestamp">${e.time}</div></div>
+</div>`).join('');
+</script>
+</body>
+</html>

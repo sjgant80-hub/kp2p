@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lesson Planner - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"lesson-planner","name":"Lesson Planner","icon":"🚗","desc":"Schedule driving lessons","category":"driving","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.time{font-weight:600}
+.lesson-type{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.lesson-type.beginner{background:#22c55e33;color:#22c55e}
+.lesson-type.intermediate{background:#f59e0b33;color:#f59e0b}
+.lesson-type.road-test{background:#ef444433;color:#ef4444}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#10b981;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚗 Lesson Planner</h1><button class="btn" onclick="alert('Schedule')">+ Schedule Lesson</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Today</div></div>
+<div class="stat"><div class="stat-value">32</div><div class="stat-label">This Week</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Instructors</div></div>
+<div class="stat"><div class="stat-value">92%</div><div class="stat-label">Pass Rate</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const lessons=[
+{time:'9:00 AM',student:'Emma Johnson',type:'beginner',duration:'2 hrs',instructor:'Mike',vehicle:'Car #1',lesson:3,total:10},
+{time:'11:00 AM',student:'Liam Smith',type:'intermediate',duration:'2 hrs',instructor:'Sarah',vehicle:'Car #2',lesson:7,total:10},
+{time:'2:00 PM',student:'Olivia Davis',type:'road-test',duration:'1 hr',instructor:'Mike',vehicle:'Car #1',lesson:'Test',total:''},
+{time:'4:00 PM',student:'Noah Wilson',type:'beginner',duration:'2 hrs',instructor:'Tom',vehicle:'Car #3',lesson:1,total:10}
+];
+document.getElementById('list').innerHTML=lessons.map(l=>`
+<div class="card">
+<div class="card-header"><span class="time">⏰ ${l.time} (${l.duration})</span><span class="lesson-type ${l.type}">${l.type==='road-test'?'Road Test':l.type.charAt(0).toUpperCase()+l.type.slice(1)}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Student</span><span>${l.student}</span></div><div class="row"><span class="label">Instructor</span><span>👤 ${l.instructor}</span></div></div>
+<div><div class="row"><span class="label">Vehicle</span><span>🚗 ${l.vehicle}</span></div><div class="row"><span class="label">Progress</span><span>${l.lesson}${l.total?'/'+l.total:''}</span></div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
