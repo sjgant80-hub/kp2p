@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delivery Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"delivery-tracker","name":"Delivery Tracker","icon":"🚚","desc":"Track flower deliveries","category":"florist","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f472b6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.order-id{font-weight:600}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.preparing{background:#f59e0b33;color:#f59e0b}
+.status.transit{background:#3b82f633;color:#3b82f6}
+.status.delivered{background:#22c55e33;color:#22c55e}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.timeline{display:flex;justify-content:space-between;position:relative;padding:15px 0}
+.timeline::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:#333}
+.step{position:relative;z-index:1;text-align:center}
+.step-dot{width:20px;height:20px;border-radius:50%;background:#333;margin:0 auto 5px}
+.step-dot.active{background:#f472b6}
+.step-label{font-size:.75rem;color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#f472b6;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚚 Delivery Tracker</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Out for Delivery</div></div>
+<div class="stat"><div class="stat-value">15</div><div class="stat-label">Delivered Today</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Preparing</div></div>
+<div class="stat"><div class="stat-value">98%</div><div class="stat-label">On-Time Rate</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const deliveries=[
+{id:'FL-001',recipient:'Sarah Johnson',address:'123 Oak St',phone:'555-0101',arrangement:'Spring Bouquet',driver:'Mike',time:'2:00 PM',status:'transit',step:3},
+{id:'FL-002',recipient:'ABC Corp',address:'456 Business Park',phone:'555-0102',arrangement:'Corporate Arrangement',driver:'Tom',time:'3:30 PM',status:'preparing',step:2},
+{id:'FL-003',recipient:'Emma Davis',address:'789 Maple Ave',phone:'555-0103',arrangement:'Birthday Roses',driver:'Mike',time:'11:00 AM',status:'delivered',step:4},
+{id:'FL-004',recipient:'John Wilson',address:'321 Cedar Ln',phone:'555-0104',arrangement:'Sympathy Wreath',driver:'Lisa',time:'4:00 PM',status:'transit',step:3}
+];
+document.getElementById('list').innerHTML=deliveries.map(d=>`
+<div class="card">
+<div class="card-header"><span class="order-id">#${d.id}</span><span class="status ${d.status}">${d.status==='preparing'?'Preparing':d.status==='transit'?'In Transit':'Delivered'}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Recipient</span><span>${d.recipient}</span></div><div class="row"><span class="label">Address</span><span>${d.address}</span></div></div>
+<div><div class="row"><span class="label">Arrangement</span><span>${d.arrangement}</span></div><div class="row"><span class="label">ETA</span><span>${d.time}</span></div></div>
+</div>
+<div class="timeline">
+<div class="step"><div class="step-dot ${d.step>=1?'active':''}"></div><div class="step-label">Ordered</div></div>
+<div class="step"><div class="step-dot ${d.step>=2?'active':''}"></div><div class="step-label">Preparing</div></div>
+<div class="step"><div class="step-dot ${d.step>=3?'active':''}"></div><div class="step-label">In Transit</div></div>
+<div class="step"><div class="step-dot ${d.step>=4?'active':''}"></div><div class="step-label">Delivered</div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

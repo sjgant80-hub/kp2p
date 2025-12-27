@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Member Passes - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"member-passes","name":"Member Passes","icon":"🎫","desc":"Manage yoga class passes","category":"yoga","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#a855f7}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.member{font-weight:600}
+.status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status.active{background:#22c55e33;color:#22c55e}
+.status.expiring{background:#f59e0b33;color:#f59e0b}
+.status.expired{background:#ef444433;color:#ef4444}
+.pass-type{background:#a855f720;color:#a855f7;padding:8px 12px;border-radius:6px;display:inline-block;margin-bottom:15px}
+.bar{height:8px;background:#333;border-radius:4px;margin:10px 0}
+.fill{height:100%;background:#a855f7;border-radius:4px}
+.info{font-size:.875rem;color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#a855f7;color:#fff;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🎫 Member Passes</h1><button class="btn" onclick="alert('Sell')">+ Sell Pass</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">156</div><div class="stat-label">Active Passes</div></div>
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Expiring Soon</div></div>
+<div class="stat"><div class="stat-value">89</div><div class="stat-label">Unlimited</div></div>
+<div class="stat"><div class="stat-value">$12k</div><div class="stat-label">Monthly Rev</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const members=[
+{name:'Emma Johnson',email:'emma@email.com',type:'Unlimited Monthly',expires:'Jan 15, 2025',classes:12,status:'active'},
+{name:'Mike Smith',email:'mike@email.com',type:'10-Class Pack',expires:'Feb 28, 2025',classes:3,remaining:3,status:'active'},
+{name:'Sarah Davis',email:'sarah@email.com',type:'Unlimited Monthly',expires:'Dec 30, 2024',classes:8,status:'expiring'},
+{name:'Tom Wilson',email:'tom@email.com',type:'5-Class Pack',expires:'Dec 15, 2024',classes:5,remaining:0,status:'expired'}
+];
+document.getElementById('grid').innerHTML=members.map(m=>`
+<div class="card">
+<div class="card-header"><span class="member">${m.name}</span><span class="status ${m.status}">${m.status==='active'?'Active':m.status==='expiring'?'Expiring Soon':'Expired'}</span></div>
+<div class="pass-type">🎫 ${m.type}</div>
+${m.remaining!==undefined?`<div class="bar"><div class="fill" style="width:${(m.remaining/parseInt(m.type))*100}%"></div></div><div class="info">${m.remaining} classes remaining</div>`:''}
+<div class="info" style="margin-top:10px">📧 ${m.email}</div>
+<div class="info">📅 Expires: ${m.expires}</div>
+<div class="info">🧘 ${m.classes} classes attended this month</div>
+<button class="btn" onclick="alert('Renew')">${m.status==='expired'?'Renew Pass':'Manage'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>

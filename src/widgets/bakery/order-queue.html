@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order Queue - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"order-queue","name":"Order Queue","icon":"🥐","desc":"Manage bakery orders","category":"bakery","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.order-id{font-weight:600}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.pending{background:#f59e0b33;color:#f59e0b}
+.status.baking{background:#f9731633;color:#f97316}
+.status.ready{background:#22c55e33;color:#22c55e}
+.items{background:#252525;padding:15px;border-radius:8px;margin-bottom:15px}
+.item{display:flex;justify-content:space-between;padding:5px 0}
+.footer{display:flex;justify-content:space-between;align-items:center}
+.time{color:#888;font-size:.875rem}
+.total{font-weight:600;color:#f97316}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#f97316;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>🥐 Order Queue</h1><button class="btn" onclick="alert('New')">+ New Order</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Pending</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Baking</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Ready</div></div>
+<div class="stat"><div class="stat-value">$890</div><div class="stat-label">Today</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const orders=[
+{id:'B-001',customer:'Sarah M.',pickup:'10:00 AM',items:[{name:'Croissants',qty:6,price:18},{name:'Baguette',qty:2,price:8}],status:'baking'},
+{id:'B-002',customer:'Mike J.',pickup:'10:30 AM',items:[{name:'Birthday Cake',qty:1,price:45},{name:'Cupcakes',qty:12,price:36}],status:'pending'},
+{id:'B-003',customer:'Lisa D.',pickup:'11:00 AM',items:[{name:'Sourdough',qty:1,price:7},{name:'Cinnamon Rolls',qty:4,price:16}],status:'ready'},
+{id:'B-004',customer:'Tom W.',pickup:'11:30 AM',items:[{name:'Danish Pastries',qty:8,price:28}],status:'pending'}
+];
+document.getElementById('list').innerHTML=orders.map(o=>`
+<div class="card">
+<div class="card-header"><span class="order-id">#${o.id} - ${o.customer}</span><span class="status ${o.status}">${o.status==='pending'?'Pending':o.status==='baking'?'In Oven':'Ready'}</span></div>
+<div class="items">${o.items.map(i=>`<div class="item"><span>${i.qty}x ${i.name}</span><span>$${i.price}</span></div>`).join('')}</div>
+<div class="footer"><span class="time">⏰ Pickup: ${o.pickup}</span><span class="total">Total: $${o.items.reduce((a,i)=>a+i.price,0)}</span></div>
+</div>`).join('');
+</script>
+</body>
+</html>

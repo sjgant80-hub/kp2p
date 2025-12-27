@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Child Check-in - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"child-checkin","name":"Child Check-in","icon":"👶","desc":"Track child check-in/out","category":"daycare","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.name{font-weight:600;display:flex;align-items:center;gap:8px}
+.status{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.status.in{background:#22c55e33;color:#22c55e}
+.status.out{background:#6b728033;color:#888}
+.info{font-size:.875rem;color:#888;margin-bottom:15px}
+.times{display:flex;justify-content:space-between;padding:10px;background:#252525;border-radius:6px;margin-bottom:10px}
+.btn{width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.btn.check-in{background:#22c55e;color:#fff}
+.btn.check-out{background:#ef4444;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>👶 Child Check-in</h1></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">18</div><div class="stat-label">Checked In</div></div>
+<div class="stat"><div class="stat-value">24</div><div class="stat-label">Expected</div></div>
+<div class="stat"><div class="stat-value">3</div><div class="stat-label">Classrooms</div></div>
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Staff</div></div>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const children=[
+{name:'Emma Johnson',age:3,room:'Butterflies',parent:'Sarah J.',in:'8:15 AM',status:'in'},
+{name:'Liam Smith',age:4,room:'Ladybugs',parent:'Mike S.',in:'7:45 AM',status:'in'},
+{name:'Olivia Davis',age:2,room:'Caterpillars',parent:'Lisa D.',in:'8:30 AM',status:'in'},
+{name:'Noah Wilson',age:3,room:'Butterflies',parent:'Tom W.',in:null,status:'out'},
+{name:'Ava Brown',age:4,room:'Ladybugs',parent:'Amy B.',in:'9:00 AM',status:'in'},
+{name:'Ethan Miller',age:2,room:'Caterpillars',parent:'John M.',in:null,status:'out'}
+];
+document.getElementById('grid').innerHTML=children.map(c=>`
+<div class="card">
+<div class="card-header"><span class="name">🧒 ${c.name}</span><span class="status ${c.status}">${c.status==='in'?'Checked In':'Not Here'}</span></div>
+<div class="info">Age: ${c.age} • Room: ${c.room} • Parent: ${c.parent}</div>
+<div class="times"><span>Check-in: ${c.in||'--:--'}</span><span>Check-out: --:--</span></div>
+<button class="btn ${c.status==='in'?'check-out':'check-in'}" onclick="alert('${c.status==='in'?'Check Out':'Check In'}')">${c.status==='in'?'Check Out':'Check In'}</button>
+</div>`).join('');
+</script>
+</body>
+</html>

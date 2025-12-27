@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fare Calculator - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"fare-calculator","name":"Fare Calculator","icon":"💵","desc":"Calculate taxi fares","category":"taxi","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;background:#252525;border:1px solid #333;border-radius:6px;color:#e0e0e0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.result{background:#252525;padding:20px;border-radius:8px;margin-top:15px}
+.result-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #333}
+.result-row:last-child{border-bottom:none}
+.total{font-size:1.5rem;font-weight:bold;color:#facc15;margin-top:15px;text-align:center;padding:15px;background:#facc1520;border-radius:8px}
+.btn{width:100%;padding:12px;border:none;border-radius:6px;cursor:pointer;background:#facc15;color:#000;font-weight:600;margin-top:15px}
+.rates{font-size:.75rem;color:#888;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="header"><h1>💵 Fare Calculator</h1></div>
+<div class="card">
+<div class="grid">
+<div class="form-group"><label>Distance (miles)</label><input type="number" id="distance" value="5" step="0.1"></div>
+<div class="form-group"><label>Duration (min)</label><input type="number" id="duration" value="15"></div>
+</div>
+<div class="grid">
+<div class="form-group"><label>Time of Day</label><select id="time"><option value="normal">Normal Hours</option><option value="peak">Peak Hours (+25%)</option><option value="night">Night (+15%)</option></select></div>
+<div class="form-group"><label>Vehicle Type</label><select id="vehicle"><option value="standard">Standard</option><option value="premium">Premium (+50%)</option><option value="xl">XL (+30%)</option></select></div>
+</div>
+<button class="btn" onclick="calculate()">Calculate Fare</button>
+<div class="result" id="result">
+<div class="result-row"><span>Base Fare</span><span id="base">$3.00</span></div>
+<div class="result-row"><span>Distance</span><span id="distFare">$10.00</span></div>
+<div class="result-row"><span>Time</span><span id="timeFare">$3.00</span></div>
+<div class="result-row"><span>Surcharges</span><span id="surcharge">$0.00</span></div>
+</div>
+<div class="total" id="total">Total: $16.00</div>
+<div class="rates">Rates: $3.00 base • $2.00/mile • $0.20/min</div>
+</div>
+<script>
+function calculate(){
+const dist=parseFloat(document.getElementById('distance').value)||0;
+const dur=parseFloat(document.getElementById('duration').value)||0;
+const time=document.getElementById('time').value;
+const vehicle=document.getElementById('vehicle').value;
+const base=3;
+const distFare=dist*2;
+const timeFare=dur*0.2;
+let multiplier=1;
+if(time==='peak')multiplier+=0.25;
+if(time==='night')multiplier+=0.15;
+if(vehicle==='premium')multiplier+=0.5;
+if(vehicle==='xl')multiplier+=0.3;
+const surcharge=(base+distFare+timeFare)*(multiplier-1);
+const total=(base+distFare+timeFare+surcharge);
+document.getElementById('base').textContent='$'+base.toFixed(2);
+document.getElementById('distFare').textContent='$'+distFare.toFixed(2);
+document.getElementById('timeFare').textContent='$'+timeFare.toFixed(2);
+document.getElementById('surcharge').textContent='$'+surcharge.toFixed(2);
+document.getElementById('total').textContent='Total: $'+total.toFixed(2);
+}
+</script>
+</body>
+</html>

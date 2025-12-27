@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Class Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"class-scheduler","name":"Class Scheduler","icon":"🧘","desc":"Schedule yoga classes","category":"yoga","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#a855f7}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.class-name{font-weight:600;font-size:1.125rem}
+.level{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.level.beginner{background:#22c55e33;color:#22c55e}
+.level.intermediate{background:#f59e0b33;color:#f59e0b}
+.level.advanced{background:#ef444433;color:#ef4444}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.spots{background:#252525;padding:10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#a855f7;color:#fff}
+</style>
+</head>
+<body>
+<div class="header"><h1>🧘 Class Scheduler</h1><button class="btn" onclick="alert('Add')">+ Add Class</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Today's Classes</div></div>
+<div class="stat"><div class="stat-value">45</div><div class="stat-label">Bookings</div></div>
+<div class="stat"><div class="stat-value">5</div><div class="stat-label">Instructors</div></div>
+<div class="stat"><div class="stat-value">$1.8k</div><div class="stat-label">Revenue</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const classes=[
+{name:'Morning Flow',time:'7:00 AM',duration:'60 min',instructor:'Sarah',level:'beginner',spots:12,booked:10},
+{name:'Power Vinyasa',time:'9:00 AM',duration:'75 min',instructor:'Mike',level:'intermediate',spots:15,booked:15},
+{name:'Gentle Stretch',time:'11:00 AM',duration:'45 min',instructor:'Lisa',level:'beginner',spots:20,booked:8},
+{name:'Hot Yoga',time:'5:30 PM',duration:'90 min',instructor:'Tom',level:'advanced',spots:18,booked:16},
+{name:'Restorative',time:'7:30 PM',duration:'60 min',instructor:'Sarah',level:'beginner',spots:15,booked:6}
+];
+document.getElementById('list').innerHTML=classes.map(c=>`
+<div class="card">
+<div class="card-header"><span class="class-name">${c.name}</span><span class="level ${c.level}">${c.level}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Time</span><span>⏰ ${c.time}</span></div><div class="row"><span class="label">Duration</span><span>${c.duration}</span></div></div>
+<div><div class="row"><span class="label">Instructor</span><span>👤 ${c.instructor}</span></div><div class="row"><span class="label">Room</span><span>Studio A</span></div></div>
+</div>
+<div class="spots"><span>${c.booked}/${c.spots} spots filled</span><button class="btn" ${c.booked>=c.spots?'disabled style="opacity:0.5"':''}>${c.booked>=c.spots?'Full':'Book'}</button></div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dispatch Board - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"dispatch-board","name":"Dispatch Board","icon":"🚕","desc":"Manage taxi dispatch operations","category":"taxi","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#facc15}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.list{display:flex;flex-direction:column;gap:15px}
+.card{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.card-header{display:flex;justify-content:space-between;margin-bottom:15px}
+.driver{font-weight:600;display:flex;align-items:center;gap:8px}
+.status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.status.available{background:#22c55e33;color:#22c55e}
+.status.busy{background:#f59e0b33;color:#f59e0b}
+.status.offline{background:#6b728033;color:#888}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333}
+.label{color:#888}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#facc15;color:#000}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚕 Dispatch Board</h1><button class="btn" onclick="alert('Dispatch')">+ New Trip</button></div>
+<div class="stats">
+<div class="stat"><div class="stat-value">12</div><div class="stat-label">Active Drivers</div></div>
+<div class="stat"><div class="stat-value">8</div><div class="stat-label">Available</div></div>
+<div class="stat"><div class="stat-value">15</div><div class="stat-label">Trips Today</div></div>
+<div class="stat"><div class="stat-value">$1.2k</div><div class="stat-label">Revenue</div></div>
+</div>
+<div class="list" id="list"></div>
+<script>
+const drivers=[
+{id:'D-001',name:'Mike Johnson',car:'Toyota Camry',plate:'ABC-123',location:'Downtown',trips:5,status:'available'},
+{id:'D-002',name:'Sarah Williams',car:'Honda Accord',plate:'XYZ-789',location:'Airport',trips:3,status:'busy'},
+{id:'D-003',name:'Tom Davis',car:'Ford Fusion',plate:'DEF-456',location:'Mall Area',trips:4,status:'available'},
+{id:'D-004',name:'Lisa Brown',car:'Nissan Altima',plate:'GHI-321',location:'Station',trips:3,status:'offline'}
+];
+document.getElementById('list').innerHTML=drivers.map(d=>`
+<div class="card">
+<div class="card-header"><span class="driver">🚗 ${d.name}</span><span class="status ${d.status}">${d.status==='available'?'Available':d.status==='busy'?'On Trip':'Offline'}</span></div>
+<div class="info">
+<div><div class="row"><span class="label">Car</span><span>${d.car}</span></div><div class="row"><span class="label">Plate</span><span>${d.plate}</span></div></div>
+<div><div class="row"><span class="label">Location</span><span>${d.location}</span></div><div class="row"><span class="label">Trips</span><span>${d.trips} today</span></div></div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

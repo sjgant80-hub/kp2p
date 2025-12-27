@@ -440,6 +440,26 @@ const categoryMap = {
   // Locksmith
   'service-jobs': { category: 'locksmith', subcategory: 'service', badge: 'ENT' },
   'key-inventory': { category: 'locksmith', subcategory: 'inventory', badge: 'ENT' },
+
+  // Taxi
+  'dispatch-board': { category: 'taxi', subcategory: 'dispatch', badge: 'ENT' },
+  'fare-calculator': { category: 'taxi', subcategory: 'billing', badge: 'ENT' },
+
+  // Daycare
+  'child-checkin': { category: 'daycare', subcategory: 'attendance', badge: 'ENT' },
+  'daily-report': { category: 'daycare', subcategory: 'reporting', badge: 'ENT' },
+
+  // Yoga
+  'class-scheduler': { category: 'yoga', subcategory: 'scheduling', badge: 'ENT' },
+  'member-passes': { category: 'yoga', subcategory: 'membership', badge: 'ENT' },
+
+  // Bakery
+  'order-queue': { category: 'bakery', subcategory: 'orders', badge: 'ENT' },
+  'recipe-book': { category: 'bakery', subcategory: 'recipes', badge: 'ENT' },
+
+  // Florist
+  'arrangement-builder': { category: 'florist', subcategory: 'design', badge: 'ENT' },
+  'delivery-tracker': { category: 'florist', subcategory: 'delivery', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -651,7 +671,12 @@ const widgetDirs = [
   'pest',
   'appliance',
   'window',
-  'locksmith'
+  'locksmith',
+  'taxi',
+  'daycare',
+  'yoga',
+  'bakery',
+  'florist'
 ];
 
 // Process all widgets in all directories
