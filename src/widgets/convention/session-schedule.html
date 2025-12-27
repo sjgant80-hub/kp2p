@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Session Schedule - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"session-schedule","name":"Session Schedule","icon":"📅","desc":"Conference sessions","category":"convention","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.days{display:flex;gap:10px;margin-bottom:20px}
+.day{padding:12px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.day.active{background:#8b5cf6;border-color:#8b5cf6}
+.tracks{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.track{padding:6px 12px;background:#252525;border-radius:4px;font-size:.75rem;cursor:pointer}
+.track.active{background:#8b5cf633;color:#8b5cf6}
+.sessions{display:flex;flex-direction:column;gap:15px}
+.session{background:#1a1a1a;border-radius:12px;border:1px solid #333;display:grid;grid-template-columns:100px 1fr auto;overflow:hidden}
+.session-time{padding:20px;background:#252525;text-align:center;display:flex;flex-direction:column;justify-content:center}
+.time-start{font-size:1.125rem;font-weight:bold}
+.time-end{font-size:.75rem;color:#888}
+.session-info{padding:20px}
+.session-track{font-size:.7rem;color:#8b5cf6;margin-bottom:5px}
+.session-title{font-size:1.125rem;font-weight:bold;margin-bottom:5px}
+.session-speaker{font-size:.875rem;color:#888;margin-bottom:10px}
+.session-meta{display:flex;gap:15px;font-size:.75rem;color:#888}
+.session-actions{padding:20px;display:flex;flex-direction:column;justify-content:center;gap:10px;border-left:1px solid #333}
+.add-btn{padding:8px 15px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.75rem}
+.seats{font-size:.7rem;color:#888;text-align:center}
+</style>
+</head>
+<body>
+<div class="header"><h1>📅 Sessions</h1><button class="btn">My Schedule</button></div>
+<div class="days">
+<button class="day active">Day 1 (Mon)</button>
+<button class="day">Day 2 (Tue)</button>
+<button class="day">Day 3 (Wed)</button>
+</div>
+<div class="tracks">
+<span class="track active">All Tracks</span>
+<span class="track">Keynotes</span>
+<span class="track">Technical</span>
+<span class="track">Business</span>
+<span class="track">Workshop</span>
+</div>
+<div class="sessions" id="sessions"></div>
+<script>
+const sessions=[
+{start:'9:00 AM',end:'10:30 AM',track:'Keynote',title:'Opening Keynote: The Future of Technology',speaker:'Jane Smith, CEO TechCorp',room:'Main Hall',capacity:2000,registered:1847},
+{start:'11:00 AM',end:'12:00 PM',track:'Technical',title:'Building Scalable Microservices',speaker:'John Doe, Principal Engineer',room:'Room 101',capacity:200,registered:185},
+{start:'11:00 AM',end:'12:00 PM',track:'Business',title:'Digital Transformation Strategies',speaker:'Sarah Johnson, VP Strategy',room:'Room 205',capacity:150,registered:142},
+{start:'1:30 PM',end:'2:30 PM',track:'Workshop',title:'Hands-on: Kubernetes Deep Dive',speaker:'Mike Chen, DevOps Lead',room:'Workshop A',capacity:50,registered:50},
+{start:'2:45 PM',end:'3:45 PM',track:'Technical',title:'AI/ML in Production',speaker:'Dr. Lisa Wang, Data Science',room:'Room 101',capacity:200,registered:176},
+{start:'4:00 PM',end:'5:00 PM',track:'Keynote',title:'Closing: Panel Discussion',speaker:'Industry Leaders',room:'Main Hall',capacity:2000,registered:1523}
+];
+document.getElementById('sessions').innerHTML=sessions.map(s=>`
+<div class="session">
+<div class="session-time">
+<div class="time-start">${s.start}</div>
+<div class="time-end">${s.end}</div>
+</div>
+<div class="session-info">
+<div class="session-track">${s.track.toUpperCase()}</div>
+<div class="session-title">${s.title}</div>
+<div class="session-speaker">👤 ${s.speaker}</div>
+<div class="session-meta">
+<span>📍 ${s.room}</span>
+<span>👥 ${s.registered}/${s.capacity}</span>
+</div>
+</div>
+<div class="session-actions">
+<button class="add-btn"${s.registered>=s.capacity?' disabled':''}>+ Add</button>
+<span class="seats">${s.registered>=s.capacity?'FULL':s.capacity-s.registered+' seats left'}</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

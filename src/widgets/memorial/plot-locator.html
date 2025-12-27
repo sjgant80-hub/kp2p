@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plot Locator - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"plot-locator","name":"Plot Locator","icon":"🪦","desc":"Find memorial plots","category":"memorial","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#6b7280;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.search{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;margin-bottom:20px}
+.search-row{display:flex;gap:10px;margin-bottom:15px}
+.search-row:last-child{margin-bottom:0}
+.search input{flex:1;padding:12px 15px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:6px}
+.search button{padding:12px 25px;background:#6b7280;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.results-header{margin-bottom:15px;font-size:.875rem;color:#888}
+.results{display:flex;flex-direction:column;gap:15px}
+.result{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px}
+.result-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:15px}
+.result-name{font-size:1.25rem;font-weight:bold}
+.result-dates{font-size:.875rem;color:#888}
+.result-location{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:15px}
+.location-item{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.location-label{font-size:.65rem;color:#888;margin-bottom:3px}
+.location-value{font-weight:500}
+.result-footer{display:flex;justify-content:space-between;align-items:center}
+.result-actions{display:flex;gap:10px}
+.action-btn{padding:8px 15px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header"><h1>🪦 Plot Locator</h1><button class="btn">Map View</button></div>
+<div class="search">
+<div class="search-row">
+<input type="text" placeholder="Last name">
+<input type="text" placeholder="First name">
+</div>
+<div class="search-row">
+<input type="text" placeholder="Year (e.g., 1985-2020)">
+<button>🔍 Search</button>
+</div>
+</div>
+<div class="results-header">Showing 3 results for "Johnson"</div>
+<div class="results" id="results"></div>
+<script>
+const results=[
+{name:'Robert James Johnson',birth:'March 15, 1942',death:'December 3, 2018',section:'Garden of Peace',lot:'142',space:'A',row:'12'},
+{name:'Mary Elizabeth Johnson',birth:'June 22, 1945',death:'August 17, 2021',section:'Garden of Peace',lot:'142',space:'B',row:'12'},
+{name:'William Thomas Johnson',birth:'October 8, 1920',death:'April 25, 1995',section:'Veterans Memorial',lot:'78',space:'C',row:'5'}
+];
+document.getElementById('results').innerHTML=results.map(r=>`
+<div class="result">
+<div class="result-header">
+<div>
+<div class="result-name">${r.name}</div>
+<div class="result-dates">${r.birth} — ${r.death}</div>
+</div>
+</div>
+<div class="result-location">
+<div class="location-item"><div class="location-label">SECTION</div><div class="location-value">${r.section}</div></div>
+<div class="location-item"><div class="location-label">LOT</div><div class="location-value">${r.lot}</div></div>
+<div class="location-item"><div class="location-label">SPACE</div><div class="location-value">${r.space}</div></div>
+<div class="location-item"><div class="location-label">ROW</div><div class="location-value">${r.row}</div></div>
+</div>
+<div class="result-footer">
+<div class="result-actions">
+<button class="action-btn">📍 Get Directions</button>
+<button class="action-btn">🌹 Leave Tribute</button>
+<button class="action-btn">📸 View Photos</button>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

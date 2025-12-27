@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cabana Booking - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"cabana-booking","name":"Cabana Booking","icon":"🏖️","desc":"Reserve pool/beach cabanas","category":"resort","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#a855f7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.date-picker{display:flex;gap:10px;margin-bottom:20px;overflow-x:auto;padding-bottom:10px}
+.date{padding:15px 20px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer;text-align:center;min-width:80px}
+.date.active{background:#a855f7;border-color:#a855f7}
+.date-day{font-size:.75rem;opacity:.8}
+.date-num{font-size:1.25rem;font-weight:bold}
+.locations{display:flex;flex-direction:column;gap:20px}
+.location{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.location-header{padding:20px;background:linear-gradient(135deg,#a855f7 0%,#9333ea 100%)}
+.location-name{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.location-desc{font-size:.875rem;opacity:.9}
+.cabanas{padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.cabana{padding:15px;background:#252525;border-radius:8px;border:2px solid transparent}
+.cabana.available{cursor:pointer}
+.cabana.available:hover{border-color:#a855f7}
+.cabana.booked{opacity:.5}
+.cabana-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cabana-name{font-weight:bold}
+.cabana-status{font-size:.75rem;padding:3px 8px;border-radius:4px}
+.available .cabana-status{background:#22c55e33;color:#22c55e}
+.booked .cabana-status{background:#ef444433;color:#ef4444}
+.cabana-features{font-size:.75rem;color:#888;margin-bottom:10px}
+.cabana-price{font-weight:bold;color:#22c55e}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏖️ Cabana Booking</h1><button class="btn">My Reservations</button></div>
+<div class="date-picker" id="dates"></div>
+<div class="locations" id="locations"></div>
+<script>
+const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const today=new Date();
+document.getElementById('dates').innerHTML=Array.from({length:7},(_, i)=>{
+const d=new Date(today);d.setDate(d.getDate()+i);
+return `<div class="date${i===0?' active':''}"><div class="date-day">${days[d.getDay()]}</div><div class="date-num">${d.getDate()}</div></div>`;
+}).join('');
+const locations=[
+{name:'Pool Cabanas',desc:'Luxury poolside cabanas with shade, fans, and beverage service',cabanas:[
+{name:'Cabana 1',features:'4 guests, Poolside, TV',price:250,avail:true},
+{name:'Cabana 2',features:'6 guests, Corner, Extra large',price:350,avail:false},
+{name:'Cabana 3',features:'4 guests, Poolside, TV',price:250,avail:true},
+{name:'Cabana 4',features:'4 guests, Poolside, TV',price:250,avail:true}
+]},
+{name:'Beach Cabanas',desc:'Private beach cabanas with ocean views and dedicated butler',cabanas:[
+{name:'Beach 1',features:'4 guests, Oceanfront',price:400,avail:false},
+{name:'Beach 2',features:'6 guests, Premium location',price:500,avail:true},
+{name:'Beach 3',features:'4 guests, Oceanfront',price:400,avail:true}
+]}
+];
+document.getElementById('locations').innerHTML=locations.map(l=>`
+<div class="location">
+<div class="location-header">
+<div class="location-name">${l.name}</div>
+<div class="location-desc">${l.desc}</div>
+</div>
+<div class="cabanas">${l.cabanas.map(c=>`
+<div class="cabana ${c.avail?'available':'booked'}">
+<div class="cabana-header">
+<span class="cabana-name">${c.name}</span>
+<span class="cabana-status">${c.avail?'AVAILABLE':'BOOKED'}</span>
+</div>
+<div class="cabana-features">${c.features}</div>
+<div class="cabana-price">${c.avail?'$'+c.price+'/day':'—'}</div>
+</div>`).join('')}</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Concession Map - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"concession-map","name":"Concession Map","icon":"🍔","desc":"Find food and drinks","category":"stadium","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.filter{padding:8px 16px;background:#1a1a1a;border:1px solid #333;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.filter.active{background:#dc2626;border-color:#dc2626}
+.locations{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.location{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.location-header{padding:15px 20px;display:flex;justify-content:space-between;align-items:center;background:#252525}
+.location-name{font-weight:bold;display:flex;align-items:center;gap:10px}
+.location-section{font-size:.75rem;color:#888}
+.location-body{padding:15px 20px}
+.location-items{margin-bottom:10px}
+.item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #252525;font-size:.875rem}
+.item:last-child{border-bottom:none}
+.item-name{display:flex;align-items:center;gap:8px}
+.item-price{color:#22c55e}
+.location-footer{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #333;font-size:.75rem}
+.wait-time{color:#f59e0b}
+.walk-time{color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🍔 Concessions</h1><button class="btn">Mobile Order</button></div>
+<div class="filters">
+<button class="filter active">All</button>
+<button class="filter">🍔 Food</button>
+<button class="filter">🍺 Beer</button>
+<button class="filter">🍕 Pizza</button>
+<button class="filter">🌮 Tacos</button>
+<button class="filter">🍦 Dessert</button>
+</div>
+<div class="locations" id="locations"></div>
+<script>
+const locations=[
+{icon:'🍔',name:'Burger Barn',section:'Section 105',items:[{name:'Classic Burger',price:12},{name:'Bacon Cheese',price:14},{name:'Loaded Fries',price:8}],wait:5,walk:2},
+{icon:'🍕',name:'Pizza Pit',section:'Section 112',items:[{name:'Cheese Slice',price:8},{name:'Pepperoni Slice',price:9},{name:'Whole Pie',price:28}],wait:8,walk:4},
+{icon:'🍺',name:'Craft Beer Stand',section:'Section 108',items:[{name:'Local IPA',price:12},{name:'Lager',price:10},{name:'Seasonal',price:14}],wait:3,walk:1},
+{icon:'🌮',name:'Taco Loco',section:'Section 120',items:[{name:'Tacos (3)',price:14},{name:'Nachos',price:11},{name:'Burrito',price:13}],wait:10,walk:6},
+{icon:'🌭',name:'Hot Dog Express',section:'Section 102',items:[{name:'Classic Dog',price:8},{name:'Loaded Dog',price:10},{name:'Pretzel',price:7}],wait:2,walk:3},
+{icon:'🍦',name:'Sweet Spot',section:'Section 115',items:[{name:'Ice Cream',price:7},{name:'Churros',price:6},{name:'Cookies',price:5}],wait:4,walk:5}
+];
+document.getElementById('locations').innerHTML=locations.map(l=>`
+<div class="location">
+<div class="location-header">
+<span class="location-name">${l.icon} ${l.name}</span>
+<span class="location-section">${l.section}</span>
+</div>
+<div class="location-body">
+<div class="location-items">${l.items.map(i=>`
+<div class="item">
+<span class="item-name">${i.name}</span>
+<span class="item-price">$${i.price}</span>
+</div>`).join('')}</div>
+<div class="location-footer">
+<span class="wait-time">⏱️ ~${l.wait} min wait</span>
+<span class="walk-time">🚶 ${l.walk} min from your seat</span>
+</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

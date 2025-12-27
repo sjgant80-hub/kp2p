@@ -740,6 +740,26 @@ const categoryMap = {
   // Amusement
   'park-map': { category: 'amusement', subcategory: 'navigation', badge: 'ENT' },
   'fastpass': { category: 'amusement', subcategory: 'booking', badge: 'ENT' },
+
+  // Cruise
+  'deck-guide': { category: 'cruise', subcategory: 'navigation', badge: 'ENT' },
+  'shore-excursions': { category: 'cruise', subcategory: 'activities', badge: 'ENT' },
+
+  // Resort
+  'amenities': { category: 'resort', subcategory: 'facilities', badge: 'ENT' },
+  'cabana-booking': { category: 'resort', subcategory: 'booking', badge: 'ENT' },
+
+  // Stadium
+  'seating-chart': { category: 'stadium', subcategory: 'seating', badge: 'ENT' },
+  'concession-map': { category: 'stadium', subcategory: 'food', badge: 'ENT' },
+
+  // Convention
+  'floor-plan': { category: 'convention', subcategory: 'navigation', badge: 'ENT' },
+  'session-schedule': { category: 'convention', subcategory: 'scheduling', badge: 'ENT' },
+
+  // Memorial
+  'plot-locator': { category: 'memorial', subcategory: 'navigation', badge: 'ENT' },
+  'memorial-services': { category: 'memorial', subcategory: 'scheduling', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -1026,7 +1046,12 @@ const widgetDirs = [
   'botanic',
   'aquatic',
   'racetrack',
-  'amusement'
+  'amusement',
+  'cruise',
+  'resort',
+  'stadium',
+  'convention',
+  'memorial'
 ];
 
 // Process all widgets in all directories

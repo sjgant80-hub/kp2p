@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deck Guide - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"deck-guide","name":"Deck Guide","icon":"🚢","desc":"Ship deck navigation","category":"cruise","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#0284c7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.ship-info{background:linear-gradient(135deg,#0284c7 0%,#0369a1 100%);border-radius:12px;padding:20px;margin-bottom:20px;display:flex;justify-content:space-around}
+.info-item{text-align:center}
+.info-value{font-size:1.25rem;font-weight:bold;margin-bottom:5px}
+.info-label{font-size:.75rem;opacity:.8}
+.decks{display:flex;flex-direction:column;gap:10px}
+.deck{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.deck-header{padding:15px 20px;display:flex;justify-content:space-between;align-items:center;background:#252525;cursor:pointer}
+.deck-name{font-weight:bold;display:flex;align-items:center;gap:10px}
+.deck-num{background:#0284c7;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.875rem}
+.deck-venues{font-size:.75rem;color:#888}
+.deck-body{padding:15px 20px;display:none}
+.deck.open .deck-body{display:block}
+.venues{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.venue{display:flex;align-items:center;gap:10px;padding:10px;background:#252525;border-radius:6px}
+.venue-icon{font-size:1.25rem}
+.venue-name{font-size:.875rem;font-weight:500}
+.venue-hours{font-size:.7rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🚢 Deck Guide</h1><button class="btn">My Cabin</button></div>
+<div class="ship-info">
+<div class="info-item"><div class="info-value">MS Paradise</div><div class="info-label">Your Ship</div></div>
+<div class="info-item"><div class="info-value">15</div><div class="info-label">Decks</div></div>
+<div class="info-item"><div class="info-value">3,200</div><div class="info-label">Passengers</div></div>
+<div class="info-item"><div class="info-value">Day 3</div><div class="info-label">At Sea</div></div>
+</div>
+<div class="decks" id="decks"></div>
+<script>
+const decks=[
+{num:15,name:'Sky Deck',venues:[{icon:'🌊',name:'Infinity Pool',hours:'7am-10pm'},{icon:'🍹',name:'Sky Bar',hours:'10am-12am'},{icon:'☀️',name:'Sun Deck',hours:'24 hours'}]},
+{num:14,name:'Sports Deck',venues:[{icon:'🏃',name:'Jogging Track',hours:'24 hours'},{icon:'🎾',name:'Sports Court',hours:'7am-8pm'},{icon:'🏋️',name:'Fitness Center',hours:'6am-10pm'}]},
+{num:12,name:'Pool Deck',venues:[{icon:'🏊',name:'Main Pool',hours:'8am-8pm'},{icon:'🍔',name:'Grill & Go',hours:'11am-6pm'},{icon:'🎵',name:'Pool Stage',hours:'Varies'}]},
+{num:10,name:'Entertainment',venues:[{icon:'🎭',name:'Main Theater',hours:'Shows nightly'},{icon:'🎰',name:'Casino',hours:'At sea only'},{icon:'🍸',name:'Martini Bar',hours:'5pm-12am'}]},
+{num:6,name:'Dining',venues:[{icon:'🍽️',name:'Main Dining Room',hours:'6pm & 8:30pm'},{icon:'🥩',name:'Steakhouse',hours:'6pm-10pm'},{icon:'🍕',name:'Pizzeria',hours:'11am-2am'}]}
+];
+document.getElementById('decks').innerHTML=decks.map((d,i)=>`
+<div class="deck${i===0?' open':''}">
+<div class="deck-header" onclick="this.parentElement.classList.toggle('open')">
+<span class="deck-name"><span class="deck-num">${d.num}</span>${d.name}</span>
+<span class="deck-venues">${d.venues.length} venues</span>
+</div>
+<div class="deck-body">
+<div class="venues">${d.venues.map(v=>`
+<div class="venue">
+<span class="venue-icon">${v.icon}</span>
+<div><div class="venue-name">${v.name}</div><div class="venue-hours">${v.hours}</div></div>
+</div>`).join('')}</div>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stadium Seating - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"seating-chart","name":"Stadium Seating","icon":"🏟️","desc":"Stadium seat finder","category":"stadium","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.btn{padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600}
+.event{background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);border-radius:12px;padding:20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.event-info h2{margin-bottom:5px}
+.event-info span{font-size:.875rem;opacity:.9}
+.event-price{text-align:right}
+.price-from{font-size:.75rem;opacity:.8}
+.price-value{font-size:1.5rem;font-weight:bold}
+.sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.section{background:#1a1a1a;border-radius:12px;border:1px solid #333;padding:20px;cursor:pointer}
+.section:hover{border-color:#dc2626}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.section-name{font-size:1.125rem;font-weight:bold}
+.section-level{padding:4px 10px;border-radius:4px;font-size:.75rem}
+.level-premium{background:#f59e0b33;color:#f59e0b}
+.level-lower{background:#22c55e33;color:#22c55e}
+.level-upper{background:#6366f133;color:#6366f1}
+.section-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.detail{background:#252525;padding:10px;border-radius:6px;text-align:center}
+.detail-value{font-weight:bold;margin-bottom:3px}
+.detail-label{font-size:.7rem;color:#888}
+.section-footer{display:flex;justify-content:space-between;align-items:center}
+.section-price{font-weight:bold;color:#22c55e}
+.section-avail{font-size:.75rem;color:#888}
+</style>
+</head>
+<body>
+<div class="header"><h1>🏟️ Seating Chart</h1><button class="btn">My Tickets</button></div>
+<div class="event">
+<div class="event-info">
+<h2>City FC vs United</h2>
+<span>📅 Saturday, Jan 20 • ⏰ 7:30 PM</span>
+</div>
+<div class="event-price">
+<div class="price-from">From</div>
+<div class="price-value">$45</div>
+</div>
+</div>
+<div class="sections" id="sections"></div>
+<script>
+const sections=[
+{name:'Club Level',level:'premium',rows:'A-F',seats:200,price:250,avail:45,view:'Best sightlines with all-inclusive food & drink'},
+{name:'Lower Bowl - Sideline',level:'lower',rows:'1-30',seats:2000,price:125,avail:189,view:'Close to the action with excellent field views'},
+{name:'Lower Bowl - End Zone',level:'lower',rows:'1-25',seats:1500,price:85,avail:342,view:'Behind the goal, great for seeing scoring action'},
+{name:'Upper Deck - Center',level:'upper',rows:'1-40',seats:3000,price:55,avail:876,view:'Elevated view of entire field, budget-friendly'},
+{name:'Upper Deck - Corners',level:'upper',rows:'1-35',seats:2000,price:45,avail:1204,view:'Affordable option with full field visibility'},
+{name:'Standing Room',level:'upper',rows:'N/A',seats:500,price:25,avail:312,view:'Standing area behind upper deck, limited view'}
+];
+document.getElementById('sections').innerHTML=sections.map(s=>`
+<div class="section">
+<div class="section-header">
+<span class="section-name">${s.name}</span>
+<span class="section-level level-${s.level}">${s.level.toUpperCase()}</span>
+</div>
+<div class="section-details">
+<div class="detail"><div class="detail-value">${s.rows}</div><div class="detail-label">Rows</div></div>
+<div class="detail"><div class="detail-value">${s.seats.toLocaleString()}</div><div class="detail-label">Total Seats</div></div>
+</div>
+<div class="section-footer">
+<span class="section-price">$${s.price}+</span>
+<span class="section-avail">${s.avail} available</span>
+</div>
+</div>`).join('');
+</script>
+</body>
+</html>
