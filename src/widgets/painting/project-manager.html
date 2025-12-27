@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Project Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"project-manager","name":"Project Manager","icon":"📊","desc":"Manage painting projects","category":"painting","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.projects-list{display:flex;flex-direction:column;gap:15px}
+.project-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.project-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.project-title{font-weight:600}
+.project-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.project-status.prep{background:#f59e0b33;color:#f59e0b}
+.project-status.painting{background:#ec489933;color:#ec4899}
+.project-status.touch-up{background:#3b82f633;color:#3b82f6}
+.project-status.completed{background:#22c55e33;color:#22c55e}
+.project-body{padding:20px}
+.project-info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:15px}
+.info-item{padding:12px;background:#252525;border-radius:6px}
+.info-label{font-size:.75rem;color:#888;margin-bottom:4px}
+.info-value{font-weight:500}
+.progress-section{margin-top:15px}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.875rem}
+.progress-bar{height:10px;background:#333;border-radius:5px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#ec4899,#a855f7);border-radius:5px}
+.crew-section{margin-top:15px}
+.crew-section h4{font-size:.875rem;color:#888;margin-bottom:8px}
+.crew-list{display:flex;flex-wrap:wrap;gap:8px}
+.crew-badge{padding:5px 10px;background:#ec489922;border:1px solid #ec489944;border-radius:4px;font-size:.75rem;color:#ec4899}
+.project-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#ec4899;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📊 Project Manager</h1>
+<button class="btn btn-primary" onclick="alert('New project')">+ New Project</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeProjects">0</div><div class="stat-label">Active Projects</div></div>
+<div class="stat"><div class="stat-value" id="inProgress">0</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value" id="crewsActive">0</div><div class="stat-label">Active Crews</div></div>
+<div class="stat"><div class="stat-value" id="monthRevenue">$0</div><div class="stat-label">Month Revenue</div></div>
+</div>
+
+<div class="projects-list" id="projectsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_paint_projects';
+let projects = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+}
+
+function updateStats() {
+  const active = projects.filter(p => p.status !== 'completed').length;
+  const inProgress = projects.filter(p => p.status === 'painting').length;
+  const crews = new Set(projects.filter(p => p.status === 'painting').flatMap(p => p.crew)).size;
+  const revenue = projects.reduce((s, p) => s + p.value, 0);
+
+  document.getElementById('activeProjects').textContent = active;
+  document.getElementById('inProgress').textContent = inProgress;
+  document.getElementById('crewsActive').textContent = crews;
+  document.getElementById('monthRevenue').textContent = '$' + revenue.toLocaleString();
+}
+
+function render() {
+  const list = document.getElementById('projectsList');
+
+  if (projects.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No projects</div>';
+    updateStats();
+    return;
+  }
+
+  const statusOrder = { prep: 0, painting: 1, 'touch-up': 2, completed: 3 };
+  const sorted = [...projects].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+
+  list.innerHTML = sorted.map(p => `
+    <div class="project-card">
+      <div class="project-header">
+        <div class="project-title">${p.customer}</div>
+        <span class="project-status ${p.status}">${p.status.replace('-', ' ')}</span>
+      </div>
+      <div class="project-body">
+        <div class="project-info">
+          <div class="info-item">
+            <div class="info-label">Address</div>
+            <div class="info-value">${p.address}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Project Type</div>
+            <div class="info-value">${p.projectType}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Value</div>
+            <div class="info-value">$${p.value.toLocaleString()}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Start Date</div>
+            <div class="info-value">${new Date(p.startDate).toLocaleDateString()}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">End Date</div>
+            <div class="info-value">${new Date(p.endDate).toLocaleDateString()}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Rooms</div>
+            <div class="info-value">${p.roomCount} rooms</div>
+          </div>
+        </div>
+        <div class="progress-section">
+          <div class="progress-header">
+            <span>Project Progress</span>
+            <span>${p.progress}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${p.progress}%"></div>
+          </div>
+        </div>
+        <div class="crew-section">
+          <h4>Assigned Crew</h4>
+          <div class="crew-list">
+            ${p.crew.map(c => `<span class="crew-badge">${c}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="project-footer">
+        ${p.status !== 'completed' ? `<button class="btn btn-primary" onclick="advanceStatus('${p.id}')">▶️ Advance</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function advanceStatus(id) {
+  const p = projects.find(x => x.id === id);
+  if (p) {
+    const order = ['prep', 'painting', 'touch-up', 'completed'];
+    const idx = order.indexOf(p.status);
+    if (idx < order.length - 1) {
+      p.status = order[idx + 1];
+      p.progress = [25, 75, 90, 100][idx + 1];
+      save();
+      render();
+    }
+  }
+}
+
+if (projects.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  projects = [
+    { id: '1', customer: 'Johnson Home', address: '123 Oak St', projectType: 'Interior', value: 2850, startDate: past(3), endDate: future(2), roomCount: 5, crew: ['Team A', 'Mike P.'], progress: 60, status: 'painting' },
+    { id: '2', customer: 'Smith Residence', address: '456 Maple Ave', projectType: 'Exterior', value: 4200, startDate: past(1), endDate: future(4), roomCount: 0, crew: ['Team B'], progress: 25, status: 'prep' },
+    { id: '3', customer: 'Tech Startup', address: '789 Innovation Dr', projectType: 'Commercial', value: 8500, startDate: future(5), endDate: future(12), roomCount: 8, crew: ['Team A', 'Team B', 'Team C'], progress: 0, status: 'prep' },
+    { id: '4', customer: 'Williams Estate', address: '321 Pine Rd', projectType: 'Interior', value: 3200, startDate: past(10), endDate: past(2), roomCount: 6, crew: ['Team C'], progress: 100, status: 'completed' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

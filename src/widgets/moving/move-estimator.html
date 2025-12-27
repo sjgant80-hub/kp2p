@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Move Estimator - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"move-estimator","name":"Move Estimator","icon":"📦","desc":"Estimate moving costs","category":"moving","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#14b8a6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.estimates-list{display:flex;flex-direction:column;gap:15px}
+.estimate-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.estimate-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.estimate-title{font-weight:600}
+.estimate-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.estimate-status.draft{background:#f59e0b33;color:#f59e0b}
+.estimate-status.sent{background:#3b82f633;color:#3b82f6}
+.estimate-status.booked{background:#22c55e33;color:#22c55e}
+.estimate-body{padding:20px}
+.move-details{display:grid;grid-template-columns:1fr auto 1fr;gap:15px;align-items:center;margin-bottom:15px}
+.location-card{padding:15px;background:#252525;border-radius:8px}
+.location-label{font-size:.75rem;color:#888;margin-bottom:5px}
+.location-address{font-weight:500}
+.location-type{font-size:.875rem;color:#888}
+.arrow{font-size:1.5rem;color:#14b8a6}
+.move-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:15px}
+.info-item{padding:10px;background:#252525;border-radius:6px;text-align:center}
+.info-value{font-weight:600;margin-bottom:4px}
+.info-label{font-size:.75rem;color:#888}
+.cost-breakdown{background:#252525;padding:15px;border-radius:8px}
+.cost-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333}
+.cost-row:last-child{border-bottom:none}
+.cost-row.total{font-weight:bold;font-size:1.125rem;border-top:1px solid #444;padding-top:10px;margin-top:5px}
+.estimate-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#14b8a6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📦 Move Estimator</h1>
+<button class="btn btn-primary" onclick="alert('New estimate')">+ New Estimate</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalEstimates">0</div><div class="stat-label">Total Estimates</div></div>
+<div class="stat"><div class="stat-value" id="pendingValue">$0</div><div class="stat-label">Pending Value</div></div>
+<div class="stat"><div class="stat-value" id="bookedMonth">0</div><div class="stat-label">Booked/Month</div></div>
+<div class="stat"><div class="stat-value" id="conversionRate">0%</div><div class="stat-label">Conversion Rate</div></div>
+</div>
+
+<div class="estimates-list" id="estimatesList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_move_estimates';
+let estimates = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(estimates));
+}
+
+function updateStats() {
+  const pending = estimates.filter(e => e.status === 'sent').reduce((s, e) => s + e.total, 0);
+  const booked = estimates.filter(e => e.status === 'booked').length;
+
+  document.getElementById('totalEstimates').textContent = estimates.length;
+  document.getElementById('pendingValue').textContent = '$' + pending.toLocaleString();
+  document.getElementById('bookedMonth').textContent = booked;
+  document.getElementById('conversionRate').textContent = '58%';
+}
+
+function render() {
+  const list = document.getElementById('estimatesList');
+
+  if (estimates.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No estimates yet</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = estimates.map(e => `
+    <div class="estimate-card">
+      <div class="estimate-header">
+        <div class="estimate-title">#${e.id} - ${e.customer}</div>
+        <span class="estimate-status ${e.status}">${e.status}</span>
+      </div>
+      <div class="estimate-body">
+        <div class="move-details">
+          <div class="location-card">
+            <div class="location-label">📍 From</div>
+            <div class="location-address">${e.fromAddress}</div>
+            <div class="location-type">${e.fromType}</div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="location-card">
+            <div class="location-label">📍 To</div>
+            <div class="location-address">${e.toAddress}</div>
+            <div class="location-type">${e.toType}</div>
+          </div>
+        </div>
+        <div class="move-info">
+          <div class="info-item">
+            <div class="info-value">${e.distance} mi</div>
+            <div class="info-label">Distance</div>
+          </div>
+          <div class="info-item">
+            <div class="info-value">${e.rooms}</div>
+            <div class="info-label">Rooms</div>
+          </div>
+          <div class="info-item">
+            <div class="info-value">${e.movers}</div>
+            <div class="info-label">Movers</div>
+          </div>
+          <div class="info-item">
+            <div class="info-value">${e.estimatedHours}h</div>
+            <div class="info-label">Est. Hours</div>
+          </div>
+        </div>
+        <div class="cost-breakdown">
+          <div class="cost-row"><span>Labor (${e.estimatedHours}h × ${e.movers} movers)</span><span>$${e.laborCost.toLocaleString()}</span></div>
+          <div class="cost-row"><span>Truck & Equipment</span><span>$${e.truckCost.toLocaleString()}</span></div>
+          <div class="cost-row"><span>Packing Materials</span><span>$${e.packingCost.toLocaleString()}</span></div>
+          ${e.extras > 0 ? `<div class="cost-row"><span>Additional Services</span><span>$${e.extras.toLocaleString()}</span></div>` : ''}
+          <div class="cost-row total"><span>Total Estimate</span><span>$${e.total.toLocaleString()}</span></div>
+        </div>
+      </div>
+      <div class="estimate-footer">
+        ${e.status === 'draft' ? `<button class="btn btn-primary" onclick="updateStatus('${e.id}', 'sent')">📤 Send</button>` : ''}
+        ${e.status === 'sent' ? `<button class="btn btn-primary" onclick="updateStatus('${e.id}', 'booked')">✓ Book Move</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('Print estimate')">🖨️ Print</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const e = estimates.find(x => x.id === id);
+  if (e) { e.status = status; save(); render(); }
+}
+
+if (estimates.length === 0) {
+  estimates = [
+    {
+      id: 'ME-001', customer: 'Johnson Family', fromAddress: '123 Oak St, Austin TX', fromType: '3BR House', toAddress: '456 Maple Ave, Dallas TX', toType: '4BR House',
+      distance: 195, rooms: 8, movers: 4, estimatedHours: 8, laborCost: 1280, truckCost: 350, packingCost: 200, extras: 150, total: 1980, status: 'sent'
+    },
+    {
+      id: 'ME-002', customer: 'Sarah Williams', fromAddress: '789 Pine Rd #204', fromType: '1BR Apartment', toAddress: '321 Cedar Ln #102', toType: '1BR Apartment',
+      distance: 5, rooms: 3, movers: 2, estimatedHours: 3, laborCost: 240, truckCost: 150, packingCost: 50, extras: 0, total: 440, status: 'booked'
+    },
+    {
+      id: 'ME-003', customer: 'Tech Corp Office', fromAddress: '100 Business Park', fromType: 'Office Suite', toAddress: '500 Corporate Plaza', toType: 'Office Floor',
+      distance: 12, rooms: 15, movers: 6, estimatedHours: 12, laborCost: 2880, truckCost: 600, packingCost: 400, extras: 500, total: 4380, status: 'draft'
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

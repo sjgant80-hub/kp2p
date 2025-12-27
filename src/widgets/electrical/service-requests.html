@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Service Requests - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"service-requests","name":"Service Requests","icon":"⚡","desc":"Manage electrical service requests","category":"electrical","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#eab308}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.requests-list{display:flex;flex-direction:column;gap:15px}
+.request-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.request-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.request-info{display:flex;align-items:center;gap:10px}
+.request-priority{padding:4px 8px;border-radius:4px;font-size:.75rem}
+.request-priority.emergency{background:#ef444433;color:#ef4444}
+.request-priority.high{background:#f59e0b33;color:#f59e0b}
+.request-priority.normal{background:#3b82f633;color:#3b82f6}
+.request-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.request-status.new{background:#8b5cf633;color:#8b5cf6}
+.request-status.scheduled{background:#3b82f633;color:#3b82f6}
+.request-status.in-progress{background:#eab30833;color:#eab308}
+.request-status.completed{background:#22c55e33;color:#22c55e}
+.request-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.request-details h4{font-weight:600;margin-bottom:10px}
+.detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333}
+.detail-label{color:#888}
+.request-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#eab308;color:#000}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>⚡ Service Requests</h1>
+<button class="btn btn-primary" onclick="alert('New request')">+ New Request</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="openRequests">0</div><div class="stat-label">Open Requests</div></div>
+<div class="stat"><div class="stat-value" id="scheduledToday">0</div><div class="stat-label">Scheduled Today</div></div>
+<div class="stat"><div class="stat-value" id="emergencies">0</div><div class="stat-label">Emergencies</div></div>
+<div class="stat"><div class="stat-value" id="completedWeek">0</div><div class="stat-label">Completed This Week</div></div>
+</div>
+
+<div class="requests-list" id="requestsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_electrical_requests';
+let requests = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
+}
+
+function updateStats() {
+  const open = requests.filter(r => r.status !== 'completed').length;
+  const emergencies = requests.filter(r => r.priority === 'emergency' && r.status !== 'completed').length;
+  const completed = requests.filter(r => r.status === 'completed').length;
+
+  document.getElementById('openRequests').textContent = open;
+  document.getElementById('scheduledToday').textContent = requests.filter(r => r.status === 'scheduled').length;
+  document.getElementById('emergencies').textContent = emergencies;
+  document.getElementById('completedWeek').textContent = completed;
+}
+
+function render() {
+  const list = document.getElementById('requestsList');
+
+  if (requests.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No service requests</div>';
+    updateStats();
+    return;
+  }
+
+  const priorityOrder = { emergency: 0, high: 1, normal: 2 };
+  const sorted = [...requests].sort((a, b) => {
+    if (a.status === 'completed' && b.status !== 'completed') return 1;
+    if (b.status === 'completed' && a.status !== 'completed') return -1;
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+
+  list.innerHTML = sorted.map(r => `
+    <div class="request-card">
+      <div class="request-header">
+        <div class="request-info">
+          <span style="font-weight:600">#${r.id}</span>
+          <span class="request-priority ${r.priority}">${r.priority.toUpperCase()}</span>
+        </div>
+        <span class="request-status ${r.status}">${r.status.replace('-', ' ')}</span>
+      </div>
+      <div class="request-body">
+        <div class="request-details">
+          <h4>Customer</h4>
+          <div class="detail-row"><span class="detail-label">Name</span><span>${r.customerName}</span></div>
+          <div class="detail-row"><span class="detail-label">Phone</span><span>${r.phone}</span></div>
+          <div class="detail-row"><span class="detail-label">Address</span><span>${r.address}</span></div>
+          <div class="detail-row"><span class="detail-label">Property</span><span>${r.propertyType}</span></div>
+        </div>
+        <div class="request-details">
+          <h4>Service Details</h4>
+          <div class="detail-row"><span class="detail-label">Issue</span><span>${r.issue}</span></div>
+          <div class="detail-row"><span class="detail-label">Type</span><span>${r.serviceType}</span></div>
+          <div class="detail-row"><span class="detail-label">Electrician</span><span>${r.electrician || 'Unassigned'}</span></div>
+          <div class="detail-row"><span class="detail-label">Est. Cost</span><span>$${r.estimatedCost}</span></div>
+        </div>
+      </div>
+      <div class="request-footer">
+        ${r.status === 'new' ? `<button class="btn btn-primary" onclick="updateStatus('${r.id}', 'scheduled')">📅 Schedule</button>` : ''}
+        ${r.status === 'scheduled' ? `<button class="btn btn-primary" onclick="updateStatus('${r.id}', 'in-progress')">▶️ Start</button>` : ''}
+        ${r.status === 'in-progress' ? `<button class="btn btn-primary" onclick="updateStatus('${r.id}', 'completed')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const r = requests.find(x => x.id === id);
+  if (r) { r.status = status; save(); render(); }
+}
+
+if (requests.length === 0) {
+  requests = [
+    { id: 'ER-001', customerName: 'Johnson Home', phone: '555-0101', address: '123 Oak St', propertyType: 'Residential', issue: 'Panel upgrade needed', serviceType: 'Panel Work', electrician: 'Mike Smith', estimatedCost: 2500, priority: 'normal', status: 'scheduled' },
+    { id: 'ER-002', customerName: 'ABC Factory', phone: '555-0102', address: '456 Industrial Blvd', propertyType: 'Commercial', issue: 'Power outage in section B', serviceType: 'Emergency', electrician: 'Tom Johnson', estimatedCost: 800, priority: 'emergency', status: 'in-progress' },
+    { id: 'ER-003', customerName: 'Smith Residence', phone: '555-0103', address: '789 Maple Ave', propertyType: 'Residential', issue: 'Outlets not working', serviceType: 'Outlet Repair', electrician: null, estimatedCost: 350, priority: 'normal', status: 'new' },
+    { id: 'ER-004', customerName: 'Tech Startup', phone: '555-0104', address: '321 Innovation Dr', propertyType: 'Commercial', issue: 'New circuit installation', serviceType: 'New Install', electrician: 'Mike Smith', estimatedCost: 1200, priority: 'high', status: 'scheduled' },
+    { id: 'ER-005', customerName: 'Green Apartments', phone: '555-0105', address: '654 Park Ln', propertyType: 'Multi-family', issue: 'Rewiring unit 203', serviceType: 'Rewiring', electrician: 'Tom Johnson', estimatedCost: 4500, priority: 'normal', status: 'completed' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

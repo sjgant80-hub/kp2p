@@ -400,6 +400,26 @@ const categoryMap = {
   // Cleaning
   'schedule-manager': { category: 'cleaning', subcategory: 'scheduling', badge: 'ENT' },
   'client-contracts': { category: 'cleaning', subcategory: 'contracts', badge: 'ENT' },
+
+  // Electrical
+  'service-requests': { category: 'electrical', subcategory: 'service', badge: 'ENT' },
+  'circuit-diagrams': { category: 'electrical', subcategory: 'documentation', badge: 'ENT' },
+
+  // Roofing
+  'inspection-report': { category: 'roofing', subcategory: 'inspection', badge: 'ENT' },
+  'job-scheduler': { category: 'roofing', subcategory: 'scheduling', badge: 'ENT' },
+
+  // Flooring
+  'material-estimator': { category: 'flooring', subcategory: 'estimating', badge: 'ENT' },
+  'installation-tracker': { category: 'flooring', subcategory: 'installation', badge: 'ENT' },
+
+  // Painting
+  'color-quotes': { category: 'painting', subcategory: 'quotes', badge: 'ENT' },
+  'project-manager': { category: 'painting', subcategory: 'projects', badge: 'ENT' },
+
+  // Moving
+  'move-estimator': { category: 'moving', subcategory: 'estimating', badge: 'ENT' },
+  'inventory-checklist': { category: 'moving', subcategory: 'inventory', badge: 'ENT' },
 };
 
 // Default fallback values
@@ -601,7 +621,12 @@ const widgetDirs = [
   'landscaping',
   'plumbing',
   'hvac',
-  'cleaning'
+  'cleaning',
+  'electrical',
+  'roofing',
+  'flooring',
+  'painting',
+  'moving'
 ];
 
 // Process all widgets in all directories

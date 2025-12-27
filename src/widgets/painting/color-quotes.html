@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Color Quotes - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"color-quotes","name":"Color Quotes","icon":"🎨","desc":"Create painting quotes with colors","category":"painting","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#ec4899}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.quotes-list{display:flex;flex-direction:column;gap:15px}
+.quote-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.quote-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.quote-title{font-weight:600}
+.quote-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.quote-status.draft{background:#f59e0b33;color:#f59e0b}
+.quote-status.sent{background:#3b82f633;color:#3b82f6}
+.quote-status.accepted{background:#22c55e33;color:#22c55e}
+.quote-body{padding:20px}
+.client-info{display:flex;justify-content:space-between;margin-bottom:15px;font-size:.875rem;color:#888}
+.rooms-section h4{font-weight:600;margin-bottom:10px}
+.room-item{padding:15px;background:#252525;border-radius:8px;margin-bottom:10px}
+.room-header{display:flex;justify-content:space-between;margin-bottom:10px}
+.room-name{font-weight:500}
+.room-sqft{color:#888;font-size:.875rem}
+.color-swatches{display:flex;gap:8px;margin-bottom:10px}
+.color-swatch{width:30px;height:30px;border-radius:6px;border:2px solid #444}
+.color-names{font-size:.75rem;color:#888}
+.quote-total{background:#252525;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+.quote-total strong{font-size:1.25rem;color:#ec4899}
+.quote-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#ec4899;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🎨 Color Quotes</h1>
+<button class="btn btn-primary" onclick="alert('New quote')">+ New Quote</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalQuotes">0</div><div class="stat-label">Total Quotes</div></div>
+<div class="stat"><div class="stat-value" id="pendingValue">$0</div><div class="stat-label">Pending Value</div></div>
+<div class="stat"><div class="stat-value" id="acceptedMonth">0</div><div class="stat-label">Accepted/Month</div></div>
+<div class="stat"><div class="stat-value" id="conversionRate">0%</div><div class="stat-label">Conversion Rate</div></div>
+</div>
+
+<div class="quotes-list" id="quotesList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_paint_quotes';
+let quotes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+}
+
+function updateStats() {
+  const pending = quotes.filter(q => q.status === 'sent').reduce((s, q) => s + q.total, 0);
+  const accepted = quotes.filter(q => q.status === 'accepted').length;
+
+  document.getElementById('totalQuotes').textContent = quotes.length;
+  document.getElementById('pendingValue').textContent = '$' + pending.toLocaleString();
+  document.getElementById('acceptedMonth').textContent = accepted;
+  document.getElementById('conversionRate').textContent = '65%';
+}
+
+function render() {
+  const list = document.getElementById('quotesList');
+
+  if (quotes.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No quotes yet</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = quotes.map(q => `
+    <div class="quote-card">
+      <div class="quote-header">
+        <div class="quote-title">#${q.id} - ${q.customer}</div>
+        <span class="quote-status ${q.status}">${q.status}</span>
+      </div>
+      <div class="quote-body">
+        <div class="client-info">
+          <span>${q.address}</span>
+          <span>Created: ${new Date(q.createdAt).toLocaleDateString()}</span>
+        </div>
+        <div class="rooms-section">
+          <h4>Rooms & Colors</h4>
+          ${q.rooms.map(r => `
+            <div class="room-item">
+              <div class="room-header">
+                <span class="room-name">${r.name}</span>
+                <span class="room-sqft">${r.sqft} sqft • ${r.coats} coats</span>
+              </div>
+              <div class="color-swatches">
+                ${r.colors.map(c => `<div class="color-swatch" style="background:${c.hex}" title="${c.name}"></div>`).join('')}
+              </div>
+              <div class="color-names">${r.colors.map(c => c.name).join(' • ')}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="quote-total">
+          <span>Estimated Total (Labor + Materials)</span>
+          <strong>$${q.total.toLocaleString()}</strong>
+        </div>
+      </div>
+      <div class="quote-footer">
+        ${q.status === 'draft' ? `<button class="btn btn-primary" onclick="updateStatus('${q.id}', 'sent')">📤 Send</button>` : ''}
+        ${q.status === 'sent' ? `<button class="btn btn-primary" onclick="updateStatus('${q.id}', 'accepted')">✓ Mark Accepted</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('Print quote')">🖨️ Print</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const q = quotes.find(x => x.id === id);
+  if (q) { q.status = status; save(); render(); }
+}
+
+if (quotes.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  quotes = [
+    {
+      id: 'PQ-001', customer: 'Johnson Home', address: '123 Oak St', createdAt: past(3), status: 'sent', total: 2850,
+      rooms: [
+        { name: 'Living Room', sqft: 450, coats: 2, colors: [{ name: 'Simply White', hex: '#f5f5f0' }, { name: 'Chantilly Lace', hex: '#f9f9f9' }] },
+        { name: 'Master Bedroom', sqft: 380, coats: 2, colors: [{ name: 'Pale Oak', hex: '#e8dfd4' }] },
+        { name: 'Kitchen', sqft: 280, coats: 2, colors: [{ name: 'Hale Navy', hex: '#4a5568' }, { name: 'Simply White', hex: '#f5f5f0' }] }
+      ]
+    },
+    {
+      id: 'PQ-002', customer: 'Smith Residence', address: '456 Maple Ave', createdAt: past(7), status: 'accepted', total: 1650,
+      rooms: [
+        { name: 'Exterior Front', sqft: 800, coats: 2, colors: [{ name: 'Classic Gray', hex: '#b8b8b8' }] },
+        { name: 'Trim & Accents', sqft: 200, coats: 2, colors: [{ name: 'White Dove', hex: '#f3f0e7' }] }
+      ]
+    },
+    {
+      id: 'PQ-003', customer: 'Tech Startup', address: '789 Innovation Dr', createdAt: past(1), status: 'draft', total: 8500,
+      rooms: [
+        { name: 'Main Office', sqft: 2000, coats: 2, colors: [{ name: 'Gray Owl', hex: '#c4c4bc' }] },
+        { name: 'Conference Room', sqft: 400, coats: 2, colors: [{ name: 'Gentleman Gray', hex: '#545b66' }] },
+        { name: 'Break Room', sqft: 300, coats: 2, colors: [{ name: 'Citron', hex: '#d4d066' }, { name: 'White Heron', hex: '#f7f4ef' }] }
+      ]
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inspection Report - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"inspection-report","name":"Inspection Report","icon":"🏠","desc":"Create roofing inspection reports","category":"roofing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.reports-list{display:flex;flex-direction:column;gap:15px}
+.report-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.report-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.report-date{font-weight:600}
+.report-condition{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.report-condition.excellent{background:#22c55e33;color:#22c55e}
+.report-condition.good{background:#3b82f633;color:#3b82f6}
+.report-condition.fair{background:#f59e0b33;color:#f59e0b}
+.report-condition.poor{background:#ef444433;color:#ef4444}
+.report-body{padding:20px}
+.property-info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.info-item{padding:10px;background:#252525;border-radius:6px}
+.info-label{font-size:.75rem;color:#888;margin-bottom:4px}
+.info-value{font-weight:500}
+.findings-section h4{font-weight:600;margin-bottom:10px}
+.finding-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#252525;border-radius:6px;margin-bottom:6px}
+.finding-severity{padding:3px 8px;border-radius:4px;font-size:.7rem}
+.finding-severity.critical{background:#ef444433;color:#ef4444}
+.finding-severity.moderate{background:#f59e0b33;color:#f59e0b}
+.finding-severity.minor{background:#22c55e33;color:#22c55e}
+.report-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#f97316;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏠 Inspection Reports</h1>
+<button class="btn btn-primary" onclick="alert('New inspection')">+ New Inspection</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalReports">0</div><div class="stat-label">Total Reports</div></div>
+<div class="stat"><div class="stat-value" id="thisMonth">0</div><div class="stat-label">This Month</div></div>
+<div class="stat"><div class="stat-value" id="needsRepair">0</div><div class="stat-label">Needs Repair</div></div>
+<div class="stat"><div class="stat-value" id="converted">0%</div><div class="stat-label">Conversion Rate</div></div>
+</div>
+
+<div class="reports-list" id="reportsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_roof_inspections';
+let reports = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+}
+
+function updateStats() {
+  const needsRepair = reports.filter(r => r.condition === 'fair' || r.condition === 'poor').length;
+
+  document.getElementById('totalReports').textContent = reports.length;
+  document.getElementById('thisMonth').textContent = reports.length;
+  document.getElementById('needsRepair').textContent = needsRepair;
+  document.getElementById('converted').textContent = '68%';
+}
+
+function render() {
+  const list = document.getElementById('reportsList');
+
+  if (reports.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No inspection reports</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = reports.map(r => `
+    <div class="report-card">
+      <div class="report-header">
+        <div class="report-date">📅 ${new Date(r.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+        <span class="report-condition ${r.condition}">${r.condition.toUpperCase()} CONDITION</span>
+      </div>
+      <div class="report-body">
+        <div class="property-info">
+          <div class="info-item">
+            <div class="info-label">Property Owner</div>
+            <div class="info-value">${r.owner}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Address</div>
+            <div class="info-value">${r.address}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Roof Type</div>
+            <div class="info-value">${r.roofType}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Approx. Age</div>
+            <div class="info-value">${r.roofAge} years</div>
+          </div>
+        </div>
+        <div class="findings-section">
+          <h4>Findings (${r.findings.length})</h4>
+          ${r.findings.map(f => `
+            <div class="finding-item">
+              <span>${f.issue}</span>
+              <span class="finding-severity ${f.severity}">${f.severity}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="report-footer">
+        <button class="btn btn-primary" onclick="alert('Create estimate')">💰 Create Estimate</button>
+        <button class="btn btn-secondary" onclick="alert('Print report')">🖨️ Print</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (reports.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  reports = [
+    {
+      id: '1', date: past(2), owner: 'John Smith', address: '123 Oak St', roofType: 'Asphalt Shingle', roofAge: 15, condition: 'fair',
+      findings: [
+        { issue: 'Missing shingles in section A', severity: 'moderate' },
+        { issue: 'Worn flashing around chimney', severity: 'moderate' },
+        { issue: 'Minor granule loss', severity: 'minor' }
+      ]
+    },
+    {
+      id: '2', date: past(5), owner: 'Sarah Johnson', address: '456 Maple Ave', roofType: 'Metal', roofAge: 8, condition: 'excellent',
+      findings: [
+        { issue: 'Minor surface oxidation', severity: 'minor' }
+      ]
+    },
+    {
+      id: '3', date: past(1), owner: 'Mike Williams', address: '789 Pine Rd', roofType: 'Tile', roofAge: 25, condition: 'poor',
+      findings: [
+        { issue: 'Multiple cracked tiles', severity: 'critical' },
+        { issue: 'Underlayment deterioration', severity: 'critical' },
+        { issue: 'Sagging in multiple areas', severity: 'moderate' },
+        { issue: 'Moss and debris buildup', severity: 'minor' }
+      ]
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

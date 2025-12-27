@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Material Estimator - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"material-estimator","name":"Material Estimator","icon":"📏","desc":"Estimate flooring materials and costs","category":"flooring","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.estimates-list{display:flex;flex-direction:column;gap:15px}
+.estimate-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.estimate-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.estimate-title{font-weight:600}
+.estimate-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.estimate-status.draft{background:#f59e0b33;color:#f59e0b}
+.estimate-status.sent{background:#3b82f633;color:#3b82f6}
+.estimate-status.accepted{background:#22c55e33;color:#22c55e}
+.estimate-body{padding:20px}
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:15px}
+.room-item{padding:12px;background:#252525;border-radius:6px}
+.room-name{font-weight:500;margin-bottom:5px}
+.room-details{font-size:.875rem;color:#888}
+.cost-breakdown{background:#252525;padding:15px;border-radius:8px}
+.cost-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333}
+.cost-row:last-child{border-bottom:none}
+.cost-row.total{font-weight:bold;font-size:1.125rem;border-top:1px solid #444;padding-top:10px;margin-top:5px}
+.estimate-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#8b5cf6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📏 Material Estimator</h1>
+<button class="btn btn-primary" onclick="alert('New estimate')">+ New Estimate</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalEstimates">0</div><div class="stat-label">Total Estimates</div></div>
+<div class="stat"><div class="stat-value" id="pendingValue">$0</div><div class="stat-label">Pending Value</div></div>
+<div class="stat"><div class="stat-value" id="avgSqft">0</div><div class="stat-label">Avg Sqft/Job</div></div>
+<div class="stat"><div class="stat-value" id="conversionRate">0%</div><div class="stat-label">Conversion Rate</div></div>
+</div>
+
+<div class="estimates-list" id="estimatesList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_flooring_estimates';
+let estimates = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(estimates));
+}
+
+function updateStats() {
+  const pending = estimates.filter(e => e.status === 'sent').reduce((s, e) => s + e.total, 0);
+  const totalSqft = estimates.reduce((s, e) => s + e.rooms.reduce((rs, r) => rs + r.sqft, 0), 0);
+  const avgSqft = estimates.length > 0 ? Math.round(totalSqft / estimates.length) : 0;
+
+  document.getElementById('totalEstimates').textContent = estimates.length;
+  document.getElementById('pendingValue').textContent = '$' + pending.toLocaleString();
+  document.getElementById('avgSqft').textContent = avgSqft.toLocaleString();
+  document.getElementById('conversionRate').textContent = '72%';
+}
+
+function render() {
+  const list = document.getElementById('estimatesList');
+
+  if (estimates.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No estimates yet</div>';
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = estimates.map(e => `
+    <div class="estimate-card">
+      <div class="estimate-header">
+        <div class="estimate-title">#${e.id} - ${e.customer}</div>
+        <span class="estimate-status ${e.status}">${e.status}</span>
+      </div>
+      <div class="estimate-body">
+        <div style="margin-bottom:10px;color:#888;font-size:.875rem">${e.address} • ${e.flooringType}</div>
+        <div class="rooms-grid">
+          ${e.rooms.map(r => `
+            <div class="room-item">
+              <div class="room-name">${r.name}</div>
+              <div class="room-details">${r.sqft} sqft • ${r.material}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="cost-breakdown">
+          <div class="cost-row"><span>Materials</span><span>$${e.materials.toLocaleString()}</span></div>
+          <div class="cost-row"><span>Labor</span><span>$${e.labor.toLocaleString()}</span></div>
+          <div class="cost-row"><span>Waste Factor (10%)</span><span>$${e.waste.toLocaleString()}</span></div>
+          <div class="cost-row total"><span>Total</span><span>$${e.total.toLocaleString()}</span></div>
+        </div>
+      </div>
+      <div class="estimate-footer">
+        ${e.status === 'draft' ? `<button class="btn btn-primary" onclick="updateStatus('${e.id}', 'sent')">📤 Send</button>` : ''}
+        ${e.status === 'sent' ? `<button class="btn btn-primary" onclick="updateStatus('${e.id}', 'accepted')">✓ Mark Accepted</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('Print estimate')">🖨️ Print</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const e = estimates.find(x => x.id === id);
+  if (e) { e.status = status; save(); render(); }
+}
+
+if (estimates.length === 0) {
+  estimates = [
+    {
+      id: 'FE-001', customer: 'Johnson Residence', address: '123 Oak St', flooringType: 'Hardwood',
+      rooms: [
+        { name: 'Living Room', sqft: 350, material: 'Oak Hardwood' },
+        { name: 'Dining Room', sqft: 180, material: 'Oak Hardwood' },
+        { name: 'Hallway', sqft: 120, material: 'Oak Hardwood' }
+      ],
+      materials: 4550, labor: 2275, waste: 680, total: 7505, status: 'sent'
+    },
+    {
+      id: 'FE-002', customer: 'Smith Home', address: '456 Maple Ave', flooringType: 'Luxury Vinyl',
+      rooms: [
+        { name: 'Kitchen', sqft: 200, material: 'Waterproof LVP' },
+        { name: 'Bathroom', sqft: 80, material: 'Waterproof LVP' },
+        { name: 'Laundry', sqft: 60, material: 'Waterproof LVP' }
+      ],
+      materials: 1870, labor: 935, waste: 280, total: 3085, status: 'accepted'
+    },
+    {
+      id: 'FE-003', customer: 'Tech Office', address: '789 Innovation Dr', flooringType: 'Commercial Carpet',
+      rooms: [
+        { name: 'Main Office', sqft: 2000, material: 'Commercial Tile' },
+        { name: 'Conference Rooms', sqft: 500, material: 'Commercial Tile' },
+        { name: 'Break Room', sqft: 300, material: 'LVP' }
+      ],
+      materials: 8400, labor: 4200, waste: 1260, total: 13860, status: 'draft'
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

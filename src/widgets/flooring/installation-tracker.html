@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Installation Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"installation-tracker","name":"Installation Tracker","icon":"🔨","desc":"Track flooring installations","category":"flooring","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#8b5cf6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.installations-list{display:flex;flex-direction:column;gap:15px}
+.install-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.install-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.install-date{font-weight:600}
+.install-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.install-status.prep{background:#f59e0b33;color:#f59e0b}
+.install-status.in-progress{background:#8b5cf633;color:#8b5cf6}
+.install-status.completed{background:#22c55e33;color:#22c55e}
+.install-status.inspection{background:#3b82f633;color:#3b82f6}
+.install-body{padding:20px}
+.job-info{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}
+.info-item{padding:12px;background:#252525;border-radius:6px}
+.info-label{font-size:.75rem;color:#888;margin-bottom:4px}
+.info-value{font-weight:500}
+.progress-section h4{font-weight:600;margin-bottom:10px}
+.phase-list{display:flex;flex-direction:column;gap:8px}
+.phase-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#252525;border-radius:6px}
+.phase-check{width:20px;height:20px;border-radius:50%;border:2px solid #444;display:flex;align-items:center;justify-content:center;font-size:.75rem}
+.phase-check.done{background:#22c55e;border-color:#22c55e;color:#000}
+.install-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#8b5cf6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🔨 Installation Tracker</h1>
+<button class="btn btn-primary" onclick="alert('New installation')">+ New Installation</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="activeJobs">0</div><div class="stat-label">Active Jobs</div></div>
+<div class="stat"><div class="stat-value" id="sqftThisWeek">0</div><div class="stat-label">Sqft This Week</div></div>
+<div class="stat"><div class="stat-value" id="crewsWorking">0</div><div class="stat-label">Crews Working</div></div>
+<div class="stat"><div class="stat-value" id="completedMonth">0</div><div class="stat-label">Completed/Month</div></div>
+</div>
+
+<div class="installations-list" id="installationsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_floor_installations';
+let installations = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(installations));
+}
+
+function updateStats() {
+  const active = installations.filter(i => i.status !== 'completed').length;
+  const sqft = installations.reduce((s, i) => s + i.sqft, 0);
+  const crews = new Set(installations.filter(i => i.status === 'in-progress').map(i => i.crew)).size;
+  const completed = installations.filter(i => i.status === 'completed').length;
+
+  document.getElementById('activeJobs').textContent = active;
+  document.getElementById('sqftThisWeek').textContent = sqft.toLocaleString();
+  document.getElementById('crewsWorking').textContent = crews;
+  document.getElementById('completedMonth').textContent = completed;
+}
+
+function render() {
+  const list = document.getElementById('installationsList');
+
+  if (installations.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No installations</div>';
+    updateStats();
+    return;
+  }
+
+  const statusOrder = { prep: 0, 'in-progress': 1, inspection: 2, completed: 3 };
+  const sorted = [...installations].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+
+  list.innerHTML = sorted.map(i => `
+    <div class="install-card">
+      <div class="install-header">
+        <div class="install-date">📅 ${new Date(i.startDate).toLocaleDateString()} - ${new Date(i.endDate).toLocaleDateString()}</div>
+        <span class="install-status ${i.status}">${i.status.replace('-', ' ')}</span>
+      </div>
+      <div class="install-body">
+        <div class="job-info">
+          <div class="info-item">
+            <div class="info-label">Customer</div>
+            <div class="info-value">${i.customer}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Address</div>
+            <div class="info-value">${i.address}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Material</div>
+            <div class="info-value">${i.material}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Area / Crew</div>
+            <div class="info-value">${i.sqft} sqft • ${i.crew}</div>
+          </div>
+        </div>
+        <div class="progress-section">
+          <h4>Installation Phases</h4>
+          <div class="phase-list">
+            ${i.phases.map(p => `
+              <div class="phase-item">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="phase-check ${p.done ? 'done' : ''}">${p.done ? '✓' : ''}</span>
+                  <span>${p.name}</span>
+                </div>
+                <span style="color:#888;font-size:.875rem">${p.done ? 'Complete' : 'Pending'}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="install-footer">
+        ${i.status !== 'completed' ? `<button class="btn btn-primary" onclick="completePhase('${i.id}')">✓ Complete Phase</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function completePhase(id) {
+  const i = installations.find(x => x.id === id);
+  if (i) {
+    const nextPhase = i.phases.find(p => !p.done);
+    if (nextPhase) {
+      nextPhase.done = true;
+      if (i.phases.every(p => p.done)) {
+        i.status = 'completed';
+      }
+      save();
+      render();
+    }
+  }
+}
+
+if (installations.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  installations = [
+    {
+      id: '1', customer: 'Johnson Residence', address: '123 Oak St', material: 'Oak Hardwood', sqft: 650, crew: 'Team Alpha', startDate: past(2), endDate: future(1), status: 'in-progress',
+      phases: [
+        { name: 'Subfloor Preparation', done: true },
+        { name: 'Moisture Barrier', done: true },
+        { name: 'Flooring Installation', done: false },
+        { name: 'Trim & Transitions', done: false },
+        { name: 'Final Inspection', done: false }
+      ]
+    },
+    {
+      id: '2', customer: 'Smith Home', address: '456 Maple Ave', material: 'Luxury Vinyl', sqft: 340, crew: 'Team Beta', startDate: future(1), endDate: future(2), status: 'prep',
+      phases: [
+        { name: 'Subfloor Preparation', done: false },
+        { name: 'Acclimation Period', done: false },
+        { name: 'Flooring Installation', done: false },
+        { name: 'Trim & Transitions', done: false },
+        { name: 'Final Inspection', done: false }
+      ]
+    },
+    {
+      id: '3', customer: 'Tech Office', address: '789 Innovation Dr', material: 'Commercial Carpet', sqft: 2800, crew: 'Team Alpha', startDate: past(5), endDate: past(1), status: 'completed',
+      phases: [
+        { name: 'Subfloor Preparation', done: true },
+        { name: 'Carpet Pad Installation', done: true },
+        { name: 'Carpet Installation', done: true },
+        { name: 'Seaming & Stretching', done: true },
+        { name: 'Final Inspection', done: true }
+      ]
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

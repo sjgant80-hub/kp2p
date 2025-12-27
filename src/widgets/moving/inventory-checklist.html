@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inventory Checklist - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"inventory-checklist","name":"Inventory Checklist","icon":"📋","desc":"Track moving inventory items","category":"moving","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.job-select{padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#14b8a6}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px}
+.room-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.room-header{padding:15px 20px;background:#252525;display:flex;justify-content:space-between;align-items:center}
+.room-name{font-weight:600;display:flex;align-items:center;gap:8px}
+.room-progress{font-size:.875rem;color:#888}
+.room-body{padding:15px}
+.item-list{display:flex;flex-direction:column;gap:8px}
+.item-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#252525;border-radius:6px}
+.item-check{width:22px;height:22px;border:2px solid #444;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.item-check.packed{background:#14b8a6;border-color:#14b8a6;color:#000}
+.item-info{flex:1}
+.item-name{font-weight:500}
+.item-details{font-size:.75rem;color:#888}
+.item-condition{padding:3px 8px;border-radius:4px;font-size:.7rem}
+.item-condition.new{background:#22c55e33;color:#22c55e}
+.item-condition.good{background:#3b82f633;color:#3b82f6}
+.item-condition.fair{background:#f59e0b33;color:#f59e0b}
+.item-condition.fragile{background:#ef444433;color:#ef4444}
+.room-footer{padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#14b8a6;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.btn-sm{padding:6px 12px;font-size:.75rem}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📋 Inventory Checklist</h1>
+<select class="job-select">
+<option>Johnson Family Move - Dec 28</option>
+<option>Williams Office Move - Jan 5</option>
+</select>
+<button class="btn btn-primary" onclick="alert('Add room')">+ Add Room</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalItems">0</div><div class="stat-label">Total Items</div></div>
+<div class="stat"><div class="stat-value" id="packedItems">0</div><div class="stat-label">Packed</div></div>
+<div class="stat"><div class="stat-value" id="fragileItems">0</div><div class="stat-label">Fragile Items</div></div>
+<div class="stat"><div class="stat-value" id="completion">0%</div><div class="stat-label">Completion</div></div>
+</div>
+
+<div class="rooms-grid" id="roomsGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_move_inventory';
+let rooms = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+}
+
+function updateStats() {
+  const allItems = rooms.flatMap(r => r.items);
+  const packed = allItems.filter(i => i.packed).length;
+  const fragile = allItems.filter(i => i.condition === 'fragile').length;
+  const completion = allItems.length > 0 ? Math.round((packed / allItems.length) * 100) : 0;
+
+  document.getElementById('totalItems').textContent = allItems.length;
+  document.getElementById('packedItems').textContent = packed;
+  document.getElementById('fragileItems').textContent = fragile;
+  document.getElementById('completion').textContent = completion + '%';
+}
+
+function render() {
+  const grid = document.getElementById('roomsGrid');
+
+  if (rooms.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No inventory items</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = rooms.map(r => {
+    const packed = r.items.filter(i => i.packed).length;
+    return `
+      <div class="room-card">
+        <div class="room-header">
+          <span class="room-name">${r.icon} ${r.name}</span>
+          <span class="room-progress">${packed}/${r.items.length} packed</span>
+        </div>
+        <div class="room-body">
+          <div class="item-list">
+            ${r.items.map(i => `
+              <div class="item-row">
+                <div class="item-check ${i.packed ? 'packed' : ''}" onclick="togglePacked('${r.id}', '${i.id}')">
+                  ${i.packed ? '✓' : ''}
+                </div>
+                <div class="item-info">
+                  <div class="item-name">${i.name}</div>
+                  <div class="item-details">Box ${i.boxNumber} • ${i.weight} lbs</div>
+                </div>
+                <span class="item-condition ${i.condition}">${i.condition}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="room-footer">
+          <button class="btn btn-secondary btn-sm" onclick="alert('Add item')">+ Add Item</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function togglePacked(roomId, itemId) {
+  const room = rooms.find(r => r.id === roomId);
+  if (room) {
+    const item = room.items.find(i => i.id === itemId);
+    if (item) {
+      item.packed = !item.packed;
+      save();
+      render();
+    }
+  }
+}
+
+if (rooms.length === 0) {
+  rooms = [
+    {
+      id: '1', name: 'Living Room', icon: '🛋️',
+      items: [
+        { id: '1', name: 'Sofa (3-seater)', boxNumber: 'LR-01', weight: 150, condition: 'good', packed: true },
+        { id: '2', name: 'Coffee Table', boxNumber: 'LR-02', weight: 45, condition: 'good', packed: true },
+        { id: '3', name: 'TV Stand', boxNumber: 'LR-03', weight: 65, condition: 'fair', packed: false },
+        { id: '4', name: '65" TV', boxNumber: 'LR-04', weight: 55, condition: 'fragile', packed: false },
+        { id: '5', name: 'Floor Lamp', boxNumber: 'LR-05', weight: 15, condition: 'fragile', packed: false }
+      ]
+    },
+    {
+      id: '2', name: 'Kitchen', icon: '🍳',
+      items: [
+        { id: '1', name: 'Dishes Set (12pc)', boxNumber: 'K-01', weight: 25, condition: 'fragile', packed: true },
+        { id: '2', name: 'Pots & Pans', boxNumber: 'K-02', weight: 35, condition: 'good', packed: true },
+        { id: '3', name: 'Small Appliances', boxNumber: 'K-03', weight: 40, condition: 'good', packed: false },
+        { id: '4', name: 'Glassware', boxNumber: 'K-04', weight: 20, condition: 'fragile', packed: false }
+      ]
+    },
+    {
+      id: '3', name: 'Master Bedroom', icon: '🛏️',
+      items: [
+        { id: '1', name: 'Queen Bed Frame', boxNumber: 'MB-01', weight: 120, condition: 'good', packed: false },
+        { id: '2', name: 'Mattress', boxNumber: 'MB-02', weight: 80, condition: 'new', packed: false },
+        { id: '3', name: 'Dresser', boxNumber: 'MB-03', weight: 90, condition: 'fair', packed: false },
+        { id: '4', name: 'Nightstands (2)', boxNumber: 'MB-04', weight: 30, condition: 'good', packed: false }
+      ]
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

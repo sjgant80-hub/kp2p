@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuit Diagrams - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"circuit-diagrams","name":"Circuit Diagrams","icon":"📐","desc":"Manage electrical circuit documentation","category":"electrical","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.search-bar input{width:100%;padding:10px 15px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#e0e0e0;max-width:250px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#eab308}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.diagrams-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.diagram-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.diagram-preview{height:150px;background:#252525;display:flex;align-items:center;justify-content:center;font-size:3rem;border-bottom:1px solid #333}
+.diagram-body{padding:15px}
+.diagram-title{font-weight:600;margin-bottom:5px}
+.diagram-meta{font-size:.875rem;color:#888;margin-bottom:10px}
+.diagram-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tag{padding:3px 8px;background:#eab30822;border:1px solid #eab30844;border-radius:4px;font-size:.7rem;color:#eab308}
+.diagram-footer{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#eab308;color:#000}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📐 Circuit Diagrams</h1>
+<input type="text" id="searchInput" placeholder="Search diagrams..." oninput="render()">
+<button class="btn btn-primary" onclick="alert('Upload diagram')">+ Upload</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalDiagrams">0</div><div class="stat-label">Total Diagrams</div></div>
+<div class="stat"><div class="stat-value" id="residential">0</div><div class="stat-label">Residential</div></div>
+<div class="stat"><div class="stat-value" id="commercial">0</div><div class="stat-label">Commercial</div></div>
+<div class="stat"><div class="stat-value" id="recentlyUpdated">0</div><div class="stat-label">Updated This Month</div></div>
+</div>
+
+<div class="diagrams-grid" id="diagramsGrid"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_circuit_diagrams';
+let diagrams = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(diagrams));
+}
+
+function updateStats() {
+  const residential = diagrams.filter(d => d.propertyType === 'Residential').length;
+  const commercial = diagrams.filter(d => d.propertyType === 'Commercial').length;
+
+  document.getElementById('totalDiagrams').textContent = diagrams.length;
+  document.getElementById('residential').textContent = residential;
+  document.getElementById('commercial').textContent = commercial;
+  document.getElementById('recentlyUpdated').textContent = 3;
+}
+
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = diagrams.filter(d =>
+    d.name.toLowerCase().includes(search) ||
+    d.client.toLowerCase().includes(search) ||
+    d.tags.some(t => t.toLowerCase().includes(search))
+  );
+
+  const grid = document.getElementById('diagramsGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No diagrams found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(d => `
+    <div class="diagram-card">
+      <div class="diagram-preview">${d.icon}</div>
+      <div class="diagram-body">
+        <div class="diagram-title">${d.name}</div>
+        <div class="diagram-meta">${d.client} • ${d.propertyType}</div>
+        <div class="diagram-tags">
+          ${d.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+        </div>
+        <div class="diagram-meta">Updated: ${new Date(d.updatedAt).toLocaleDateString()}</div>
+      </div>
+      <div class="diagram-footer">
+        <button class="btn btn-primary" onclick="alert('View diagram')">👁️ View</button>
+        <button class="btn btn-secondary" onclick="alert('Download PDF')">📥 PDF</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+if (diagrams.length === 0) {
+  const past = d => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().split('T')[0]; };
+  diagrams = [
+    { id: '1', name: 'Main Panel Layout', client: 'Johnson Home', propertyType: 'Residential', icon: '⚡', tags: ['200A', 'Panel', 'Main'], updatedAt: past(5) },
+    { id: '2', name: 'Kitchen Circuit Map', client: 'Johnson Home', propertyType: 'Residential', icon: '🔌', tags: ['Kitchen', '20A', 'GFCI'], updatedAt: past(5) },
+    { id: '3', name: 'Factory Floor Plan', client: 'ABC Factory', propertyType: 'Commercial', icon: '🏭', tags: ['Industrial', '3-Phase', '480V'], updatedAt: past(15) },
+    { id: '4', name: 'Server Room Power', client: 'Tech Startup', propertyType: 'Commercial', icon: '🖥️', tags: ['UPS', 'Dedicated', '30A'], updatedAt: past(3) },
+    { id: '5', name: 'Outdoor Lighting', client: 'Green Apartments', propertyType: 'Commercial', icon: '💡', tags: ['Lighting', 'Landscape', 'Timer'], updatedAt: past(20) },
+    { id: '6', name: 'Garage Sub-Panel', client: 'Smith Residence', propertyType: 'Residential', icon: '🔋', tags: ['Sub-Panel', 'EV Charger', '60A'], updatedAt: past(8) }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

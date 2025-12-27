@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Job Scheduler - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"job-scheduler","name":"Job Scheduler","icon":"📅","desc":"Schedule roofing jobs and crews","category":"roofing","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#f97316}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.jobs-list{display:flex;flex-direction:column;gap:15px}
+.job-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.job-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#252525}
+.job-date{font-weight:600;display:flex;align-items:center;gap:10px}
+.weather-badge{padding:4px 8px;border-radius:4px;font-size:.75rem;background:#3b82f633;color:#3b82f6}
+.job-status{padding:6px 12px;border-radius:6px;font-size:.75rem}
+.job-status.scheduled{background:#3b82f633;color:#3b82f6}
+.job-status.in-progress{background:#f9731633;color:#f97316}
+.job-status.completed{background:#22c55e33;color:#22c55e}
+.job-status.delayed{background:#ef444433;color:#ef4444}
+.job-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.job-details h4{font-weight:600;margin-bottom:10px}
+.detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333}
+.detail-label{color:#888}
+.crew-list{display:flex;flex-wrap:wrap;gap:6px}
+.crew-badge{padding:4px 10px;background:#f9731622;border:1px solid #f9731644;border-radius:4px;font-size:.75rem;color:#f97316}
+.job-footer{display:flex;gap:10px;padding:15px 20px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#f97316;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📅 Job Scheduler</h1>
+<button class="btn btn-primary" onclick="alert('Schedule job')">+ Schedule Job</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="scheduledJobs">0</div><div class="stat-label">Scheduled Jobs</div></div>
+<div class="stat"><div class="stat-value" id="inProgress">0</div><div class="stat-label">In Progress</div></div>
+<div class="stat"><div class="stat-value" id="crewsActive">0</div><div class="stat-label">Active Crews</div></div>
+<div class="stat"><div class="stat-value" id="weekRevenue">$0</div><div class="stat-label">Week's Revenue</div></div>
+</div>
+
+<div class="jobs-list" id="jobsList"></div>
+
+<script>
+const STORAGE_KEY = 'kiss_roofing_jobs';
+let jobs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+}
+
+function updateStats() {
+  const scheduled = jobs.filter(j => j.status === 'scheduled').length;
+  const inProgress = jobs.filter(j => j.status === 'in-progress').length;
+  const crews = new Set(jobs.filter(j => j.status === 'in-progress').flatMap(j => j.crew)).size;
+  const revenue = jobs.reduce((s, j) => s + j.value, 0);
+
+  document.getElementById('scheduledJobs').textContent = scheduled;
+  document.getElementById('inProgress').textContent = inProgress;
+  document.getElementById('crewsActive').textContent = crews;
+  document.getElementById('weekRevenue').textContent = '$' + revenue.toLocaleString();
+}
+
+function render() {
+  const list = document.getElementById('jobsList');
+
+  if (jobs.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#666">No jobs scheduled</div>';
+    updateStats();
+    return;
+  }
+
+  const sorted = [...jobs].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+  list.innerHTML = sorted.map(j => `
+    <div class="job-card">
+      <div class="job-header">
+        <div class="job-date">
+          📅 ${new Date(j.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} - ${new Date(j.endDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          <span class="weather-badge">${j.weather}</span>
+        </div>
+        <span class="job-status ${j.status}">${j.status.replace('-', ' ')}</span>
+      </div>
+      <div class="job-body">
+        <div class="job-details">
+          <h4>Job Details</h4>
+          <div class="detail-row"><span class="detail-label">Customer</span><span>${j.customer}</span></div>
+          <div class="detail-row"><span class="detail-label">Address</span><span>${j.address}</span></div>
+          <div class="detail-row"><span class="detail-label">Job Type</span><span>${j.jobType}</span></div>
+          <div class="detail-row"><span class="detail-label">Sq. Footage</span><span>${j.sqFootage.toLocaleString()} sqft</span></div>
+        </div>
+        <div class="job-details">
+          <h4>Resources</h4>
+          <div class="detail-row"><span class="detail-label">Value</span><strong>$${j.value.toLocaleString()}</strong></div>
+          <div class="detail-row"><span class="detail-label">Materials</span><span>${j.materials}</span></div>
+          <div style="margin-top:10px">
+            <div style="font-size:.75rem;color:#888;margin-bottom:6px">Crew Assigned</div>
+            <div class="crew-list">
+              ${j.crew.map(c => `<span class="crew-badge">${c}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="job-footer">
+        ${j.status === 'scheduled' ? `<button class="btn btn-primary" onclick="updateStatus('${j.id}', 'in-progress')">▶️ Start Job</button>` : ''}
+        ${j.status === 'in-progress' ? `<button class="btn btn-primary" onclick="updateStatus('${j.id}', 'completed')">✓ Complete</button>` : ''}
+        <button class="btn btn-secondary" onclick="alert('View details')">📋 Details</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+function updateStatus(id, status) {
+  const j = jobs.find(x => x.id === id);
+  if (j) { j.status = status; save(); render(); }
+}
+
+if (jobs.length === 0) {
+  const future = d => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().split('T')[0]; };
+  jobs = [
+    { id: '1', customer: 'Smith Residence', address: '123 Oak St', jobType: 'Full Replacement', sqFootage: 2200, value: 12500, materials: 'GAF Timberline HDZ', crew: ['Team Alpha', 'Mike S.'], startDate: future(0), endDate: future(2), weather: '☀️ Clear', status: 'in-progress' },
+    { id: '2', customer: 'Johnson Home', address: '456 Maple Ave', jobType: 'Repair', sqFootage: 400, value: 1800, materials: 'Matching Shingles', crew: ['Team Beta'], startDate: future(3), endDate: future(3), weather: '⛅ Partly Cloudy', status: 'scheduled' },
+    { id: '3', customer: 'ABC Warehouse', address: '789 Industrial Blvd', jobType: 'Commercial Flat', sqFootage: 15000, value: 45000, materials: 'TPO Membrane', crew: ['Team Alpha', 'Team Beta', 'Team Gamma'], startDate: future(5), endDate: future(12), weather: '☀️ Clear', status: 'scheduled' },
+    { id: '4', customer: 'Williams Estate', address: '321 Pine Rd', jobType: 'Full Replacement', sqFootage: 3500, value: 22000, materials: 'CertainTeed Landmark', crew: ['Team Gamma'], startDate: future(14), endDate: future(17), weather: '🌧️ Rain Expected', status: 'delayed' }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>
