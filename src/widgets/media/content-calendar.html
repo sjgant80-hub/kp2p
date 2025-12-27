@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Content Calendar - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"content-calendar","name":"Content Calendar","icon":"📅","desc":"Plan and schedule content across channels","category":"media","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.month-nav{display:flex;align-items:center;gap:15px}
+.month-nav button{padding:8px 12px;background:#333;border:none;color:#e0e0e0;border-radius:6px;cursor:pointer}
+.month-nav h2{font-size:1.125rem;min-width:180px;text-align:center}
+.filters{display:flex;gap:10px;flex-wrap:wrap}
+.filter-chip{padding:6px 12px;background:#1a1a1a;border:1px solid #333;border-radius:20px;cursor:pointer;font-size:.875rem}
+.filter-chip.active{background:#10b981;color:#fff;border-color:#10b981}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem}
+.btn-primary{background:#10b981;color:#fff}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#333;border-radius:12px;overflow:hidden;margin-bottom:20px}
+.calendar-header{background:#1a1a1a;padding:10px;text-align:center;font-weight:600;font-size:.875rem;color:#888}
+.calendar-day{background:#1a1a1a;min-height:120px;padding:8px}
+.calendar-day.other-month{opacity:.4}
+.calendar-day.today{background:#252525}
+.day-number{font-size:.875rem;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.day-number.today{color:#10b981;font-weight:bold}
+.day-add{opacity:0;cursor:pointer;font-size:1rem}
+.calendar-day:hover .day-add{opacity:1}
+.content-item{font-size:.7rem;padding:4px 6px;border-radius:4px;margin-bottom:4px;cursor:pointer;display:flex;align-items:center;gap:4px;overflow:hidden}
+.content-item.blog{background:#3b82f633;border-left:3px solid #3b82f6}
+.content-item.video{background:#ef444433;border-left:3px solid #ef4444}
+.content-item.social{background:#10b98133;border-left:3px solid #10b981}
+.content-item.podcast{background:#8b5cf633;border-left:3px solid #8b5cf6}
+.content-item.email{background:#f59e0b33;border-left:3px solid #f59e0b}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.status-dot.draft{background:#888}
+.status-dot.scheduled{background:#3b82f6}
+.status-dot.published{background:#10b981}
+.upcoming{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333}
+.upcoming h3{margin-bottom:15px;display:flex;align-items:center;gap:8px}
+.upcoming-list{display:flex;flex-direction:column;gap:10px}
+.upcoming-item{display:flex;align-items:center;gap:15px;padding:12px;background:#252525;border-radius:8px}
+.upcoming-date{text-align:center;min-width:50px}
+.upcoming-date .day{font-size:1.25rem;font-weight:bold}
+.upcoming-date .month{font-size:.7rem;color:#888}
+.upcoming-info{flex:1}
+.upcoming-title{font-weight:500;margin-bottom:3px}
+.upcoming-meta{font-size:.75rem;color:#888;display:flex;gap:10px}
+.upcoming-status{padding:4px 8px;border-radius:4px;font-size:.7rem}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📅 Content Calendar</h1>
+<div class="month-nav">
+<button onclick="changeMonth(-1)">←</button>
+<h2 id="monthTitle"></h2>
+<button onclick="changeMonth(1)">→</button>
+</div>
+<button class="btn btn-primary" onclick="showModal()">+ New Content</button>
+</div>
+
+<div class="filters">
+<div class="filter-chip active" data-type="all">All</div>
+<div class="filter-chip" data-type="blog">📝 Blog</div>
+<div class="filter-chip" data-type="video">🎬 Video</div>
+<div class="filter-chip" data-type="social">📱 Social</div>
+<div class="filter-chip" data-type="podcast">🎙️ Podcast</div>
+<div class="filter-chip" data-type="email">📧 Email</div>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+<div class="upcoming">
+<h3>📋 Upcoming Content</h3>
+<div class="upcoming-list" id="upcomingList"></div>
+</div>
+
+<div class="modal" id="contentModal">
+<div class="modal-content">
+<h2>New Content</h2>
+<form id="contentForm">
+<div class="form-group">
+<label>Title</label>
+<input type="text" id="contentTitle" required>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Type</label>
+<select id="contentType">
+<option value="blog">📝 Blog Post</option>
+<option value="video">🎬 Video</option>
+<option value="social">📱 Social Media</option>
+<option value="podcast">🎙️ Podcast</option>
+<option value="email">📧 Email</option>
+</select>
+</div>
+<div class="form-group">
+<label>Status</label>
+<select id="contentStatus">
+<option value="draft">Draft</option>
+<option value="scheduled">Scheduled</option>
+<option value="published">Published</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="contentDate" required>
+</div>
+<div class="form-group">
+<label>Time</label>
+<input type="time" id="contentTime">
+</div>
+</div>
+<div class="form-group">
+<label>Notes</label>
+<textarea id="contentNotes" rows="2"></textarea>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Save</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_content_calendar';
+let content = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentDate = new Date();
+let currentFilter = 'all';
+
+const typeIcons = { blog: '📝', video: '🎬', social: '📱', podcast: '🎙️', email: '📧' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(content));
+}
+
+function updateMonthTitle() {
+  document.getElementById('monthTitle').textContent =
+    currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function changeMonth(delta) {
+  currentDate.setMonth(currentDate.getMonth() + delta);
+  renderCalendar();
+  updateMonthTitle();
+}
+
+function renderCalendar() {
+  const calendar = document.getElementById('calendar');
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const today = new Date();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDay = firstDay.getDay();
+
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  let html = days.map(d => `<div class="calendar-header">${d}</div>`).join('');
+
+  // Previous month days
+  for (let i = 0; i < startDay; i++) {
+    const d = new Date(year, month, -startDay + i + 1);
+    html += renderDay(d, true);
+  }
+
+  // Current month days
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(year, month, d);
+    const isToday = date.toDateString() === today.toDateString();
+    html += renderDay(date, false, isToday);
+  }
+
+  // Fill remaining cells
+  const totalCells = startDay + lastDay.getDate();
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    html += renderDay(new Date(year, month + 1, i), true);
+  }
+
+  calendar.innerHTML = html;
+}
+
+function renderDay(date, isOtherMonth, isToday = false) {
+  const dateStr = date.toISOString().split('T')[0];
+  const dayContent = content.filter(c => c.date === dateStr &&
+    (currentFilter === 'all' || c.type === currentFilter));
+
+  return `
+    <div class="calendar-day${isOtherMonth ? ' other-month' : ''}${isToday ? ' today' : ''}">
+      <div class="day-number${isToday ? ' today' : ''}">
+        ${date.getDate()}
+        <span class="day-add" onclick="quickAdd('${dateStr}')">+</span>
+      </div>
+      ${dayContent.slice(0, 3).map(c => `
+        <div class="content-item ${c.type}" onclick="editContent('${c.id}')">
+          <span class="status-dot ${c.status}"></span>
+          ${c.title.substring(0, 15)}${c.title.length > 15 ? '...' : ''}
+        </div>
+      `).join('')}
+      ${dayContent.length > 3 ? `<div style="font-size:.7rem;color:#888">+${dayContent.length - 3} more</div>` : ''}
+    </div>
+  `;
+}
+
+function renderUpcoming() {
+  const now = new Date();
+  const upcoming = content
+    .filter(c => new Date(c.date) >= now && c.status !== 'published')
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(0, 5);
+
+  const list = document.getElementById('upcomingList');
+  if (upcoming.length === 0) {
+    list.innerHTML = '<div style="color:#666;text-align:center;padding:20px">No upcoming content scheduled</div>';
+    return;
+  }
+
+  list.innerHTML = upcoming.map(c => {
+    const date = new Date(c.date);
+    return `
+      <div class="upcoming-item">
+        <div class="upcoming-date">
+          <div class="day">${date.getDate()}</div>
+          <div class="month">${date.toLocaleDateString('en-US', { month: 'short' })}</div>
+        </div>
+        <div class="upcoming-info">
+          <div class="upcoming-title">${typeIcons[c.type]} ${c.title}</div>
+          <div class="upcoming-meta">
+            <span>${c.type}</span>
+            ${c.time ? `<span>🕐 ${c.time}</span>` : ''}
+          </div>
+        </div>
+        <span class="upcoming-status" style="background:${c.status === 'draft' ? '#888' : '#3b82f6'}33;color:${c.status === 'draft' ? '#888' : '#3b82f6'}">${c.status}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function showModal(date = null) {
+  document.getElementById('contentDate').value = date || new Date().toISOString().split('T')[0];
+  document.getElementById('contentModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('contentModal').classList.remove('active');
+  document.getElementById('contentForm').reset();
+}
+
+function quickAdd(date) {
+  showModal(date);
+}
+
+document.getElementById('contentForm').addEventListener('submit', e => {
+  e.preventDefault();
+  content.push({
+    id: Date.now().toString(),
+    title: document.getElementById('contentTitle').value,
+    type: document.getElementById('contentType').value,
+    status: document.getElementById('contentStatus').value,
+    date: document.getElementById('contentDate').value,
+    time: document.getElementById('contentTime').value,
+    notes: document.getElementById('contentNotes').value
+  });
+  save();
+  renderCalendar();
+  renderUpcoming();
+  hideModal();
+});
+
+function editContent(id) {
+  const c = content.find(c => c.id === id);
+  if (!c) return;
+  if (confirm(`"${c.title}"\n\nDelete this content?`)) {
+    content = content.filter(c => c.id !== id);
+    save();
+    renderCalendar();
+    renderUpcoming();
+  }
+}
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.type;
+    renderCalendar();
+  });
+});
+
+// Seed data
+if (content.length === 0) {
+  const today = new Date();
+  content = [
+    { id: '1', title: 'Product Launch Blog', type: 'blog', status: 'scheduled', date: new Date(today.getTime() + 2*24*60*60*1000).toISOString().split('T')[0], time: '09:00' },
+    { id: '2', title: 'Tutorial Video: Getting Started', type: 'video', status: 'draft', date: new Date(today.getTime() + 5*24*60*60*1000).toISOString().split('T')[0] },
+    { id: '3', title: 'Weekly Newsletter', type: 'email', status: 'scheduled', date: new Date(today.getTime() + 7*24*60*60*1000).toISOString().split('T')[0], time: '10:00' },
+    { id: '4', title: 'Instagram Reel', type: 'social', status: 'draft', date: new Date(today.getTime() + 3*24*60*60*1000).toISOString().split('T')[0] }
+  ];
+  save();
+}
+
+updateMonthTitle();
+renderCalendar();
+renderUpcoming();
+</script>
+</body>
+</html>

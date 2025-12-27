@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Livestock Manager - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"livestock-manager","name":"Livestock Manager","icon":"🐄","desc":"Track livestock inventory and health records","category":"agriculture","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-icon{font-size:1.5rem;margin-bottom:5px}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:10px 20px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888;display:flex;align-items:center;gap:8px}
+.tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.livestock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.animal-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.animal-header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #333}
+.animal-id{font-weight:600;display:flex;align-items:center;gap:8px}
+.animal-tag{padding:4px 8px;border-radius:4px;font-size:.7rem;font-family:monospace;background:#252525}
+.health-status{padding:4px 10px;border-radius:12px;font-size:.75rem}
+.health-status.healthy{background:#10b98133;color:#10b981}
+.health-status.attention{background:#f59e0b33;color:#f59e0b}
+.health-status.sick{background:#ef444433;color:#ef4444}
+.animal-body{padding:15px}
+.animal-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem;margin-bottom:15px}
+.info-item span{color:#888;font-size:.75rem;display:block}
+.weight-trend{background:#252525;padding:10px;border-radius:6px;margin-bottom:10px}
+.weight-trend h4{font-size:.75rem;color:#888;margin-bottom:5px}
+.weight-chart{display:flex;align-items:end;gap:3px;height:40px}
+.weight-bar{flex:1;background:#10b981;border-radius:2px}
+.records{margin-top:10px}
+.records h4{font-size:.75rem;color:#888;margin-bottom:8px}
+.record{display:flex;align-items:center;gap:8px;font-size:.75rem;padding:5px 0;border-bottom:1px solid #252525}
+.record:last-child{border:none}
+.record-icon{font-size:1rem}
+.animal-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🐄 Livestock Manager</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Animal</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-icon">🐄</div><div class="stat-value" id="cattleCount">0</div><div class="stat-label">Cattle</div></div>
+<div class="stat"><div class="stat-icon">🐷</div><div class="stat-value" id="pigCount">0</div><div class="stat-label">Pigs</div></div>
+<div class="stat"><div class="stat-icon">🐑</div><div class="stat-value" id="sheepCount">0</div><div class="stat-label">Sheep</div></div>
+<div class="stat"><div class="stat-icon">🐔</div><div class="stat-value" id="poultryCount">0</div><div class="stat-label">Poultry</div></div>
+<div class="stat"><div class="stat-icon">⚠️</div><div class="stat-value" id="needsAttention">0</div><div class="stat-label">Needs Attention</div></div>
+</div>
+
+<div class="tabs">
+<div class="tab active" data-type="all">📋 All</div>
+<div class="tab" data-type="cattle">🐄 Cattle</div>
+<div class="tab" data-type="pig">🐷 Pigs</div>
+<div class="tab" data-type="sheep">🐑 Sheep</div>
+<div class="tab" data-type="poultry">🐔 Poultry</div>
+</div>
+
+<div class="livestock-grid" id="livestockGrid"></div>
+
+<div class="modal" id="animalModal">
+<div class="modal-content">
+<h2>Add Animal</h2>
+<form id="animalForm">
+<div class="form-row">
+<div class="form-group">
+<label>Tag/ID</label>
+<input type="text" id="animalTag" required placeholder="e.g., C-0042">
+</div>
+<div class="form-group">
+<label>Type</label>
+<select id="animalType">
+<option value="cattle">🐄 Cattle</option>
+<option value="pig">🐷 Pig</option>
+<option value="sheep">🐑 Sheep</option>
+<option value="poultry">🐔 Poultry</option>
+<option value="goat">🐐 Goat</option>
+<option value="horse">🐴 Horse</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Breed</label>
+<input type="text" id="animalBreed" placeholder="e.g., Angus">
+</div>
+<div class="form-group">
+<label>Birth Date</label>
+<input type="date" id="animalBirth">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Weight (lbs)</label>
+<input type="number" id="animalWeight" min="0">
+</div>
+<div class="form-group">
+<label>Gender</label>
+<select id="animalGender">
+<option value="female">Female</option>
+<option value="male">Male</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Location/Pen</label>
+<input type="text" id="animalLocation" placeholder="e.g., Pasture A">
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Animal</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_livestock';
+let animals = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentType = 'all';
+
+const typeIcons = { cattle: '🐄', pig: '🐷', sheep: '🐑', poultry: '🐔', goat: '🐐', horse: '🐴' };
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(animals));
+}
+
+function getAge(birthDate) {
+  if (!birthDate) return 'Unknown';
+  const months = Math.floor((new Date() - new Date(birthDate)) / (1000 * 60 * 60 * 24 * 30));
+  if (months < 12) return months + ' months';
+  return Math.floor(months / 12) + ' years';
+}
+
+function updateStats() {
+  document.getElementById('cattleCount').textContent = animals.filter(a => a.type === 'cattle').length;
+  document.getElementById('pigCount').textContent = animals.filter(a => a.type === 'pig').length;
+  document.getElementById('sheepCount').textContent = animals.filter(a => a.type === 'sheep').length;
+  document.getElementById('poultryCount').textContent = animals.filter(a => a.type === 'poultry').length;
+  document.getElementById('needsAttention').textContent = animals.filter(a => a.health !== 'healthy').length;
+}
+
+function render() {
+  const filtered = currentType === 'all' ? animals : animals.filter(a => a.type === currentType);
+  const grid = document.getElementById('livestockGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No animals found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(animal => {
+    const weights = animal.weights || [animal.weight];
+    const maxWeight = Math.max(...weights);
+
+    return `
+      <div class="animal-card">
+        <div class="animal-header">
+          <div class="animal-id">${typeIcons[animal.type]} <span class="animal-tag">${animal.tag}</span></div>
+          <span class="health-status ${animal.health}">${animal.health}</span>
+        </div>
+        <div class="animal-body">
+          <div class="animal-info">
+            <div class="info-item"><span>Breed</span>${animal.breed || 'Unknown'}</div>
+            <div class="info-item"><span>Age</span>${getAge(animal.birthDate)}</div>
+            <div class="info-item"><span>Weight</span>${animal.weight} lbs</div>
+            <div class="info-item"><span>Location</span>${animal.location || 'N/A'}</div>
+          </div>
+          <div class="weight-trend">
+            <h4>Weight History</h4>
+            <div class="weight-chart">
+              ${weights.slice(-6).map(w => `<div class="weight-bar" style="height:${(w / maxWeight) * 100}%"></div>`).join('')}
+            </div>
+          </div>
+          <div class="records">
+            <h4>Recent Records</h4>
+            ${(animal.records || []).slice(-3).map(r => `
+              <div class="record">
+                <span class="record-icon">${r.icon}</span>
+                <span>${r.type}</span>
+                <span style="margin-left:auto;color:#666">${new Date(r.date).toLocaleDateString()}</span>
+              </div>
+            `).join('') || '<div style="color:#666;font-size:.75rem">No records</div>'}
+          </div>
+        </div>
+        <div class="animal-actions">
+          <button class="btn btn-secondary" onclick="logRecord('${animal.id}')">📋 Log</button>
+          <button class="btn btn-secondary" onclick="updateWeight('${animal.id}')">⚖️ Weight</button>
+          <button class="btn btn-secondary" onclick="deleteAnimal('${animal.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('animalModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('animalModal').classList.remove('active');
+}
+
+document.getElementById('animalForm').addEventListener('submit', e => {
+  e.preventDefault();
+  animals.push({
+    id: Date.now().toString(),
+    tag: document.getElementById('animalTag').value,
+    type: document.getElementById('animalType').value,
+    breed: document.getElementById('animalBreed').value,
+    birthDate: document.getElementById('animalBirth').value,
+    weight: parseFloat(document.getElementById('animalWeight').value) || 0,
+    weights: [parseFloat(document.getElementById('animalWeight').value) || 0],
+    gender: document.getElementById('animalGender').value,
+    location: document.getElementById('animalLocation').value,
+    health: 'healthy',
+    records: []
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function logRecord(id) {
+  const types = [
+    { icon: '💉', type: 'Vaccination' },
+    { icon: '🩺', type: 'Health Check' },
+    { icon: '💊', type: 'Medication' },
+    { icon: '🔄', type: 'Breeding' },
+    { icon: '✂️', type: 'Grooming' }
+  ];
+  const choice = prompt('Select record type:\n1. Vaccination\n2. Health Check\n3. Medication\n4. Breeding\n5. Grooming');
+  const idx = parseInt(choice) - 1;
+  if (idx >= 0 && idx < types.length) {
+    const animal = animals.find(a => a.id === id);
+    if (animal) {
+      if (!animal.records) animal.records = [];
+      animal.records.push({ ...types[idx], date: new Date().toISOString() });
+      save();
+      render();
+    }
+  }
+}
+
+function updateWeight(id) {
+  const weight = prompt('Enter new weight (lbs):');
+  if (weight && !isNaN(weight)) {
+    const animal = animals.find(a => a.id === id);
+    if (animal) {
+      animal.weight = parseFloat(weight);
+      if (!animal.weights) animal.weights = [];
+      animal.weights.push(parseFloat(weight));
+      save();
+      render();
+    }
+  }
+}
+
+function deleteAnimal(id) {
+  if (confirm('Remove this animal?')) {
+    animals = animals.filter(a => a.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentType = tab.dataset.type;
+    render();
+  });
+});
+
+// Seed data
+if (animals.length === 0) {
+  animals = [
+    { id: '1', tag: 'C-0042', type: 'cattle', breed: 'Angus', birthDate: '2022-03-15', weight: 1150, weights: [850, 950, 1050, 1100, 1150], gender: 'female', location: 'Pasture A', health: 'healthy', records: [{ icon: '💉', type: 'Vaccination', date: '2024-06-01' }] },
+    { id: '2', tag: 'C-0043', type: 'cattle', breed: 'Hereford', birthDate: '2023-01-20', weight: 680, weights: [450, 520, 600, 650, 680], gender: 'male', location: 'Pasture A', health: 'healthy', records: [] },
+    { id: '3', tag: 'P-0015', type: 'pig', breed: 'Yorkshire', birthDate: '2024-02-10', weight: 220, weights: [80, 120, 160, 190, 220], gender: 'female', location: 'Barn 2', health: 'attention', records: [] }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

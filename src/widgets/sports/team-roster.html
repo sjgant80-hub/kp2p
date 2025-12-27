@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team Roster - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"team-roster","name":"Team Roster","icon":"🏆","desc":"Manage sports team rosters and player info","category":"sports","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.team-badge{background:#10b981;padding:4px 12px;border-radius:20px;font-size:.875rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.positions{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.position-tab{padding:8px 16px;background:#1a1a1a;border:1px solid #333;border-radius:6px;cursor:pointer;color:#888}
+.position-tab.active{background:#10b981;color:#fff;border-color:#10b981}
+.roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.player-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.player-header{display:flex;align-items:center;gap:15px;padding:15px;border-bottom:1px solid #333}
+.player-number{width:50px;height:50px;background:linear-gradient(135deg,#10b981,#059669);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:bold}
+.player-info h3{font-size:1rem;margin-bottom:3px}
+.player-info span{font-size:.875rem;color:#888}
+.player-body{padding:15px}
+.player-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;margin-bottom:15px}
+.player-stat-value{font-weight:bold;font-size:1.125rem}
+.player-stat-label{font-size:.65rem;color:#888}
+.player-details{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.875rem}
+.detail-label{color:#888}
+.player-status{display:inline-block;padding:3px 8px;border-radius:4px;font-size:.7rem;margin-top:10px}
+.player-status.active{background:#10b98133;color:#10b981}
+.player-status.injured{background:#ef444433;color:#ef4444}
+.player-status.suspended{background:#f59e0b33;color:#f59e0b}
+.player-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🏆 Team Roster <span class="team-badge">2024 Season</span></h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Player</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalPlayers">0</div><div class="stat-label">Players</div></div>
+<div class="stat"><div class="stat-value" id="activeCount">0</div><div class="stat-label">Active</div></div>
+<div class="stat"><div class="stat-value" id="injuredCount">0</div><div class="stat-label">Injured</div></div>
+<div class="stat"><div class="stat-value" id="avgAge">0</div><div class="stat-label">Avg Age</div></div>
+</div>
+
+<div class="positions">
+<div class="position-tab active" data-pos="all">All</div>
+<div class="position-tab" data-pos="forward">Forwards</div>
+<div class="position-tab" data-pos="midfield">Midfield</div>
+<div class="position-tab" data-pos="defense">Defense</div>
+<div class="position-tab" data-pos="goalkeeper">Goalkeepers</div>
+</div>
+
+<div class="roster-grid" id="rosterGrid"></div>
+
+<div class="modal" id="playerModal">
+<div class="modal-content">
+<h2>Add Player</h2>
+<form id="playerForm">
+<div class="form-row">
+<div class="form-group">
+<label>First Name</label>
+<input type="text" id="playerFirst" required>
+</div>
+<div class="form-group">
+<label>Last Name</label>
+<input type="text" id="playerLast" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Number</label>
+<input type="number" id="playerNumber" min="1" max="99" required>
+</div>
+<div class="form-group">
+<label>Position</label>
+<select id="playerPosition">
+<option value="forward">Forward</option>
+<option value="midfield">Midfielder</option>
+<option value="defense">Defender</option>
+<option value="goalkeeper">Goalkeeper</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Date of Birth</label>
+<input type="date" id="playerDOB">
+</div>
+<div class="form-group">
+<label>Nationality</label>
+<input type="text" id="playerNationality" placeholder="e.g., USA">
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Height (cm)</label>
+<input type="number" id="playerHeight">
+</div>
+<div class="form-group">
+<label>Weight (kg)</label>
+<input type="number" id="playerWeight">
+</div>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Player</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_team_roster';
+let players = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentPosition = 'all';
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+}
+
+function getAge(dob) {
+  if (!dob) return null;
+  return Math.floor((new Date() - new Date(dob)) / (1000 * 60 * 60 * 24 * 365.25));
+}
+
+function updateStats() {
+  const active = players.filter(p => p.status === 'active').length;
+  const injured = players.filter(p => p.status === 'injured').length;
+  const ages = players.map(p => getAge(p.dob)).filter(a => a);
+  const avgAge = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+
+  document.getElementById('totalPlayers').textContent = players.length;
+  document.getElementById('activeCount').textContent = active;
+  document.getElementById('injuredCount').textContent = injured;
+  document.getElementById('avgAge').textContent = avgAge;
+}
+
+function render() {
+  const filtered = currentPosition === 'all' ? players :
+    players.filter(p => p.position === currentPosition);
+  const grid = document.getElementById('rosterGrid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No players found</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = filtered.sort((a, b) => a.number - b.number).map(player => {
+    const age = getAge(player.dob);
+    return `
+      <div class="player-card">
+        <div class="player-header">
+          <div class="player-number">${player.number}</div>
+          <div class="player-info">
+            <h3>${player.firstName} ${player.lastName}</h3>
+            <span>${player.position.charAt(0).toUpperCase() + player.position.slice(1)}</span>
+          </div>
+        </div>
+        <div class="player-body">
+          <div class="player-stats">
+            <div><div class="player-stat-value">${player.stats?.games || 0}</div><div class="player-stat-label">Games</div></div>
+            <div><div class="player-stat-value">${player.stats?.goals || 0}</div><div class="player-stat-label">Goals</div></div>
+            <div><div class="player-stat-value">${player.stats?.assists || 0}</div><div class="player-stat-label">Assists</div></div>
+            <div><div class="player-stat-value">${player.stats?.minutes || 0}</div><div class="player-stat-label">Minutes</div></div>
+          </div>
+          <div class="player-details">
+            <div><span class="detail-label">Age:</span> ${age || 'N/A'}</div>
+            <div><span class="detail-label">Nationality:</span> ${player.nationality || 'N/A'}</div>
+            <div><span class="detail-label">Height:</span> ${player.height ? player.height + ' cm' : 'N/A'}</div>
+            <div><span class="detail-label">Weight:</span> ${player.weight ? player.weight + ' kg' : 'N/A'}</div>
+          </div>
+          <span class="player-status ${player.status}">${player.status}</span>
+        </div>
+        <div class="player-actions">
+          <button class="btn btn-secondary" onclick="updateStats('${player.id}')">📊 Stats</button>
+          <button class="btn btn-secondary" onclick="toggleStatus('${player.id}')">${player.status === 'active' ? '🏥' : '✓'}</button>
+          <button class="btn btn-secondary" onclick="deletePlayer('${player.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('playerModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('playerModal').classList.remove('active');
+}
+
+document.getElementById('playerForm').addEventListener('submit', e => {
+  e.preventDefault();
+  players.push({
+    id: Date.now().toString(),
+    firstName: document.getElementById('playerFirst').value,
+    lastName: document.getElementById('playerLast').value,
+    number: parseInt(document.getElementById('playerNumber').value),
+    position: document.getElementById('playerPosition').value,
+    dob: document.getElementById('playerDOB').value,
+    nationality: document.getElementById('playerNationality').value,
+    height: document.getElementById('playerHeight').value ? parseInt(document.getElementById('playerHeight').value) : null,
+    weight: document.getElementById('playerWeight').value ? parseInt(document.getElementById('playerWeight').value) : null,
+    status: 'active',
+    stats: { games: 0, goals: 0, assists: 0, minutes: 0 }
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function toggleStatus(id) {
+  const player = players.find(p => p.id === id);
+  if (player) {
+    player.status = player.status === 'active' ? 'injured' : 'active';
+    save();
+    render();
+  }
+}
+
+function deletePlayer(id) {
+  if (confirm('Remove this player?')) {
+    players = players.filter(p => p.id !== id);
+    save();
+    render();
+  }
+}
+
+document.querySelectorAll('.position-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.position-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentPosition = tab.dataset.pos;
+    render();
+  });
+});
+
+// Seed data
+if (players.length === 0) {
+  players = [
+    { id: '1', firstName: 'Marcus', lastName: 'Johnson', number: 10, position: 'forward', dob: '1998-05-15', nationality: 'USA', height: 183, weight: 78, status: 'active', stats: { games: 28, goals: 15, assists: 8, minutes: 2340 } },
+    { id: '2', firstName: 'David', lastName: 'Rodriguez', number: 7, position: 'midfield', dob: '1995-11-22', nationality: 'Spain', height: 175, weight: 72, status: 'active', stats: { games: 30, goals: 5, assists: 12, minutes: 2580 } },
+    { id: '3', firstName: 'James', lastName: 'Wilson', number: 4, position: 'defense', dob: '1997-03-08', nationality: 'England', height: 188, weight: 85, status: 'active', stats: { games: 29, goals: 2, assists: 3, minutes: 2610 } },
+    { id: '4', firstName: 'Carlos', lastName: 'Santos', number: 1, position: 'goalkeeper', dob: '1994-09-30', nationality: 'Brazil', height: 192, weight: 88, status: 'active', stats: { games: 30, goals: 0, assists: 0, minutes: 2700 } },
+    { id: '5', firstName: 'Tyler', lastName: 'Brown', number: 11, position: 'forward', dob: '2000-07-12', nationality: 'USA', height: 180, weight: 75, status: 'injured', stats: { games: 18, goals: 7, assists: 4, minutes: 1260 } }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

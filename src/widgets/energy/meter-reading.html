@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meter Reading - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"meter-reading","name":"Meter Reading","icon":"⚡","desc":"Track utility meter readings and consumption","category":"energy","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:20px;border-radius:12px;border:1px solid #333}
+.stat-icon{font-size:2rem;margin-bottom:10px}
+.stat-value{font-size:1.75rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.875rem;color:#888;margin-top:5px}
+.stat-trend{font-size:.75rem;margin-top:5px}
+.stat-trend.up{color:#ef4444}
+.stat-trend.down{color:#10b981}
+.chart-container{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333;margin-bottom:20px}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.chart-title{font-weight:600}
+.chart{height:200px;display:flex;align-items:end;gap:8px;padding:10px 0}
+.bar{flex:1;background:linear-gradient(to top,#10b981,#3b82f6);border-radius:4px 4px 0 0;position:relative;min-width:30px}
+.bar-label{position:absolute;bottom:-25px;left:50%;transform:translateX(-50%);font-size:.7rem;color:#888}
+.bar-value{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:.7rem;font-weight:bold}
+.meters-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+.meter-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.meter-header{display:flex;justify-content:space-between;align-items:center;padding:15px;border-bottom:1px solid #333}
+.meter-id{font-weight:600;display:flex;align-items:center;gap:8px}
+.meter-type{padding:4px 10px;border-radius:12px;font-size:.75rem}
+.meter-type.electric{background:#f59e0b33;color:#f59e0b}
+.meter-type.gas{background:#3b82f633;color:#3b82f6}
+.meter-type.water{background:#06b6d433;color:#06b6d4}
+.meter-body{padding:15px}
+.reading-display{text-align:center;padding:20px;background:#252525;border-radius:8px;margin-bottom:15px}
+.reading-value{font-size:2.5rem;font-weight:bold;font-family:monospace;color:#10b981}
+.reading-unit{font-size:1rem;color:#888}
+.reading-date{font-size:.75rem;color:#666;margin-top:5px}
+.meter-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.875rem}
+.info-label{color:#888}
+.meter-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:400px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>⚡ Meter Reading</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Record Reading</button>
+</div>
+
+<div class="stats">
+<div class="stat">
+<div class="stat-icon">💡</div>
+<div class="stat-value" id="electricUsage">0</div>
+<div class="stat-label">kWh This Month</div>
+<div class="stat-trend up" id="electricTrend">↑ 5% vs last month</div>
+</div>
+<div class="stat">
+<div class="stat-icon">🔥</div>
+<div class="stat-value" id="gasUsage">0</div>
+<div class="stat-label">Therms This Month</div>
+<div class="stat-trend down" id="gasTrend">↓ 12% vs last month</div>
+</div>
+<div class="stat">
+<div class="stat-icon">💧</div>
+<div class="stat-value" id="waterUsage">0</div>
+<div class="stat-label">Gallons This Month</div>
+<div class="stat-trend down" id="waterTrend">↓ 3% vs last month</div>
+</div>
+<div class="stat">
+<div class="stat-icon">💰</div>
+<div class="stat-value" id="estCost">$0</div>
+<div class="stat-label">Est. Monthly Cost</div>
+</div>
+</div>
+
+<div class="chart-container">
+<div class="chart-header">
+<span class="chart-title">📊 Monthly Electric Usage (kWh)</span>
+<select id="chartType" onchange="updateChart()" style="padding:5px;background:#252525;border:1px solid #333;color:#e0e0e0;border-radius:4px">
+<option value="electric">Electric</option>
+<option value="gas">Gas</option>
+<option value="water">Water</option>
+</select>
+</div>
+<div class="chart" id="usageChart"></div>
+</div>
+
+<div class="meters-grid" id="meterGrid"></div>
+
+<div class="modal" id="readingModal">
+<div class="modal-content">
+<h2>Record Reading</h2>
+<form id="readingForm">
+<div class="form-group">
+<label>Meter</label>
+<select id="readingMeter" required></select>
+</div>
+<div class="form-group">
+<label>Reading Value</label>
+<input type="number" id="readingValue" step="0.01" required>
+</div>
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="readingDate" required>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Save Reading</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_meter_readings';
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+  meters: [
+    { id: 'E-001', name: 'Main Electric', type: 'electric', unit: 'kWh', location: 'Building A', rate: 0.12 },
+    { id: 'G-001', name: 'Natural Gas', type: 'gas', unit: 'therms', location: 'Building A', rate: 1.50 },
+    { id: 'W-001', name: 'Water Main', type: 'water', unit: 'gal', location: 'Building A', rate: 0.005 }
+  ],
+  readings: [
+    { meterId: 'E-001', value: 45230, date: '2024-11-01' },
+    { meterId: 'E-001', value: 45980, date: '2024-12-01' },
+    { meterId: 'G-001', value: 1250, date: '2024-11-01' },
+    { meterId: 'G-001', value: 1320, date: '2024-12-01' },
+    { meterId: 'W-001', value: 125000, date: '2024-11-01' },
+    { meterId: 'W-001', value: 128500, date: '2024-12-01' }
+  ]
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getUsage(meterId) {
+  const readings = data.readings.filter(r => r.meterId === meterId).sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (readings.length < 2) return 0;
+  return readings[0].value - readings[1].value;
+}
+
+function getLatestReading(meterId) {
+  const readings = data.readings.filter(r => r.meterId === meterId).sort((a, b) => new Date(b.date) - new Date(a.date));
+  return readings[0] || null;
+}
+
+function updateStats() {
+  const electric = data.meters.filter(m => m.type === 'electric').reduce((sum, m) => sum + getUsage(m.id), 0);
+  const gas = data.meters.filter(m => m.type === 'gas').reduce((sum, m) => sum + getUsage(m.id), 0);
+  const water = data.meters.filter(m => m.type === 'water').reduce((sum, m) => sum + getUsage(m.id), 0);
+
+  const cost = (electric * 0.12) + (gas * 1.50) + (water * 0.005);
+
+  document.getElementById('electricUsage').textContent = electric.toLocaleString();
+  document.getElementById('gasUsage').textContent = gas.toLocaleString();
+  document.getElementById('waterUsage').textContent = water.toLocaleString();
+  document.getElementById('estCost').textContent = '$' + cost.toFixed(2);
+}
+
+function updateChart() {
+  const type = document.getElementById('chartType').value;
+  const meters = data.meters.filter(m => m.type === type);
+  const chart = document.getElementById('usageChart');
+
+  // Generate last 6 months of mock data
+  const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const values = type === 'electric' ? [720, 850, 680, 750, 800, 750] :
+                 type === 'gas' ? [45, 35, 40, 55, 70, 65] :
+                 [3200, 3500, 3100, 2900, 3500, 3400];
+  const max = Math.max(...values);
+
+  chart.innerHTML = values.map((v, i) => `
+    <div class="bar" style="height:${(v / max) * 100}%">
+      <span class="bar-value">${v}</span>
+      <span class="bar-label">${months[i]}</span>
+    </div>
+  `).join('');
+}
+
+function render() {
+  const grid = document.getElementById('meterGrid');
+
+  grid.innerHTML = data.meters.map(meter => {
+    const latest = getLatestReading(meter.id);
+    const usage = getUsage(meter.id);
+
+    return `
+      <div class="meter-card">
+        <div class="meter-header">
+          <div class="meter-id">${meter.type === 'electric' ? '💡' : meter.type === 'gas' ? '🔥' : '💧'} ${meter.name}</div>
+          <span class="meter-type ${meter.type}">${meter.type}</span>
+        </div>
+        <div class="meter-body">
+          <div class="reading-display">
+            <div class="reading-value">${latest ? latest.value.toLocaleString() : '---'}</div>
+            <div class="reading-unit">${meter.unit}</div>
+            <div class="reading-date">${latest ? new Date(latest.date).toLocaleDateString() : 'No readings'}</div>
+          </div>
+          <div class="meter-info">
+            <div><span class="info-label">Usage:</span> ${usage.toLocaleString()} ${meter.unit}</div>
+            <div><span class="info-label">Rate:</span> $${meter.rate}/${meter.unit}</div>
+            <div><span class="info-label">Cost:</span> $${(usage * meter.rate).toFixed(2)}</div>
+            <div><span class="info-label">Location:</span> ${meter.location}</div>
+          </div>
+        </div>
+        <div class="meter-actions">
+          <button class="btn btn-primary" onclick="quickReading('${meter.id}')">📝 New Reading</button>
+          <button class="btn btn-secondary" onclick="viewHistory('${meter.id}')">📊 History</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+  updateChart();
+}
+
+function showModal() {
+  const select = document.getElementById('readingMeter');
+  select.innerHTML = data.meters.map(m => `<option value="${m.id}">${m.name} (${m.type})</option>`).join('');
+  document.getElementById('readingDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('readingModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('readingModal').classList.remove('active');
+}
+
+function quickReading(meterId) {
+  document.getElementById('readingMeter').value = meterId;
+  showModal();
+}
+
+document.getElementById('readingForm').addEventListener('submit', e => {
+  e.preventDefault();
+  data.readings.push({
+    meterId: document.getElementById('readingMeter').value,
+    value: parseFloat(document.getElementById('readingValue').value),
+    date: document.getElementById('readingDate').value
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function viewHistory(meterId) {
+  const meter = data.meters.find(m => m.id === meterId);
+  const readings = data.readings.filter(r => r.meterId === meterId).sort((a, b) => new Date(b.date) - new Date(a.date));
+  alert(`${meter.name} History:\n\n${readings.map(r => `${r.date}: ${r.value.toLocaleString()} ${meter.unit}`).join('\n')}`);
+}
+
+render();
+</script>
+</body>
+</html>

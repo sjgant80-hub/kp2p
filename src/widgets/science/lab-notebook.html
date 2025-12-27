@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lab Notebook - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"lab-notebook","name":"Lab Notebook","icon":"🔬","desc":"Digital laboratory notebook for experiments","category":"science","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh;display:flex}
+.sidebar{width:280px;background:#1a1a1a;border-right:1px solid #333;padding:20px;display:flex;flex-direction:column}
+.sidebar h2{font-size:1.125rem;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.search-box{margin-bottom:15px}
+.search-box input{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;width:100%}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.experiments-list{flex:1;overflow-y:auto;margin-top:15px}
+.experiment-item{padding:12px;background:#252525;border-radius:8px;margin-bottom:10px;cursor:pointer;border:1px solid transparent}
+.experiment-item:hover,.experiment-item.active{border-color:#10b981}
+.experiment-item h3{font-size:.875rem;margin-bottom:4px}
+.experiment-item span{font-size:.75rem;color:#888}
+.experiment-item .status{padding:2px 6px;border-radius:4px;font-size:.65rem;margin-left:5px}
+.experiment-item .status.active{background:#10b98133;color:#10b981}
+.experiment-item .status.completed{background:#3b82f633;color:#3b82f6}
+.experiment-item .status.archived{background:#6b728033;color:#888}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{display:flex;gap:10px;padding:15px;background:#1a1a1a;border-bottom:1px solid #333;flex-wrap:wrap}
+.tool-btn{padding:8px 12px;background:#252525;border:1px solid #333;border-radius:6px;color:#e0e0e0;cursor:pointer;font-size:.875rem}
+.tool-btn:hover{background:#333}
+.content{flex:1;overflow-y:auto;padding:20px}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#666}
+.empty-state span{font-size:4rem;margin-bottom:15px}
+.notebook{max-width:900px;margin:0 auto}
+.notebook-header{margin-bottom:30px}
+.notebook-header h1{font-size:1.75rem;margin-bottom:10px}
+.notebook-meta{display:flex;gap:20px;color:#888;font-size:.875rem;flex-wrap:wrap}
+.section{background:#1a1a1a;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #333}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.section-title{font-weight:600;display:flex;align-items:center;gap:8px}
+.section-content{line-height:1.8}
+.section-content p{margin-bottom:10px}
+.section-content ul{margin-left:20px;margin-bottom:10px}
+.section-content li{margin-bottom:5px}
+.data-table{width:100%;border-collapse:collapse;margin:15px 0}
+.data-table th,.data-table td{padding:10px;border:1px solid #333;text-align:left}
+.data-table th{background:#252525;font-weight:500}
+.observation{background:#252525;padding:15px;border-radius:8px;margin:10px 0;border-left:3px solid #10b981}
+.observation-time{font-size:.75rem;color:#888;margin-bottom:5px}
+.add-section{text-align:center;padding:20px;border:2px dashed #333;border-radius:8px;cursor:pointer;color:#888;margin-top:20px}
+.add-section:hover{border-color:#10b981;color:#10b981}
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h2>🔬 Lab Notebook</h2>
+<div class="search-box">
+<input type="text" placeholder="Search experiments..." id="searchInput" oninput="filterExperiments()">
+</div>
+<button class="btn btn-primary" onclick="newExperiment()">+ New Experiment</button>
+<div class="experiments-list" id="experimentsList"></div>
+</div>
+<div class="main">
+<div class="toolbar">
+<button class="tool-btn" onclick="addSection('hypothesis')">📝 Hypothesis</button>
+<button class="tool-btn" onclick="addSection('materials')">🧪 Materials</button>
+<button class="tool-btn" onclick="addSection('procedure')">📋 Procedure</button>
+<button class="tool-btn" onclick="addSection('data')">📊 Data</button>
+<button class="tool-btn" onclick="addSection('observation')">👁️ Observation</button>
+<button class="tool-btn" onclick="addSection('conclusion')">✅ Conclusion</button>
+</div>
+<div class="content" id="content">
+<div class="empty-state">
+<span>🔬</span>
+<p>Select an experiment or create a new one</p>
+</div>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_lab_notebook';
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || { experiments: [] };
+let currentExperiment = null;
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function renderExperimentsList() {
+  const list = document.getElementById('experimentsList');
+  const search = document.getElementById('searchInput').value.toLowerCase();
+
+  const filtered = data.experiments.filter(e =>
+    e.title.toLowerCase().includes(search) ||
+    e.description?.toLowerCase().includes(search)
+  );
+
+  list.innerHTML = filtered.length === 0 ?
+    '<div style="color:#666;text-align:center;padding:20px">No experiments</div>' :
+    filtered.map(exp => `
+      <div class="experiment-item${currentExperiment?.id === exp.id ? ' active' : ''}" onclick="loadExperiment('${exp.id}')">
+        <h3>${exp.title}</h3>
+        <span>${new Date(exp.createdAt).toLocaleDateString()}</span>
+        <span class="status ${exp.status}">${exp.status}</span>
+      </div>
+    `).join('');
+}
+
+function loadExperiment(id) {
+  currentExperiment = data.experiments.find(e => e.id === id);
+  renderExperimentsList();
+  renderExperiment();
+}
+
+function renderExperiment() {
+  const content = document.getElementById('content');
+
+  if (!currentExperiment) {
+    content.innerHTML = `<div class="empty-state"><span>🔬</span><p>Select an experiment or create a new one</p></div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <div class="notebook">
+      <div class="notebook-header">
+        <h1 contenteditable="true" onblur="updateTitle(this)">${currentExperiment.title}</h1>
+        <div class="notebook-meta">
+          <span>📅 Created: ${new Date(currentExperiment.createdAt).toLocaleDateString()}</span>
+          <span>👤 Researcher: ${currentExperiment.researcher || 'Not specified'}</span>
+          <span>🏷️ Status: ${currentExperiment.status}</span>
+        </div>
+      </div>
+
+      ${currentExperiment.sections.map((section, i) => renderSection(section, i)).join('')}
+
+      <div class="add-section" onclick="showSectionMenu()">+ Add Section</div>
+    </div>
+  `;
+}
+
+function renderSection(section, index) {
+  const icons = { hypothesis: '📝', materials: '🧪', procedure: '📋', data: '📊', observation: '👁️', conclusion: '✅' };
+
+  let contentHtml = '';
+  if (section.type === 'data') {
+    contentHtml = `
+      <table class="data-table">
+        <thead><tr>${section.headers?.map(h => `<th>${h}</th>`).join('') || '<th>Trial</th><th>Value</th>'}</tr></thead>
+        <tbody>${section.rows?.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('') || ''}</tbody>
+      </table>
+      <button class="btn btn-secondary" style="width:auto;margin-top:10px" onclick="addDataRow(${index})">+ Add Row</button>
+    `;
+  } else if (section.type === 'observation') {
+    contentHtml = `
+      ${section.observations?.map(obs => `
+        <div class="observation">
+          <div class="observation-time">${new Date(obs.time).toLocaleString()}</div>
+          <p>${obs.text}</p>
+        </div>
+      `).join('') || ''}
+      <button class="btn btn-secondary" style="width:auto;margin-top:10px" onclick="addObservation(${index})">+ Add Observation</button>
+    `;
+  } else {
+    contentHtml = `<div class="section-content" contenteditable="true" onblur="updateSection(${index}, this)">${section.content || 'Click to edit...'}</div>`;
+  }
+
+  return `
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">${icons[section.type] || '📄'} ${section.type.charAt(0).toUpperCase() + section.type.slice(1)}</div>
+        <button class="btn btn-secondary" style="width:auto;padding:4px 8px;font-size:.75rem" onclick="deleteSection(${index})">🗑️</button>
+      </div>
+      ${contentHtml}
+    </div>
+  `;
+}
+
+function newExperiment() {
+  const title = prompt('Experiment title:', 'New Experiment');
+  if (!title) return;
+
+  const exp = {
+    id: Date.now().toString(),
+    title,
+    researcher: 'Lab User',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    sections: []
+  };
+
+  data.experiments.unshift(exp);
+  save();
+  loadExperiment(exp.id);
+}
+
+function updateTitle(el) {
+  if (currentExperiment) {
+    currentExperiment.title = el.textContent;
+    save();
+    renderExperimentsList();
+  }
+}
+
+function addSection(type) {
+  if (!currentExperiment) {
+    alert('Please select or create an experiment first');
+    return;
+  }
+
+  const section = { type, content: '' };
+  if (type === 'data') {
+    section.headers = ['Trial', 'Value', 'Notes'];
+    section.rows = [];
+  } else if (type === 'observation') {
+    section.observations = [];
+  }
+
+  currentExperiment.sections.push(section);
+  save();
+  renderExperiment();
+}
+
+function updateSection(index, el) {
+  if (currentExperiment) {
+    currentExperiment.sections[index].content = el.innerHTML;
+    save();
+  }
+}
+
+function deleteSection(index) {
+  if (confirm('Delete this section?')) {
+    currentExperiment.sections.splice(index, 1);
+    save();
+    renderExperiment();
+  }
+}
+
+function addDataRow(index) {
+  const value = prompt('Enter values (comma-separated):');
+  if (value) {
+    const row = value.split(',').map(v => v.trim());
+    currentExperiment.sections[index].rows.push(row);
+    save();
+    renderExperiment();
+  }
+}
+
+function addObservation(index) {
+  const text = prompt('Enter observation:');
+  if (text) {
+    currentExperiment.sections[index].observations.push({
+      time: new Date().toISOString(),
+      text
+    });
+    save();
+    renderExperiment();
+  }
+}
+
+function filterExperiments() {
+  renderExperimentsList();
+}
+
+// Seed data
+if (data.experiments.length === 0) {
+  data.experiments = [{
+    id: '1',
+    title: 'Effect of Temperature on Enzyme Activity',
+    researcher: 'Dr. Smith',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    sections: [
+      { type: 'hypothesis', content: 'Enzyme activity will increase with temperature until reaching an optimal point, after which activity will decrease due to denaturation.' },
+      { type: 'materials', content: '<ul><li>Amylase enzyme solution</li><li>Starch solution</li><li>Iodine indicator</li><li>Water baths (20°C, 30°C, 40°C, 50°C, 60°C)</li><li>Test tubes and stopwatch</li></ul>' },
+      { type: 'data', headers: ['Temperature (°C)', 'Time (s)', 'Activity Rate'], rows: [['20', '180', '0.56'], ['30', '120', '0.83'], ['40', '60', '1.67'], ['50', '45', '2.22'], ['60', '90', '1.11']] },
+      { type: 'observation', observations: [{ time: new Date().toISOString(), text: 'Optimal activity observed at 50°C. Significant decrease at 60°C indicates enzyme denaturation.' }] }
+    ]
+  }];
+  save();
+}
+
+renderExperimentsList();
+if (data.experiments.length > 0) {
+  loadExperiment(data.experiments[0].id);
+}
+</script>
+</body>
+</html>

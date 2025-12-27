@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crop Tracker - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"crop-tracker","name":"Crop Tracker","icon":"🌾","desc":"Track crop growth, planting, and harvesting","category":"agriculture","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:20px}
+.stat{background:#1a1a1a;padding:15px;border-radius:8px;border:1px solid #333;text-align:center}
+.stat-value{font-size:1.5rem;font-weight:bold;color:#10b981}
+.stat-label{font-size:.75rem;color:#888;margin-top:5px}
+.fields-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.field-card{background:#1a1a1a;border-radius:12px;border:1px solid #333;overflow:hidden}
+.field-header{padding:15px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+.field-name{font-weight:600;display:flex;align-items:center;gap:8px}
+.field-size{color:#888;font-size:.875rem}
+.field-body{padding:15px}
+.crop-info{display:flex;gap:15px;margin-bottom:15px}
+.crop-icon{font-size:3rem}
+.crop-details h3{font-size:1rem;margin-bottom:5px}
+.crop-details p{font-size:.875rem;color:#888}
+.growth-stage{margin-bottom:15px}
+.stage-label{display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:8px}
+.stage-bar{height:8px;background:#333;border-radius:4px;overflow:hidden}
+.stage-fill{height:100%;background:linear-gradient(90deg,#22c55e,#84cc16);border-radius:4px}
+.field-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
+.field-stat{text-align:center;padding:10px;background:#252525;border-radius:6px}
+.field-stat-value{font-weight:bold;font-size:1.125rem}
+.field-stat-label{font-size:.7rem;color:#888}
+.activities{margin-top:15px;padding-top:15px;border-top:1px solid #333}
+.activities h4{font-size:.875rem;color:#888;margin-bottom:10px}
+.activity{display:flex;align-items:center;gap:10px;padding:8px;background:#252525;border-radius:6px;margin-bottom:5px;font-size:.875rem}
+.activity-icon{font-size:1.25rem}
+.activity-date{color:#888;margin-left:auto;font-size:.75rem}
+.field-actions{display:flex;gap:10px;padding:15px;border-top:1px solid #333}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.875rem;flex:1}
+.btn-primary{background:#10b981;color:#fff}
+.btn-secondary{background:#333;color:#e0e0e0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;z-index:1000}
+.modal.active{display:flex}
+.modal-content{background:#1a1a1a;padding:25px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;margin-bottom:5px;color:#888;font-size:.875rem}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#252525;color:#e0e0e0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🌾 Crop Tracker</h1>
+<button class="btn btn-primary" onclick="showModal()">+ Add Field</button>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="stat-value" id="totalAcres">0</div><div class="stat-label">Total Acres</div></div>
+<div class="stat"><div class="stat-value" id="activeCrops">0</div><div class="stat-label">Active Crops</div></div>
+<div class="stat"><div class="stat-value" id="harvestReady">0</div><div class="stat-label">Harvest Ready</div></div>
+<div class="stat"><div class="stat-value" id="estYield">0</div><div class="stat-label">Est. Yield (tons)</div></div>
+</div>
+
+<div class="fields-grid" id="fieldsGrid"></div>
+
+<div class="modal" id="fieldModal">
+<div class="modal-content">
+<h2>Add Field</h2>
+<form id="fieldForm">
+<div class="form-row">
+<div class="form-group">
+<label>Field Name</label>
+<input type="text" id="fieldName" required placeholder="e.g., North 40">
+</div>
+<div class="form-group">
+<label>Size (acres)</label>
+<input type="number" id="fieldSize" step="0.1" min="0" required>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label>Crop</label>
+<select id="fieldCrop">
+<option value="corn">🌽 Corn</option>
+<option value="wheat">🌾 Wheat</option>
+<option value="soybeans">🫘 Soybeans</option>
+<option value="cotton">🏵️ Cotton</option>
+<option value="rice">🍚 Rice</option>
+<option value="potatoes">🥔 Potatoes</option>
+</select>
+</div>
+<div class="form-group">
+<label>Planting Date</label>
+<input type="date" id="plantingDate" required>
+</div>
+</div>
+<div class="form-group">
+<label>Expected Harvest Date</label>
+<input type="date" id="harvestDate" required>
+</div>
+<div class="btn-row">
+<button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+<button type="submit" class="btn btn-primary">Add Field</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kiss_crop_tracker';
+let fields = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const cropInfo = {
+  corn: { icon: '🌽', name: 'Corn', yieldPerAcre: 4.5 },
+  wheat: { icon: '🌾', name: 'Wheat', yieldPerAcre: 2.5 },
+  soybeans: { icon: '🫘', name: 'Soybeans', yieldPerAcre: 1.5 },
+  cotton: { icon: '🏵️', name: 'Cotton', yieldPerAcre: 0.5 },
+  rice: { icon: '🍚', name: 'Rice', yieldPerAcre: 3.5 },
+  potatoes: { icon: '🥔', name: 'Potatoes', yieldPerAcre: 20 }
+};
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(fields));
+}
+
+function getGrowthProgress(field) {
+  const planted = new Date(field.plantingDate);
+  const harvest = new Date(field.harvestDate);
+  const now = new Date();
+  const total = harvest - planted;
+  const elapsed = now - planted;
+  return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+}
+
+function getGrowthStage(progress) {
+  if (progress < 20) return 'Germination';
+  if (progress < 40) return 'Vegetative';
+  if (progress < 60) return 'Flowering';
+  if (progress < 80) return 'Grain Fill';
+  if (progress < 95) return 'Maturing';
+  return 'Harvest Ready';
+}
+
+function updateStats() {
+  const totalAcres = fields.reduce((sum, f) => sum + f.size, 0);
+  const harvestReady = fields.filter(f => getGrowthProgress(f) >= 95).length;
+  const estYield = fields.reduce((sum, f) => {
+    const crop = cropInfo[f.crop];
+    return sum + (f.size * crop.yieldPerAcre);
+  }, 0);
+
+  document.getElementById('totalAcres').textContent = totalAcres.toFixed(1);
+  document.getElementById('activeCrops').textContent = fields.length;
+  document.getElementById('harvestReady').textContent = harvestReady;
+  document.getElementById('estYield').textContent = estYield.toFixed(0);
+}
+
+function render() {
+  const grid = document.getElementById('fieldsGrid');
+
+  if (fields.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:#666;grid-column:1/-1">No fields added yet</div>';
+    updateStats();
+    return;
+  }
+
+  grid.innerHTML = fields.map(field => {
+    const crop = cropInfo[field.crop];
+    const progress = getGrowthProgress(field);
+    const stage = getGrowthStage(progress);
+    const daysToHarvest = Math.max(0, Math.ceil((new Date(field.harvestDate) - new Date()) / (1000 * 60 * 60 * 24)));
+    const estYield = (field.size * crop.yieldPerAcre).toFixed(1);
+
+    return `
+      <div class="field-card">
+        <div class="field-header">
+          <div class="field-name">🌱 ${field.name}</div>
+          <div class="field-size">${field.size} acres</div>
+        </div>
+        <div class="field-body">
+          <div class="crop-info">
+            <div class="crop-icon">${crop.icon}</div>
+            <div class="crop-details">
+              <h3>${crop.name}</h3>
+              <p>Planted: ${new Date(field.plantingDate).toLocaleDateString()}</p>
+            </div>
+          </div>
+          <div class="growth-stage">
+            <div class="stage-label">
+              <span>${stage}</span>
+              <span>${progress}%</span>
+            </div>
+            <div class="stage-bar">
+              <div class="stage-fill" style="width:${progress}%"></div>
+            </div>
+          </div>
+          <div class="field-stats">
+            <div class="field-stat">
+              <div class="field-stat-value">${daysToHarvest}</div>
+              <div class="field-stat-label">Days to Harvest</div>
+            </div>
+            <div class="field-stat">
+              <div class="field-stat-value">${estYield}</div>
+              <div class="field-stat-label">Est. Yield (tons)</div>
+            </div>
+            <div class="field-stat">
+              <div class="field-stat-value">${field.activities?.length || 0}</div>
+              <div class="field-stat-label">Activities</div>
+            </div>
+          </div>
+          <div class="activities">
+            <h4>Recent Activities</h4>
+            ${(field.activities || []).slice(-3).map(a => `
+              <div class="activity">
+                <span class="activity-icon">${a.icon}</span>
+                <span>${a.name}</span>
+                <span class="activity-date">${new Date(a.date).toLocaleDateString()}</span>
+              </div>
+            `).join('') || '<div style="color:#666;font-size:.875rem">No activities logged</div>'}
+          </div>
+        </div>
+        <div class="field-actions">
+          <button class="btn btn-secondary" onclick="logActivity('${field.id}')">📝 Log Activity</button>
+          <button class="btn btn-secondary" onclick="deleteField('${field.id}')">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  updateStats();
+}
+
+function showModal() {
+  document.getElementById('plantingDate').value = new Date().toISOString().split('T')[0];
+  const harvest = new Date();
+  harvest.setMonth(harvest.getMonth() + 4);
+  document.getElementById('harvestDate').value = harvest.toISOString().split('T')[0];
+  document.getElementById('fieldModal').classList.add('active');
+}
+
+function hideModal() {
+  document.getElementById('fieldModal').classList.remove('active');
+}
+
+document.getElementById('fieldForm').addEventListener('submit', e => {
+  e.preventDefault();
+  fields.push({
+    id: Date.now().toString(),
+    name: document.getElementById('fieldName').value,
+    size: parseFloat(document.getElementById('fieldSize').value),
+    crop: document.getElementById('fieldCrop').value,
+    plantingDate: document.getElementById('plantingDate').value,
+    harvestDate: document.getElementById('harvestDate').value,
+    activities: []
+  });
+  save();
+  render();
+  hideModal();
+  e.target.reset();
+});
+
+function logActivity(fieldId) {
+  const activities = [
+    { icon: '💧', name: 'Irrigation' },
+    { icon: '🧪', name: 'Fertilizer Applied' },
+    { icon: '🐛', name: 'Pest Control' },
+    { icon: '🔍', name: 'Field Inspection' },
+    { icon: '🌿', name: 'Weeding' }
+  ];
+  const choice = prompt('Select activity:\n1. Irrigation\n2. Fertilizer\n3. Pest Control\n4. Inspection\n5. Weeding');
+  const idx = parseInt(choice) - 1;
+  if (idx >= 0 && idx < activities.length) {
+    const field = fields.find(f => f.id === fieldId);
+    if (field) {
+      if (!field.activities) field.activities = [];
+      field.activities.push({ ...activities[idx], date: new Date().toISOString() });
+      save();
+      render();
+    }
+  }
+}
+
+function deleteField(id) {
+  if (confirm('Delete this field?')) {
+    fields = fields.filter(f => f.id !== id);
+    save();
+    render();
+  }
+}
+
+// Seed data
+if (fields.length === 0) {
+  const today = new Date();
+  const threeMonthsAgo = new Date(today);
+  threeMonthsAgo.setMonth(today.getMonth() - 3);
+  const twoMonthsLater = new Date(today);
+  twoMonthsLater.setMonth(today.getMonth() + 2);
+
+  fields = [
+    {
+      id: '1', name: 'North Field', size: 45, crop: 'corn',
+      plantingDate: threeMonthsAgo.toISOString().split('T')[0],
+      harvestDate: twoMonthsLater.toISOString().split('T')[0],
+      activities: [
+        { icon: '💧', name: 'Irrigation', date: new Date(Date.now() - 7*24*60*60*1000).toISOString() },
+        { icon: '🧪', name: 'Fertilizer Applied', date: new Date(Date.now() - 14*24*60*60*1000).toISOString() }
+      ]
+    },
+    {
+      id: '2', name: 'South 20', size: 20, crop: 'soybeans',
+      plantingDate: threeMonthsAgo.toISOString().split('T')[0],
+      harvestDate: twoMonthsLater.toISOString().split('T')[0],
+      activities: []
+    }
+  ];
+  save();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -263,6 +263,23 @@ const categoryMap = {
 
   // Construction
   'project-tracker': { category: 'construction', subcategory: 'projects', badge: 'ENT' },
+
+  // Energy
+  'meter-reading': { category: 'energy', subcategory: 'utilities', badge: 'ENT' },
+  'solar-monitor': { category: 'energy', subcategory: 'renewable', badge: 'ENT' },
+
+  // Agriculture
+  'crop-tracker': { category: 'agriculture', subcategory: 'crops', badge: 'ENT' },
+  'livestock-manager': { category: 'agriculture', subcategory: 'livestock', badge: 'ENT' },
+
+  // Media
+  'content-calendar': { category: 'media', subcategory: 'planning', badge: 'ENT' },
+
+  // Sports
+  'team-roster': { category: 'sports', subcategory: 'teams', badge: 'ENT' },
+
+  // Science
+  'lab-notebook': { category: 'science', subcategory: 'research', badge: 'ENT' },
 };
 
 // Default fallback values

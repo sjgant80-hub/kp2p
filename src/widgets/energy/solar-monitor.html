@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Solar Monitor - KISS MySaaS</title>
+<script type="application/json" id="widget-meta">{"id":"solar-monitor","name":"Solar Monitor","icon":"☀️","desc":"Monitor solar panel production and efficiency","category":"energy","version":"1.0.0"}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;padding:20px;min-height:100vh}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+h1{font-size:1.5rem;display:flex;align-items:center;gap:10px}
+.live-badge{padding:4px 10px;background:#10b98133;color:#10b981;border-radius:12px;font-size:.75rem;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.hero-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:20px}
+.hero-stat{background:linear-gradient(135deg,#1a1a1a,#252525);padding:25px;border-radius:16px;text-align:center;border:1px solid #333}
+.hero-stat.production{border-color:#f59e0b44}
+.hero-icon{font-size:3rem;margin-bottom:10px}
+.hero-value{font-size:2.5rem;font-weight:bold}
+.hero-value.yellow{color:#f59e0b}
+.hero-value.green{color:#10b981}
+.hero-value.blue{color:#3b82f6}
+.hero-label{color:#888;margin-top:5px}
+.hero-sub{font-size:.875rem;color:#666;margin-top:10px}
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:900px){.charts-row{grid-template-columns:1fr}}
+.chart-card{background:#1a1a1a;border-radius:12px;padding:20px;border:1px solid #333}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.chart-title{font-weight:600}
+.production-chart{height:180px;display:flex;align-items:end;gap:3px}
+.hour-bar{flex:1;background:linear-gradient(to top,#f59e0b,#fbbf24);border-radius:2px 2px 0 0;position:relative}
+.hour-bar:hover::after{content:attr(data-value);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#333;padding:2px 6px;border-radius:4px;font-size:.7rem;white-space:nowrap}
+.efficiency-gauge{width:150px;height:150px;margin:0 auto;position:relative}
+.gauge-circle{fill:none;stroke:#333;stroke-width:12}
+.gauge-progress{fill:none;stroke:#10b981;stroke-width:12;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset .5s}
+.gauge-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-value{font-size:2rem;font-weight:bold;color:#10b981}
+.gauge-label{font-size:.75rem;color:#888}
+.panels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.panel{background:#1a1a1a;border-radius:8px;padding:15px;border:1px solid #333;text-align:center}
+.panel.active{border-color:#10b981}
+.panel.warning{border-color:#f59e0b}
+.panel.error{border-color:#ef4444}
+.panel-id{font-size:.75rem;color:#888;margin-bottom:5px}
+.panel-output{font-size:1.25rem;font-weight:bold}
+.panel-status{font-size:.7rem;margin-top:5px}
+.panel-status.good{color:#10b981}
+.panel-status.warn{color:#f59e0b}
+.panel-status.bad{color:#ef4444}
+.summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.summary-card{background:#1a1a1a;border-radius:8px;padding:15px;border:1px solid #333;display:flex;align-items:center;gap:15px}
+.summary-icon{font-size:2rem}
+.summary-info h4{font-size:.875rem;color:#888}
+.summary-info p{font-size:1.25rem;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>☀️ Solar Monitor</h1>
+<span class="live-badge">● LIVE</span>
+</div>
+
+<div class="hero-stats">
+<div class="hero-stat production">
+<div class="hero-icon">⚡</div>
+<div class="hero-value yellow" id="currentPower">4.2 kW</div>
+<div class="hero-label">Current Production</div>
+<div class="hero-sub">Peak today: 5.8 kW</div>
+</div>
+<div class="hero-stat">
+<div class="hero-icon">📊</div>
+<div class="hero-value green" id="todayEnergy">32.5 kWh</div>
+<div class="hero-label">Today's Energy</div>
+<div class="hero-sub">↑ 8% vs yesterday</div>
+</div>
+<div class="hero-stat">
+<div class="hero-icon">💰</div>
+<div class="hero-value blue" id="savings">$4.87</div>
+<div class="hero-label">Today's Savings</div>
+<div class="hero-sub">$142.50 this month</div>
+</div>
+<div class="hero-stat">
+<div class="hero-icon">🌍</div>
+<div class="hero-value green" id="co2Saved">18.2 kg</div>
+<div class="hero-label">CO₂ Avoided</div>
+<div class="hero-sub">= 45 miles not driven</div>
+</div>
+</div>
+
+<div class="charts-row">
+<div class="chart-card">
+<div class="chart-header">
+<span class="chart-title">📈 Today's Production</span>
+<span style="font-size:.875rem;color:#888">kWh per hour</span>
+</div>
+<div class="production-chart" id="productionChart"></div>
+</div>
+<div class="chart-card">
+<div class="chart-header">
+<span class="chart-title">System Efficiency</span>
+</div>
+<div class="efficiency-gauge">
+<svg viewBox="0 0 100 100">
+<circle class="gauge-circle" cx="50" cy="50" r="40"/>
+<circle class="gauge-progress" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="25.12" id="efficiencyArc"/>
+</svg>
+<div class="gauge-text">
+<div class="gauge-value" id="efficiency">90%</div>
+<div class="gauge-label">Efficiency</div>
+</div>
+</div>
+</div>
+</div>
+
+<h3 style="margin-bottom:15px">🔲 Panel Status</h3>
+<div class="panels-grid" id="panelsGrid"></div>
+
+<div class="summary-row">
+<div class="summary-card">
+<div class="summary-icon">📅</div>
+<div class="summary-info">
+<h4>This Month</h4>
+<p id="monthEnergy">892 kWh</p>
+</div>
+</div>
+<div class="summary-card">
+<div class="summary-icon">📆</div>
+<div class="summary-info">
+<h4>This Year</h4>
+<p id="yearEnergy">8,450 kWh</p>
+</div>
+</div>
+<div class="summary-card">
+<div class="summary-icon">🔧</div>
+<div class="summary-info">
+<h4>System Size</h4>
+<p>6.0 kW</p>
+</div>
+</div>
+<div class="summary-card">
+<div class="summary-icon">📍</div>
+<div class="summary-info">
+<h4>Installed</h4>
+<p>Mar 2023</p>
+</div>
+</div>
+</div>
+
+<script>
+const panels = Array.from({length: 16}, (_, i) => ({
+  id: `P${(i + 1).toString().padStart(2, '0')}`,
+  output: Math.random() * 0.4 + 0.2,
+  status: Math.random() > 0.9 ? 'warning' : 'active'
+}));
+
+function renderPanels() {
+  const grid = document.getElementById('panelsGrid');
+  grid.innerHTML = panels.map(p => {
+    const statusClass = p.status === 'warning' ? 'warn' : 'good';
+    return `
+      <div class="panel ${p.status}">
+        <div class="panel-id">${p.id}</div>
+        <div class="panel-output">${p.output.toFixed(2)} kW</div>
+        <div class="panel-status ${statusClass}">${p.status === 'warning' ? '⚠️ Check' : '● Active'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderChart() {
+  const chart = document.getElementById('productionChart');
+  const hours = [];
+  const now = new Date().getHours();
+
+  for (let h = 6; h <= 20; h++) {
+    let production = 0;
+    if (h >= 7 && h <= 18) {
+      const peak = 12;
+      const distance = Math.abs(h - peak);
+      production = Math.max(0, 5.5 - distance * 0.5 + (Math.random() * 0.5 - 0.25));
+    }
+    if (h > now) production = 0;
+    hours.push({ hour: h, production });
+  }
+
+  const max = Math.max(...hours.map(h => h.production));
+  chart.innerHTML = hours.map(h => {
+    const height = max > 0 ? (h.production / max) * 100 : 0;
+    const label = h.hour > 12 ? (h.hour - 12) + 'pm' : h.hour + 'am';
+    return `<div class="hour-bar" style="height:${height}%" data-value="${h.production.toFixed(1)} kWh"></div>`;
+  }).join('');
+}
+
+function updateLiveData() {
+  const hour = new Date().getHours();
+  let currentPower = 0;
+  if (hour >= 7 && hour <= 18) {
+    const peak = 12;
+    const distance = Math.abs(hour - peak);
+    currentPower = Math.max(0, 5.5 - distance * 0.5 + (Math.random() * 0.8 - 0.4));
+  }
+
+  document.getElementById('currentPower').textContent = currentPower.toFixed(1) + ' kW';
+
+  // Update panels
+  panels.forEach(p => {
+    p.output = currentPower / 16 * (0.9 + Math.random() * 0.2);
+  });
+  renderPanels();
+}
+
+renderChart();
+renderPanels();
+setInterval(updateLiveData, 5000);
+</script>
+</body>
+</html>
