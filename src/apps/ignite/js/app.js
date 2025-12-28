@@ -6,8 +6,9 @@ import { $, escapeHtml, log } from './utils.js';
 import { connectMQTT, mqttState, publish, subscribe, unsubscribe } from './mqtt.js';
 import { connectOPCUA, browseOPCUA, monitorNode } from './opcua.js';
 import { connectOPCDA, addItem } from './opcda.js';
-import { connectIgnition, readTag, writeTag } from './ignition.js';
+import { connectIgnition, readTag, writeTag, ignitionState } from './ignition.js';
 import { tagDB, showTagDBConfig, initTagDB } from './tagdb.js';
+import { initAI, chat as aiChat } from './ai.js';
 
 // Application State
 const state = {
@@ -460,6 +461,58 @@ $('tagDBBtn')?.addEventListener('click', () => {
 // Initialize
 loadState();
 initTagDB();
+initAI();
 updateSubscriptionsList();
 log('info', 'Konomi Ignite initialized', 'SYS');
 log('info', 'Add a connection to get started', 'SYS');
+
+// AI Action Buttons
+$('aiScanTags')?.addEventListener('click', () => {
+  const tagCount = ignitionState.tags.size;
+  const udtCount = ignitionState.udts.size;
+  aiChat(`I have ${tagCount} tags and ${udtCount} UDTs configured. Can you summarize the current setup?`);
+});
+
+$('aiOptimize')?.addEventListener('click', () => {
+  aiChat('Analyze my current tag configuration and suggest optimizations for better organization and performance.');
+});
+
+$('aiCreateUDT')?.addEventListener('click', () => {
+  const name = prompt('What type of equipment? (e.g., Motor, Pump, Valve, Tank)');
+  if (name) {
+    aiChat(`Design a UDT for a ${name} with appropriate member tags for industrial automation.`);
+  }
+});
+
+$('aiTroubleshoot')?.addEventListener('click', () => {
+  aiChat('I\'m having issues with my tags. Help me troubleshoot common problems with OPC connections and tag quality.');
+});
+
+// Update AI tag context when Ignition connects
+const updateAIContext = () => {
+  const container = $('aiTagContext');
+  if (!container) return;
+
+  if (ignitionState.tags.size === 0) {
+    container.innerHTML = '<p style="color: var(--text-dim); font-size: 12px;">No tags configured yet.</p>';
+    return;
+  }
+
+  let html = '<div style="font-size: 11px; max-height: 200px; overflow-y: auto;">';
+  for (const [path, tag] of ignitionState.tags) {
+    if (tag.type === 'folder') continue;
+    const value = typeof tag.value === 'object' ? '{...}' : tag.value;
+    html += `<div style="padding: 3px 0; border-bottom: 1px solid var(--border);">
+      <span style="color: var(--cyan);">${escapeHtml(path)}</span>
+      <span style="float: right; font-family: monospace;">${value}</span>
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+};
+
+// Hook into connection events
+const origConnectIgnition = connectIgnition;
+window.addEventListener('load', () => {
+  setInterval(updateAIContext, 2000);
+});
