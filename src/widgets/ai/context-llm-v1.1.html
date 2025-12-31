@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<!--
+@file context-llm-v1.1.html
+@desc Enhanced Context LLM - visual meter, streaming, better feedback
+@api  window.ContextLLM
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "contextLLM_v1_1",
+    "name": "Context LLM v1.1",
+    "icon": "📦",
+    "desc": "Enhanced token-efficient chat",
+    "body": "Improved v1 with visual context meter, streaming responses, loading states, keyboard shortcuts, and better error handling.",
+    "kills": ["ChatGPT context limits", "API token costs $$$"],
+    "price": 30,
+    "color": "#f59e0b"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Context LLM v1.1</title>
+  <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:13px/1.4 system-ui,sans-serif;background:#0a0a0f;color:#e4e4e7;height:100vh;display:flex;flex-direction:column}
+.hdr{padding:10px 12px;background:#18181b;border-bottom:1px solid #27272a;display:flex;align-items:center;gap:10px}
+.hdr h1{font-size:14px;color:#f59e0b;flex:1}
+.hdr .ver{font-size:9px;background:#f59e0b;color:#000;padding:2px 6px;border-radius:3px;margin-left:4px}
+.hdr select{padding:4px 8px;background:#27272a;border:1px solid #3f3f46;border-radius:4px;color:#a1a1aa;font-size:11px}
+.hdr .status{font-size:10px;color:#22c55e;display:flex;align-items:center;gap:4px}
+.hdr .status::before{content:'';width:6px;height:6px;background:currentColor;border-radius:50%}
+.hdr .status.loading{color:#f59e0b}
+.hdr .status.error{color:#ef4444}
+.ctx-bar{display:flex;gap:8px;padding:6px 12px;background:#111;border-bottom:1px solid #222;font-size:10px;color:#71717a;align-items:center}
+.ctx-bar .stat{display:flex;align-items:center;gap:4px}
+.ctx-bar .stat b{color:#f59e0b}
+.ctx-meter{width:100px;height:8px;background:#27272a;border-radius:4px;overflow:hidden;position:relative}
+.ctx-meter .fill{height:100%;background:linear-gradient(90deg,#22c55e,#22c55e);transition:all .3s;border-radius:4px}
+.ctx-meter.warn .fill{background:linear-gradient(90deg,#f59e0b,#f59e0b)}
+.ctx-meter.crit .fill{background:linear-gradient(90deg,#ef4444,#ef4444)}
+.ctx-meter .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;text-shadow:0 0 2px #000}
+.btn{padding:3px 10px;background:#27272a;border:1px solid #3f3f46;border-radius:4px;color:#a1a1aa;cursor:pointer;font-size:10px;transition:all .15s}
+.btn:hover{border-color:#f59e0b;color:#f59e0b}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.loading{background:#f59e0b;color:#000;border-color:#f59e0b}
+.msgs{flex:1;overflow-y:auto;padding:12px}
+.msg{margin-bottom:12px;display:flex;gap:10px}
+.msg.u{flex-direction:row-reverse}
+.msg .av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.msg.a .av{background:linear-gradient(135deg,#f59e0b,#ea580c)}
+.msg.u .av{background:linear-gradient(135deg,#3b82f6,#1d4ed8)}
+.msg .wrap{max-width:80%}
+.msg .bub{padding:10px 14px;border-radius:14px;font-size:12px;line-height:1.6}
+.msg.a .bub{background:#1f1f23;border-bottom-left-radius:4px}
+.msg.u .bub{background:#3b82f6;border-bottom-right-radius:4px}
+.msg .bub code{background:rgba(0,0,0,.3);padding:2px 5px;border-radius:3px;font:11px monospace}
+.msg .bub pre{background:rgba(0,0,0,.4);padding:10px;border-radius:6px;overflow-x:auto;margin:8px 0}
+.msg .meta{font-size:9px;color:#52525b;margin-top:4px;display:flex;gap:8px}
+.msg.sum{opacity:.7}
+.msg.sum .bub{background:#292524;border-left:3px solid #f59e0b;font-style:italic;font-size:11px}
+.msg.streaming .bub::after{content:'▊';animation:blink .5s infinite}
+@keyframes blink{50%{opacity:0}}
+.typing{display:flex;gap:4px;padding:10px 14px;background:#1f1f23;border-radius:14px;border-bottom-left-radius:4px;width:fit-content;margin-bottom:12px}
+.typing span{width:8px;height:8px;background:#f59e0b;border-radius:50%;animation:bounce .6s infinite}
+.typing span:nth-child(2){animation-delay:.1s}
+.typing span:nth-child(3){animation-delay:.2s}
+@keyframes bounce{50%{transform:translateY(-4px);opacity:.5}}
+.inp{padding:12px;background:#18181b;border-top:1px solid #27272a;display:flex;gap:10px}
+.inp textarea{flex:1;padding:10px 14px;background:#27272a;border:1px solid #3f3f46;border-radius:10px;color:#e4e4e7;font:inherit;resize:none;outline:none;min-height:42px;max-height:120px}
+.inp textarea:focus{border-color:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.1)}
+.inp button{width:42px;height:42px;background:linear-gradient(135deg,#f59e0b,#ea580c);border:0;border-radius:10px;color:#fff;font-size:18px;cursor:pointer;transition:transform .1s}
+.inp button:hover{transform:scale(1.05)}
+.inp button:disabled{opacity:.4;transform:none}
+.inp .hint{position:absolute;bottom:100%;right:0;font-size:9px;color:#52525b;padding:4px}
+.load{position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:100}
+.load.hide{display:none}
+.load .spin{width:40px;height:40px;border:3px solid #27272a;border-top-color:#f59e0b;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load .txt{font-size:13px;color:#a1a1aa}
+.load .bar{width:200px;height:4px;background:#27272a;border-radius:2px;overflow:hidden}
+.load .bar div{height:100%;background:linear-gradient(90deg,#f59e0b,#ea580c);width:0;transition:width .2s}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal.hide{display:none}
+.modal-box{background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;width:90%;max-width:450px}
+.modal-box h3{font-size:15px;color:#f59e0b;margin-bottom:14px}
+.modal-box textarea{width:100%;height:180px;background:#0a0a0f;border:1px solid #27272a;border-radius:6px;padding:10px;color:#e4e4e7;font:11px monospace;resize:none}
+.modal-box .btns{display:flex;gap:10px;margin-top:14px;justify-content:flex-end}
+.modal-box .btns button{padding:8px 18px;border-radius:6px;font-size:12px;cursor:pointer}
+.modal-box .btns .cancel{background:transparent;border:1px solid #3f3f46;color:#a1a1aa}
+.modal-box .btns .ok{background:linear-gradient(90deg,#f59e0b,#ea580c);border:0;color:#fff}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:8px 16px;border-radius:6px;font-size:12px;opacity:0;transition:opacity .3s;z-index:300}
+.toast.show{opacity:1}
+.toast.error{background:#ef4444}
+  </style>
+</head>
+<body>
+  <div class="load" id="load">
+    <div class="spin"></div>
+    <div class="txt" id="loadTxt">Initializing AI...</div>
+    <div class="bar"><div id="loadBar"></div></div>
+  </div>
+
+  <div class="modal hide" id="modal">
+    <div class="modal-box">
+      <h3 id="modalTitle">Context Snapshot</h3>
+      <textarea id="modalData"></textarea>
+      <div class="btns">
+        <button class="cancel" onclick="closeModal()">Cancel</button>
+        <button class="ok" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="hdr">
+    <h1>Context LLM <span class="ver">v1.1</span></h1>
+    <div class="status" id="status">Ready</div>
+    <select id="model">
+      <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (Fast)</option>
+      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B</option>
+      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen 2.5 1.5B</option>
+    </select>
+  </div>
+
+  <div class="ctx-bar">
+    <div class="ctx-meter" id="ctxMeter">
+      <div class="fill" id="ctxFill"></div>
+      <div class="pct" id="ctxPct">0%</div>
+    </div>
+    <div class="stat">Tokens: <b id="tokens">0</b>/<b>4096</b></div>
+    <div class="stat">Msgs: <b id="msgCt">0</b></div>
+    <div class="stat">Saved: <b id="saved">0</b></div>
+    <div style="flex:1"></div>
+    <button class="btn" id="sumBtn" onclick="C.summarizeNow()">⚡ Summarize</button>
+    <button class="btn" onclick="C.prune()">✂️ Prune</button>
+    <button class="btn" onclick="snapshot()">📤 Export</button>
+    <button class="btn" onclick="restore()">📥 Import</button>
+    <button class="btn" onclick="clearAll()">🗑️ Clear</button>
+  </div>
+
+  <div class="msgs" id="msgs"></div>
+
+  <div class="inp">
+    <textarea id="input" placeholder="Type a message... (Enter to send, Shift+Enter for new line)" rows="1"></textarea>
+    <button id="send" disabled>➤</button>
+  </div>
+
+  <script type="module">
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const estTokens = str => Math.ceil(str.length / 4);
+
+function toast(msg, isError = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', isError);
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+class ContextLLM {
+  constructor() {
+    this.engine = null;
+    this.ready = false;
+    this.history = [];
+    this.summary = '';
+    this.tokensSaved = 0;
+    this.maxContext = 4096;
+    this.keepRecent = 6;
+    this.systemPrompt = `You are a helpful, concise AI assistant. Keep responses brief and focused. When asked to summarize, create extremely condensed summaries.`;
+    this.init();
+  }
+
+  setStatus(text, type = '') {
+    const s = $('status');
+    s.textContent = text;
+    s.className = 'status' + (type ? ' ' + type : '');
+  }
+
+  async init() {
+    $('load').classList.remove('hide');
+    const model = $('model').value;
+    $('loadTxt').textContent = `Loading ${model.split('-')[0]}...`;
+    this.setStatus('Loading...', 'loading');
+
+    try {
+      const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+      this.engine = await webllm.CreateMLCEngine(model, {
+        initProgressCallback: p => {
+          const pct = Math.round(p.progress * 100);
+          $('loadBar').style.width = pct + '%';
+          $('loadTxt').textContent = p.text || `Loading: ${pct}%`;
+        }
+      });
+      this.ready = true;
+      $('load').classList.add('hide');
+      $('send').disabled = false;
+      this.setStatus('Ready');
+      this.updateStats();
+      toast('AI loaded successfully!');
+    } catch(e) {
+      $('loadTxt').textContent = 'Error: ' + e.message;
+      this.setStatus('Error', 'error');
+      toast('Failed to load AI: ' + e.message, true);
+      console.error(e);
+    }
+  }
+
+  getContextMessages() {
+    const msgs = [{ role: 'system', content: this.systemPrompt }];
+    if (this.summary) {
+      msgs.push({ role: 'system', content: `[Previous conversation summary: ${this.summary}]` });
+    }
+    msgs.push(...this.history.slice(-this.keepRecent * 2));
+    return msgs;
+  }
+
+  countContextTokens() {
+    return this.getContextMessages().reduce((t, m) => t + estTokens(m.content), 0);
+  }
+
+  updateStats() {
+    const ctxTokens = this.countContextTokens();
+    const ratio = ctxTokens / this.maxContext;
+    const pct = Math.min(100, Math.round(ratio * 100));
+
+    $('tokens').textContent = ctxTokens;
+    $('msgCt').textContent = this.history.length;
+    $('saved').textContent = this.tokensSaved;
+    $('ctxFill').style.width = pct + '%';
+    $('ctxPct').textContent = pct + '%';
+
+    const meter = $('ctxMeter');
+    meter.classList.remove('warn', 'crit');
+    if (ratio > 0.8) meter.classList.add('crit');
+    else if (ratio > 0.5) meter.classList.add('warn');
+
+    $('tokens').style.color = ratio > 0.8 ? '#ef4444' : ratio > 0.5 ? '#f59e0b' : '#22c55e';
+  }
+
+  addMessage(content, role, meta = {}) {
+    const msgs = $('msgs');
+    const div = document.createElement('div');
+    div.className = `msg ${role === 'user' ? 'u' : 'a'}${meta.isSummary ? ' sum' : ''}${meta.streaming ? ' streaming' : ''}`;
+    if (meta.id) div.dataset.id = meta.id;
+
+    let html = esc(content)
+      .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+
+    div.innerHTML = `
+      <div class="av">${role === 'user' ? '👤' : '🤖'}</div>
+      <div class="wrap">
+        <div class="bub">${html}</div>
+        <div class="meta">
+          <span>${estTokens(content)} tokens</span>
+          ${meta.isSummary ? '<span>• summary</span>' : ''}
+        </div>
+      </div>
+    `;
+
+    const typing = msgs.querySelector('.typing');
+    if (typing) typing.remove();
+
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  updateMessage(id, content) {
+    const div = document.querySelector(`[data-id="${id}"]`);
+    if (div) {
+      const bub = div.querySelector('.bub');
+      let html = esc(content)
+        .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+      bub.innerHTML = html;
+
+      const meta = div.querySelector('.meta span');
+      if (meta) meta.textContent = estTokens(content) + ' tokens';
+    }
+  }
+
+  showTyping(show) {
+    const msgs = $('msgs');
+    const existing = msgs.querySelector('.typing');
+    if (show && !existing) {
+      const div = document.createElement('div');
+      div.className = 'typing';
+      div.innerHTML = '<span></span><span></span><span></span>';
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    } else if (!show && existing) {
+      existing.remove();
+    }
+    $('send').disabled = show || !this.ready;
+  }
+
+  async send(text) {
+    if (!text.trim() || !this.ready) return;
+
+    this.history.push({ role: 'user', content: text });
+    this.addMessage(text, 'user');
+    this.updateStats();
+
+    // Auto-summarize if needed
+    if (this.countContextTokens() > this.maxContext * 0.7 && this.history.length > this.keepRecent * 2) {
+      await this.autoSummarize();
+    }
+
+    this.showTyping(true);
+    this.setStatus('Thinking...', 'loading');
+
+    try {
+      // Use streaming for better UX
+      const msgId = 'msg-' + Date.now();
+      let fullReply = '';
+
+      const chunks = await this.engine.chat.completions.create({
+        messages: this.getContextMessages(),
+        temperature: 0.7,
+        max_tokens: 400,
+        stream: true
+      });
+
+      this.showTyping(false);
+      const msgEl = this.addMessage('', 'assistant', { id: msgId, streaming: true });
+
+      for await (const chunk of chunks) {
+        const delta = chunk.choices[0]?.delta?.content || '';
+        fullReply += delta;
+        this.updateMessage(msgId, fullReply);
+        $('msgs').scrollTop = $('msgs').scrollHeight;
+      }
+
+      msgEl.classList.remove('streaming');
+      this.history.push({ role: 'assistant', content: fullReply });
+      this.updateStats();
+      this.setStatus('Ready');
+
+    } catch(e) {
+      this.showTyping(false);
+      this.addMessage('Error: ' + e.message, 'assistant');
+      this.setStatus('Error', 'error');
+      toast('Generation failed: ' + e.message, true);
+      console.error(e);
+    }
+  }
+
+  async autoSummarize() {
+    const oldMsgs = this.history.slice(0, -this.keepRecent * 2);
+    if (oldMsgs.length < 4) return;
+
+    const oldTokens = oldMsgs.reduce((t, m) => t + estTokens(m.content), 0);
+    const summaryPrompt = oldMsgs.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n');
+
+    try {
+      const response = await this.engine.chat.completions.create({
+        messages: [
+          { role: 'system', content: 'Summarize this conversation in 2-3 sentences. Be extremely brief.' },
+          { role: 'user', content: summaryPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 100
+      });
+
+      const newSummary = response.choices[0]?.message?.content || '';
+      this.summary = this.summary ? `${this.summary} Then: ${newSummary}` : newSummary;
+      this.history = this.history.slice(-this.keepRecent * 2);
+
+      const summaryTokens = estTokens(this.summary);
+      const saved = oldTokens - summaryTokens;
+      this.tokensSaved += saved;
+
+      this.addMessage(`[Auto-summarized ${oldMsgs.length} messages, saved ~${saved} tokens]`, 'assistant', { isSummary: true });
+      toast(`Auto-summarized! Saved ${saved} tokens`);
+
+    } catch(e) {
+      console.error('Auto-summarize failed:', e);
+    }
+  }
+
+  async summarizeNow() {
+    if (this.history.length < 4) {
+      toast('Need at least 4 messages to summarize', true);
+      return;
+    }
+
+    const btn = $('sumBtn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Working...';
+    $('send').disabled = true;
+    this.setStatus('Summarizing...', 'loading');
+
+    const allContent = this.history.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n');
+    const oldTokens = this.history.reduce((t, m) => t + estTokens(m.content), 0);
+
+    try {
+      const response = await this.engine.chat.completions.create({
+        messages: [
+          { role: 'system', content: 'Create a very brief summary (2-3 sentences) of the key points discussed.' },
+          { role: 'user', content: allContent }
+        ],
+        temperature: 0.3,
+        max_tokens: 150
+      });
+
+      this.summary = response.choices[0]?.message?.content || '';
+      this.history = this.history.slice(-4);
+
+      const saved = oldTokens - estTokens(this.summary) - this.history.reduce((t, m) => t + estTokens(m.content), 0);
+      this.tokensSaved += saved;
+
+      this.addMessage(`[Summarized: saved ${saved} tokens]\n"${this.summary}"`, 'assistant', { isSummary: true });
+      this.updateStats();
+      toast(`Summarized! Saved ${saved} tokens`);
+
+    } catch(e) {
+      toast('Summarize failed: ' + e.message, true);
+      console.error(e);
+    }
+
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = '⚡ Summarize';
+    $('send').disabled = false;
+    this.setStatus('Ready');
+  }
+
+  prune() {
+    if (this.history.length <= 4) {
+      toast('Nothing to prune', true);
+      return;
+    }
+
+    const oldTokens = this.history.reduce((t, m) => t + estTokens(m.content), 0);
+    this.history = this.history.slice(-4);
+    const saved = oldTokens - this.history.reduce((t, m) => t + estTokens(m.content), 0);
+
+    this.tokensSaved += saved;
+    this.addMessage(`[Pruned old messages, saved ~${saved} tokens]`, 'assistant', { isSummary: true });
+    this.updateStats();
+    toast(`Pruned! Saved ${saved} tokens`);
+  }
+
+  export() {
+    return JSON.stringify({
+      history: this.history,
+      summary: this.summary,
+      tokensSaved: this.tokensSaved,
+      timestamp: Date.now(),
+      version: '1.1'
+    }, null, 2);
+  }
+
+  import(json) {
+    try {
+      const data = JSON.parse(json);
+      this.history = data.history || [];
+      this.summary = data.summary || '';
+      this.tokensSaved = data.tokensSaved || 0;
+
+      $('msgs').innerHTML = '';
+      if (this.summary) {
+        this.addMessage(`[Restored summary: "${this.summary}"]`, 'assistant', { isSummary: true });
+      }
+      this.history.forEach(m => this.addMessage(m.content, m.role));
+      this.updateStats();
+      toast('Context imported successfully!');
+      return true;
+    } catch(e) {
+      toast('Import failed: Invalid JSON', true);
+      return false;
+    }
+  }
+
+  clear() {
+    this.history = [];
+    this.summary = '';
+    this.tokensSaved = 0;
+    $('msgs').innerHTML = '';
+    this.updateStats();
+    toast('Cleared!');
+  }
+}
+
+const C = new ContextLLM();
+window.ContextLLM = C;
+window.C = C;
+
+// UI bindings
+const input = $('input');
+const send = $('send');
+
+input.oninput = () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+};
+
+send.onclick = () => {
+  C.send(input.value);
+  input.value = '';
+  input.style.height = 'auto';
+};
+
+input.onkeydown = e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send.click();
+  }
+};
+
+$('model').onchange = () => {
+  C.ready = false;
+  C.engine = null;
+  C.init();
+};
+
+// Modal functions
+window.snapshot = () => {
+  $('modalTitle').textContent = 'Export Context';
+  $('modalData').value = C.export();
+  $('modalData').readOnly = true;
+  $('modalOk').textContent = 'Copy';
+  $('modalOk').onclick = () => {
+    navigator.clipboard.writeText($('modalData').value);
+    toast('Copied to clipboard!');
+    closeModal();
+  };
+  $('modal').classList.remove('hide');
+};
+
+window.restore = () => {
+  $('modalTitle').textContent = 'Import Context';
+  $('modalData').value = '';
+  $('modalData').readOnly = false;
+  $('modalOk').textContent = 'Import';
+  $('modalOk').onclick = () => {
+    if (C.import($('modalData').value)) closeModal();
+  };
+  $('modal').classList.remove('hide');
+};
+
+window.closeModal = () => $('modal').classList.add('hide');
+window.clearAll = () => { if (confirm('Clear all messages and history?')) C.clear(); };
+
+// Keyboard shortcuts
+document.onkeydown = e => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 's') { e.preventDefault(); C.summarizeNow(); }
+    if (e.key === 'e') { e.preventDefault(); snapshot(); }
+  }
+};
+  </script>
+</body>
+</html>
