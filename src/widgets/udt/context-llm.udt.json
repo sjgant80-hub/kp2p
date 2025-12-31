@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Context LLM Widget",
+  "description": "Token-efficient WebLLM chat with context management - auto-summarization, pruning, and export/import",
+  "version": "1.0.0",
+  "type": "object",
+  "properties": {
+    "widgetId": { "const": "contextLLM" },
+    "config": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "enum": ["SmolLM2-360M-Instruct-q4f16_1-MLC", "Llama-3.2-1B-Instruct-q4f16_1-MLC", "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"],
+          "default": "SmolLM2-360M-Instruct-q4f16_1-MLC"
+        },
+        "maxContext": { "type": "integer", "default": 4096 },
+        "keepRecent": { "type": "integer", "default": 6 },
+        "autoSummarizeThreshold": { "type": "number", "default": 0.7 }
+      }
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "history": { "type": "array", "items": { "$ref": "#/$defs/message" } },
+        "summary": { "type": "string" },
+        "tokensSaved": { "type": "integer" },
+        "ready": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "message": {
+      "type": "object",
+      "properties": {
+        "role": { "enum": ["user", "assistant", "system"] },
+        "content": { "type": "string" }
+      },
+      "required": ["role", "content"]
+    }
+  },
+  "features": [
+    "Auto-summarization when context exceeds 70%",
+    "Manual summarize/prune controls",
+    "Token counting and savings tracker",
+    "Export/import context snapshots",
+    "Rolling summary of older messages",
+    "Minified codebase (~250 lines)"
+  ],
+  "methods": {
+    "send": { "params": ["text"], "desc": "Send a message" },
+    "summarizeNow": { "desc": "Manually summarize conversation" },
+    "prune": { "desc": "Remove old messages keeping last 4" },
+    "export": { "returns": "string", "desc": "Export context as JSON" },
+    "import": { "params": ["json"], "desc": "Import context from JSON" },
+    "clear": { "desc": "Clear all messages and summary" }
+  },
+  "commercial": {
+    "price": 25,
+    "kills": ["ChatGPT context limits", "API token costs"],
+    "savings": "60-80% context reduction"
+  }
+}
