@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<!--
+@file linkedin-webllm.html
+@desc LinkedIn WebLLM AI Bot Widget - P2P automated LinkedIn assistant
+@api  window.LinkedInBot - Bot controller with P2P sync
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "linkedinWebllm",
+    "name": "LinkedIn AI Bot",
+    "icon": "💼",
+    "desc": "P2P LinkedIn automation with WebLLM AI",
+    "body": "AI-powered LinkedIn bot with P2P sync. Generate messages, automate connections, schedule posts. Multiple bots sync via WebRTC mesh.",
+    "kills": ["LinkedIn Sales Nav $100/mo", "Expandi $99/mo", "Dux-Soup $55/mo", "PhantomBuster $69/mo"],
+    "price": 100,
+    "color": "#0a66c2"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LinkedIn AI Bot</title>
+  <style>
+    :root{--b:#0a0a12;--b2:#12121e;--b3:#1a1a2e;--f:#e4e4e7;--li:#0a66c2;--li2:#004182;--a:#00d9ff;--g:#10b981;--r:#ef4444;--o:#f97316;--y:#eab308}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font:13px/1.5 system-ui,sans-serif;background:var(--b);color:var(--f);min-height:100vh;display:flex;flex-direction:column}
+
+    .header{padding:12px 16px;background:linear-gradient(135deg,var(--li),var(--li2));display:flex;align-items:center;gap:12px}
+    .header .logo{font-size:24px}
+    .header .title{flex:1}
+    .header .title h1{font-size:15px;font-weight:600}
+    .header .title .sub{font-size:11px;opacity:.8}
+    .header .peers{display:flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,.15);border-radius:12px;font-size:11px}
+    .header .peers .dot{width:6px;height:6px;border-radius:50%;background:var(--g);animation:pulse 2s infinite}
+    @keyframes pulse{50%{opacity:.5}}
+    .header .btn{padding:6px 12px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:6px;color:#fff;font-size:11px;cursor:pointer;transition:all .15s}
+    .header .btn:hover{background:rgba(255,255,255,.3)}
+
+    .main{flex:1;display:flex;overflow:hidden}
+
+    .sidebar{width:220px;background:var(--b2);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;overflow:hidden}
+    .sidebar .section{padding:12px}
+    .sidebar .section-title{font-size:10px;text-transform:uppercase;color:#64748b;margin-bottom:8px;letter-spacing:.5px}
+
+    .queue{flex:1;overflow-y:auto;padding:0 12px 12px}
+    .queue::-webkit-scrollbar{width:4px}
+    .queue::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+    .queue-item{padding:10px;background:var(--b3);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .15s;border-left:3px solid transparent}
+    .queue-item:hover{background:rgba(255,255,255,.05)}
+    .queue-item.pending{border-left-color:var(--o)}
+    .queue-item.running{border-left-color:var(--a);animation:glow 1.5s infinite}
+    .queue-item.done{border-left-color:var(--g);opacity:.6}
+    .queue-item.error{border-left-color:var(--r)}
+    @keyframes glow{50%{box-shadow:0 0 10px rgba(0,217,255,.3)}}
+    .queue-item .type{font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:4px}
+    .queue-item .target{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .queue-item .time{font-size:10px;color:#64748b;margin-top:4px}
+    .queue-item .peer-tag{display:inline-block;padding:1px 5px;background:var(--li);border-radius:3px;font-size:9px;margin-left:4px}
+
+    .stats{padding:12px;border-top:1px solid rgba(255,255,255,.06)}
+    .stat-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px}
+    .stat-row .label{color:#64748b}
+    .stat-row .value{font-weight:600}
+    .stat-row .value.green{color:var(--g)}
+    .stat-row .value.orange{color:var(--o)}
+
+    .content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+    .tabs{display:flex;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06)}
+    .tab{padding:10px 16px;font-size:12px;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+    .tab:hover{color:var(--f)}
+    .tab.active{color:var(--li);border-bottom-color:var(--li)}
+
+    .tab-content{flex:1;overflow:hidden;display:none}
+    .tab-content.active{display:flex;flex-direction:column}
+
+    /* Chat Tab */
+    .chat-area{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+    .msg{display:flex;gap:10px;max-width:85%}
+    .msg.user{align-self:flex-end;flex-direction:row-reverse}
+    .msg.peer{opacity:.9}
+    .msg .avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+    .msg.ai .avatar{background:linear-gradient(135deg,var(--li),var(--li2))}
+    .msg.user .avatar{background:linear-gradient(135deg,var(--a),#7c3aed)}
+    .msg.peer .avatar{background:linear-gradient(135deg,var(--g),#059669)}
+    .msg .bubble{padding:10px 14px;border-radius:14px;font-size:12px;line-height:1.5}
+    .msg.ai .bubble{background:var(--b2);border-bottom-left-radius:4px}
+    .msg.user .bubble{background:linear-gradient(135deg,var(--li),var(--li2));border-bottom-right-radius:4px}
+    .msg.peer .bubble{background:var(--b3);border-bottom-left-radius:4px}
+    .msg .bubble code{background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:11px}
+    .msg .peer-name{font-size:9px;color:var(--g);margin-bottom:2px}
+
+    .typing{display:flex;gap:10px;max-width:85%}
+    .typing .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--li),var(--li2));display:flex;align-items:center;justify-content:center;font-size:14px}
+    .typing .dots{display:flex;gap:3px;padding:10px 14px;background:var(--b2);border-radius:14px}
+    .typing .dots span{width:6px;height:6px;background:rgba(255,255,255,.4);border-radius:50%;animation:bounce .6s infinite}
+    .typing .dots span:nth-child(2){animation-delay:.1s}
+    .typing .dots span:nth-child(3){animation-delay:.2s}
+    @keyframes bounce{50%{transform:translateY(-3px)}}
+
+    .input-area{padding:12px 16px;background:var(--b2);border-top:1px solid rgba(255,255,255,.06)}
+    .input-row{display:flex;gap:8px}
+    .input-row textarea{flex:1;padding:10px 14px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:var(--f);font:inherit;font-size:12px;resize:none;outline:0;min-height:40px;max-height:120px}
+    .input-row textarea:focus{border-color:var(--li)}
+    .input-row button{width:40px;height:40px;background:linear-gradient(135deg,var(--li),var(--li2));border:0;border-radius:10px;color:#fff;font-size:16px;cursor:pointer;transition:opacity .15s}
+    .input-row button:hover{opacity:.9}
+    .input-row button:disabled{opacity:.4;cursor:not-allowed}
+
+    /* Actions Tab */
+    .actions-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:16px;overflow-y:auto}
+    .action-card{padding:16px;background:var(--b2);border-radius:12px;cursor:pointer;transition:all .15s;border:1px solid transparent}
+    .action-card:hover{border-color:var(--li);transform:translateY(-2px)}
+    .action-card .icon{font-size:24px;margin-bottom:8px}
+    .action-card .title{font-size:13px;font-weight:600;margin-bottom:4px}
+    .action-card .desc{font-size:11px;color:#64748b}
+
+    /* Templates Tab */
+    .templates{padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+    .template-card{padding:14px;background:var(--b2);border-radius:10px;cursor:pointer;transition:all .15s}
+    .template-card:hover{background:var(--b3)}
+    .template-card .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .template-card .name{font-size:12px;font-weight:600}
+    .template-card .tag{padding:2px 6px;background:var(--li);border-radius:4px;font-size:9px}
+    .template-card .preview{font-size:11px;color:#94a3b8;line-height:1.4}
+
+    /* Peers Tab */
+    .peers-list{padding:16px;overflow-y:auto}
+    .peer-card{display:flex;align-items:center;gap:12px;padding:12px;background:var(--b2);border-radius:10px;margin-bottom:8px}
+    .peer-card .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--g),#059669);display:flex;align-items:center;justify-content:center;font-size:16px}
+    .peer-card .info{flex:1}
+    .peer-card .name{font-size:12px;font-weight:600}
+    .peer-card .status{font-size:10px;color:#64748b}
+    .peer-card .actions{display:flex;gap:6px}
+    .peer-card .btn{padding:4px 10px;background:var(--b3);border:0;border-radius:4px;color:var(--f);font-size:10px;cursor:pointer}
+    .peer-card .btn:hover{background:rgba(255,255,255,.1)}
+
+    /* LinkedIn Panel */
+    .linkedin-panel{padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;height:100%}
+    .linkedin-panel .icon{font-size:48px}
+    .linkedin-panel h2{font-size:18px}
+    .linkedin-panel p{font-size:12px;color:#94a3b8;max-width:300px}
+    .linkedin-panel .btn-open{padding:12px 24px;background:linear-gradient(135deg,var(--li),var(--li2));border:0;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px}
+    .linkedin-panel .btn-open:hover{opacity:.9}
+    .linkedin-panel .features{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+    .linkedin-panel .feature{padding:6px 12px;background:var(--b2);border-radius:6px;font-size:11px;color:#94a3b8}
+
+    /* Modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+    .modal.show{opacity:1;pointer-events:auto}
+    .modal-content{background:var(--b2);border-radius:16px;width:90%;max-width:500px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
+    .modal-header{padding:16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center}
+    .modal-header h3{font-size:14px}
+    .modal-close{width:28px;height:28px;background:0;border:0;color:#94a3b8;font-size:18px;cursor:pointer;border-radius:50%}
+    .modal-close:hover{background:rgba(255,255,255,.1)}
+    .modal-body{padding:16px;overflow-y:auto;flex:1}
+    .form-group{margin-bottom:14px}
+    .form-group label{display:block;font-size:11px;color:#94a3b8;margin-bottom:6px}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px;background:var(--b);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:inherit;font-size:12px}
+    .form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:0;border-color:var(--li)}
+    .form-group textarea{min-height:100px;resize:vertical}
+    .modal-footer{padding:16px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:flex-end;gap:8px}
+    .modal-footer .btn{padding:8px 16px;border-radius:6px;font-size:12px;cursor:pointer;transition:all .15s}
+    .modal-footer .btn-cancel{background:0;border:1px solid rgba(255,255,255,.2);color:var(--f)}
+    .modal-footer .btn-submit{background:var(--li);border:0;color:#fff}
+
+    /* Loading overlay */
+    .loading-overlay{position:fixed;inset:0;background:var(--b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:200}
+    .loading-overlay.hidden{display:none}
+    .loading-overlay .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--li);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-overlay .text{font-size:13px;color:#94a3b8}
+    .loading-overlay .progress{width:180px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+    .loading-overlay .progress-bar{height:100%;background:linear-gradient(90deg,var(--li),var(--a));width:0;transition:width .3s}
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <div class="text" id="loadText">Initializing AI Bot...</div>
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+  </div>
+
+  <div class="header">
+    <div class="logo">💼</div>
+    <div class="title">
+      <h1>LinkedIn AI Bot</h1>
+      <div class="sub">P2P Automation Network</div>
+    </div>
+    <div class="peers">
+      <span class="dot" id="p2pDot"></span>
+      <span id="peerCount">0 peers</span>
+    </div>
+    <button class="btn" id="roomBtn">🔗 Room: <span id="roomId">---</span></button>
+    <button class="btn" id="openLinkedIn">Open LinkedIn ↗</button>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="section">
+        <div class="section-title">Automation Queue</div>
+      </div>
+      <div class="queue" id="queue"></div>
+      <div class="stats">
+        <div class="stat-row"><span class="label">Today's Actions</span><span class="value" id="todayActions">0</span></div>
+        <div class="stat-row"><span class="label">Connections</span><span class="value green" id="connections">0</span></div>
+        <div class="stat-row"><span class="label">Messages</span><span class="value green" id="messages">0</span></div>
+        <div class="stat-row"><span class="label">Queue</span><span class="value orange" id="queueCount">0</span></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active" data-tab="chat">💬 AI Chat</div>
+        <div class="tab" data-tab="actions">⚡ Actions</div>
+        <div class="tab" data-tab="templates">📝 Templates</div>
+        <div class="tab" data-tab="peers">👥 Peers</div>
+        <div class="tab" data-tab="linkedin">🔗 LinkedIn</div>
+      </div>
+
+      <!-- Chat Tab -->
+      <div class="tab-content active" id="tab-chat">
+        <div class="chat-area" id="chatArea">
+          <div class="msg ai">
+            <div class="avatar">🤖</div>
+            <div class="bubble">
+              <p>Hey! I'm your LinkedIn AI assistant. I can help you with:</p>
+              <p>• Generate connection messages<br>• Write engaging posts<br>• Create follow-up sequences<br>• Analyze profiles<br>• Coordinate with other bots via P2P</p>
+              <p>Try: "Write a connection request for a tech recruiter" or "Create a post about AI in business"</p>
+            </div>
+          </div>
+        </div>
+        <div class="input-area">
+          <div class="input-row">
+            <textarea id="chatInput" placeholder="Ask AI to help with LinkedIn tasks..." rows="1"></textarea>
+            <button id="sendBtn" disabled>➤</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions Tab -->
+      <div class="tab-content" id="tab-actions">
+        <div class="actions-grid">
+          <div class="action-card" data-action="connect">
+            <div class="icon">🤝</div>
+            <div class="title">Send Connection</div>
+            <div class="desc">AI-generated personalized connection request</div>
+          </div>
+          <div class="action-card" data-action="message">
+            <div class="icon">✉️</div>
+            <div class="title">Send Message</div>
+            <div class="desc">Compose and queue a direct message</div>
+          </div>
+          <div class="action-card" data-action="post">
+            <div class="icon">📢</div>
+            <div class="title">Create Post</div>
+            <div class="desc">Generate and schedule a LinkedIn post</div>
+          </div>
+          <div class="action-card" data-action="comment">
+            <div class="icon">💬</div>
+            <div class="title">Comment</div>
+            <div class="desc">AI-powered engagement comments</div>
+          </div>
+          <div class="action-card" data-action="profile">
+            <div class="icon">👤</div>
+            <div class="title">Analyze Profile</div>
+            <div class="desc">Get AI insights on a LinkedIn profile</div>
+          </div>
+          <div class="action-card" data-action="sequence">
+            <div class="icon">🔄</div>
+            <div class="title">Create Sequence</div>
+            <div class="desc">Multi-step outreach automation</div>
+          </div>
+          <div class="action-card" data-action="search">
+            <div class="icon">🔍</div>
+            <div class="title">Search Leads</div>
+            <div class="desc">Find and filter potential connections</div>
+          </div>
+          <div class="action-card" data-action="sync">
+            <div class="icon">📡</div>
+            <div class="title">P2P Sync</div>
+            <div class="desc">Share queue with connected peers</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Templates Tab -->
+      <div class="tab-content" id="tab-templates">
+        <div class="templates" id="templates">
+          <div class="template-card" data-template="connect-recruiter">
+            <div class="header">
+              <span class="name">Recruiter Connection</span>
+              <span class="tag">Connection</span>
+            </div>
+            <div class="preview">Hi {name}, I noticed you're recruiting for {company}. I'm a {role} with expertise in...</div>
+          </div>
+          <div class="template-card" data-template="connect-founder">
+            <div class="header">
+              <span class="name">Founder Outreach</span>
+              <span class="tag">Connection</span>
+            </div>
+            <div class="preview">Hi {name}, Congrats on the progress at {company}! I've been following your journey and...</div>
+          </div>
+          <div class="template-card" data-template="follow-up">
+            <div class="header">
+              <span class="name">Follow-up Message</span>
+              <span class="tag">Message</span>
+            </div>
+            <div class="preview">Hi {name}, Following up on my previous message. I'd love to learn more about...</div>
+          </div>
+          <div class="template-card" data-template="post-insight">
+            <div class="header">
+              <span class="name">Industry Insight Post</span>
+              <span class="tag">Post</span>
+            </div>
+            <div class="preview">🚀 Here's what I've learned about {topic} after {years} in the industry...</div>
+          </div>
+          <div class="template-card" data-template="comment-engage">
+            <div class="header">
+              <span class="name">Engagement Comment</span>
+              <span class="tag">Comment</span>
+            </div>
+            <div class="preview">Great insight {name}! This resonates because...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Peers Tab -->
+      <div class="tab-content" id="tab-peers">
+        <div class="peers-list" id="peersList">
+          <div style="text-align:center;padding:40px;color:#64748b;">
+            <p style="font-size:32px;margin-bottom:12px;">👥</p>
+            <p>No peers connected yet</p>
+            <p style="font-size:11px;margin-top:8px;">Share your room code to connect with other bots</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- LinkedIn Tab -->
+      <div class="tab-content" id="tab-linkedin">
+        <div class="linkedin-panel">
+          <div class="icon">🔗</div>
+          <h2>Connect to LinkedIn</h2>
+          <p>Open LinkedIn in a new window. The AI bot will help you generate and manage automation tasks.</p>
+          <button class="btn-open" id="launchLinkedIn">
+            <span>🚀</span> Launch LinkedIn
+          </button>
+          <div class="features">
+            <span class="feature">🤖 AI-Powered</span>
+            <span class="feature">📡 P2P Synced</span>
+            <span class="feature">🔒 Privacy First</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Modal -->
+  <div class="modal" id="actionModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">New Action</h3>
+        <button class="modal-close" id="modalClose">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel" id="modalCancel">Cancel</button>
+        <button class="btn btn-submit" id="modalSubmit">Add to Queue</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    /**
+     * LinkedIn WebLLM AI Bot
+     * P2P-enabled LinkedIn automation assistant
+     *
+     * @usage
+     *   const bot = window.LinkedInBot;
+     *   bot.generateMessage('recruiter', {name: 'John'});
+     *   bot.addToQueue({type: 'connect', target: 'profile-url'});
+     *   bot.syncWithPeers();
+     */
+
+    const $ = id => document.getElementById(id);
+    const $$ = sel => document.querySelectorAll(sel);
+    const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+    // P2P Mesh (inline for standalone widget)
+    const TR = 'wss://tracker.openwebtorrent.com';
+    const ICE = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+
+    const createMesh = (room, handlers = {}) => {
+      const id = crypto.randomUUID().slice(0,8);
+      const peers = new Map();
+      const pcs = new Map();
+      let ws, hash;
+
+      const log = (...a) => console.log('[p2p]', ...a);
+
+      const toHash = async r => {
+        const b = await crypto.subtle.digest('SHA-1', new TextEncoder().encode('linkedin:'+r));
+        return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
+      };
+
+      const setup = (dc, pid) => {
+        dc.onopen = () => { peers.set(pid, dc); handlers.peer?.(pid); updatePeerUI(); };
+        dc.onclose = () => { peers.delete(pid); handlers.left?.(pid); updatePeerUI(); };
+        dc.onmessage = e => handlers.msg?.(JSON.parse(e.data), pid);
+      };
+
+      const offer = async () => {
+        const pc = new RTCPeerConnection(ICE);
+        const dc = pc.createDataChannel('d');
+        await pc.createOffer().then(o => pc.setLocalDescription(o));
+        await new Promise(r => { pc.onicecandidate = e => { if(!e.candidate) r() }});
+        return { pc, dc, sdp: pc.localDescription.sdp };
+      };
+
+      const connect = async () => {
+        hash = await toHash(room);
+        log('Connecting to room:', room);
+        ws = new WebSocket(TR);
+
+        ws.onopen = async () => {
+          handlers.open?.();
+          const o = await offer();
+          pcs.set('0', o.pc);
+          setup(o.dc, 'init');
+          ws.send(JSON.stringify({
+            action:'announce', info_hash:hash, peer_id:id, numwant:10,
+            offers:[{offer_id:'0', offer:{sdp:o.sdp}}]
+          }));
+        };
+
+        ws.onmessage = async e => {
+          const m = JSON.parse(e.data);
+          if (m.offer && m.peer_id !== id) {
+            const pc = new RTCPeerConnection(ICE);
+            pc.ondatachannel = e => setup(e.channel, m.peer_id);
+            await pc.setRemoteDescription({type:'offer', sdp:m.offer.sdp});
+            const a = await pc.createAnswer();
+            await pc.setLocalDescription(a);
+            await new Promise(r => { pc.onicecandidate = e => { if(!e.candidate) r() }});
+            ws.send(JSON.stringify({
+              action:'announce', info_hash:hash, peer_id:id,
+              to_peer_id:m.peer_id, offer_id:m.offer_id,
+              answer:{sdp:pc.localDescription.sdp}
+            }));
+            pcs.set(m.peer_id, pc);
+          }
+          if (m.answer) {
+            const pc = pcs.get(m.offer_id) || pcs.get('0');
+            if (pc?.signalingState === 'have-local-offer') {
+              await pc.setRemoteDescription({type:'answer', sdp:m.answer.sdp});
+            }
+          }
+        };
+
+        ws.onerror = e => log('Error:', e);
+        ws.onclose = () => { log('Closed, reconnecting...'); setTimeout(connect, 3000); };
+      };
+
+      const send = d => {
+        const s = JSON.stringify(d);
+        peers.forEach(p => p.readyState === 'open' && p.send(s));
+      };
+
+      const broadcast = (type, data) => send({type, data, from: id, ts: Date.now()});
+
+      return { id, peers, connect, send, broadcast };
+    };
+
+    // Update peer count UI
+    function updatePeerUI() {
+      const count = bot.mesh?.peers?.size || 0;
+      $('peerCount').textContent = count + ' peer' + (count !== 1 ? 's' : '');
+      $('p2pDot').style.background = count > 0 ? 'var(--g)' : 'var(--o)';
+      renderPeersList();
+    }
+
+    // LinkedIn Bot Class
+    class LinkedInBot {
+      constructor() {
+        this.engine = null;
+        this.ready = false;
+        this.loading = false;
+        this.mesh = null;
+        this.roomId = this.generateRoomId();
+        this.history = [];
+        this.queue = JSON.parse(localStorage.getItem('li-queue') || '[]');
+        this.stats = JSON.parse(localStorage.getItem('li-stats') || '{"connections":0,"messages":0,"today":0}');
+        this.templates = [];
+        this.peersData = new Map();
+
+        this.systemPrompt = `You are an expert LinkedIn automation assistant. Help users with:
+- Writing personalized connection requests that get accepted
+- Creating engaging posts that drive engagement
+- Crafting follow-up message sequences
+- Analyzing profiles for outreach opportunities
+- Optimizing LinkedIn presence
+
+Be concise, professional, and focus on actionable output. When generating messages, make them feel personal and authentic, not spammy. Include placeholders like {name}, {company}, {role} for personalization.
+
+Important guidelines:
+- Keep connection requests under 300 characters
+- Make messages conversational, not salesy
+- Focus on providing value, not pitching
+- Use appropriate emojis sparingly for posts`;
+
+        this.init();
+      }
+
+      generateRoomId() {
+        const saved = localStorage.getItem('li-room');
+        if (saved) return saved;
+        const id = crypto.randomUUID().slice(0,6).toUpperCase();
+        localStorage.setItem('li-room', id);
+        return id;
+      }
+
+      setStatus(ready, text) {
+        $('sendBtn').disabled = !ready || this.typing;
+      }
+
+      showLoading(show, text = '', progress = 0) {
+        $('loading').classList.toggle('hidden', !show);
+        if (text) $('loadText').textContent = text;
+        $('progressBar').style.width = progress + '%';
+      }
+
+      async loadModel(modelId = 'SmolLM2-360M-Instruct-q4f16_1-MLC') {
+        if (this.loading) return;
+        this.loading = true;
+        this.ready = false;
+        this.showLoading(true, 'Loading AI Model...', 0);
+
+        try {
+          const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+          this.engine = await webllm.CreateMLCEngine(modelId, {
+            initProgressCallback: (progress) => {
+              const pct = Math.round(progress.progress * 100);
+              this.showLoading(true, progress.text || `Loading: ${pct}%`, pct);
+            }
+          });
+
+          this.ready = true;
+          this.loading = false;
+          this.showLoading(false);
+          this.setStatus(true, 'Ready');
+        } catch (err) {
+          this.loading = false;
+          this.showLoading(false);
+          console.error('Model load error:', err);
+          // Fallback - still allow UI interaction
+          this.ready = true;
+          this.setStatus(true, 'Ready (no AI)');
+        }
+      }
+
+      addMessage(text, type = 'ai', peerId = null) {
+        const chat = $('chatArea');
+        const msg = document.createElement('div');
+        msg.className = 'msg ' + type;
+
+        let html = esc(text)
+          .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\{(\w+)\}/g, '<code style="color:var(--o)">{$1}</code>')
+          .replace(/\n/g, '<br>');
+
+        const avatar = type === 'ai' ? '🤖' : type === 'peer' ? '👤' : '😀';
+        const peerLabel = type === 'peer' && peerId ? `<div class="peer-name">Peer ${peerId.slice(0,4)}</div>` : '';
+
+        msg.innerHTML = `
+          <div class="avatar">${avatar}</div>
+          <div class="bubble">${peerLabel}${html}</div>
+        `;
+
+        const typing = chat.querySelector('.typing');
+        if (typing) typing.remove();
+
+        chat.appendChild(msg);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      showTyping(show) {
+        const chat = $('chatArea');
+        const existing = chat.querySelector('.typing');
+
+        if (show && !existing) {
+          const typing = document.createElement('div');
+          typing.className = 'typing';
+          typing.innerHTML = `
+            <div class="avatar">🤖</div>
+            <div class="dots"><span></span><span></span><span></span></div>
+          `;
+          chat.appendChild(typing);
+          chat.scrollTop = chat.scrollHeight;
+        } else if (!show && existing) {
+          existing.remove();
+        }
+
+        this.typing = show;
+        $('sendBtn').disabled = show || !this.ready;
+      }
+
+      async send(text) {
+        if (!text.trim()) return;
+
+        this.addMessage(text, 'user');
+        this.history.push({ role: 'user', content: text });
+
+        // Broadcast to peers
+        if (this.mesh) {
+          this.mesh.broadcast('chat', { text, user: true });
+        }
+
+        if (!this.engine) {
+          this.addMessage("AI model not loaded. I can still help you with templates and queue management!");
+          return;
+        }
+
+        this.showTyping(true);
+
+        try {
+          const response = await this.engine.chat.completions.create({
+            messages: [
+              { role: 'system', content: this.systemPrompt },
+              ...this.history.slice(-10)
+            ],
+            temperature: 0.7,
+            max_tokens: 500
+          });
+
+          const reply = response.choices[0]?.message?.content || "I'm not sure how to help with that.";
+          this.showTyping(false);
+          this.addMessage(reply);
+          this.history.push({ role: 'assistant', content: reply });
+
+          // Broadcast response to peers
+          if (this.mesh) {
+            this.mesh.broadcast('chat', { text: reply, user: false });
+          }
+        } catch (err) {
+          this.showTyping(false);
+          this.addMessage("Sorry, I encountered an error. Please try again.");
+          console.error('Generation error:', err);
+        }
+      }
+
+      addToQueue(item) {
+        item.id = crypto.randomUUID().slice(0,8);
+        item.status = 'pending';
+        item.created = Date.now();
+        item.peer = null;
+        this.queue.push(item);
+        this.saveQueue();
+        this.renderQueue();
+
+        // Broadcast to peers
+        if (this.mesh) {
+          this.mesh.broadcast('queue-add', item);
+        }
+      }
+
+      removeFromQueue(id) {
+        this.queue = this.queue.filter(q => q.id !== id);
+        this.saveQueue();
+        this.renderQueue();
+      }
+
+      saveQueue() {
+        localStorage.setItem('li-queue', JSON.stringify(this.queue));
+        $('queueCount').textContent = this.queue.filter(q => q.status === 'pending').length;
+      }
+
+      renderQueue() {
+        const container = $('queue');
+        container.innerHTML = this.queue.length === 0
+          ? '<div style="text-align:center;padding:20px;color:#64748b;font-size:11px;">No items in queue</div>'
+          : this.queue.map(item => `
+            <div class="queue-item ${item.status}" data-id="${item.id}">
+              <div class="type">${item.type}${item.peer ? `<span class="peer-tag">${item.peer.slice(0,4)}</span>` : ''}</div>
+              <div class="target">${esc(item.target || item.content?.slice(0,40) || 'Unknown')}</div>
+              <div class="time">${this.formatTime(item.created)}</div>
+            </div>
+          `).join('');
+
+        $('queueCount').textContent = this.queue.filter(q => q.status === 'pending').length;
+      }
+
+      formatTime(ts) {
+        const diff = Date.now() - ts;
+        if (diff < 60000) return 'Just now';
+        if (diff < 3600000) return Math.floor(diff/60000) + 'm ago';
+        if (diff < 86400000) return Math.floor(diff/3600000) + 'h ago';
+        return new Date(ts).toLocaleDateString();
+      }
+
+      updateStats(type) {
+        this.stats[type] = (this.stats[type] || 0) + 1;
+        this.stats.today++;
+        localStorage.setItem('li-stats', JSON.stringify(this.stats));
+        $('connections').textContent = this.stats.connections;
+        $('messages').textContent = this.stats.messages;
+        $('todayActions').textContent = this.stats.today;
+      }
+
+      async connectP2P() {
+        $('roomId').textContent = this.roomId;
+
+        this.mesh = createMesh(this.roomId, {
+          open: () => console.log('P2P connected'),
+          peer: (pid) => {
+            console.log('Peer joined:', pid);
+            this.peersData.set(pid, { id: pid, joinedAt: Date.now() });
+            // Share current queue with new peer
+            this.mesh.broadcast('queue-sync', this.queue);
+          },
+          left: (pid) => {
+            console.log('Peer left:', pid);
+            this.peersData.delete(pid);
+          },
+          msg: (msg, pid) => {
+            console.log('P2P msg from', pid, msg);
+            this.handleP2PMessage(msg, pid);
+          }
+        });
+
+        await this.mesh.connect();
+      }
+
+      handleP2PMessage(msg, peerId) {
+        switch(msg.type) {
+          case 'chat':
+            if (msg.data.user) {
+              this.addMessage(msg.data.text, 'peer', peerId);
+            }
+            break;
+          case 'queue-add':
+            const item = {...msg.data, peer: peerId};
+            if (!this.queue.find(q => q.id === item.id)) {
+              this.queue.push(item);
+              this.saveQueue();
+              this.renderQueue();
+            }
+            break;
+          case 'queue-sync':
+            msg.data.forEach(item => {
+              if (!this.queue.find(q => q.id === item.id)) {
+                this.queue.push({...item, peer: peerId});
+              }
+            });
+            this.saveQueue();
+            this.renderQueue();
+            break;
+        }
+      }
+
+      openLinkedIn() {
+        window.open('https://www.linkedin.com', '_blank', 'width=1200,height=800');
+      }
+
+      showModal(title, content) {
+        $('modalTitle').textContent = title;
+        $('modalBody').innerHTML = content;
+        $('actionModal').classList.add('show');
+      }
+
+      hideModal() {
+        $('actionModal').classList.remove('show');
+      }
+
+      init() {
+        // UI bindings
+        const input = $('chatInput');
+        const sendBtn = $('sendBtn');
+
+        input.oninput = () => {
+          input.style.height = 'auto';
+          input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        };
+
+        sendBtn.onclick = () => {
+          this.send(input.value);
+          input.value = '';
+          input.style.height = 'auto';
+        };
+
+        input.onkeydown = (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendBtn.click();
+          }
+        };
+
+        // Tabs
+        $$('.tab').forEach(tab => {
+          tab.onclick = () => {
+            $$('.tab').forEach(t => t.classList.remove('active'));
+            $$('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            $('tab-' + tab.dataset.tab).classList.add('active');
+          };
+        });
+
+        // Actions
+        $$('.action-card').forEach(card => {
+          card.onclick = () => this.handleAction(card.dataset.action);
+        });
+
+        // Templates
+        $$('.template-card').forEach(card => {
+          card.onclick = () => this.handleTemplate(card.dataset.template);
+        });
+
+        // Open LinkedIn buttons
+        $('openLinkedIn').onclick = () => this.openLinkedIn();
+        $('launchLinkedIn').onclick = () => this.openLinkedIn();
+
+        // Room button
+        $('roomBtn').onclick = () => {
+          const newRoom = prompt('Enter room code to join (or leave empty for new room):', this.roomId);
+          if (newRoom !== null) {
+            this.roomId = newRoom || this.generateRoomId();
+            localStorage.setItem('li-room', this.roomId);
+            location.reload();
+          }
+        };
+
+        // Modal
+        $('modalClose').onclick = () => this.hideModal();
+        $('modalCancel').onclick = () => this.hideModal();
+
+        // Render initial queue
+        this.renderQueue();
+        $('connections').textContent = this.stats.connections;
+        $('messages').textContent = this.stats.messages;
+        $('todayActions').textContent = this.stats.today;
+
+        // Load AI and connect P2P
+        this.loadModel();
+        this.connectP2P();
+      }
+
+      handleAction(action) {
+        const forms = {
+          connect: `
+            <div class="form-group">
+              <label>LinkedIn Profile URL or Name</label>
+              <input type="text" id="actionTarget" placeholder="https://linkedin.com/in/username">
+            </div>
+            <div class="form-group">
+              <label>Connection Message (AI will personalize)</label>
+              <textarea id="actionContent" placeholder="Hi {name}, I noticed your work at {company}..."></textarea>
+            </div>
+          `,
+          message: `
+            <div class="form-group">
+              <label>Recipient</label>
+              <input type="text" id="actionTarget" placeholder="Name or profile URL">
+            </div>
+            <div class="form-group">
+              <label>Message</label>
+              <textarea id="actionContent" placeholder="Your message..."></textarea>
+            </div>
+          `,
+          post: `
+            <div class="form-group">
+              <label>Post Topic</label>
+              <input type="text" id="actionTarget" placeholder="e.g., AI in business, Career advice">
+            </div>
+            <div class="form-group">
+              <label>Post Content (AI can generate)</label>
+              <textarea id="actionContent" placeholder="Your post content..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Schedule</label>
+              <select id="actionSchedule">
+                <option value="now">Post Now</option>
+                <option value="1h">In 1 hour</option>
+                <option value="tomorrow">Tomorrow 9 AM</option>
+              </select>
+            </div>
+          `,
+          comment: `
+            <div class="form-group">
+              <label>Post URL</label>
+              <input type="text" id="actionTarget" placeholder="https://linkedin.com/posts/...">
+            </div>
+            <div class="form-group">
+              <label>Comment</label>
+              <textarea id="actionContent" placeholder="Your thoughtful comment..."></textarea>
+            </div>
+          `,
+          profile: `
+            <div class="form-group">
+              <label>Profile URL</label>
+              <input type="text" id="actionTarget" placeholder="https://linkedin.com/in/username">
+            </div>
+          `,
+          sequence: `
+            <div class="form-group">
+              <label>Target List (one per line)</label>
+              <textarea id="actionTarget" placeholder="https://linkedin.com/in/user1&#10;https://linkedin.com/in/user2"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Sequence Type</label>
+              <select id="actionContent">
+                <option value="connect-follow">Connect → Follow-up</option>
+                <option value="nurture">Nurture Sequence</option>
+                <option value="pitch">Pitch Sequence</option>
+              </select>
+            </div>
+          `,
+          search: `
+            <div class="form-group">
+              <label>Search Criteria</label>
+              <input type="text" id="actionTarget" placeholder="e.g., CTO, Startup, San Francisco">
+            </div>
+            <div class="form-group">
+              <label>Max Results</label>
+              <input type="number" id="actionContent" value="25" min="1" max="100">
+            </div>
+          `,
+          sync: `
+            <p style="color:#94a3b8;font-size:12px;">This will share your current queue with all connected peers.</p>
+            <div class="form-group" style="margin-top:12px;">
+              <label>Connected Peers: ${this.mesh?.peers?.size || 0}</label>
+            </div>
+          `
+        };
+
+        const titles = {
+          connect: '🤝 Send Connection Request',
+          message: '✉️ Send Message',
+          post: '📢 Create Post',
+          comment: '💬 Add Comment',
+          profile: '👤 Analyze Profile',
+          sequence: '🔄 Create Sequence',
+          search: '🔍 Search Leads',
+          sync: '📡 Sync with Peers'
+        };
+
+        this.currentAction = action;
+        this.showModal(titles[action], forms[action]);
+
+        $('modalSubmit').onclick = () => {
+          const target = $('actionTarget')?.value;
+          const content = $('actionContent')?.value;
+
+          if (action === 'sync') {
+            if (this.mesh) {
+              this.mesh.broadcast('queue-sync', this.queue);
+              this.addMessage('Queue synced with ' + (this.mesh.peers.size) + ' peers', 'ai');
+            }
+          } else {
+            this.addToQueue({ type: action, target, content });
+            this.addMessage(`Added ${action} task to queue: ${target || content?.slice(0,30)}`, 'ai');
+          }
+
+          this.hideModal();
+        };
+      }
+
+      handleTemplate(template) {
+        const templates = {
+          'connect-recruiter': "Hi {name}, I noticed you're recruiting for {company} and wanted to connect. I'm a {role} with experience in {skills} and would love to learn more about opportunities you're working on. Looking forward to connecting!",
+          'connect-founder': "Hi {name}, Congrats on the impressive progress at {company}! I've been following your journey and really admire what you're building. Would love to connect and exchange ideas. No pitch, just genuine interest in your work!",
+          'follow-up': "Hi {name}, Following up on my previous message. I know you're busy, but I wanted to share {value_prop}. Would love just 15 minutes to discuss. What does your schedule look like this week?",
+          'post-insight': "🚀 Here's what I've learned about {topic} after {years} years in the industry:\n\n1️⃣ {insight1}\n2️⃣ {insight2}\n3️⃣ {insight3}\n\nThe biggest lesson? {lesson}\n\nWhat's been your experience? Drop a comment below 👇\n\n#LinkedIn #Business #Growth",
+          'comment-engage': "Great insight, {name}! This really resonates with my experience in {area}. I especially agree with {point}. One thing I'd add: {addition}. Thanks for sharing!"
+        };
+
+        const content = templates[template];
+        if (content) {
+          $('chatInput').value = "Help me customize this template for my target:\n\n" + content;
+          $$('.tab')[0].click(); // Switch to chat tab
+        }
+      }
+    }
+
+    function renderPeersList() {
+      const container = $('peersList');
+      if (!bot.peersData || bot.peersData.size === 0) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:40px;color:#64748b;">
+            <p style="font-size:32px;margin-bottom:12px;">👥</p>
+            <p>No peers connected yet</p>
+            <p style="font-size:11px;margin-top:8px;">Share room code: <strong>${bot.roomId}</strong></p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = Array.from(bot.peersData.entries()).map(([id, data]) => `
+        <div class="peer-card">
+          <div class="avatar">👤</div>
+          <div class="info">
+            <div class="name">Peer ${id.slice(0,6)}</div>
+            <div class="status">Connected ${bot.formatTime(data.joinedAt)}</div>
+          </div>
+          <div class="actions">
+            <button class="btn" onclick="bot.mesh.broadcast('ping', {to:'${id}'})">Ping</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    const bot = new LinkedInBot();
+    window.LinkedInBot = bot;
+    window.bot = bot; // For console access
+  </script>
+</body>
+</html>
