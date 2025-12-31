@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <!--
 @file browser.html
-@desc Sandboxed Remote Browser Widget - Stream Chrome/Puppeteer in a canvas
-@api  window.SandboxBrowser - Browser controller for embedding/reference
+@desc Self-contained Sandbox Browser Widget - No external dependencies
+@api  window.SandboxBrowser - Browser controller
 -->
 <html lang="en">
 <head>
@@ -11,8 +11,8 @@
     "id": "browser",
     "name": "Sandbox Browser",
     "icon": "🌐",
-    "desc": "Remote Chrome browser streaming widget",
-    "body": "Stream a sandboxed Chrome instance via WebSocket. Supports Puppeteer, Browserless, CDP, and noVNC. Full mouse/keyboard, screenshots, script injection, action recording.",
+    "desc": "Self-contained sandboxed browser widget",
+    "body": "Embedded sandboxed browser using iframe isolation. No server needed. For sites that block iframes, includes optional remote streaming mode.",
     "kills": ["BrowserStack $29/mo", "Sauce Labs $39/mo", "LambdaTest $15/mo"],
     "price": 30,
     "color": "#4285f4"
@@ -22,11 +22,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Sandbox Browser</title>
   <style>
-    :root{--b:#0d1117;--b2:#161b22;--b3:#21262d;--f:#c9d1d9;--a:#58a6ff;--g:#3fb950;--r:#f85149;--o:#d29922;--y:#e3b341;--border:#30363d}
+    :root{--b:#0d1117;--b2:#161b22;--b3:#21262d;--f:#c9d1d9;--a:#58a6ff;--g:#3fb950;--r:#f85149;--o:#d29922;--border:#30363d}
     *{margin:0;padding:0;box-sizing:border-box}
     body{font:13px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;background:var(--b);color:var(--f);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-    /* Toolbar */
     .toolbar{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--b2);border-bottom:1px solid var(--border)}
     .nav-btns{display:flex;gap:2px}
     .btn{height:28px;min-width:28px;padding:0 8px;background:var(--b3);border:1px solid var(--border);border-radius:6px;color:var(--f);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .12s}
@@ -34,131 +33,109 @@
     .btn:active{transform:scale(.97)}
     .btn.primary{background:var(--a);border-color:var(--a);color:#fff}
     .btn.primary:hover{background:#1f6feb}
-    .btn.danger{background:var(--r);border-color:var(--r);color:#fff}
-    .btn.success{background:var(--g);border-color:var(--g);color:#fff}
+    .btn.active{background:var(--g);border-color:var(--g)}
     .btn:disabled{opacity:.5;cursor:not-allowed}
 
     .url-bar{flex:1;display:flex;gap:4px}
     .url-bar input{flex:1;height:28px;padding:0 10px;background:var(--b);border:1px solid var(--border);border-radius:6px;color:var(--f);font:12px/28px monospace;outline:none}
     .url-bar input:focus{border-color:var(--a);box-shadow:0 0 0 2px rgba(88,166,255,.2)}
 
+    .mode-toggle{display:flex;gap:2px;padding:2px;background:var(--b);border-radius:6px}
+    .mode-toggle .btn{border:none;background:transparent;font-size:11px}
+    .mode-toggle .btn.active{background:var(--a)}
+
     .status{display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;color:#8b949e}
-    .status .dot{width:8px;height:8px;border-radius:50%;background:var(--r)}
-    .status .dot.connected{background:var(--g);box-shadow:0 0 6px var(--g)}
-    .status .dot.connecting{background:var(--o);animation:blink 1s infinite}
+    .status .dot{width:8px;height:8px;border-radius:50%;background:var(--g)}
+    .status .dot.error{background:var(--r)}
+    .status .dot.loading{background:var(--o);animation:blink 1s infinite}
     @keyframes blink{50%{opacity:.4}}
 
-    /* Viewport */
     .viewport{flex:1;position:relative;background:#000;overflow:hidden}
-    .viewport canvas{width:100%;height:100%;display:block;cursor:default}
-    .viewport canvas.pointer{cursor:pointer}
-    .viewport canvas.text{cursor:text}
-    .viewport canvas.crosshair{cursor:crosshair}
+    .viewport iframe{width:100%;height:100%;border:none;background:#fff}
+    .viewport canvas{width:100%;height:100%;display:none}
+    .viewport.canvas-mode iframe{display:none}
+    .viewport.canvas-mode canvas{display:block}
 
-    /* Connection Overlay */
-    .overlay{position:absolute;inset:0;background:rgba(13,17,23,.95);display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(4px)}
-    .overlay.hidden{display:none}
-    .connect-box{width:100%;max-width:420px;padding:32px;text-align:center}
-    .connect-box .icon{font-size:56px;margin-bottom:16px}
-    .connect-box h2{font-size:20px;font-weight:600;margin-bottom:8px}
-    .connect-box p{font-size:13px;color:#8b949e;margin-bottom:24px;line-height:1.5}
+    .error-overlay{position:absolute;inset:0;background:var(--b);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;z-index:10}
+    .error-overlay.show{display:flex}
+    .error-overlay .icon{font-size:48px;margin-bottom:16px}
+    .error-overlay h3{font-size:16px;margin-bottom:8px}
+    .error-overlay p{font-size:12px;color:#8b949e;max-width:400px;line-height:1.5;margin-bottom:20px}
+    .error-overlay .suggestions{display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px}
+    .error-overlay .suggestion{padding:12px;background:var(--b2);border:1px solid var(--border);border-radius:8px;cursor:pointer;text-align:left;transition:all .15s}
+    .error-overlay .suggestion:hover{border-color:var(--a)}
+    .error-overlay .suggestion .title{font-size:12px;font-weight:600;margin-bottom:4px}
+    .error-overlay .suggestion .desc{font-size:10px;color:#8b949e}
 
-    .form-group{text-align:left;margin-bottom:16px}
-    .form-group label{display:block;font-size:11px;font-weight:500;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-    .form-group input,.form-group select{width:100%;height:36px;padding:0 12px;background:var(--b);border:1px solid var(--border);border-radius:6px;color:var(--f);font-size:13px}
-    .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--a)}
-
-    .presets{display:flex;gap:8px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
-    .preset{padding:6px 12px;background:var(--b3);border:1px solid var(--border);border-radius:16px;font-size:11px;color:#8b949e;cursor:pointer;transition:all .15s}
-    .preset:hover{background:var(--a);border-color:var(--a);color:#fff}
-
-    .help-box{background:var(--b2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:left;margin-top:20px}
-    .help-box .title{font-size:11px;font-weight:600;color:#8b949e;margin-bottom:10px;text-transform:uppercase}
-    .help-box code{display:block;padding:8px 10px;background:var(--b);border-radius:4px;font:11px/1.4 monospace;color:var(--a);margin-bottom:6px;word-break:break-all}
-    .help-box code:last-child{margin-bottom:0}
-
-    /* Bottom Bar */
     .bottom-bar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--b2);border-top:1px solid var(--border)}
-    .bottom-bar .btn{height:26px;font-size:12px}
+    .bottom-bar .btn{height:26px;font-size:11px}
     .bottom-bar .sep{width:1px;height:16px;background:var(--border)}
-    .fps{margin-left:auto;font-size:11px;color:#8b949e}
-    .fps span{color:var(--g);font-weight:600}
-    .recording{display:flex;align-items:center;gap:4px;color:var(--r);font-size:11px}
-    .recording .dot{width:6px;height:6px;border-radius:50%;background:var(--r);animation:blink .8s infinite}
+    .bottom-bar .info{margin-left:auto;font-size:10px;color:#8b949e}
+    .bottom-bar .info span{color:var(--g)}
 
-    /* Context Menu */
-    .context-menu{position:fixed;background:var(--b2);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100;display:none}
-    .context-menu.show{display:block}
-    .context-menu .item{padding:8px 12px;font-size:12px;color:var(--f);cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px}
-    .context-menu .item:hover{background:var(--b3)}
-    .context-menu .item .key{margin-left:auto;font-size:10px;color:#8b949e}
-    .context-menu .divider{height:1px;background:var(--border);margin:4px 0}
+    .proxy-badge{padding:2px 6px;background:var(--o);border-radius:4px;font-size:9px;color:#000;font-weight:600}
 
-    /* Toast */
-    .toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);padding:10px 20px;background:var(--b2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--f);box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:100}
-    .toast.show{opacity:1}
-    .toast.success{border-color:var(--g);color:var(--g)}
-    .toast.error{border-color:var(--r);color:var(--r)}
+    /* Remote connection panel */
+    .remote-panel{position:absolute;inset:0;background:rgba(13,17,23,.98);display:none;align-items:center;justify-content:center;z-index:20}
+    .remote-panel.show{display:flex}
+    .remote-box{width:100%;max-width:400px;padding:24px}
+    .remote-box h3{font-size:16px;margin-bottom:16px;text-align:center}
+    .form-group{margin-bottom:14px}
+    .form-group label{display:block;font-size:10px;color:#8b949e;margin-bottom:6px;text-transform:uppercase}
+    .form-group input,.form-group select{width:100%;height:36px;padding:0 12px;background:var(--b);border:1px solid var(--border);border-radius:6px;color:var(--f);font-size:12px}
+    .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--a)}
+    .remote-box .help{margin-top:16px;padding:12px;background:var(--b2);border-radius:6px;font-size:11px;color:#8b949e}
+    .remote-box .help code{display:block;margin-top:8px;padding:8px;background:var(--b);border-radius:4px;font-family:monospace;color:var(--a)}
   </style>
 </head>
 <body>
   <div class="toolbar">
     <div class="nav-btns">
-      <button class="btn" id="btnBack" title="Back (Alt+←)">←</button>
-      <button class="btn" id="btnForward" title="Forward (Alt+→)">→</button>
-      <button class="btn" id="btnRefresh" title="Refresh (F5)">↻</button>
+      <button class="btn" id="btnBack" title="Back">←</button>
+      <button class="btn" id="btnForward" title="Forward">→</button>
+      <button class="btn" id="btnRefresh" title="Refresh">↻</button>
       <button class="btn" id="btnHome" title="Home">🏠</button>
     </div>
     <div class="url-bar">
       <input type="text" id="urlInput" value="https://example.com" placeholder="Enter URL...">
       <button class="btn primary" id="btnGo">Go</button>
     </div>
+    <div class="mode-toggle">
+      <button class="btn active" id="modeIframe" title="Sandboxed iframe (default)">📦 Sandbox</button>
+      <button class="btn" id="modeProxy" title="CORS proxy for blocked sites">🔓 Proxy</button>
+      <button class="btn" id="modeRemote" title="Remote browser streaming">📡 Remote</button>
+    </div>
     <div class="status">
       <span class="dot" id="statusDot"></span>
-      <span id="statusText">Disconnected</span>
+      <span id="statusText">Ready</span>
     </div>
-    <button class="btn" id="btnConnect">Connect</button>
   </div>
 
   <div class="viewport" id="viewport">
+    <iframe
+      id="browserFrame"
+      sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
+      allow="clipboard-read; clipboard-write"
+      loading="lazy"
+    ></iframe>
     <canvas id="canvas"></canvas>
-    <div class="overlay" id="overlay">
-      <div class="connect-box">
-        <div class="icon">🌐</div>
-        <h2>Sandbox Browser</h2>
-        <p>Connect to a remote Chrome instance via WebSocket. Fully sandboxed and isolated from your local browser.</p>
 
-        <div class="form-group">
-          <label>Server URL</label>
-          <input type="text" id="serverUrl" placeholder="ws://localhost:3000">
+    <div class="error-overlay" id="errorOverlay">
+      <div class="icon">🚫</div>
+      <h3>Site Blocked Iframe Loading</h3>
+      <p id="errorMsg">This site has security policies that prevent embedding. Try one of these alternatives:</p>
+      <div class="suggestions">
+        <div class="suggestion" id="suggestProxy">
+          <div class="title">🔓 Use CORS Proxy</div>
+          <div class="desc">Route through a proxy to bypass restrictions</div>
         </div>
-
-        <div class="form-group">
-          <label>Connection Type</label>
-          <select id="serverType">
-            <option value="stream">Puppeteer Stream (JPEG frames)</option>
-            <option value="cdp">Chrome DevTools Protocol</option>
-            <option value="browserless">Browserless.io</option>
-            <option value="vnc">noVNC (VNC over WebSocket)</option>
-          </select>
+        <div class="suggestion" id="suggestRemote">
+          <div class="title">📡 Remote Browser</div>
+          <div class="desc">Stream a real Chrome instance (requires server)</div>
         </div>
-
-        <button class="btn primary" id="btnConnectMain" style="width:100%;height:40px;font-size:14px">
-          🔌 Connect to Browser
-        </button>
-
-        <div class="presets">
-          <span class="preset" data-url="ws://localhost:3000" data-type="stream">Local:3000</span>
-          <span class="preset" data-url="ws://localhost:9222" data-type="cdp">CDP:9222</span>
-          <span class="preset" data-url="wss://chrome.browserless.io" data-type="browserless">Browserless</span>
-          <span class="preset" data-url="ws://localhost:5900" data-type="vnc">VNC:5900</span>
-        </div>
-
-        <div class="help-box">
-          <div class="title">Quick Start</div>
-          <code>npx @anthropic/browser-stream-server</code>
-          <code>docker run -p 3000:3000 browserless/chrome</code>
-          <code>google-chrome --remote-debugging-port=9222</code>
+        <div class="suggestion" id="suggestNewTab">
+          <div class="title">↗️ Open in New Tab</div>
+          <div class="desc">Open the URL in a regular browser tab</div>
         </div>
       </div>
     </div>
@@ -166,561 +143,305 @@
 
   <div class="bottom-bar">
     <button class="btn" id="btnScreenshot" title="Screenshot">📷</button>
-    <button class="btn" id="btnInspect" title="Inspect Element">🔍</button>
-    <button class="btn" id="btnConsole" title="Console">⌨️</button>
-    <button class="btn" id="btnInject" title="Inject Script">💉</button>
-    <div class="sep"></div>
-    <button class="btn" id="btnRecord" title="Record Actions">⏺️</button>
-    <button class="btn" id="btnPlay" title="Play Recording">▶️</button>
-    <div class="sep"></div>
+    <button class="btn" id="btnInspect" title="Toggle DevTools">🔧</button>
     <button class="btn" id="btnFullscreen" title="Fullscreen">⛶</button>
-    <div id="recordingIndicator" class="recording" style="display:none">
-      <span class="dot"></span>
-      <span>REC</span>
-    </div>
-    <div class="fps">
-      <span id="fpsValue">0</span> FPS
+    <div class="sep"></div>
+    <button class="btn" id="btnNewTab" title="Open in new tab">↗️</button>
+    <div class="info">
+      <span id="modeIndicator">Sandbox</span> mode
     </div>
   </div>
 
-  <!-- Context Menu -->
-  <div class="context-menu" id="contextMenu">
-    <div class="item" data-action="back">← Back <span class="key">Alt+←</span></div>
-    <div class="item" data-action="forward">→ Forward <span class="key">Alt+→</span></div>
-    <div class="item" data-action="refresh">↻ Refresh <span class="key">F5</span></div>
-    <div class="divider"></div>
-    <div class="item" data-action="screenshot">📷 Screenshot</div>
-    <div class="item" data-action="inspect">🔍 Inspect Element</div>
-    <div class="item" data-action="source">📄 View Source</div>
-    <div class="divider"></div>
-    <div class="item" data-action="copy-url">📋 Copy URL</div>
-    <div class="item" data-action="open-new">↗️ Open in New Tab</div>
+  <!-- Remote Browser Panel -->
+  <div class="remote-panel" id="remotePanel">
+    <div class="remote-box">
+      <h3>📡 Connect to Remote Browser</h3>
+      <div class="form-group">
+        <label>WebSocket Server URL</label>
+        <input type="text" id="remoteUrl" placeholder="ws://localhost:3000">
+      </div>
+      <div class="form-group">
+        <label>Connection Type</label>
+        <select id="remoteType">
+          <option value="stream">Puppeteer Stream</option>
+          <option value="cdp">Chrome DevTools Protocol</option>
+          <option value="browserless">Browserless.io</option>
+        </select>
+      </div>
+      <button class="btn primary" id="btnRemoteConnect" style="width:100%;height:40px">Connect</button>
+      <button class="btn" id="btnRemoteCancel" style="width:100%;height:36px;margin-top:8px">Cancel</button>
+      <div class="help">
+        <strong>Start a browser server:</strong>
+        <code>npx @anthropic/browser-server</code>
+      </div>
+    </div>
   </div>
-
-  <!-- Toast -->
-  <div class="toast" id="toast"></div>
 
   <script type="module">
-    /**
-     * Sandbox Browser Widget
-     * Remote Chrome streaming via WebSocket
-     *
-     * @usage
-     *   // Standalone
-     *   browser.connect('ws://localhost:3000');
-     *   browser.navigate('https://google.com');
-     *
-     *   // Embed in another widget
-     *   const frame = document.createElement('iframe');
-     *   frame.src = 'browser.html';
-     *   frame.onload = () => {
-     *     frame.contentWindow.SandboxBrowser.connect('ws://localhost:3000');
-     *   };
-     *
-     *   // Reference via postMessage
-     *   iframe.contentWindow.postMessage({type: 'navigate', url: 'https://google.com'}, '*');
-     */
-
     const $ = id => document.getElementById(id);
-    const canvas = $('canvas');
-    const ctx = canvas.getContext('2d');
+
+    // CORS Proxies (public, may have rate limits)
+    const CORS_PROXIES = [
+      'https://corsproxy.io/?',
+      'https://api.allorigins.win/raw?url=',
+      'https://cors-anywhere.herokuapp.com/',
+    ];
 
     class SandboxBrowser {
       constructor() {
+        this.frame = $('browserFrame');
+        this.canvas = $('canvas');
+        this.ctx = this.canvas.getContext('2d');
+
+        this.url = 'https://example.com';
+        this.history = ['https://example.com'];
+        this.historyIndex = 0;
+
+        this.mode = 'iframe'; // iframe, proxy, remote
+        this.proxyIndex = 0;
         this.ws = null;
         this.connected = false;
-        this.url = 'https://example.com';
-        this.homeUrl = 'https://example.com';
-        this.serverUrl = '';
-        this.serverType = 'stream';
 
-        // Frame stats
-        this.frameCount = 0;
-        this.lastFpsTime = Date.now();
-        this.fps = 0;
-
-        // Recording
-        this.recording = false;
-        this.recordedActions = [];
-        this.playbackIndex = 0;
-
-        // Cursor tracking
-        this.cursorType = 'default';
-
-        // Event history for undo
-        this.history = [];
-        this.historyIndex = -1;
+        this.blockedDomains = new Set([
+          'linkedin.com', 'www.linkedin.com',
+          'facebook.com', 'www.facebook.com',
+          'twitter.com', 'x.com',
+          'instagram.com', 'www.instagram.com',
+          'google.com', 'www.google.com',
+          'github.com', 'www.github.com',
+        ]);
 
         this.init();
       }
 
       init() {
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
-
-        // Toolbar buttons
+        // Navigation
         $('btnBack').onclick = () => this.back();
         $('btnForward').onclick = () => this.forward();
         $('btnRefresh').onclick = () => this.refresh();
-        $('btnHome').onclick = () => this.navigate(this.homeUrl);
+        $('btnHome').onclick = () => this.navigate('https://example.com');
         $('btnGo').onclick = () => this.navigate($('urlInput').value);
-        $('btnConnect').onclick = () => this.toggleConnection();
-        $('btnConnectMain').onclick = () => this.connect();
-
-        // URL input
         $('urlInput').onkeydown = e => { if (e.key === 'Enter') this.navigate($('urlInput').value); };
 
-        // Bottom bar buttons
+        // Mode switching
+        $('modeIframe').onclick = () => this.setMode('iframe');
+        $('modeProxy').onclick = () => this.setMode('proxy');
+        $('modeRemote').onclick = () => this.setMode('remote');
+
+        // Bottom bar
         $('btnScreenshot').onclick = () => this.screenshot();
-        $('btnInspect').onclick = () => this.toggleInspect();
-        $('btnConsole').onclick = () => this.showConsole();
-        $('btnInject').onclick = () => this.showInjectDialog();
-        $('btnRecord').onclick = () => this.toggleRecording();
-        $('btnPlay').onclick = () => this.playRecording();
+        $('btnInspect').onclick = () => this.toggleDevTools();
         $('btnFullscreen').onclick = () => this.toggleFullscreen();
+        $('btnNewTab').onclick = () => window.open(this.url, '_blank');
 
-        // Presets
-        document.querySelectorAll('.preset').forEach(el => {
-          el.onclick = () => {
-            $('serverUrl').value = el.dataset.url;
-            $('serverType').value = el.dataset.type;
-          };
+        // Error overlay suggestions
+        $('suggestProxy').onclick = () => { this.setMode('proxy'); this.navigate(this.url); };
+        $('suggestRemote').onclick = () => this.setMode('remote');
+        $('suggestNewTab').onclick = () => window.open(this.url, '_blank');
+
+        // Remote panel
+        $('btnRemoteConnect').onclick = () => this.connectRemote();
+        $('btnRemoteCancel').onclick = () => $('remotePanel').classList.remove('show');
+
+        // Frame load detection
+        this.frame.onload = () => this.onFrameLoad();
+        this.frame.onerror = () => this.onFrameError();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', e => {
+          if (e.key === 'F5') { e.preventDefault(); this.refresh(); }
+          if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); this.back(); }
+          if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); this.forward(); }
+          if (e.ctrlKey && e.key === 'l') { e.preventDefault(); $('urlInput').focus(); $('urlInput').select(); }
         });
 
-        // Canvas events
-        canvas.addEventListener('mousedown', e => this.onMouse('down', e));
-        canvas.addEventListener('mouseup', e => this.onMouse('up', e));
-        canvas.addEventListener('mousemove', e => this.onMouse('move', e));
-        canvas.addEventListener('click', e => this.onMouse('click', e));
-        canvas.addEventListener('dblclick', e => this.onMouse('dblclick', e));
-        canvas.addEventListener('wheel', e => this.onWheel(e), { passive: false });
-        canvas.addEventListener('contextmenu', e => this.onContextMenu(e));
-
-        // Keyboard
-        canvas.tabIndex = 0;
-        canvas.addEventListener('keydown', e => this.onKey('down', e));
-        canvas.addEventListener('keyup', e => this.onKey('up', e));
-
-        // Context menu
-        document.querySelectorAll('.context-menu .item').forEach(el => {
-          el.onclick = () => {
-            this.handleContextAction(el.dataset.action);
-            $('contextMenu').classList.remove('show');
-          };
-        });
-        document.addEventListener('click', () => $('contextMenu').classList.remove('show'));
-
-        // Global keyboard shortcuts
-        document.addEventListener('keydown', e => this.onGlobalKey(e));
-
-        // PostMessage API for embedding
+        // PostMessage API
         window.addEventListener('message', e => this.onPostMessage(e));
 
-        // Load saved settings
-        this.loadSettings();
+        // Initial load
+        this.navigate(this.url);
       }
 
-      resizeCanvas() {
-        const vp = $('viewport');
-        canvas.width = vp.clientWidth || 1280;
-        canvas.height = vp.clientHeight || 720;
-      }
-
-      setStatus(text, state = 'disconnected') {
+      setStatus(text, state = 'ok') {
         $('statusText').textContent = text;
-        const dot = $('statusDot');
-        dot.classList.remove('connected', 'connecting');
-        if (state === 'connected') dot.classList.add('connected');
-        else if (state === 'connecting') dot.classList.add('connecting');
-
-        $('btnConnect').textContent = this.connected ? 'Disconnect' : 'Connect';
+        $('statusDot').className = 'dot' + (state === 'error' ? ' error' : state === 'loading' ? ' loading' : '');
       }
 
-      toast(msg, type = '') {
-        const t = $('toast');
-        t.textContent = msg;
-        t.className = 'toast show ' + type;
-        setTimeout(() => t.classList.remove('show'), 2000);
-      }
+      setMode(mode) {
+        this.mode = mode;
 
-      loadSettings() {
-        const saved = localStorage.getItem('sandbox-browser-settings');
-        if (saved) {
-          try {
-            const s = JSON.parse(saved);
-            if (s.serverUrl) $('serverUrl').value = s.serverUrl;
-            if (s.serverType) $('serverType').value = s.serverType;
-            if (s.homeUrl) this.homeUrl = s.homeUrl;
-          } catch (e) {}
+        // Update UI
+        $('modeIframe').classList.toggle('active', mode === 'iframe');
+        $('modeProxy').classList.toggle('active', mode === 'proxy');
+        $('modeRemote').classList.toggle('active', mode === 'remote');
+        $('modeIndicator').textContent = mode === 'iframe' ? 'Sandbox' : mode === 'proxy' ? 'Proxy' : 'Remote';
+
+        // Show/hide elements
+        $('viewport').classList.toggle('canvas-mode', mode === 'remote');
+        $('errorOverlay').classList.remove('show');
+
+        if (mode === 'remote') {
+          $('remotePanel').classList.add('show');
+        } else {
+          $('remotePanel').classList.remove('show');
+          if (this.url) this.navigate(this.url);
         }
       }
 
-      saveSettings() {
-        localStorage.setItem('sandbox-browser-settings', JSON.stringify({
-          serverUrl: this.serverUrl,
-          serverType: this.serverType,
-          homeUrl: this.homeUrl
-        }));
-      }
-
-      async connect(url, type) {
-        this.serverUrl = url || $('serverUrl').value;
-        this.serverType = type || $('serverType').value;
-
-        if (!this.serverUrl) {
-          this.toast('Please enter a server URL', 'error');
-          return;
-        }
-
-        this.setStatus('Connecting...', 'connecting');
-
+      isBlocked(url) {
         try {
-          if (this.ws) this.ws.close();
-
-          this.ws = new WebSocket(this.serverUrl);
-          this.ws.binaryType = 'blob';
-
-          this.ws.onopen = () => {
-            this.connected = true;
-            this.setStatus('Connected', 'connected');
-            $('overlay').classList.add('hidden');
-            this.saveSettings();
-
-            // Init session
-            this.send({
-              type: 'init',
-              connectionType: this.serverType,
-              viewport: { width: canvas.width, height: canvas.height },
-              url: this.url
-            });
-
-            canvas.focus();
-            this.toast('Connected to browser', 'success');
-          };
-
-          this.ws.onmessage = e => this.onMessage(e.data);
-
-          this.ws.onerror = () => {
-            this.setStatus('Connection error', 'disconnected');
-            this.toast('Connection failed', 'error');
-          };
-
-          this.ws.onclose = () => {
-            this.connected = false;
-            this.setStatus('Disconnected', 'disconnected');
-            $('overlay').classList.remove('hidden');
-          };
-
-        } catch (err) {
-          this.setStatus('Connection failed', 'disconnected');
-          this.toast('Connection failed: ' + err.message, 'error');
+          const hostname = new URL(url).hostname.replace(/^www\./, '');
+          return this.blockedDomains.has(hostname) || this.blockedDomains.has('www.' + hostname);
+        } catch {
+          return false;
         }
       }
 
-      disconnect() {
-        if (this.ws) {
-          this.ws.close();
-          this.ws = null;
-        }
-        this.connected = false;
-        this.setStatus('Disconnected', 'disconnected');
-        $('overlay').classList.remove('hidden');
-      }
-
-      toggleConnection() {
-        if (this.connected) this.disconnect();
-        else $('overlay').classList.remove('hidden');
-      }
-
-      send(msg) {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify(msg));
-
-          // Record non-move actions
-          if (this.recording && msg.type !== 'mouse' || msg.action !== 'move') {
-            this.recordedActions.push({ ...msg, ts: Date.now() });
-          }
-        }
-      }
-
-      async onMessage(data) {
-        // Binary frame
-        if (data instanceof Blob) {
-          const img = new Image();
-          img.onload = () => {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            URL.revokeObjectURL(img.src);
-            this.updateFps();
-          };
-          img.src = URL.createObjectURL(data);
-          return;
-        }
-
-        // JSON message
-        try {
-          const msg = JSON.parse(data);
-
-          switch (msg.type) {
-            case 'frame':
-              const img = new Image();
-              img.onload = () => {
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                this.updateFps();
-              };
-              img.src = 'data:image/jpeg;base64,' + msg.data;
-              break;
-
-            case 'url':
-              this.url = msg.url;
-              $('urlInput').value = msg.url;
-              this.history.push(msg.url);
-              this.historyIndex = this.history.length - 1;
-              break;
-
-            case 'cursor':
-              this.cursorType = msg.cursor || 'default';
-              canvas.className = this.cursorType;
-              break;
-
-            case 'title':
-              document.title = msg.title + ' - Sandbox Browser';
-              break;
-
-            case 'console':
-              console.log('[remote]', msg.level || 'log', msg.message);
-              break;
-
-            case 'screenshot':
-              this.downloadScreenshot(msg.data);
-              break;
-
-            case 'source':
-              this.showSource(msg.html);
-              break;
-
-            case 'error':
-              this.toast('Error: ' + msg.message, 'error');
-              break;
-          }
-        } catch (e) {
-          // Raw data
-        }
-      }
-
-      updateFps() {
-        this.frameCount++;
-        const now = Date.now();
-        if (now - this.lastFpsTime >= 1000) {
-          this.fps = Math.round(this.frameCount * 1000 / (now - this.lastFpsTime));
-          $('fpsValue').textContent = this.fps;
-          this.frameCount = 0;
-          this.lastFpsTime = now;
-        }
-      }
-
-      getCanvasCoords(e) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        return {
-          x: Math.round((e.clientX - rect.left) * scaleX),
-          y: Math.round((e.clientY - rect.top) * scaleY)
-        };
-      }
-
-      onMouse(action, e) {
-        if (!this.connected) return;
-        const { x, y } = this.getCanvasCoords(e);
-        this.send({ type: 'mouse', action, x, y, button: e.button });
-      }
-
-      onWheel(e) {
-        if (!this.connected) return;
-        e.preventDefault();
-        const { x, y } = this.getCanvasCoords(e);
-        this.send({ type: 'scroll', x, y, deltaX: e.deltaX, deltaY: e.deltaY });
-      }
-
-      onKey(action, e) {
-        if (!this.connected) return;
-        e.preventDefault();
-        this.send({
-          type: 'key',
-          action,
-          key: e.key,
-          code: e.code,
-          ctrl: e.ctrlKey,
-          alt: e.altKey,
-          shift: e.shiftKey,
-          meta: e.metaKey
-        });
-      }
-
-      onGlobalKey(e) {
-        // Shortcuts that work even when canvas not focused
-        if (e.key === 'F5') {
-          e.preventDefault();
-          this.refresh();
-        } else if (e.altKey && e.key === 'ArrowLeft') {
-          e.preventDefault();
-          this.back();
-        } else if (e.altKey && e.key === 'ArrowRight') {
-          e.preventDefault();
-          this.forward();
-        } else if (e.ctrlKey && e.key === 'l') {
-          e.preventDefault();
-          $('urlInput').focus();
-          $('urlInput').select();
-        }
-      }
-
-      onContextMenu(e) {
-        e.preventDefault();
-        const menu = $('contextMenu');
-        menu.style.left = e.clientX + 'px';
-        menu.style.top = e.clientY + 'px';
-        menu.classList.add('show');
-      }
-
-      handleContextAction(action) {
-        switch (action) {
-          case 'back': this.back(); break;
-          case 'forward': this.forward(); break;
-          case 'refresh': this.refresh(); break;
-          case 'screenshot': this.screenshot(); break;
-          case 'inspect': this.toggleInspect(); break;
-          case 'source': this.viewSource(); break;
-          case 'copy-url':
-            navigator.clipboard.writeText(this.url);
-            this.toast('URL copied');
-            break;
-          case 'open-new':
-            window.open(this.url, '_blank');
-            break;
-        }
-      }
-
-      onPostMessage(e) {
-        // API for embedding widgets
-        const msg = e.data;
-        if (!msg || !msg.type) return;
-
-        switch (msg.type) {
-          case 'connect': this.connect(msg.url, msg.connectionType); break;
-          case 'disconnect': this.disconnect(); break;
-          case 'navigate': this.navigate(msg.url); break;
-          case 'back': this.back(); break;
-          case 'forward': this.forward(); break;
-          case 'refresh': this.refresh(); break;
-          case 'screenshot': this.screenshot(); break;
-          case 'eval': this.send({ type: 'eval', script: msg.script }); break;
-          case 'click': this.send({ type: 'mouse', action: 'click', x: msg.x, y: msg.y }); break;
-          case 'type': this.typeText(msg.text); break;
-        }
-      }
-
-      // Navigation
       navigate(url) {
         if (!url) return;
         if (!url.match(/^https?:\/\//)) url = 'https://' + url;
+
         this.url = url;
         $('urlInput').value = url;
-        this.send({ type: 'navigate', url });
-      }
+        $('errorOverlay').classList.remove('show');
+        this.setStatus('Loading...', 'loading');
 
-      back() { this.send({ type: 'nav', action: 'back' }); }
-      forward() { this.send({ type: 'nav', action: 'forward' }); }
-      refresh() { this.send({ type: 'nav', action: 'refresh' }); }
-
-      // Actions
-      screenshot() {
-        if (this.connected) {
-          this.send({ type: 'screenshot' });
-        } else {
-          this.downloadScreenshot(canvas.toDataURL('image/png').split(',')[1]);
-        }
-      }
-
-      downloadScreenshot(base64) {
-        const a = document.createElement('a');
-        a.href = 'data:image/png;base64,' + base64;
-        a.download = 'screenshot-' + Date.now() + '.png';
-        a.click();
-        this.toast('Screenshot saved', 'success');
-      }
-
-      toggleInspect() {
-        this.send({ type: 'inspect', enabled: true });
-        canvas.style.cursor = 'crosshair';
-        this.toast('Click an element to inspect');
-      }
-
-      viewSource() {
-        this.send({ type: 'source' });
-      }
-
-      showSource(html) {
-        const w = window.open('', '_blank');
-        w.document.write('<pre>' + html.replace(/</g, '&lt;') + '</pre>');
-      }
-
-      showConsole() {
-        this.send({ type: 'console', action: 'open' });
-        this.toast('Console opened in remote browser');
-      }
-
-      showInjectDialog() {
-        const script = prompt('Enter JavaScript to execute:');
-        if (script) {
-          this.send({ type: 'eval', script });
-          this.toast('Script executed');
-        }
-      }
-
-      // Recording
-      toggleRecording() {
-        this.recording = !this.recording;
-        $('btnRecord').classList.toggle('danger', this.recording);
-        $('recordingIndicator').style.display = this.recording ? 'flex' : 'none';
-
-        if (this.recording) {
-          this.recordedActions = [];
-          this.toast('Recording started');
-        } else {
-          this.toast(`Recorded ${this.recordedActions.length} actions`);
-          console.log('Recorded:', this.recordedActions);
-        }
-      }
-
-      async playRecording() {
-        if (this.recordedActions.length === 0) {
-          this.toast('No recording to play', 'error');
+        if (this.mode === 'remote') {
+          if (this.connected) {
+            this.sendRemote({ type: 'navigate', url });
+          }
           return;
         }
 
-        this.toast('Playing recording...');
-
-        for (let i = 0; i < this.recordedActions.length; i++) {
-          const action = this.recordedActions[i];
-          const nextAction = this.recordedActions[i + 1];
-
-          this.send(action);
-
-          if (nextAction) {
-            const delay = Math.min(nextAction.ts - action.ts, 2000);
-            await new Promise(r => setTimeout(r, delay));
-          }
+        // Check if site is known to block iframes
+        if (this.mode === 'iframe' && this.isBlocked(url)) {
+          this.showBlockedError(url);
+          return;
         }
 
-        this.toast('Playback complete', 'success');
+        let loadUrl = url;
+        if (this.mode === 'proxy') {
+          loadUrl = CORS_PROXIES[this.proxyIndex] + encodeURIComponent(url);
+        }
+
+        try {
+          this.frame.src = loadUrl;
+
+          // Add to history
+          if (this.history[this.historyIndex] !== url) {
+            this.history = this.history.slice(0, this.historyIndex + 1);
+            this.history.push(url);
+            this.historyIndex = this.history.length - 1;
+          }
+        } catch (e) {
+          this.onFrameError();
+        }
       }
 
-      // Helpers
-      async typeText(text, delay = 50) {
-        for (const char of text) {
-          this.send({ type: 'key', action: 'down', key: char, code: 'Key' + char.toUpperCase() });
-          this.send({ type: 'key', action: 'up', key: char, code: 'Key' + char.toUpperCase() });
-          await new Promise(r => setTimeout(r, delay + Math.random() * 50));
+      onFrameLoad() {
+        this.setStatus('Loaded', 'ok');
+
+        // Try to get actual URL from frame (may fail due to CORS)
+        try {
+          const frameUrl = this.frame.contentWindow?.location?.href;
+          if (frameUrl && frameUrl !== 'about:blank') {
+            $('urlInput').value = frameUrl;
+          }
+        } catch (e) {
+          // Cross-origin, can't access
+        }
+      }
+
+      onFrameError() {
+        this.setStatus('Error', 'error');
+        this.showBlockedError(this.url);
+      }
+
+      showBlockedError(url) {
+        $('errorOverlay').classList.add('show');
+        $('errorMsg').textContent = `"${new URL(url).hostname}" blocks iframe embedding. Try an alternative:`;
+        this.setStatus('Blocked', 'error');
+      }
+
+      back() {
+        if (this.mode === 'remote') {
+          this.sendRemote({ type: 'nav', action: 'back' });
+          return;
+        }
+        if (this.historyIndex > 0) {
+          this.historyIndex--;
+          this.navigate(this.history[this.historyIndex]);
+        }
+      }
+
+      forward() {
+        if (this.mode === 'remote') {
+          this.sendRemote({ type: 'nav', action: 'forward' });
+          return;
+        }
+        if (this.historyIndex < this.history.length - 1) {
+          this.historyIndex++;
+          this.navigate(this.history[this.historyIndex]);
+        }
+      }
+
+      refresh() {
+        if (this.mode === 'remote') {
+          this.sendRemote({ type: 'nav', action: 'refresh' });
+        } else {
+          this.frame.src = this.frame.src;
+        }
+      }
+
+      screenshot() {
+        if (this.mode === 'remote') {
+          this.sendRemote({ type: 'screenshot' });
+          return;
+        }
+
+        // For iframe, we can only capture if same-origin
+        try {
+          const doc = this.frame.contentDocument;
+          if (doc) {
+            // Use html2canvas or similar if available
+            alert('Screenshot requires same-origin content or remote browser mode');
+          }
+        } catch (e) {
+          // Try canvas screenshot if in canvas mode
+          if (this.mode === 'remote') {
+            const a = document.createElement('a');
+            a.href = this.canvas.toDataURL('image/png');
+            a.download = 'screenshot-' + Date.now() + '.png';
+            a.click();
+          } else {
+            alert('Screenshot requires same-origin content or remote browser mode');
+          }
+        }
+      }
+
+      toggleDevTools() {
+        // In iframe mode, we can inject a simple inspector
+        try {
+          const doc = this.frame.contentDocument;
+          if (doc) {
+            const existing = doc.getElementById('sandbox-devtools');
+            if (existing) {
+              existing.remove();
+            } else {
+              const tools = doc.createElement('div');
+              tools.id = 'sandbox-devtools';
+              tools.innerHTML = `
+                <style>
+                  #sandbox-devtools { position:fixed;bottom:0;left:0;right:0;height:200px;background:#1e1e1e;color:#fff;font:12px monospace;z-index:999999;border-top:2px solid #007acc;overflow:auto;padding:8px; }
+                  #sandbox-devtools .log { padding:2px 0;border-bottom:1px solid #333; }
+                </style>
+                <div>Console (limited in sandbox mode)</div>
+              `;
+              doc.body.appendChild(tools);
+            }
+          }
+        } catch (e) {
+          alert('DevTools requires same-origin content');
         }
       }
 
@@ -732,19 +453,162 @@
         }
       }
 
+      // Remote browser methods
+      async connectRemote() {
+        const url = $('remoteUrl').value;
+        if (!url) {
+          alert('Please enter a WebSocket URL');
+          return;
+        }
+
+        this.setStatus('Connecting...', 'loading');
+
+        try {
+          if (this.ws) this.ws.close();
+
+          this.ws = new WebSocket(url);
+          this.ws.binaryType = 'blob';
+
+          this.ws.onopen = () => {
+            this.connected = true;
+            this.setStatus('Connected', 'ok');
+            $('remotePanel').classList.remove('show');
+            $('viewport').classList.add('canvas-mode');
+
+            this.resizeCanvas();
+            this.sendRemote({
+              type: 'init',
+              viewport: { width: this.canvas.width, height: this.canvas.height },
+              url: this.url
+            });
+
+            // Setup canvas events
+            this.setupCanvasEvents();
+          };
+
+          this.ws.onmessage = e => this.onRemoteMessage(e.data);
+          this.ws.onerror = () => this.setStatus('Connection error', 'error');
+          this.ws.onclose = () => {
+            this.connected = false;
+            this.setStatus('Disconnected', 'error');
+          };
+
+        } catch (e) {
+          this.setStatus('Connection failed', 'error');
+        }
+      }
+
+      sendRemote(msg) {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify(msg));
+        }
+      }
+
+      async onRemoteMessage(data) {
+        if (data instanceof Blob) {
+          const img = new Image();
+          img.onload = () => {
+            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+            URL.revokeObjectURL(img.src);
+          };
+          img.src = URL.createObjectURL(data);
+          return;
+        }
+
+        try {
+          const msg = JSON.parse(data);
+          if (msg.type === 'frame') {
+            const img = new Image();
+            img.onload = () => this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+            img.src = 'data:image/jpeg;base64,' + msg.data;
+          } else if (msg.type === 'url') {
+            $('urlInput').value = msg.url;
+            this.url = msg.url;
+          } else if (msg.type === 'screenshot') {
+            const a = document.createElement('a');
+            a.href = 'data:image/png;base64,' + msg.data;
+            a.download = 'screenshot-' + Date.now() + '.png';
+            a.click();
+          }
+        } catch (e) {}
+      }
+
+      resizeCanvas() {
+        const vp = $('viewport');
+        this.canvas.width = vp.clientWidth || 1280;
+        this.canvas.height = vp.clientHeight || 720;
+      }
+
+      setupCanvasEvents() {
+        const getCoords = e => {
+          const rect = this.canvas.getBoundingClientRect();
+          return {
+            x: Math.round((e.clientX - rect.left) * (this.canvas.width / rect.width)),
+            y: Math.round((e.clientY - rect.top) * (this.canvas.height / rect.height))
+          };
+        };
+
+        this.canvas.onmousedown = e => {
+          const { x, y } = getCoords(e);
+          this.sendRemote({ type: 'mouse', action: 'down', x, y, button: e.button });
+        };
+        this.canvas.onmouseup = e => {
+          const { x, y } = getCoords(e);
+          this.sendRemote({ type: 'mouse', action: 'up', x, y, button: e.button });
+        };
+        this.canvas.onmousemove = e => {
+          const { x, y } = getCoords(e);
+          this.sendRemote({ type: 'mouse', action: 'move', x, y });
+        };
+        this.canvas.onclick = e => {
+          const { x, y } = getCoords(e);
+          this.sendRemote({ type: 'mouse', action: 'click', x, y, button: e.button });
+        };
+        this.canvas.onwheel = e => {
+          e.preventDefault();
+          this.sendRemote({ type: 'scroll', deltaX: e.deltaX, deltaY: e.deltaY });
+        };
+        this.canvas.oncontextmenu = e => e.preventDefault();
+
+        this.canvas.tabIndex = 0;
+        this.canvas.onkeydown = e => {
+          e.preventDefault();
+          this.sendRemote({ type: 'key', action: 'down', key: e.key, code: e.code });
+        };
+        this.canvas.onkeyup = e => {
+          e.preventDefault();
+          this.sendRemote({ type: 'key', action: 'up', key: e.key, code: e.code });
+        };
+      }
+
+      // PostMessage API for embedding
+      onPostMessage(e) {
+        const msg = e.data;
+        if (!msg?.type) return;
+
+        switch (msg.type) {
+          case 'navigate': this.navigate(msg.url); break;
+          case 'back': this.back(); break;
+          case 'forward': this.forward(); break;
+          case 'refresh': this.refresh(); break;
+          case 'setMode': this.setMode(msg.mode); break;
+          case 'connect':
+            $('remoteUrl').value = msg.url;
+            this.connectRemote();
+            break;
+        }
+      }
+
       // Public API
       getUrl() { return this.url; }
+      getMode() { return this.mode; }
       isConnected() { return this.connected; }
-      getRecording() { return [...this.recordedActions]; }
     }
 
     const browser = new SandboxBrowser();
-
-    // Expose globally
     window.SandboxBrowser = browser;
     window.browser = browser;
 
-    // Export for module usage
     export default browser;
   </script>
 </body>
