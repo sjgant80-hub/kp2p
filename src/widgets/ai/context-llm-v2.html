@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<!--
+@file context-llm-v2.html
+@desc Advanced context management - importance scoring, pinning, priority queue
+@api  window.ContextLLM2
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "contextLLM2",
+    "name": "Context LLM v2",
+    "icon": "📊",
+    "desc": "Smart context prioritization",
+    "body": "Advanced context management with importance scoring, message pinning, priority queues, and semantic chunking. Smarter than v1.",
+    "kills": ["Context overflow errors", "Lost important context"],
+    "price": 35,
+    "color": "#8b5cf6"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Context LLM v2</title>
+  <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:13px/1.4 system-ui,sans-serif;background:#0a0a0f;color:#e4e4e7;height:100vh;display:flex;flex-direction:column}
+.hdr{padding:8px 12px;background:linear-gradient(90deg,#1e1b4b,#0a0a0f);border-bottom:1px solid #3730a3;display:flex;align-items:center;gap:10px}
+.hdr h1{font-size:13px;color:#a78bfa;flex:1}
+.hdr .ver{font-size:9px;background:#8b5cf6;color:#000;padding:2px 6px;border-radius:3px}
+.hdr select{padding:4px 8px;background:#1e1b4b;border:1px solid #3730a3;border-radius:4px;color:#a78bfa;font-size:10px}
+.tabs{display:flex;background:#111;border-bottom:1px solid #222}
+.tab{padding:6px 14px;font-size:11px;color:#71717a;cursor:pointer;border-bottom:2px solid transparent}
+.tab:hover{color:#a78bfa}
+.tab.active{color:#a78bfa;border-color:#8b5cf6}
+.ctx-bar{display:flex;gap:6px;padding:6px 10px;background:#0f0f14;border-bottom:1px solid #1e1b4b;font-size:10px;color:#71717a;flex-wrap:wrap}
+.ctx-bar .stat{display:flex;align-items:center;gap:3px}
+.ctx-bar .stat b{color:#a78bfa}
+.ctx-bar .stat.warn b{color:#f59e0b}
+.ctx-bar .stat.crit b{color:#ef4444}
+.ctx-bar .sep{width:1px;background:#333;margin:0 4px}
+.ctx-bar .btn{padding:2px 6px;background:#1e1b4b;border:1px solid #3730a3;border-radius:3px;color:#a78bfa;cursor:pointer;font-size:9px}
+.ctx-bar .btn:hover{background:#2e2b5b}
+.panel{flex:1;overflow:hidden;display:none}
+.panel.active{display:flex;flex-direction:column}
+.msgs{flex:1;overflow-y:auto;padding:10px}
+.msg{margin-bottom:8px;display:flex;gap:8px;position:relative}
+.msg.u{flex-direction:row-reverse}
+.msg .av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.msg.a .av{background:#8b5cf6}
+.msg.u .av{background:#3b82f6}
+.msg .wrap{max-width:78%;position:relative}
+.msg .bub{padding:8px 10px;border-radius:10px;font-size:12px;line-height:1.4}
+.msg.a .bub{background:#1e1b4b;border-bottom-left-radius:4px}
+.msg.u .bub{background:#3b82f6;border-bottom-right-radius:4px}
+.msg .bub code{background:rgba(0,0,0,.3);padding:1px 3px;border-radius:2px;font:11px monospace}
+.msg .bub pre{background:rgba(0,0,0,.4);padding:6px;border-radius:4px;overflow-x:auto;margin:4px 0}
+.msg .meta{font-size:9px;color:#52525b;margin-top:3px;display:flex;gap:8px;align-items:center}
+.msg .score{padding:1px 4px;border-radius:2px;font-size:8px}
+.msg .score.high{background:#22c55e;color:#000}
+.msg .score.med{background:#f59e0b;color:#000}
+.msg .score.low{background:#6b7280;color:#fff}
+.msg.pinned{border-left:2px solid #8b5cf6;padding-left:6px;margin-left:-8px}
+.msg.pinned .bub{background:#2e1b6b}
+.msg .pin-btn{position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:#1e1b4b;border:1px solid #3730a3;border-radius:50%;font-size:8px;cursor:pointer;opacity:0;transition:opacity .15s;display:flex;align-items:center;justify-content:center}
+.msg:hover .pin-btn{opacity:1}
+.msg.pinned .pin-btn{opacity:1;background:#8b5cf6;color:#000}
+.msg.sum{opacity:.7}
+.msg.sum .bub{background:#1a1a2e;border-left:2px solid #8b5cf6;font-style:italic;font-size:11px}
+.typing{display:flex;gap:3px;padding:8px 10px}
+.typing span{width:5px;height:5px;background:#8b5cf6;border-radius:50%;animation:bounce .5s infinite}
+.typing span:nth-child(2){animation-delay:.1s}
+.typing span:nth-child(3){animation-delay:.2s}
+@keyframes bounce{50%{transform:translateY(-3px);opacity:.5}}
+.inp{padding:8px 10px;background:#111;border-top:1px solid #1e1b4b;display:flex;gap:6px}
+.inp textarea{flex:1;padding:8px 10px;background:#1e1b4b;border:1px solid #3730a3;border-radius:6px;color:#e4e4e7;font:inherit;resize:none;outline:none;min-height:36px;max-height:80px}
+.inp textarea:focus{border-color:#8b5cf6}
+.inp button{width:36px;height:36px;background:#8b5cf6;border:0;border-radius:6px;color:#fff;font-size:14px;cursor:pointer}
+.inp button:disabled{opacity:.4}
+.queue-panel{padding:10px;overflow-y:auto}
+.queue-panel h3{font-size:12px;color:#8b5cf6;margin-bottom:10px}
+.queue-item{display:flex;align-items:center;gap:8px;padding:8px;background:#1e1b4b;border-radius:6px;margin-bottom:6px;font-size:11px}
+.queue-item .rank{width:20px;height:20px;background:#8b5cf6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#000;font-weight:bold}
+.queue-item .content{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.queue-item .score-bar{width:60px;height:4px;background:#333;border-radius:2px;overflow:hidden}
+.queue-item .score-bar div{height:100%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)}
+.settings-panel{padding:10px;overflow-y:auto}
+.setting{margin-bottom:12px}
+.setting label{display:block;font-size:11px;color:#a78bfa;margin-bottom:4px}
+.setting input,.setting select{width:100%;padding:6px 8px;background:#1e1b4b;border:1px solid #3730a3;border-radius:4px;color:#e4e4e7;font-size:11px}
+.setting input[type=range]{padding:0}
+.load{position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:100}
+.load.hide{display:none}
+.load .spin{width:28px;height:28px;border:2px solid #1e1b4b;border-top-color:#8b5cf6;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load .txt{font-size:11px;color:#71717a}
+.load .bar{width:140px;height:3px;background:#1e1b4b;border-radius:2px;overflow:hidden}
+.load .bar div{height:100%;background:#8b5cf6;width:0;transition:width .2s}
+  </style>
+</head>
+<body>
+  <div class="load" id="load">
+    <div class="spin"></div>
+    <div class="txt" id="loadTxt">Loading AI...</div>
+    <div class="bar"><div id="loadBar"></div></div>
+  </div>
+
+  <div class="hdr">
+    <h1>Context LLM</h1>
+    <span class="ver">v2</span>
+    <select id="model">
+      <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M</option>
+      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B</option>
+      <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen 2.5 1.5B</option>
+    </select>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-panel="chat">Chat</div>
+    <div class="tab" data-panel="queue">Priority Queue</div>
+    <div class="tab" data-panel="settings">Settings</div>
+  </div>
+
+  <div class="ctx-bar">
+    <div class="stat" id="tokenStat">Tokens: <b id="tokens">0</b>/<b>4096</b></div>
+    <div class="stat">Msgs: <b id="msgCt">0</b></div>
+    <div class="stat">Pinned: <b id="pinCt">0</b></div>
+    <div class="stat">Saved: <b id="saved">0</b></div>
+    <div class="sep"></div>
+    <button class="btn" onclick="C.autoOptimize()">Auto-Optimize</button>
+    <button class="btn" onclick="C.summarize()">Summarize</button>
+    <button class="btn" onclick="C.pruneByScore()">Prune Low</button>
+    <button class="btn" onclick="C.exportJSON()">Export</button>
+  </div>
+
+  <div class="panel active" id="chatPanel">
+    <div class="msgs" id="msgs"></div>
+    <div class="inp">
+      <textarea id="input" placeholder="Message... (Ctrl+Enter to send)" rows="1"></textarea>
+      <button id="send" disabled>&#10148;</button>
+    </div>
+  </div>
+
+  <div class="panel" id="queuePanel">
+    <div class="queue-panel">
+      <h3>Context Priority Queue</h3>
+      <div id="queueList"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="settingsPanel">
+    <div class="settings-panel">
+      <div class="setting">
+        <label>Max Context Tokens</label>
+        <input type="number" id="maxCtx" value="4096">
+      </div>
+      <div class="setting">
+        <label>Auto-Optimize Threshold</label>
+        <input type="range" id="optThresh" min="50" max="90" value="70">
+        <span id="optThreshVal">70%</span>
+      </div>
+      <div class="setting">
+        <label>Min Importance to Keep</label>
+        <input type="range" id="minImp" min="0" max="100" value="30">
+        <span id="minImpVal">30</span>
+      </div>
+      <div class="setting">
+        <label>Pinned Message Weight</label>
+        <input type="range" id="pinWeight" min="1" max="5" value="3">
+        <span id="pinWeightVal">3x</span>
+      </div>
+      <div class="setting">
+        <label>Recency Decay Factor</label>
+        <input type="range" id="recencyDecay" min="0" max="100" value="50">
+        <span id="recencyDecayVal">0.50</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const estTokens=s=>Math.ceil(s.length/4);
+
+class Message {
+  constructor(role, content) {
+    this.id = Date.now() + Math.random();
+    this.role = role;
+    this.content = content;
+    this.tokens = estTokens(content);
+    this.timestamp = Date.now();
+    this.pinned = false;
+    this.importance = this.calcImportance();
+  }
+
+  calcImportance() {
+    let score = 50; // Base score
+    const c = this.content.toLowerCase();
+
+    // Boost for questions
+    if (c.includes('?')) score += 15;
+    // Boost for code
+    if (c.includes('```') || c.includes('function') || c.includes('const ')) score += 20;
+    // Boost for keywords
+    ['important', 'remember', 'key', 'critical', 'must', 'always', 'never'].forEach(k => {
+      if (c.includes(k)) score += 10;
+    });
+    // Boost for length (more detailed = more important)
+    if (this.tokens > 50) score += 10;
+    if (this.tokens > 100) score += 10;
+    // User messages slightly more important
+    if (this.role === 'user') score += 5;
+
+    return Math.min(100, score);
+  }
+
+  getEffectiveScore(config, totalMsgs, index) {
+    let score = this.importance;
+
+    // Pinned boost
+    if (this.pinned) score *= config.pinWeight;
+
+    // Recency boost (newer = higher)
+    const recencyFactor = (index / totalMsgs) * config.recencyDecay;
+    score += recencyFactor * 30;
+
+    return Math.min(100, score);
+  }
+}
+
+class ContextLLM2 {
+  constructor() {
+    this.engine = null;
+    this.ready = false;
+    this.messages = [];
+    this.summary = '';
+    this.tokensSaved = 0;
+
+    this.config = {
+      maxContext: 4096,
+      optThreshold: 0.7,
+      minImportance: 30,
+      pinWeight: 3,
+      recencyDecay: 0.5
+    };
+
+    this.systemPrompt = `You are a helpful, concise AI. Prioritize accuracy and brevity.`;
+    this.init();
+    this.setupUI();
+  }
+
+  async init() {
+    $('load').classList.remove('hide');
+    const model = $('model').value;
+    $('loadTxt').textContent = `Loading ${model.split('-')[0]}...`;
+
+    try {
+      const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+      this.engine = await webllm.CreateMLCEngine(model, {
+        initProgressCallback: p => {
+          $('loadBar').style.width = Math.round(p.progress * 100) + '%';
+          $('loadTxt').textContent = p.text || `Loading...`;
+        }
+      });
+      this.ready = true;
+      $('load').classList.add('hide');
+      $('send').disabled = false;
+      this.updateStats();
+    } catch(e) {
+      $('loadTxt').textContent = 'Error: ' + e.message;
+    }
+  }
+
+  setupUI() {
+    // Tabs
+    document.querySelectorAll('.tab').forEach(t => {
+      t.onclick = () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        $(t.dataset.panel + 'Panel').classList.add('active');
+        if (t.dataset.panel === 'queue') this.updateQueue();
+      };
+    });
+
+    // Settings
+    $('optThresh').oninput = e => {
+      this.config.optThreshold = e.target.value / 100;
+      $('optThreshVal').textContent = e.target.value + '%';
+    };
+    $('minImp').oninput = e => {
+      this.config.minImportance = +e.target.value;
+      $('minImpVal').textContent = e.target.value;
+    };
+    $('pinWeight').oninput = e => {
+      this.config.pinWeight = +e.target.value;
+      $('pinWeightVal').textContent = e.target.value + 'x';
+    };
+    $('recencyDecay').oninput = e => {
+      this.config.recencyDecay = e.target.value / 100;
+      $('recencyDecayVal').textContent = (e.target.value / 100).toFixed(2);
+    };
+    $('maxCtx').onchange = e => {
+      this.config.maxContext = +e.target.value;
+      this.updateStats();
+    };
+  }
+
+  getContextMessages() {
+    const msgs = [{ role: 'system', content: this.systemPrompt }];
+
+    if (this.summary) {
+      msgs.push({ role: 'system', content: `[Context summary: ${this.summary}]` });
+    }
+
+    // Sort by effective score and take what fits
+    const scored = this.messages.map((m, i) => ({
+      msg: m,
+      score: m.getEffectiveScore(this.config, this.messages.length, i)
+    })).sort((a, b) => b.score - a.score);
+
+    let tokens = msgs.reduce((t, m) => t + estTokens(m.content), 0);
+    const keep = [];
+
+    for (const { msg } of scored) {
+      if (tokens + msg.tokens < this.config.maxContext * 0.8) {
+        keep.push(msg);
+        tokens += msg.tokens;
+      }
+    }
+
+    // Re-sort by timestamp for conversation order
+    keep.sort((a, b) => a.timestamp - b.timestamp);
+    keep.forEach(m => msgs.push({ role: m.role, content: m.content }));
+
+    return msgs;
+  }
+
+  countTokens() {
+    return this.getContextMessages().reduce((t, m) => t + estTokens(m.content), 0);
+  }
+
+  updateStats() {
+    const tokens = this.countTokens();
+    const ratio = tokens / this.config.maxContext;
+
+    $('tokens').textContent = tokens;
+    $('msgCt').textContent = this.messages.length;
+    $('pinCt').textContent = this.messages.filter(m => m.pinned).length;
+    $('saved').textContent = this.tokensSaved;
+
+    const stat = $('tokenStat');
+    stat.classList.remove('warn', 'crit');
+    if (ratio > 0.8) stat.classList.add('crit');
+    else if (ratio > 0.6) stat.classList.add('warn');
+  }
+
+  addMessageUI(msg) {
+    const div = document.createElement('div');
+    div.className = `msg ${msg.role === 'user' ? 'u' : 'a'}${msg.pinned ? ' pinned' : ''}`;
+    div.dataset.id = msg.id;
+
+    const scoreClass = msg.importance >= 70 ? 'high' : msg.importance >= 40 ? 'med' : 'low';
+
+    let html = esc(msg.content)
+      .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\n/g, '<br>');
+
+    div.innerHTML = `
+      <div class="av">${msg.role === 'user' ? '👤' : '🤖'}</div>
+      <div class="wrap">
+        <div class="bub">${html}</div>
+        <div class="meta">
+          <span>${msg.tokens} tok</span>
+          <span class="score ${scoreClass}">${msg.importance}</span>
+        </div>
+        <button class="pin-btn" onclick="C.togglePin('${msg.id}')">${msg.pinned ? '📌' : '📍'}</button>
+      </div>
+    `;
+
+    const msgs = $('msgs');
+    const typing = msgs.querySelector('.typing');
+    if (typing) typing.remove();
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  togglePin(id) {
+    const msg = this.messages.find(m => m.id == id);
+    if (msg) {
+      msg.pinned = !msg.pinned;
+      const el = document.querySelector(`[data-id="${id}"]`);
+      if (el) {
+        el.classList.toggle('pinned', msg.pinned);
+        el.querySelector('.pin-btn').textContent = msg.pinned ? '📌' : '📍';
+      }
+      this.updateStats();
+    }
+  }
+
+  showTyping(show) {
+    const msgs = $('msgs');
+    const existing = msgs.querySelector('.typing');
+    if (show && !existing) {
+      const div = document.createElement('div');
+      div.className = 'typing';
+      div.innerHTML = '<span></span><span></span><span></span>';
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    } else if (!show && existing) {
+      existing.remove();
+    }
+    $('send').disabled = show || !this.ready;
+  }
+
+  async send(text) {
+    if (!text.trim() || !this.ready) return;
+
+    const userMsg = new Message('user', text);
+    this.messages.push(userMsg);
+    this.addMessageUI(userMsg);
+    this.updateStats();
+
+    // Auto-optimize if needed
+    if (this.countTokens() > this.config.maxContext * this.config.optThreshold) {
+      await this.autoOptimize();
+    }
+
+    this.showTyping(true);
+
+    try {
+      const response = await this.engine.chat.completions.create({
+        messages: this.getContextMessages(),
+        temperature: 0.7,
+        max_tokens: 400
+      });
+
+      const reply = response.choices[0]?.message?.content || "Error generating response.";
+      const aiMsg = new Message('assistant', reply);
+      this.messages.push(aiMsg);
+      this.showTyping(false);
+      this.addMessageUI(aiMsg);
+      this.updateStats();
+
+    } catch(e) {
+      this.showTyping(false);
+      console.error(e);
+    }
+  }
+
+  async autoOptimize() {
+    // Remove low-importance, non-pinned messages
+    const before = this.messages.reduce((t, m) => t + m.tokens, 0);
+
+    const kept = this.messages.filter(m =>
+      m.pinned || m.importance >= this.config.minImportance
+    );
+
+    const removed = this.messages.filter(m =>
+      !m.pinned && m.importance < this.config.minImportance
+    );
+
+    if (removed.length > 0) {
+      // Summarize removed
+      const removedText = removed.map(m => `${m.role}: ${m.content}`).join('\n');
+
+      try {
+        const response = await this.engine.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'Summarize in 1-2 sentences:' },
+            { role: 'user', content: removedText }
+          ],
+          max_tokens: 80
+        });
+
+        const newSum = response.choices[0]?.message?.content || '';
+        this.summary = this.summary ? `${this.summary} ${newSum}` : newSum;
+      } catch(e) {}
+
+      this.messages = kept;
+      const after = this.messages.reduce((t, m) => t + m.tokens, 0);
+      this.tokensSaved += before - after;
+
+      this.showSystemMsg(`Auto-optimized: removed ${removed.length} low-priority messages`);
+      this.updateStats();
+    }
+  }
+
+  async summarize() {
+    if (this.messages.length < 4) return;
+
+    const before = this.messages.reduce((t, m) => t + m.tokens, 0);
+    const allText = this.messages.map(m => `${m.role}: ${m.content}`).join('\n');
+
+    try {
+      const response = await this.engine.chat.completions.create({
+        messages: [
+          { role: 'system', content: 'Create a very brief summary (2 sentences max):' },
+          { role: 'user', content: allText }
+        ],
+        max_tokens: 100
+      });
+
+      this.summary = response.choices[0]?.message?.content || '';
+      const pinned = this.messages.filter(m => m.pinned);
+      this.messages = pinned.length ? pinned : this.messages.slice(-2);
+
+      const after = this.messages.reduce((t, m) => t + m.tokens, 0);
+      this.tokensSaved += before - after;
+
+      this.showSystemMsg(`Summarized conversation, saved ${before - after} tokens`);
+      this.updateStats();
+    } catch(e) {}
+  }
+
+  pruneByScore() {
+    const before = this.messages.reduce((t, m) => t + m.tokens, 0);
+    this.messages = this.messages.filter(m => m.pinned || m.importance >= 50);
+    const after = this.messages.reduce((t, m) => t + m.tokens, 0);
+    this.tokensSaved += before - after;
+
+    this.showSystemMsg(`Pruned low-score messages, saved ${before - after} tokens`);
+    this.updateStats();
+  }
+
+  showSystemMsg(text) {
+    const div = document.createElement('div');
+    div.className = 'msg a sum';
+    div.innerHTML = `
+      <div class="av">📊</div>
+      <div class="wrap"><div class="bub">${text}</div></div>
+    `;
+    $('msgs').appendChild(div);
+  }
+
+  updateQueue() {
+    const scored = this.messages.map((m, i) => ({
+      msg: m,
+      score: m.getEffectiveScore(this.config, this.messages.length, i)
+    })).sort((a, b) => b.score - a.score);
+
+    $('queueList').innerHTML = scored.map((s, i) => `
+      <div class="queue-item">
+        <div class="rank">${i + 1}</div>
+        <div class="content">${esc(s.msg.content.slice(0, 60))}...</div>
+        <div class="score-bar"><div style="width:${s.score}%"></div></div>
+        <span style="color:#8b5cf6;font-size:10px">${Math.round(s.score)}</span>
+      </div>
+    `).join('');
+  }
+
+  exportJSON() {
+    const data = {
+      messages: this.messages,
+      summary: this.summary,
+      config: this.config,
+      tokensSaved: this.tokensSaved
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `context-llm-${Date.now()}.json`;
+    a.click();
+  }
+}
+
+const C = new ContextLLM2();
+window.ContextLLM2 = C;
+window.C = C;
+
+// Input handling
+const input = $('input');
+$('send').onclick = () => { C.send(input.value); input.value = ''; };
+input.onkeydown = e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    $('send').click();
+  }
+};
+input.oninput = () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+};
+$('model').onchange = () => { C.ready = false; C.init(); };
+  </script>
+</body>
+</html>

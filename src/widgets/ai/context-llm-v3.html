@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<!--
+@file context-llm-v3.html
+@desc Branching conversations, compression levels, history search
+@api  window.ContextLLM3
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "contextLLM3",
+    "name": "Context LLM v3",
+    "icon": "🌳",
+    "desc": "Branching context trees",
+    "body": "Conversation branching, multiple compression levels, full-text search, context forking. Explore alternate conversation paths.",
+    "kills": ["Linear chat limits", "Context dead-ends"],
+    "price": 50,
+    "color": "#22c55e"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Context LLM v3</title>
+  <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:12px/1.4 system-ui,sans-serif;background:#050a05;color:#d4d4d8;height:100vh;display:flex}
+.sidebar{width:200px;background:#0a150a;border-right:1px solid #1a2e1a;display:flex;flex-direction:column}
+.sidebar h2{padding:10px;font-size:12px;color:#22c55e;border-bottom:1px solid #1a2e1a}
+.branch-list{flex:1;overflow-y:auto;padding:8px}
+.branch{padding:8px;margin-bottom:6px;background:#0f1f0f;border:1px solid #1a2e1a;border-radius:6px;cursor:pointer;font-size:10px}
+.branch:hover{border-color:#22c55e}
+.branch.active{border-color:#22c55e;background:#1a2e1a}
+.branch .name{color:#22c55e;font-weight:bold;margin-bottom:2px}
+.branch .meta{color:#52525b;font-size:9px}
+.new-branch{margin:8px;padding:8px;background:#22c55e;color:#000;border:0;border-radius:4px;cursor:pointer;font-size:10px;font-weight:bold}
+.search-box{padding:8px;border-top:1px solid #1a2e1a}
+.search-box input{width:100%;padding:6px;background:#0f1f0f;border:1px solid #1a2e1a;border-radius:4px;color:#d4d4d8;font-size:10px}
+.main{flex:1;display:flex;flex-direction:column}
+.hdr{padding:8px 12px;background:#0a150a;border-bottom:1px solid #1a2e1a;display:flex;align-items:center;gap:10px}
+.hdr h1{font-size:12px;color:#22c55e}
+.hdr .ver{font-size:9px;background:#22c55e;color:#000;padding:2px 6px;border-radius:3px;margin-left:6px}
+.hdr select{padding:4px 6px;background:#0f1f0f;border:1px solid #1a2e1a;border-radius:4px;color:#22c55e;font-size:10px}
+.hdr .spacer{flex:1}
+.hdr .comp-level{display:flex;gap:4px;align-items:center}
+.hdr .comp-btn{padding:3px 8px;background:#0f1f0f;border:1px solid #1a2e1a;border-radius:3px;color:#71717a;font-size:9px;cursor:pointer}
+.hdr .comp-btn.active{background:#22c55e;color:#000;border-color:#22c55e}
+.ctx-bar{display:flex;gap:8px;padding:6px 12px;background:#0a0f0a;border-bottom:1px solid #1a2e1a;font-size:9px;color:#52525b}
+.ctx-bar b{color:#22c55e}
+.tree-view{padding:10px;border-bottom:1px solid #1a2e1a;max-height:120px;overflow:auto;display:none}
+.tree-view.show{display:block}
+.tree-node{display:flex;align-items:center;gap:4px;padding:2px 0;font-size:9px}
+.tree-node .dot{width:8px;height:8px;border-radius:50%;background:#22c55e}
+.tree-node .dot.branch{background:#f59e0b}
+.tree-node .line{width:20px;height:1px;background:#333}
+.msgs{flex:1;overflow-y:auto;padding:12px}
+.msg{margin-bottom:10px;display:flex;gap:8px}
+.msg.u{flex-direction:row-reverse}
+.msg .av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}
+.msg.a .av{background:#22c55e}
+.msg.u .av{background:#3b82f6}
+.msg .wrap{max-width:75%}
+.msg .bub{padding:8px 10px;border-radius:10px;font-size:11px;line-height:1.4}
+.msg.a .bub{background:#0f1f0f;border-bottom-left-radius:3px}
+.msg.u .bub{background:#1e40af;border-bottom-right-radius:3px}
+.msg .bub code{background:rgba(0,0,0,.4);padding:1px 3px;border-radius:2px;font:10px monospace}
+.msg .bub pre{background:rgba(0,0,0,.5);padding:6px;border-radius:4px;overflow-x:auto;margin:4px 0}
+.msg .meta{font-size:8px;color:#52525b;margin-top:3px;display:flex;gap:6px}
+.msg .actions{opacity:0;transition:opacity .15s}
+.msg:hover .actions{opacity:1}
+.msg .actions button{background:none;border:none;color:#52525b;cursor:pointer;font-size:9px;padding:2px 4px}
+.msg .actions button:hover{color:#22c55e}
+.msg.compressed{opacity:.6}
+.msg.compressed .bub{font-size:10px;font-style:italic;border-left:2px solid #22c55e}
+.typing{display:flex;gap:3px;padding:8px}
+.typing span{width:5px;height:5px;background:#22c55e;border-radius:50%;animation:bounce .5s infinite}
+.typing span:nth-child(2){animation-delay:.1s}
+.typing span:nth-child(3){animation-delay:.2s}
+@keyframes bounce{50%{transform:translateY(-3px);opacity:.5}}
+.inp{padding:8px 12px;background:#0a150a;border-top:1px solid #1a2e1a;display:flex;gap:8px}
+.inp textarea{flex:1;padding:8px;background:#0f1f0f;border:1px solid #1a2e1a;border-radius:6px;color:#d4d4d8;font:inherit;resize:none;outline:none;min-height:34px;max-height:80px}
+.inp textarea:focus{border-color:#22c55e}
+.inp button{width:34px;height:34px;background:#22c55e;border:0;border-radius:6px;color:#000;font-size:14px;cursor:pointer}
+.inp button:disabled{opacity:.4}
+.search-results{position:absolute;top:100%;left:0;right:0;background:#0f1f0f;border:1px solid #1a2e1a;border-radius:4px;max-height:200px;overflow-y:auto;z-index:10;display:none}
+.search-results.show{display:block}
+.search-result{padding:8px;border-bottom:1px solid #1a2e1a;cursor:pointer;font-size:10px}
+.search-result:hover{background:#1a2e1a}
+.search-result .highlight{background:#22c55e;color:#000;padding:0 2px}
+.load{position:fixed;inset:0;background:#050a05;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:100}
+.load.hide{display:none}
+.load .spin{width:28px;height:28px;border:2px solid #1a2e1a;border-top-color:#22c55e;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load .txt{font-size:11px;color:#52525b}
+.fork-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200}
+.fork-modal.hide{display:none}
+.fork-modal .box{background:#0a150a;border:1px solid #1a2e1a;border-radius:8px;padding:16px;width:300px}
+.fork-modal h3{color:#22c55e;margin-bottom:12px;font-size:13px}
+.fork-modal input{width:100%;padding:8px;background:#0f1f0f;border:1px solid #1a2e1a;border-radius:4px;color:#d4d4d8;margin-bottom:12px}
+.fork-modal .btns{display:flex;gap:8px;justify-content:flex-end}
+.fork-modal button{padding:6px 14px;border-radius:4px;cursor:pointer;font-size:11px}
+.fork-modal .cancel{background:transparent;border:1px solid #1a2e1a;color:#71717a}
+.fork-modal .ok{background:#22c55e;border:none;color:#000}
+  </style>
+</head>
+<body>
+  <div class="load" id="load">
+    <div class="spin"></div>
+    <div class="txt" id="loadTxt">Loading AI...</div>
+  </div>
+
+  <div class="fork-modal hide" id="forkModal">
+    <div class="box">
+      <h3>Fork Conversation</h3>
+      <input id="forkName" placeholder="Branch name...">
+      <div class="btns">
+        <button class="cancel" onclick="closeFork()">Cancel</button>
+        <button class="ok" onclick="confirmFork()">Create Branch</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h2>🌳 Branches</h2>
+    <div class="branch-list" id="branchList"></div>
+    <button class="new-branch" onclick="C.newBranch()">+ New Branch</button>
+    <div class="search-box">
+      <input id="search" placeholder="Search messages...">
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="hdr">
+      <h1>Context LLM</h1>
+      <span class="ver">v3</span>
+      <div class="spacer"></div>
+      <div class="comp-level">
+        <span style="color:#52525b">Compression:</span>
+        <button class="comp-btn" data-level="0">None</button>
+        <button class="comp-btn active" data-level="1">Light</button>
+        <button class="comp-btn" data-level="2">Medium</button>
+        <button class="comp-btn" data-level="3">Heavy</button>
+      </div>
+      <select id="model">
+        <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2</option>
+        <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 1B</option>
+      </select>
+    </div>
+
+    <div class="ctx-bar">
+      <span>Branch: <b id="curBranch">main</b></span>
+      <span>Depth: <b id="depth">0</b></span>
+      <span>Tokens: <b id="tokens">0</b>/<b>4096</b></span>
+      <span>Compressed: <b id="compressed">0</b></span>
+      <span style="flex:1"></span>
+      <button style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:9px" onclick="toggleTree()">Toggle Tree</button>
+    </div>
+
+    <div class="tree-view" id="treeView"></div>
+
+    <div class="msgs" id="msgs"></div>
+
+    <div class="inp">
+      <textarea id="input" placeholder="Message..." rows="1"></textarea>
+      <button id="send" disabled>&#10148;</button>
+    </div>
+  </div>
+
+  <script type="module">
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const estTokens=s=>Math.ceil(s.length/4);
+
+class Branch {
+  constructor(name, parentId = null, forkPoint = 0) {
+    this.id = Date.now() + Math.random();
+    this.name = name;
+    this.parentId = parentId;
+    this.forkPoint = forkPoint;
+    this.messages = [];
+    this.created = Date.now();
+  }
+}
+
+class ContextLLM3 {
+  constructor() {
+    this.engine = null;
+    this.ready = false;
+    this.branches = [new Branch('main')];
+    this.currentBranch = this.branches[0];
+    this.compressionLevel = 1;
+    this.searchResults = [];
+
+    this.compressionRules = {
+      0: { keepAll: true },
+      1: { keepRecent: 10, summarizeOlder: true },
+      2: { keepRecent: 6, summarizeOlder: true, aggressive: true },
+      3: { keepRecent: 3, summarizeOlder: true, aggressive: true, dropLow: true }
+    };
+
+    this.systemPrompt = `You are a helpful, concise AI assistant.`;
+    this.init();
+    this.setupUI();
+    this.renderBranches();
+  }
+
+  async init() {
+    $('load').classList.remove('hide');
+    const model = $('model').value;
+    $('loadTxt').textContent = `Loading ${model.split('-')[0]}...`;
+
+    try {
+      const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+      this.engine = await webllm.CreateMLCEngine(model, {
+        initProgressCallback: p => {
+          $('loadTxt').textContent = p.text || `${Math.round(p.progress * 100)}%`;
+        }
+      });
+      this.ready = true;
+      $('load').classList.add('hide');
+      $('send').disabled = false;
+      this.updateStats();
+    } catch(e) {
+      $('loadTxt').textContent = 'Error: ' + e.message;
+    }
+  }
+
+  setupUI() {
+    // Compression buttons
+    document.querySelectorAll('.comp-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.comp-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.compressionLevel = +btn.dataset.level;
+        this.renderMessages();
+      };
+    });
+
+    // Search
+    $('search').oninput = e => this.search(e.target.value);
+  }
+
+  // Get full history including parent branches
+  getFullHistory() {
+    const history = [];
+    let branch = this.currentBranch;
+
+    // Walk up the branch tree
+    const branchChain = [];
+    while (branch) {
+      branchChain.unshift({ branch, forkPoint: branch.forkPoint });
+      branch = this.branches.find(b => b.id === branch.parentId);
+    }
+
+    // Collect messages from each branch up to fork point
+    for (let i = 0; i < branchChain.length; i++) {
+      const { branch, forkPoint } = branchChain[i];
+      const isLast = i === branchChain.length - 1;
+
+      if (isLast) {
+        history.push(...branch.messages);
+      } else {
+        history.push(...branch.messages.slice(0, forkPoint));
+      }
+    }
+
+    return history;
+  }
+
+  getContextMessages() {
+    const history = this.getFullHistory();
+    const rules = this.compressionRules[this.compressionLevel];
+    const msgs = [{ role: 'system', content: this.systemPrompt }];
+
+    if (rules.keepAll) {
+      history.forEach(m => msgs.push({ role: m.role, content: m.content }));
+      return msgs;
+    }
+
+    const recent = history.slice(-rules.keepRecent * 2);
+    const older = history.slice(0, -rules.keepRecent * 2);
+
+    // Add compressed summary of older messages
+    if (older.length > 0 && rules.summarizeOlder) {
+      const summary = this.compressMessages(older, rules.aggressive);
+      if (summary) {
+        msgs.push({ role: 'system', content: `[Earlier context: ${summary}]` });
+      }
+    }
+
+    // Add recent messages
+    recent.forEach(m => {
+      if (rules.dropLow && m.importance && m.importance < 30) return;
+      msgs.push({ role: m.role, content: m.content });
+    });
+
+    return msgs;
+  }
+
+  compressMessages(msgs, aggressive) {
+    if (msgs.length === 0) return '';
+
+    // Simple compression: extract key points
+    const points = [];
+    msgs.forEach(m => {
+      const c = m.content;
+      // Extract first sentence or key phrases
+      if (aggressive) {
+        const words = c.split(' ').slice(0, 10).join(' ');
+        points.push(`${m.role === 'user' ? 'Q' : 'A'}: ${words}...`);
+      } else {
+        const first = c.split(/[.!?]/)[0];
+        points.push(`${m.role === 'user' ? 'User asked' : 'AI answered'}: ${first}`);
+      }
+    });
+
+    return points.slice(0, 5).join('; ');
+  }
+
+  updateStats() {
+    const history = this.getFullHistory();
+    const contextMsgs = this.getContextMessages();
+    const tokens = contextMsgs.reduce((t, m) => t + estTokens(m.content), 0);
+    const compressed = history.length - (contextMsgs.length - 1); // -1 for system
+
+    $('curBranch').textContent = this.currentBranch.name;
+    $('depth').textContent = this.getBranchDepth(this.currentBranch);
+    $('tokens').textContent = tokens;
+    $('compressed').textContent = Math.max(0, compressed);
+  }
+
+  getBranchDepth(branch) {
+    let depth = 0;
+    let b = branch;
+    while (b.parentId) {
+      depth++;
+      b = this.branches.find(x => x.id === b.parentId);
+    }
+    return depth;
+  }
+
+  renderBranches() {
+    $('branchList').innerHTML = this.branches.map(b => `
+      <div class="branch${b.id === this.currentBranch.id ? ' active' : ''}" onclick="C.switchBranch('${b.id}')">
+        <div class="name">${b.parentId ? '└─ ' : ''}${esc(b.name)}</div>
+        <div class="meta">${b.messages.length} msgs • depth ${this.getBranchDepth(b)}</div>
+      </div>
+    `).join('');
+  }
+
+  switchBranch(id) {
+    this.currentBranch = this.branches.find(b => b.id == id);
+    this.renderBranches();
+    this.renderMessages();
+    this.updateStats();
+  }
+
+  newBranch() {
+    $('forkName').value = `branch-${this.branches.length}`;
+    $('forkModal').classList.remove('hide');
+    window.forkFromMsg = null;
+  }
+
+  forkFromMessage(msgIndex) {
+    $('forkName').value = `fork-${Date.now().toString(36)}`;
+    $('forkModal').classList.remove('hide');
+    window.forkFromMsg = msgIndex;
+  }
+
+  confirmFork() {
+    const name = $('forkName').value.trim() || `branch-${this.branches.length}`;
+    const forkPoint = window.forkFromMsg ?? this.currentBranch.messages.length;
+
+    const newBranch = new Branch(name, this.currentBranch.id, forkPoint);
+
+    // Copy messages up to fork point
+    if (window.forkFromMsg !== null) {
+      newBranch.messages = [];
+    }
+
+    this.branches.push(newBranch);
+    this.currentBranch = newBranch;
+    this.renderBranches();
+    this.renderMessages();
+    this.updateStats();
+    $('forkModal').classList.add('hide');
+  }
+
+  renderMessages() {
+    const history = this.getFullHistory();
+    const html = history.map((m, i) => {
+      const isCompressed = this.compressionLevel > 0 && i < history.length - this.compressionRules[this.compressionLevel].keepRecent * 2;
+
+      return `
+        <div class="msg ${m.role === 'user' ? 'u' : 'a'}${isCompressed ? ' compressed' : ''}" data-idx="${i}">
+          <div class="av">${m.role === 'user' ? '👤' : '🤖'}</div>
+          <div class="wrap">
+            <div class="bub">${this.formatContent(m.content, isCompressed)}</div>
+            <div class="meta">
+              <span>${estTokens(m.content)} tok</span>
+              <span class="actions">
+                <button onclick="C.forkFromMessage(${i})">🌿 Fork</button>
+                <button onclick="C.copyMsg(${i})">📋</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    $('msgs').innerHTML = html;
+    $('msgs').scrollTop = $('msgs').scrollHeight;
+  }
+
+  formatContent(content, compressed) {
+    if (compressed) {
+      // Show abbreviated version
+      const short = content.split(/[.!?]/)[0] + '...';
+      return esc(short);
+    }
+
+    return esc(content)
+      .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\n/g, '<br>');
+  }
+
+  showTyping(show) {
+    const msgs = $('msgs');
+    const existing = msgs.querySelector('.typing');
+    if (show && !existing) {
+      msgs.insertAdjacentHTML('beforeend', '<div class="typing"><span></span><span></span><span></span></div>');
+      msgs.scrollTop = msgs.scrollHeight;
+    } else if (!show && existing) {
+      existing.remove();
+    }
+    $('send').disabled = show || !this.ready;
+  }
+
+  async send(text) {
+    if (!text.trim() || !this.ready) return;
+
+    this.currentBranch.messages.push({
+      role: 'user',
+      content: text,
+      timestamp: Date.now()
+    });
+
+    this.renderMessages();
+    this.updateStats();
+    this.showTyping(true);
+
+    try {
+      const response = await this.engine.chat.completions.create({
+        messages: this.getContextMessages(),
+        temperature: 0.7,
+        max_tokens: 400
+      });
+
+      const reply = response.choices[0]?.message?.content || "Error.";
+
+      this.currentBranch.messages.push({
+        role: 'assistant',
+        content: reply,
+        timestamp: Date.now()
+      });
+
+      this.showTyping(false);
+      this.renderMessages();
+      this.renderBranches();
+      this.updateStats();
+
+    } catch(e) {
+      this.showTyping(false);
+      console.error(e);
+    }
+  }
+
+  search(query) {
+    if (!query.trim()) {
+      this.searchResults = [];
+      return;
+    }
+
+    const results = [];
+    this.branches.forEach(branch => {
+      branch.messages.forEach((m, i) => {
+        if (m.content.toLowerCase().includes(query.toLowerCase())) {
+          results.push({
+            branch: branch.name,
+            branchId: branch.id,
+            msgIndex: i,
+            content: m.content,
+            role: m.role
+          });
+        }
+      });
+    });
+
+    this.searchResults = results;
+    // Could show results in a dropdown
+    console.log('Search results:', results);
+  }
+
+  copyMsg(idx) {
+    const history = this.getFullHistory();
+    if (history[idx]) {
+      navigator.clipboard.writeText(history[idx].content);
+    }
+  }
+
+  renderTree() {
+    const tree = [];
+    const visited = new Set();
+
+    const renderBranch = (branch, indent = 0) => {
+      if (visited.has(branch.id)) return;
+      visited.add(branch.id);
+
+      tree.push(`<div class="tree-node" style="padding-left:${indent * 20}px">
+        <span class="dot${branch.parentId ? ' branch' : ''}"></span>
+        <span class="line"></span>
+        <span style="color:${branch.id === this.currentBranch.id ? '#22c55e' : '#52525b'}">${branch.name} (${branch.messages.length})</span>
+      </div>`);
+
+      // Find children
+      this.branches.filter(b => b.parentId === branch.id).forEach(child => {
+        renderBranch(child, indent + 1);
+      });
+    };
+
+    this.branches.filter(b => !b.parentId).forEach(b => renderBranch(b));
+    $('treeView').innerHTML = tree.join('');
+  }
+
+  toggleTree() {
+    const tv = $('treeView');
+    tv.classList.toggle('show');
+    if (tv.classList.contains('show')) {
+      this.renderTree();
+    }
+  }
+}
+
+const C = new ContextLLM3();
+window.ContextLLM3 = C;
+window.C = C;
+window.closeFork = () => $('forkModal').classList.add('hide');
+window.confirmFork = () => C.confirmFork();
+window.toggleTree = () => C.toggleTree();
+
+// Input
+const input = $('input');
+$('send').onclick = () => { C.send(input.value); input.value = ''; };
+input.onkeydown = e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('send').click(); }
+};
+input.oninput = () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+};
+$('model').onchange = () => { C.ready = false; C.init(); };
+  </script>
+</body>
+</html>
