@@ -172,6 +172,48 @@
     .loading-overlay .text{font-size:13px;color:#94a3b8}
     .loading-overlay .progress{width:180px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
     .loading-overlay .progress-bar{height:100%;background:linear-gradient(90deg,var(--li),var(--a));width:0;transition:width .3s}
+
+    /* Browser Panel */
+    .browser-container{display:flex;flex-direction:column;height:100%;background:var(--b)}
+    .browser-toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--b2);border-bottom:1px solid rgba(255,255,255,.06)}
+    .browser-controls{display:flex;gap:4px}
+    .browser-btn{width:28px;height:28px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .browser-btn:hover{background:rgba(255,255,255,.1);border-color:var(--li)}
+    .browser-btn:active{transform:scale(.95)}
+    .browser-btn.browser-go{width:auto;padding:0 12px;font-size:11px;background:var(--li)}
+    .browser-url{flex:1;padding:6px 12px;background:var(--b);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--f);font:12px monospace;outline:none}
+    .browser-url:focus{border-color:var(--li)}
+    .browser-status{display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;padding:0 8px}
+    .browser-dot{width:8px;height:8px;border-radius:50%;background:var(--r)}
+    .browser-dot.connected{background:var(--g);box-shadow:0 0 8px var(--g)}
+    .browser-dot.connecting{background:var(--o);animation:pulse 1s infinite}
+
+    .browser-viewport{flex:1;position:relative;overflow:hidden;background:#1a1a1a}
+    .browser-viewport canvas{width:100%;height:100%;object-fit:contain;cursor:crosshair}
+    .browser-overlay{position:absolute;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:10}
+    .browser-overlay.hidden{display:none}
+    .browser-connect-panel{text-align:center;padding:32px;max-width:400px}
+    .browser-connect-panel .browser-icon{font-size:48px;margin-bottom:16px}
+    .browser-connect-panel h3{font-size:18px;margin-bottom:8px}
+    .browser-connect-panel>p{font-size:12px;color:#94a3b8;margin-bottom:20px;line-height:1.5}
+    .browser-form{text-align:left;margin-bottom:20px}
+    .browser-form .form-group{margin-bottom:12px}
+    .browser-form .form-group label{display:block;font-size:10px;color:#64748b;margin-bottom:4px;text-transform:uppercase}
+    .browser-form input,.browser-form select{width:100%;padding:10px 12px;background:var(--b2);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--f);font:12px system-ui}
+    .browser-form input:focus,.browser-form select:focus{outline:none;border-color:var(--li)}
+    .browser-presets{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+    .browser-preset{padding:4px 10px;background:var(--b3);border-radius:4px;font-size:10px;color:#94a3b8;cursor:pointer;transition:all .15s}
+    .browser-preset:hover{background:var(--li);color:#fff}
+    .browser-help{padding:12px;background:var(--b2);border-radius:8px;text-align:left}
+    .browser-help p{font-size:10px;color:#64748b;margin-bottom:8px}
+    .browser-help code{display:block;padding:6px 10px;background:var(--b);border-radius:4px;font:11px monospace;color:var(--a);margin-bottom:6px}
+
+    .browser-actions{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--b2);border-top:1px solid rgba(255,255,255,.06)}
+    .browser-action{width:32px;height:32px;background:var(--b3);border:1px solid rgba(255,255,255,.1);border-radius:6px;font-size:14px;cursor:pointer;transition:all .15s}
+    .browser-action:hover{background:rgba(255,255,255,.1);border-color:var(--li)}
+    .browser-action.active{background:var(--li);border-color:var(--li)}
+    .browser-fps{margin-left:auto;font-size:11px;color:#64748b}
+    .browser-fps span{color:var(--g);font-weight:600}
   </style>
 </head>
 <body>
@@ -216,6 +258,7 @@
         <div class="tab" data-tab="templates">📝 Templates</div>
         <div class="tab" data-tab="peers">👥 Peers</div>
         <div class="tab" data-tab="linkedin">🔗 LinkedIn</div>
+        <div class="tab" data-tab="browser">🖥️ Browser</div>
       </div>
 
       <!-- Chat Tab -->
@@ -349,6 +392,74 @@
             <span class="feature">🤖 AI-Powered</span>
             <span class="feature">📡 P2P Synced</span>
             <span class="feature">🔒 Privacy First</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Browser Tab - Remote Chrome Streaming -->
+      <div class="tab-content" id="tab-browser">
+        <div class="browser-container">
+          <div class="browser-toolbar">
+            <div class="browser-controls">
+              <button class="browser-btn" id="browserBack" title="Back">←</button>
+              <button class="browser-btn" id="browserForward" title="Forward">→</button>
+              <button class="browser-btn" id="browserRefresh" title="Refresh">↻</button>
+              <button class="browser-btn" id="browserHome" title="LinkedIn Home">🏠</button>
+            </div>
+            <input type="text" class="browser-url" id="browserUrl" value="https://www.linkedin.com" placeholder="Enter URL...">
+            <button class="browser-btn browser-go" id="browserGo">Go</button>
+            <div class="browser-status">
+              <span class="browser-dot" id="browserDot"></span>
+              <span id="browserStatus">Disconnected</span>
+            </div>
+          </div>
+          <div class="browser-viewport" id="browserViewport">
+            <canvas id="browserCanvas"></canvas>
+            <div class="browser-overlay" id="browserOverlay">
+              <div class="browser-connect-panel">
+                <div class="browser-icon">🖥️</div>
+                <h3>Remote Browser</h3>
+                <p>Stream a Chrome instance directly into this widget. Supports Puppeteer, Browserless, or any CDP-compatible endpoint.</p>
+                <div class="browser-form">
+                  <div class="form-group">
+                    <label>Browser Server URL</label>
+                    <input type="text" id="browserServer" placeholder="ws://localhost:3000" value="">
+                  </div>
+                  <div class="form-group">
+                    <label>Connection Type</label>
+                    <select id="browserType">
+                      <option value="puppeteer-stream">Puppeteer Stream</option>
+                      <option value="browserless">Browserless.io</option>
+                      <option value="cdp">Chrome DevTools Protocol</option>
+                      <option value="vnc">noVNC (VNC over WebSocket)</option>
+                    </select>
+                  </div>
+                  <button class="btn-open" id="browserConnect">
+                    <span>🔌</span> Connect to Browser
+                  </button>
+                </div>
+                <div class="browser-presets">
+                  <span class="browser-preset" data-url="ws://localhost:3000">Local Dev</span>
+                  <span class="browser-preset" data-url="wss://chrome.browserless.io">Browserless</span>
+                  <span class="browser-preset" data-url="ws://localhost:9222">CDP Direct</span>
+                </div>
+                <div class="browser-help">
+                  <p>Quick Start Options:</p>
+                  <code>npx puppeteer-stream-server</code>
+                  <code>docker run browserless/chrome</code>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="browser-actions">
+            <button class="browser-action" id="browserScreenshot" title="Take Screenshot">📷</button>
+            <button class="browser-action" id="browserAutomate" title="AI Automate">🤖</button>
+            <button class="browser-action" id="browserInject" title="Inject Script">💉</button>
+            <button class="browser-action" id="browserRecord" title="Record Actions">⏺️</button>
+            <button class="browser-action" id="browserFullscreen" title="Fullscreen">⛶</button>
+            <div class="browser-fps">
+              <span id="browserFps">0</span> FPS
+            </div>
           </div>
         </div>
       </div>
@@ -1012,6 +1123,395 @@ Important guidelines:
     const bot = new LinkedInBot();
     window.LinkedInBot = bot;
     window.bot = bot; // For console access
+
+    // ============================================
+    // Remote Browser Streaming Controller
+    // ============================================
+    class RemoteBrowser {
+      constructor() {
+        this.ws = null;
+        this.canvas = $('browserCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.connected = false;
+        this.url = 'https://www.linkedin.com';
+        this.frameCount = 0;
+        this.lastFpsUpdate = Date.now();
+        this.fps = 0;
+        this.recording = false;
+        this.recordedActions = [];
+
+        this.init();
+      }
+
+      init() {
+        // Resize canvas to viewport
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
+        // Browser controls
+        $('browserConnect').onclick = () => this.connect();
+        $('browserBack').onclick = () => this.send({type: 'nav', action: 'back'});
+        $('browserForward').onclick = () => this.send({type: 'nav', action: 'forward'});
+        $('browserRefresh').onclick = () => this.send({type: 'nav', action: 'refresh'});
+        $('browserHome').onclick = () => this.navigate('https://www.linkedin.com');
+        $('browserGo').onclick = () => this.navigate($('browserUrl').value);
+        $('browserUrl').onkeydown = (e) => { if (e.key === 'Enter') this.navigate($('browserUrl').value); };
+
+        // Action buttons
+        $('browserScreenshot').onclick = () => this.screenshot();
+        $('browserAutomate').onclick = () => this.showAutomateDialog();
+        $('browserInject').onclick = () => this.showInjectDialog();
+        $('browserRecord').onclick = () => this.toggleRecording();
+        $('browserFullscreen').onclick = () => this.toggleFullscreen();
+
+        // Presets
+        $$('.browser-preset').forEach(preset => {
+          preset.onclick = () => {
+            $('browserServer').value = preset.dataset.url;
+          };
+        });
+
+        // Canvas interaction events
+        const viewport = $('browserViewport');
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouse('move', e));
+        this.canvas.addEventListener('mousedown', (e) => this.handleMouse('down', e));
+        this.canvas.addEventListener('mouseup', (e) => this.handleMouse('up', e));
+        this.canvas.addEventListener('click', (e) => this.handleMouse('click', e));
+        this.canvas.addEventListener('dblclick', (e) => this.handleMouse('dblclick', e));
+        this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Keyboard events (when canvas is focused)
+        this.canvas.tabIndex = 0;
+        this.canvas.addEventListener('keydown', (e) => this.handleKey('down', e));
+        this.canvas.addEventListener('keyup', (e) => this.handleKey('up', e));
+      }
+
+      resizeCanvas() {
+        const viewport = $('browserViewport');
+        this.canvas.width = viewport.clientWidth || 1280;
+        this.canvas.height = viewport.clientHeight || 720;
+      }
+
+      setStatus(status, connected = false) {
+        $('browserStatus').textContent = status;
+        const dot = $('browserDot');
+        dot.classList.remove('connected', 'connecting');
+        if (connected) dot.classList.add('connected');
+        else if (status.includes('Connecting')) dot.classList.add('connecting');
+      }
+
+      async connect() {
+        const serverUrl = $('browserServer').value;
+        const type = $('browserType').value;
+
+        if (!serverUrl) {
+          alert('Please enter a browser server URL');
+          return;
+        }
+
+        this.setStatus('Connecting...', false);
+
+        try {
+          // Close existing connection
+          if (this.ws) {
+            this.ws.close();
+          }
+
+          this.ws = new WebSocket(serverUrl);
+
+          this.ws.onopen = () => {
+            console.log('[browser] Connected to', serverUrl);
+            this.connected = true;
+            this.setStatus('Connected', true);
+            $('browserOverlay').classList.add('hidden');
+
+            // Initialize the browser session
+            this.send({
+              type: 'init',
+              browserType: type,
+              viewport: { width: this.canvas.width, height: this.canvas.height },
+              url: this.url
+            });
+          };
+
+          this.ws.onmessage = (event) => {
+            this.handleMessage(event.data);
+          };
+
+          this.ws.onerror = (err) => {
+            console.error('[browser] WebSocket error:', err);
+            this.setStatus('Connection error', false);
+          };
+
+          this.ws.onclose = () => {
+            console.log('[browser] Connection closed');
+            this.connected = false;
+            this.setStatus('Disconnected', false);
+            $('browserOverlay').classList.remove('hidden');
+          };
+
+        } catch (err) {
+          console.error('[browser] Connection failed:', err);
+          this.setStatus('Connection failed', false);
+        }
+      }
+
+      async handleMessage(data) {
+        // Handle binary frame data (screenshot/video frames)
+        if (data instanceof Blob) {
+          const img = new Image();
+          img.onload = () => {
+            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+            URL.revokeObjectURL(img.src);
+            this.updateFps();
+          };
+          img.src = URL.createObjectURL(data);
+          return;
+        }
+
+        // Handle text/JSON messages
+        try {
+          const msg = JSON.parse(data);
+
+          switch (msg.type) {
+            case 'frame':
+              // Base64 encoded frame
+              const img = new Image();
+              img.onload = () => {
+                this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+                this.updateFps();
+              };
+              img.src = 'data:image/jpeg;base64,' + msg.data;
+              break;
+
+            case 'url':
+              $('browserUrl').value = msg.url;
+              this.url = msg.url;
+              break;
+
+            case 'console':
+              console.log('[browser:console]', msg.message);
+              break;
+
+            case 'error':
+              console.error('[browser:error]', msg.message);
+              bot.addMessage('Browser error: ' + msg.message, 'ai');
+              break;
+
+            case 'element':
+              // Element info for AI automation
+              bot.addMessage(`Found element: ${msg.selector}\nText: ${msg.text || 'N/A'}\nType: ${msg.tagName}`, 'ai');
+              break;
+
+            case 'screenshot':
+              // Download screenshot
+              const a = document.createElement('a');
+              a.href = 'data:image/png;base64,' + msg.data;
+              a.download = 'linkedin-screenshot-' + Date.now() + '.png';
+              a.click();
+              bot.addMessage('Screenshot saved!', 'ai');
+              break;
+          }
+        } catch (e) {
+          // Not JSON, might be raw data
+          console.log('[browser] Raw message:', data);
+        }
+      }
+
+      updateFps() {
+        this.frameCount++;
+        const now = Date.now();
+        if (now - this.lastFpsUpdate > 1000) {
+          this.fps = Math.round(this.frameCount * 1000 / (now - this.lastFpsUpdate));
+          this.frameCount = 0;
+          this.lastFpsUpdate = now;
+          $('browserFps').textContent = this.fps;
+        }
+      }
+
+      send(msg) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify(msg));
+
+          // Record actions
+          if (this.recording && msg.type !== 'mousemove') {
+            this.recordedActions.push({ ...msg, timestamp: Date.now() });
+          }
+        }
+      }
+
+      handleMouse(action, e) {
+        if (!this.connected) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const x = Math.round((e.clientX - rect.left) * scaleX);
+        const y = Math.round((e.clientY - rect.top) * scaleY);
+
+        this.send({
+          type: 'mouse',
+          action,
+          x,
+          y,
+          button: e.button
+        });
+      }
+
+      handleWheel(e) {
+        if (!this.connected) return;
+        e.preventDefault();
+
+        this.send({
+          type: 'scroll',
+          deltaX: e.deltaX,
+          deltaY: e.deltaY
+        });
+      }
+
+      handleKey(action, e) {
+        if (!this.connected) return;
+        e.preventDefault();
+
+        this.send({
+          type: 'keyboard',
+          action,
+          key: e.key,
+          code: e.code,
+          modifiers: {
+            ctrl: e.ctrlKey,
+            alt: e.altKey,
+            shift: e.shiftKey,
+            meta: e.metaKey
+          }
+        });
+      }
+
+      navigate(url) {
+        if (!url.startsWith('http')) url = 'https://' + url;
+        this.url = url;
+        $('browserUrl').value = url;
+        this.send({ type: 'nav', action: 'goto', url });
+      }
+
+      screenshot() {
+        if (this.connected) {
+          this.send({ type: 'screenshot' });
+        } else {
+          // Screenshot local canvas
+          const a = document.createElement('a');
+          a.href = this.canvas.toDataURL('image/png');
+          a.download = 'linkedin-screenshot-' + Date.now() + '.png';
+          a.click();
+        }
+      }
+
+      showAutomateDialog() {
+        bot.showModal('🤖 AI Browser Automation', `
+          <div class="form-group">
+            <label>What would you like to automate?</label>
+            <textarea id="automatePrompt" placeholder="e.g., Find and connect with 5 CTOs in San Francisco, send personalized connection requests"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Safety Options</label>
+            <div style="display:flex;gap:12px;font-size:11px;color:#94a3b8;">
+              <label><input type="checkbox" id="autoConfirm" checked> Confirm each action</label>
+              <label><input type="checkbox" id="autoDelay" checked> Add human-like delays</label>
+            </div>
+          </div>
+        `);
+
+        $('modalSubmit').textContent = 'Start Automation';
+        $('modalSubmit').onclick = () => {
+          const prompt = $('automatePrompt').value;
+          if (prompt && this.connected) {
+            this.send({
+              type: 'automate',
+              prompt,
+              options: {
+                confirm: $('autoConfirm').checked,
+                delays: $('autoDelay').checked
+              }
+            });
+            bot.addMessage('Starting automation: ' + prompt, 'ai');
+          }
+          bot.hideModal();
+        };
+      }
+
+      showInjectDialog() {
+        bot.showModal('💉 Inject Script', `
+          <div class="form-group">
+            <label>JavaScript to Execute</label>
+            <textarea id="injectScript" style="font-family:monospace;font-size:11px;" placeholder="document.querySelector('.btn-connect')?.click();"></textarea>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-top:8px;">
+            This will execute JavaScript in the remote browser context.
+          </div>
+        `);
+
+        $('modalSubmit').textContent = 'Execute';
+        $('modalSubmit').onclick = () => {
+          const script = $('injectScript').value;
+          if (script && this.connected) {
+            this.send({ type: 'eval', script });
+            bot.addMessage('Executed script in browser', 'ai');
+          }
+          bot.hideModal();
+        };
+      }
+
+      toggleRecording() {
+        this.recording = !this.recording;
+        $('browserRecord').classList.toggle('active', this.recording);
+
+        if (this.recording) {
+          this.recordedActions = [];
+          bot.addMessage('Recording browser actions...', 'ai');
+        } else {
+          bot.addMessage(`Recorded ${this.recordedActions.length} actions. Use bot.browser.recordedActions to access.`, 'ai');
+          console.log('Recorded actions:', this.recordedActions);
+        }
+      }
+
+      toggleFullscreen() {
+        const viewport = $('browserViewport');
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          viewport.requestFullscreen();
+        }
+      }
+
+      // AI Integration - Click on element by AI description
+      async clickByAI(description) {
+        this.send({
+          type: 'ai-click',
+          description
+        });
+      }
+
+      // AI Integration - Type in current focused element
+      async typeText(text) {
+        for (const char of text) {
+          this.send({ type: 'keyboard', action: 'down', key: char, code: 'Key' + char.toUpperCase() });
+          await new Promise(r => setTimeout(r, 50 + Math.random() * 100)); // Human-like typing
+        }
+      }
+
+      // Execute automation sequence
+      async runSequence(actions) {
+        for (const action of actions) {
+          this.send(action);
+          await new Promise(r => setTimeout(r, action.delay || 500));
+        }
+      }
+    }
+
+    const browser = new RemoteBrowser();
+    window.LinkedInBot.browser = browser;
+    window.browser = browser; // For console access
   </script>
 </body>
 </html>
