@@ -155,8 +155,6 @@ body{font:13px/1.4 system-ui,sans-serif;background:#0d1117;color:#c9d1d9;height:
     </div>
     <button class="btn" onclick="openShareModal()">📤 Share</button>
     <button class="btn" onclick="openTokenModal()">🔑 Token</button>
-    <button class="btn" id="globalBtn" onclick="goGlobal()" style="display:none">🌍 Global</button>
-    <button class="btn primary" onclick="newRoom()">+ Private Room</button>
   </div>
 
   <div class="main">
@@ -213,14 +211,9 @@ function randomName() {
 // Global room - same for everyone
 const GLOBAL_ROOM = 'github-collab-global';
 
-function getRoomId() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('room') || GLOBAL_ROOM;
-}
-
 class GitHubCollab {
   constructor() {
-    this.roomId = getRoomId();
+    this.roomId = GLOBAL_ROOM;
     this.username = localStorage.getItem('gh_collab_name') || randomName();
     this.token = localStorage.getItem('gh_token') || '';
     this.peers = new Map();
@@ -233,11 +226,7 @@ class GitHubCollab {
   }
 
   init() {
-    const isGlobal = this.roomId === GLOBAL_ROOM;
-    $('roomId').textContent = isGlobal ? '🌍 Global' : this.roomId;
-    $('globalBtn').style.display = isGlobal ? 'none' : 'flex';
-
-    this.updateUrl();
+    $('roomId').textContent = '🌍 Global';
     this.connectP2P();
     this.setupChat();
 
@@ -250,13 +239,11 @@ class GitHubCollab {
     }
   }
 
-  updateUrl() {
+  updateShareLink() {
     const url = new URL(window.location);
-    url.searchParams.set('room', this.roomId);
     if (this.currentRepo) {
       url.searchParams.set('repo', this.currentRepo);
     }
-    window.history.replaceState({}, '', url);
     $('shareLink').value = url.toString();
   }
 
@@ -782,16 +769,6 @@ class GitHubCollab {
     }
   }
 
-  newRoom() {
-    // Create a private room with random ID
-    const newRoomId = Math.random().toString(36).slice(2, 10);
-    window.location.href = `?room=${newRoomId}`;
-  }
-
-  goGlobal() {
-    // Return to the global room
-    window.location.href = window.location.pathname;
-  }
 }
 
 const G = new GitHubCollab();
@@ -810,7 +787,7 @@ window.saveToken = () => {
 };
 
 window.openShareModal = () => {
-  G.updateUrl();
+  G.updateShareLink();
   $('shareModal').classList.remove('hide');
 };
 window.closeShareModal = () => $('shareModal').classList.add('hide');
@@ -820,8 +797,6 @@ window.copyShareLink = () => {
   closeShareModal();
 };
 
-window.newRoom = () => G.newRoom();
-window.goGlobal = () => G.goGlobal();
 window.loadRepo = () => G.loadRepo();
 window.sendChat = () => {
   const input = $('chatInput');
