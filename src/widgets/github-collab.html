@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<!--
+@file github-collab.html
+@desc GitHub viewer with P2P global chat - no auth for chat, optional token for private repos
+@api  window.GitHubCollab
+-->
+<html lang="en">
+<head>
+  <script type="application/json" id="widget-meta">
+  {
+    "id": "githubCollab",
+    "name": "GitHub Collab",
+    "icon": "🐙",
+    "desc": "GitHub + P2P Chat",
+    "body": "Browse GitHub repos with built-in P2P chat. No auth needed for chat - just share the link. Add PAT for private repos.",
+    "kills": ["Screen sharing for code review", "Separate chat apps"],
+    "price": 40,
+    "color": "#238636"
+  }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GitHub Collab</title>
+  <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:13px/1.4 system-ui,sans-serif;background:#0d1117;color:#c9d1d9;height:100vh;display:flex;flex-direction:column}
+.hdr{padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px}
+.hdr .logo{font-size:24px}
+.hdr h1{font-size:15px;color:#f0f6fc;flex:1}
+.hdr .room-info{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#21262d;border-radius:6px;font-size:11px}
+.hdr .room-info .dot{width:8px;height:8px;background:#238636;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.hdr .room-info .count{color:#8b949e}
+.hdr .btn{padding:6px 12px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.hdr .btn:hover{background:#30363d}
+.hdr .btn.primary{background:#238636;border-color:#238636;color:#fff}
+.main{flex:1;display:flex;overflow:hidden}
+.github-pane{flex:1;display:flex;flex-direction:column;border-right:1px solid #30363d;min-width:0}
+.repo-bar{padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;display:flex;gap:10px;align-items:center}
+.repo-bar input{flex:1;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:12px}
+.repo-bar input:focus{outline:none;border-color:#238636;box-shadow:0 0 0 3px rgba(35,134,54,.3)}
+.repo-bar input::placeholder{color:#484f58}
+.repo-bar button{padding:8px 16px;background:#238636;border:0;border-radius:6px;color:#fff;font-size:12px;cursor:pointer}
+.repo-bar button:hover{background:#2ea043}
+.file-tree{width:250px;background:#161b22;border-right:1px solid #30363d;overflow-y:auto;flex-shrink:0}
+.tree-item{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;border-left:2px solid transparent}
+.tree-item:hover{background:#21262d}
+.tree-item.active{background:#21262d;border-color:#238636}
+.tree-item.folder{color:#8b949e}
+.tree-item .icon{width:16px;text-align:center}
+.tree-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-item.indent-1{padding-left:24px}
+.tree-item.indent-2{padding-left:36px}
+.tree-item.indent-3{padding-left:48px}
+.content-area{flex:1;display:flex;flex-direction:column;min-width:0}
+.file-header{padding:8px 16px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px;font-size:12px}
+.file-header .path{color:#8b949e;flex:1}
+.file-header .lines{color:#8b949e}
+.code-view{flex:1;overflow:auto;background:#0d1117}
+.code-view pre{margin:0;padding:16px;font:12px/1.6 'SF Mono',Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+.code-view .line{display:flex}
+.code-view .line-num{width:50px;color:#484f58;text-align:right;padding-right:16px;user-select:none;flex-shrink:0}
+.code-view .line-content{flex:1}
+.readme-view{padding:24px;max-width:900px}
+.readme-view h1,.readme-view h2,.readme-view h3{color:#f0f6fc;margin:20px 0 10px}
+.readme-view p{margin:10px 0;line-height:1.6}
+.readme-view code{background:#21262d;padding:2px 6px;border-radius:4px;font-family:monospace}
+.readme-view pre{background:#161b22;padding:16px;border-radius:6px;overflow-x:auto;margin:16px 0}
+.welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8b949e;text-align:center;padding:40px}
+.welcome .icon{font-size:64px;margin-bottom:20px}
+.welcome h2{color:#f0f6fc;margin-bottom:10px}
+.welcome p{max-width:400px;line-height:1.6}
+.chat-pane{width:350px;display:flex;flex-direction:column;background:#161b22}
+.chat-header{padding:12px 16px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:10px}
+.chat-header h3{flex:1;font-size:13px;color:#f0f6fc}
+.chat-header .online{font-size:11px;color:#238636;display:flex;align-items:center;gap:4px}
+.chat-header .online::before{content:'';width:6px;height:6px;background:#238636;border-radius:50%}
+.chat-msgs{flex:1;overflow-y:auto;padding:12px}
+.chat-msg{margin-bottom:12px}
+.chat-msg .meta{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.chat-msg .name{font-weight:600;font-size:12px}
+.chat-msg .name.me{color:#238636}
+.chat-msg .name.other{color:#58a6ff}
+.chat-msg .time{font-size:10px;color:#484f58}
+.chat-msg .text{font-size:13px;line-height:1.5;padding:8px 12px;background:#21262d;border-radius:8px;border-top-left-radius:2px}
+.chat-msg.me .text{background:#238636;color:#fff;border-radius:8px;border-top-right-radius:2px}
+.chat-msg.me{text-align:right}
+.chat-msg.me .meta{justify-content:flex-end}
+.chat-msg.system{text-align:center}
+.chat-msg.system .text{background:transparent;color:#8b949e;font-size:11px;font-style:italic}
+.typing-indicator{padding:8px 16px;font-size:11px;color:#8b949e;font-style:italic}
+.chat-input{padding:12px;border-top:1px solid #30363d;display:flex;gap:8px}
+.chat-input input{flex:1;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;font-size:13px}
+.chat-input input:focus{outline:none;border-color:#238636}
+.chat-input button{width:40px;height:40px;background:#238636;border:0;border-radius:8px;color:#fff;font-size:16px;cursor:pointer}
+.chat-input button:disabled{opacity:.5}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal.hide{display:none}
+.modal-box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:90%;max-width:450px}
+.modal-box h3{color:#f0f6fc;margin-bottom:16px;font-size:16px}
+.modal-box label{display:block;font-size:11px;color:#8b949e;margin-bottom:6px;margin-top:14px}
+.modal-box input{width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:13px}
+.modal-box input:focus{outline:none;border-color:#238636}
+.modal-box .hint{font-size:10px;color:#8b949e;margin-top:6px}
+.modal-box .btns{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+.modal-box button{padding:8px 16px;border-radius:6px;font-size:12px;cursor:pointer}
+.modal-box .cancel{background:transparent;border:1px solid #30363d;color:#8b949e}
+.modal-box .ok{background:#238636;border:0;color:#fff}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#238636;color:#fff;padding:10px 20px;border-radius:8px;font-size:12px;opacity:0;transition:opacity .3s;z-index:200}
+.toast.show{opacity:1}
+.toast.error{background:#da3633}
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:#8b949e}
+.loading .spin{width:24px;height:24px;border:2px solid #30363d;border-top-color:#238636;border-radius:50%;animation:spin 1s linear infinite;margin-right:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{padding:20px;text-align:center;color:#da3633}
+  </style>
+</head>
+<body>
+  <div class="modal hide" id="tokenModal">
+    <div class="modal-box">
+      <h3>GitHub Personal Access Token</h3>
+      <p style="font-size:12px;color:#8b949e;margin-bottom:12px">Optional: Add a PAT to access private repos</p>
+      <label>Personal Access Token</label>
+      <input id="tokenInput" type="password" placeholder="ghp_xxxxxxxxxxxx">
+      <div class="hint">Token is stored locally, never sent to any server except GitHub API</div>
+      <div class="btns">
+        <button class="cancel" onclick="closeTokenModal()">Cancel</button>
+        <button class="ok" onclick="saveToken()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hide" id="shareModal">
+    <div class="modal-box">
+      <h3>Share This Room</h3>
+      <p style="font-size:12px;color:#8b949e;margin-bottom:12px">Send this link to anyone to join the chat and view the repo together</p>
+      <label>Room Link</label>
+      <input id="shareLink" readonly>
+      <div class="btns">
+        <button class="cancel" onclick="closeShareModal()">Close</button>
+        <button class="ok" onclick="copyShareLink()">Copy Link</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="hdr">
+    <span class="logo">🐙</span>
+    <h1>GitHub Collab</h1>
+    <div class="room-info">
+      <span class="dot"></span>
+      <span>Room: <b id="roomId">-</b></span>
+      <span class="count">(<span id="peerCount">1</span> online)</span>
+    </div>
+    <button class="btn" onclick="openShareModal()">📤 Share</button>
+    <button class="btn" onclick="openTokenModal()">🔑 Token</button>
+    <button class="btn primary" onclick="newRoom()">+ New Room</button>
+  </div>
+
+  <div class="main">
+    <div class="github-pane">
+      <div class="repo-bar">
+        <input id="repoInput" placeholder="Enter repo URL or owner/repo (e.g., facebook/react)" value="">
+        <button onclick="loadRepo()">Load Repo</button>
+      </div>
+      <div style="flex:1;display:flex;overflow:hidden">
+        <div class="file-tree" id="fileTree"></div>
+        <div class="content-area">
+          <div class="welcome" id="welcome">
+            <div class="icon">📂</div>
+            <h2>Enter a GitHub Repository</h2>
+            <p>Paste a GitHub URL or enter owner/repo to browse code together. Chat is ready - no auth needed!</p>
+          </div>
+          <div id="fileContent" style="display:none;flex:1;display:flex;flex-direction:column"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-pane">
+      <div class="chat-header">
+        <h3>💬 Chat</h3>
+        <span class="online" id="onlineStatus">Connected</span>
+      </div>
+      <div class="chat-msgs" id="chatMsgs"></div>
+      <div class="typing-indicator hide" id="typingIndicator">Someone is typing...</div>
+      <div class="chat-input">
+        <input id="chatInput" placeholder="Type a message..." maxlength="500">
+        <button id="chatSend" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg, isError = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Generate random username
+function randomName() {
+  const adj = ['Happy','Swift','Clever','Bright','Cool','Epic','Mighty','Cyber'];
+  const noun = ['Coder','Dev','Hacker','Ninja','Wizard','Phoenix','Dragon','Tiger'];
+  return adj[Math.floor(Math.random()*adj.length)] + noun[Math.floor(Math.random()*noun.length)] + Math.floor(Math.random()*100);
+}
+
+// Generate room ID from URL or random
+function getRoomId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('room') || Math.random().toString(36).slice(2, 10);
+}
+
+class GitHubCollab {
+  constructor() {
+    this.roomId = getRoomId();
+    this.username = localStorage.getItem('gh_collab_name') || randomName();
+    this.token = localStorage.getItem('gh_token') || '';
+    this.peers = new Map();
+    this.currentRepo = null;
+    this.currentPath = '';
+    this.ws = null;
+
+    localStorage.setItem('gh_collab_name', this.username);
+    this.init();
+  }
+
+  init() {
+    $('roomId').textContent = this.roomId;
+    this.updateUrl();
+    this.connectP2P();
+    this.setupChat();
+
+    // Check for repo in URL
+    const params = new URLSearchParams(window.location.search);
+    const repo = params.get('repo');
+    if (repo) {
+      $('repoInput').value = repo;
+      this.loadRepo(repo);
+    }
+  }
+
+  updateUrl() {
+    const url = new URL(window.location);
+    url.searchParams.set('room', this.roomId);
+    if (this.currentRepo) {
+      url.searchParams.set('repo', this.currentRepo);
+    }
+    window.history.replaceState({}, '', url);
+    $('shareLink').value = url.toString();
+  }
+
+  // Simple WebSocket signaling via public server (or use WebTorrent tracker)
+  connectP2P() {
+    // Using a simple broadcast approach via WebTorrent tracker
+    this.setupWebTorrentSignaling();
+  }
+
+  async setupWebTorrentSignaling() {
+    try {
+      // Use simple-peer for WebRTC
+      const { default: Peer } = await import('https://esm.run/simple-peer');
+
+      // Connect to WebTorrent tracker for signaling
+      const trackerUrl = 'wss://tracker.openwebtorrent.com';
+      const infoHash = this.stringToHash('github-collab-' + this.roomId);
+
+      this.ws = new WebSocket(`${trackerUrl}/?info_hash=${infoHash}`);
+
+      this.ws.onopen = () => {
+        console.log('Connected to signaling');
+        this.announce();
+        this.addSystemMessage('Connected to room: ' + this.roomId);
+      };
+
+      this.ws.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          this.handleSignal(data, Peer);
+        } catch(err) {}
+      };
+
+      this.ws.onerror = () => {
+        // Fallback to local-only mode
+        this.addSystemMessage('Running in local mode (P2P unavailable)');
+      };
+
+      this.ws.onclose = () => {
+        setTimeout(() => this.setupWebTorrentSignaling(), 5000);
+      };
+
+    } catch(e) {
+      console.error('P2P setup error:', e);
+      this.addSystemMessage('Chat ready (local mode)');
+    }
+  }
+
+  stringToHash(str) {
+    let hash = '';
+    for (let i = 0; i < 20; i++) {
+      hash += str.charCodeAt(i % str.length).toString(16).padStart(2, '0');
+    }
+    return hash;
+  }
+
+  announce() {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        action: 'announce',
+        info_hash: this.stringToHash('github-collab-' + this.roomId),
+        peer_id: this.username,
+        offers: []
+      }));
+    }
+  }
+
+  handleSignal(data, Peer) {
+    if (data.action === 'announce' && data.peer_id !== this.username) {
+      // New peer joined
+      this.updatePeerCount();
+    }
+
+    if (data.type === 'chat') {
+      this.addChatMessage(data.from, data.text, false);
+    }
+
+    if (data.type === 'sync' && data.repo) {
+      // Someone shared their current repo view
+      if (!this.currentRepo) {
+        $('repoInput').value = data.repo;
+        this.loadRepo(data.repo);
+      }
+    }
+  }
+
+  broadcast(data) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        ...data,
+        from: this.username,
+        room: this.roomId
+      }));
+    }
+  }
+
+  updatePeerCount() {
+    const count = this.peers.size + 1;
+    $('peerCount').textContent = count;
+  }
+
+  setupChat() {
+    const input = $('chatInput');
+    const send = $('chatSend');
+
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter' && input.value.trim()) {
+        this.sendChat(input.value.trim());
+        input.value = '';
+      }
+    };
+
+    send.onclick = () => {
+      if (input.value.trim()) {
+        this.sendChat(input.value.trim());
+        input.value = '';
+      }
+    };
+  }
+
+  sendChat(text) {
+    this.addChatMessage(this.username, text, true);
+    this.broadcast({ type: 'chat', text });
+  }
+
+  addChatMessage(name, text, isMe) {
+    const msgs = $('chatMsgs');
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const div = document.createElement('div');
+    div.className = 'chat-msg' + (isMe ? ' me' : '');
+    div.innerHTML = `
+      <div class="meta">
+        <span class="name ${isMe ? 'me' : 'other'}">${esc(name)}</span>
+        <span class="time">${time}</span>
+      </div>
+      <div class="text">${esc(text)}</div>
+    `;
+
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  addSystemMessage(text) {
+    const msgs = $('chatMsgs');
+    const div = document.createElement('div');
+    div.className = 'chat-msg system';
+    div.innerHTML = `<div class="text">${esc(text)}</div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  // GitHub API
+  async loadRepo(input) {
+    const repoInput = input || $('repoInput').value.trim();
+    if (!repoInput) return;
+
+    // Parse input (URL or owner/repo)
+    let owner, repo;
+    if (repoInput.includes('github.com')) {
+      const match = repoInput.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (match) {
+        owner = match[1];
+        repo = match[2].replace(/\.git$/, '').split('/')[0].split('?')[0].split('#')[0];
+      }
+    } else if (repoInput.includes('/')) {
+      [owner, repo] = repoInput.split('/');
+    }
+
+    if (!owner || !repo) {
+      toast('Invalid repo format. Use owner/repo or GitHub URL', true);
+      return;
+    }
+
+    this.currentRepo = `${owner}/${repo}`;
+    this.updateUrl();
+
+    // Broadcast to peers
+    this.broadcast({ type: 'sync', repo: this.currentRepo });
+
+    $('welcome').style.display = 'none';
+    $('fileTree').innerHTML = '<div class="loading"><div class="spin"></div>Loading...</div>';
+
+    try {
+      const headers = { Accept: 'application/vnd.github.v3+json' };
+      if (this.token) headers.Authorization = `token ${this.token}`;
+
+      // Get repo info
+      const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+      if (!repoRes.ok) throw new Error(repoRes.status === 404 ? 'Repository not found' : 'Failed to load repo');
+
+      const repoData = await repoRes.json();
+
+      // Get tree
+      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${repoData.default_branch}?recursive=1`, { headers });
+      const treeData = await treeRes.json();
+
+      this.renderTree(treeData.tree || []);
+      this.addSystemMessage(`Loaded: ${owner}/${repo}`);
+
+      // Try to load README
+      const readme = treeData.tree?.find(f => f.path.toLowerCase() === 'readme.md');
+      if (readme) {
+        this.loadFile(readme.path);
+      }
+
+    } catch(e) {
+      $('fileTree').innerHTML = `<div class="error-msg">${esc(e.message)}</div>`;
+      toast(e.message, true);
+    }
+  }
+
+  renderTree(tree) {
+    // Build folder structure
+    const folders = new Map();
+    const files = [];
+
+    tree.forEach(item => {
+      if (item.type === 'blob') {
+        files.push(item);
+      } else if (item.type === 'tree') {
+        folders.set(item.path, []);
+      }
+    });
+
+    // Group files by folder
+    files.forEach(file => {
+      const parts = file.path.split('/');
+      if (parts.length === 1) {
+        if (!folders.has('')) folders.set('', []);
+        folders.get('').push(file);
+      } else {
+        const folder = parts.slice(0, -1).join('/');
+        if (!folders.has(folder)) folders.set(folder, []);
+        folders.get(folder).push(file);
+      }
+    });
+
+    // Render
+    let html = '';
+    const rootFiles = folders.get('') || [];
+
+    // Root folders first
+    [...folders.keys()].filter(f => f && !f.includes('/')).sort().forEach(folder => {
+      html += this.renderFolder(folder, folders, 0);
+    });
+
+    // Root files
+    rootFiles.sort((a, b) => a.path.localeCompare(b.path)).forEach(file => {
+      html += this.renderFileItem(file, 0);
+    });
+
+    $('fileTree').innerHTML = html || '<div style="padding:20px;color:#8b949e">Empty repository</div>';
+  }
+
+  renderFolder(path, folders, level) {
+    const name = path.split('/').pop();
+    const icon = '📁';
+    let html = `<div class="tree-item folder indent-${level}" onclick="G.toggleFolder(this, '${esc(path)}')">
+      <span class="icon">${icon}</span>
+      <span class="name">${esc(name)}</span>
+    </div>`;
+
+    html += `<div class="folder-contents" data-path="${esc(path)}" style="display:none">`;
+
+    // Subfolders
+    [...folders.keys()].filter(f => {
+      const parent = f.split('/').slice(0, -1).join('/');
+      return parent === path;
+    }).sort().forEach(subfolder => {
+      html += this.renderFolder(subfolder, folders, level + 1);
+    });
+
+    // Files in this folder
+    const files = folders.get(path) || [];
+    files.sort((a, b) => a.path.localeCompare(b.path)).forEach(file => {
+      html += this.renderFileItem(file, level + 1);
+    });
+
+    html += '</div>';
+    return html;
+  }
+
+  renderFileItem(file, level) {
+    const name = file.path.split('/').pop();
+    const ext = name.split('.').pop().toLowerCase();
+    const icons = {
+      js: '📜', ts: '📘', jsx: '⚛️', tsx: '⚛️',
+      py: '🐍', rb: '💎', go: '🐹', rs: '🦀',
+      html: '🌐', css: '🎨', scss: '🎨',
+      json: '📋', md: '📝', txt: '📄',
+      yml: '⚙️', yaml: '⚙️', toml: '⚙️',
+      sh: '🖥️', bash: '🖥️',
+      png: '🖼️', jpg: '🖼️', gif: '🖼️', svg: '🖼️'
+    };
+    const icon = icons[ext] || '📄';
+
+    return `<div class="tree-item indent-${level}" onclick="G.loadFile('${esc(file.path)}')" data-path="${esc(file.path)}">
+      <span class="icon">${icon}</span>
+      <span class="name">${esc(name)}</span>
+    </div>`;
+  }
+
+  toggleFolder(el, path) {
+    const contents = document.querySelector(`[data-path="${path}"].folder-contents`);
+    if (contents) {
+      const isHidden = contents.style.display === 'none';
+      contents.style.display = isHidden ? 'block' : 'none';
+      el.querySelector('.icon').textContent = isHidden ? '📂' : '📁';
+    }
+  }
+
+  async loadFile(path) {
+    this.currentPath = path;
+
+    // Highlight in tree
+    document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-path="${path}"]`)?.classList.add('active');
+
+    const content = $('fileContent');
+    content.style.display = 'flex';
+    content.innerHTML = '<div class="loading"><div class="spin"></div>Loading file...</div>';
+
+    try {
+      const headers = { Accept: 'application/vnd.github.v3.raw' };
+      if (this.token) headers.Authorization = `token ${this.token}`;
+
+      const [owner, repo] = this.currentRepo.split('/');
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
+
+      if (!res.ok) throw new Error('Failed to load file');
+
+      const text = await res.text();
+      const ext = path.split('.').pop().toLowerCase();
+
+      if (ext === 'md') {
+        this.renderMarkdown(path, text);
+      } else {
+        this.renderCode(path, text);
+      }
+
+    } catch(e) {
+      content.innerHTML = `<div class="error-msg">${esc(e.message)}</div>`;
+    }
+  }
+
+  renderCode(path, text) {
+    const lines = text.split('\n');
+    const content = $('fileContent');
+
+    content.innerHTML = `
+      <div class="file-header">
+        <span class="path">${esc(path)}</span>
+        <span class="lines">${lines.length} lines</span>
+      </div>
+      <div class="code-view">
+        <pre>${lines.map((line, i) => `<div class="line"><span class="line-num">${i + 1}</span><span class="line-content">${esc(line) || ' '}</span></div>`).join('')}</pre>
+      </div>
+    `;
+  }
+
+  renderMarkdown(path, text) {
+    const content = $('fileContent');
+
+    // Simple markdown rendering
+    let html = esc(text)
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+
+    content.innerHTML = `
+      <div class="file-header">
+        <span class="path">${esc(path)}</span>
+      </div>
+      <div class="readme-view"><p>${html}</p></div>
+    `;
+  }
+
+  setToken(token) {
+    this.token = token;
+    localStorage.setItem('gh_token', token);
+    toast('Token saved!');
+    if (this.currentRepo) {
+      this.loadRepo(this.currentRepo);
+    }
+  }
+
+  newRoom() {
+    const newRoomId = Math.random().toString(36).slice(2, 10);
+    window.location.href = `?room=${newRoomId}`;
+  }
+}
+
+const G = new GitHubCollab();
+window.G = G;
+window.GitHubCollab = G;
+
+// Modal functions
+window.openTokenModal = () => {
+  $('tokenInput').value = G.token;
+  $('tokenModal').classList.remove('hide');
+};
+window.closeTokenModal = () => $('tokenModal').classList.add('hide');
+window.saveToken = () => {
+  G.setToken($('tokenInput').value.trim());
+  closeTokenModal();
+};
+
+window.openShareModal = () => {
+  G.updateUrl();
+  $('shareModal').classList.remove('hide');
+};
+window.closeShareModal = () => $('shareModal').classList.add('hide');
+window.copyShareLink = () => {
+  navigator.clipboard.writeText($('shareLink').value);
+  toast('Link copied!');
+  closeShareModal();
+};
+
+window.newRoom = () => G.newRoom();
+window.loadRepo = () => G.loadRepo();
+window.sendChat = () => {
+  const input = $('chatInput');
+  if (input.value.trim()) {
+    G.sendChat(input.value.trim());
+    input.value = '';
+  }
+};
+  </script>
+</body>
+</html>
