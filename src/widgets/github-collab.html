@@ -254,42 +254,69 @@ class GitHubCollab {
     $('shareLink').value = url.toString();
   }
 
-  // Simple WebSocket signaling via public server (or use WebTorrent tracker)
+  // WebTorrent tracker signaling for true P2P
   connectP2P() {
-    // Using a simple broadcast approach via WebTorrent tracker
+    this.dataChannels = new Map();
+    this.pendingOffers = new Map();
+    // 20-byte peer_id for WebTorrent compatibility
+    this.peerId = '-GH0001-' + Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b => b.toString(16).padStart(2,'0')).join('');
     this.setupWebTorrentSignaling();
   }
 
   async setupWebTorrentSignaling() {
     try {
-      // Use simple-peer for WebRTC
-      const { default: Peer } = await import('https://esm.run/simple-peer');
-
-      // Connect to WebTorrent tracker for signaling
       const trackerUrl = 'wss://tracker.openwebtorrent.com';
-      const infoHash = this.stringToHash('github-collab-' + this.roomId);
+      this.infoHash = await this.roomToHash('github-collab-' + this.roomId);
 
-      this.ws = new WebSocket(`${trackerUrl}/?info_hash=${infoHash}`);
+      this.ws = new WebSocket(trackerUrl);
 
-      this.ws.onopen = () => {
-        console.log('Connected to signaling');
-        this.announce();
+      this.ws.onopen = async () => {
+        console.log('Connected to WebTorrent tracker');
         this.addSystemMessage('Connected to room: ' + this.roomId);
+        $('onlineStatus').textContent = 'Connected';
+
+        // Generate and send offers
+        const offers = await this.generateOffers(5);
+        this.ws.send(JSON.stringify({
+          action: 'announce',
+          info_hash: this.infoHash,
+          peer_id: this.peerId,
+          numwant: 10,
+          uploaded: 0,
+          downloaded: 0,
+          left: 1,
+          offers: offers
+        }));
       };
 
-      this.ws.onmessage = (e) => {
+      this.ws.onmessage = async (e) => {
         try {
-          const data = JSON.parse(e.data);
-          this.handleSignal(data, Peer);
-        } catch(err) {}
+          const msg = JSON.parse(e.data);
+
+          if (msg.offer && msg.peer_id !== this.peerId) {
+            console.log('Received offer from', msg.peer_id.slice(0, 8));
+            await this.handleOffer(msg);
+          }
+
+          if (msg.answer && msg.offer_id) {
+            await this.handleAnswer(msg);
+          }
+
+          if (msg.interval) {
+            setTimeout(() => this.reannounce(), msg.interval * 1000);
+          }
+        } catch(err) {
+          console.error('Tracker message error:', err);
+        }
       };
 
       this.ws.onerror = () => {
-        // Fallback to local-only mode
-        this.addSystemMessage('Running in local mode (P2P unavailable)');
+        this.addSystemMessage('Connection error - retrying...');
+        $('onlineStatus').textContent = 'Reconnecting';
       };
 
       this.ws.onclose = () => {
+        $('onlineStatus').textContent = 'Reconnecting';
         setTimeout(() => this.setupWebTorrentSignaling(), 5000);
       };
 
@@ -299,51 +326,156 @@ class GitHubCollab {
     }
   }
 
-  stringToHash(str) {
-    let hash = '';
-    for (let i = 0; i < 20; i++) {
-      hash += str.charCodeAt(i % str.length).toString(16).padStart(2, '0');
-    }
-    return hash;
+  // Convert room name to 20-byte info_hash (hex) using SHA-1
+  async roomToHash(name) {
+    const data = new TextEncoder().encode('konomi:' + name);
+    const hash = await crypto.subtle.digest('SHA-1', data);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  announce() {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        action: 'announce',
-        info_hash: this.stringToHash('github-collab-' + this.roomId),
-        peer_id: this.username,
-        offers: []
-      }));
+  // Generate WebRTC offers upfront
+  async generateOffers(count) {
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const offers = [];
+
+    for (let i = 0; i < count; i++) {
+      const pc = new RTCPeerConnection(ICE);
+      const dc = pc.createDataChannel('chat');
+      const offerId = crypto.randomUUID();
+
+      await new Promise(resolve => {
+        pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+        pc.createOffer().then(o => pc.setLocalDescription(o));
+      });
+
+      offers.push({
+        offer_id: offerId,
+        offer: { type: 'offer', sdp: pc.localDescription.sdp }
+      });
+
+      this.pendingOffers.set(offerId, { pc, dc });
+      this.setupDataChannel(pc, dc, offerId);
     }
+    return offers;
   }
 
-  handleSignal(data, Peer) {
-    if (data.action === 'announce' && data.peer_id !== this.username) {
-      // New peer joined
-      this.updatePeerCount();
-    }
+  setupDataChannel(pc, dc, id) {
+    dc.onopen = () => {
+      console.log('WebRTC peer connected:', id.slice(0, 8));
+      this.dataChannels.set(id, dc);
 
-    if (data.type === 'chat') {
-      this.addChatMessage(data.from, data.text, false);
-    }
-
-    if (data.type === 'sync' && data.repo) {
-      // Someone shared their current repo view
-      if (!this.currentRepo) {
-        $('repoInput').value = data.repo;
-        this.loadRepo(data.repo);
+      if (!this.peers.has(id)) {
+        this.peers.set(id, { name: 'Peer-' + id.slice(0, 6) });
+        this.updatePeerCount();
+        this.addSystemMessage('Peer connected');
       }
+
+      // Send our info
+      dc.send(JSON.stringify({ type: 'announce', name: this.username }));
+
+      // Send current repo if any
+      if (this.currentRepo) {
+        dc.send(JSON.stringify({ type: 'sync', repo: this.currentRepo }));
+      }
+    };
+
+    dc.onclose = () => {
+      this.dataChannels.delete(id);
+      if (this.peers.has(id)) {
+        const peer = this.peers.get(id);
+        this.addSystemMessage(`${peer.name} disconnected`);
+        this.peers.delete(id);
+        this.updatePeerCount();
+      }
+    };
+
+    dc.onmessage = e => {
+      try {
+        const msg = JSON.parse(e.data);
+        this.handlePeerMessage(id, msg);
+      } catch(err) {
+        console.error('Message error:', err);
+      }
+    };
+  }
+
+  async handleOffer(msg) {
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const pc = new RTCPeerConnection(ICE);
+    const peerId = msg.peer_id;
+
+    pc.ondatachannel = e => {
+      this.setupDataChannel(pc, e.channel, peerId);
+    };
+
+    await pc.setRemoteDescription(msg.offer);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await new Promise(resolve => {
+      if (pc.iceGatheringState === 'complete') resolve();
+      else pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+    });
+
+    this.ws.send(JSON.stringify({
+      action: 'announce',
+      info_hash: this.infoHash,
+      peer_id: this.peerId,
+      to_peer_id: peerId,
+      answer: { type: 'answer', sdp: pc.localDescription.sdp },
+      offer_id: msg.offer_id
+    }));
+  }
+
+  async handleAnswer(msg) {
+    const pending = this.pendingOffers.get(msg.offer_id);
+    if (!pending) return;
+    await pending.pc.setRemoteDescription(msg.answer);
+  }
+
+  async reannounce() {
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    const offers = await this.generateOffers(5);
+    this.ws.send(JSON.stringify({
+      action: 'announce',
+      info_hash: this.infoHash,
+      peer_id: this.peerId,
+      numwant: 10,
+      offers: offers
+    }));
+  }
+
+  handlePeerMessage(peerId, msg) {
+    switch(msg.type) {
+      case 'announce':
+        if (this.peers.has(peerId)) {
+          this.peers.get(peerId).name = msg.name;
+        } else {
+          this.peers.set(peerId, { name: msg.name });
+        }
+        this.updatePeerCount();
+        break;
+
+      case 'chat':
+        const peer = this.peers.get(peerId) || { name: 'Unknown' };
+        this.addChatMessage(peer.name, msg.text, false);
+        break;
+
+      case 'sync':
+        if (msg.repo && !this.currentRepo) {
+          $('repoInput').value = msg.repo;
+          this.loadRepo(msg.repo);
+        }
+        break;
     }
   }
 
   broadcast(data) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        ...data,
-        from: this.username,
-        room: this.roomId
-      }));
+    const payload = JSON.stringify(data);
+    for (const dc of this.dataChannels.values()) {
+      if (dc.readyState === 'open') {
+        dc.send(payload);
+      }
     }
   }
 
