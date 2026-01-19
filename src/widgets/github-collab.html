@@ -155,7 +155,8 @@ body{font:13px/1.4 system-ui,sans-serif;background:#0d1117;color:#c9d1d9;height:
     </div>
     <button class="btn" onclick="openShareModal()">📤 Share</button>
     <button class="btn" onclick="openTokenModal()">🔑 Token</button>
-    <button class="btn primary" onclick="newRoom()">+ New Room</button>
+    <button class="btn" id="globalBtn" onclick="goGlobal()" style="display:none">🌍 Global</button>
+    <button class="btn primary" onclick="newRoom()">+ Private Room</button>
   </div>
 
   <div class="main">
@@ -209,10 +210,12 @@ function randomName() {
   return adj[Math.floor(Math.random()*adj.length)] + noun[Math.floor(Math.random()*noun.length)] + Math.floor(Math.random()*100);
 }
 
-// Generate room ID from URL or random
+// Global room - same for everyone
+const GLOBAL_ROOM = 'github-collab-global';
+
 function getRoomId() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('room') || Math.random().toString(36).slice(2, 10);
+  return params.get('room') || GLOBAL_ROOM;
 }
 
 class GitHubCollab {
@@ -230,7 +233,10 @@ class GitHubCollab {
   }
 
   init() {
-    $('roomId').textContent = this.roomId;
+    const isGlobal = this.roomId === GLOBAL_ROOM;
+    $('roomId').textContent = isGlobal ? '🌍 Global' : this.roomId;
+    $('globalBtn').style.display = isGlobal ? 'none' : 'flex';
+
     this.updateUrl();
     this.connectP2P();
     this.setupChat();
@@ -777,8 +783,14 @@ class GitHubCollab {
   }
 
   newRoom() {
+    // Create a private room with random ID
     const newRoomId = Math.random().toString(36).slice(2, 10);
     window.location.href = `?room=${newRoomId}`;
+  }
+
+  goGlobal() {
+    // Return to the global room
+    window.location.href = window.location.pathname;
   }
 }
 
@@ -809,6 +821,7 @@ window.copyShareLink = () => {
 };
 
 window.newRoom = () => G.newRoom();
+window.goGlobal = () => G.goGlobal();
 window.loadRepo = () => G.loadRepo();
 window.sendChat = () => {
   const input = $('chatInput');
