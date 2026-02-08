@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<!--
+@file src/games/aimon/index.html
+@desc AIMon - P2P AI Monster Battles
+      Craft AI fighters with prompts & params, battle globally over WebRTC
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AIMon - P2P AI Battles</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a14;--bg2:#12122a;--bg3:#1a1a3e;
+  --fg:#e8e8ff;--fg2:#888;
+  --fire:#ff4444;--ice:#44bbff;--toxic:#44ff88;--void:#bb44ff;--spark:#ffbb44;--neutral:#aaa;
+  --hp-green:#44ff88;--hp-yellow:#ffbb44;--hp-red:#ff4444;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;font-weight:600;transition:.15s}
+button:hover{filter:brightness(1.15);transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+input,textarea,select{font-family:inherit;background:var(--bg);color:var(--fg);border:1px solid #333;border-radius:8px;padding:10px 14px;outline:none;transition:.15s}
+input:focus,textarea:focus{border-color:var(--spark)}
+
+/* Screens */
+.screen{display:none;min-height:100vh;padding:20px}
+.screen.active{display:flex;flex-direction:column;align-items:center}
+
+/* Title */
+#title-screen{justify-content:center;text-align:center;background:radial-gradient(ellipse at 50% 30%,rgba(187,68,255,.1),transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(68,187,255,.08),transparent 50%)}
+#title-screen h1{font-size:4rem;margin-bottom:8px;background:linear-gradient(135deg,var(--spark),var(--fire),var(--void));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+#title-screen .tagline{color:var(--fg2);font-size:1.1rem;margin-bottom:40px}
+#title-screen .title-art{font-size:80px;margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(187,68,255,.4))}
+.title-btns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.title-btns button{padding:16px 36px;font-size:1.1rem;border-radius:12px}
+.btn-play{background:linear-gradient(135deg,var(--void),#6622cc);color:#fff}
+.btn-how{background:var(--bg2);color:var(--fg);border:1px solid #333}
+
+/* Builder */
+#builder-screen{max-width:800px;margin:0 auto;padding:40px 20px}
+.builder-title{font-size:2rem;margin-bottom:4px;text-align:center;background:linear-gradient(135deg,var(--spark),var(--fire));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.builder-sub{color:var(--fg2);text-align:center;font-size:13px;margin-bottom:30px}
+.builder-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;width:100%}
+@media(max-width:700px){.builder-grid{grid-template-columns:1fr}}
+.builder-panel{background:var(--bg2);border:1px solid #222;border-radius:16px;padding:24px}
+.builder-panel h3{font-size:.9rem;color:var(--fg2);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;color:var(--fg2);margin-bottom:6px}
+.field input,.field textarea{width:100%;font-size:14px}
+.field textarea{min-height:120px;resize:vertical;line-height:1.5}
+.param-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.param-row label{font-size:12px;color:var(--fg2);min-width:100px}
+.param-row input[type=range]{flex:1;accent-color:var(--void)}
+.param-row .param-val{font-size:13px;min-width:40px;text-align:right;color:var(--spark);font-weight:600}
+
+/* Preview card */
+.preview-card{background:linear-gradient(160deg,var(--bg3),var(--bg2));border:2px solid #333;border-radius:16px;padding:24px;margin-top:20px;width:100%;text-align:center;position:relative;overflow:hidden}
+.preview-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,rgba(187,68,255,.1),transparent 50%);pointer-events:none}
+.preview-sprite{font-size:64px;margin-bottom:12px;filter:drop-shadow(0 0 12px rgba(187,68,255,.5))}
+.preview-name{font-size:1.4rem;font-weight:700;margin-bottom:4px}
+.preview-type{font-size:11px;padding:3px 12px;border-radius:20px;display:inline-block;margin-bottom:16px;font-weight:600}
+.stat-bars{text-align:left}
+.stat-bar{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.stat-bar .stat-label{font-size:10px;color:var(--fg2);min-width:50px;text-transform:uppercase}
+.stat-bar .bar-track{flex:1;height:8px;background:#111;border-radius:4px;overflow:hidden}
+.stat-bar .bar-fill{height:100%;border-radius:4px;transition:width .3s}
+.stat-bar .stat-num{font-size:11px;font-weight:600;min-width:24px;text-align:right}
+.moves-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:16px}
+.move-chip{font-size:10px;padding:6px 10px;border-radius:6px;background:var(--bg);border:1px solid #333;text-align:center}
+.move-chip .move-name{font-weight:600}
+.move-chip .move-pwr{color:var(--fg2);font-size:9px}
+
+.builder-actions{display:flex;gap:12px;margin-top:24px;justify-content:center;width:100%}
+.builder-actions button{padding:14px 32px;font-size:1rem;border-radius:12px}
+.btn-fight{background:linear-gradient(135deg,var(--fire),#cc2200);color:#fff;font-size:1.1rem}
+.btn-random{background:var(--bg2);color:var(--fg);border:1px solid #333}
+.btn-back{background:transparent;color:var(--fg2);border:1px solid #333}
+
+/* Lobby */
+#lobby-screen{justify-content:center;text-align:center}
+.lobby-title{font-size:1.6rem;margin-bottom:8px}
+.lobby-status{color:var(--fg2);font-size:14px;margin-bottom:30px}
+.lobby-spinner{width:60px;height:60px;border:4px solid #222;border-top-color:var(--void);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:30px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lobby-your-mon{display:flex;align-items:center;gap:16px;background:var(--bg2);padding:16px 24px;border-radius:12px;margin-bottom:20px}
+.lobby-your-mon .mon-sprite{font-size:40px}
+.lobby-your-mon .mon-info{text-align:left}
+.lobby-your-mon .mon-name{font-weight:600}
+.lobby-your-mon .mon-type-badge{font-size:10px;padding:2px 8px;border-radius:10px}
+#lobby-cancel{padding:10px 24px;background:var(--bg2);color:var(--fg2);border:1px solid #333}
+.lobby-code{margin-top:16px;font-size:12px;color:#555}
+.lobby-room-id{color:var(--void);cursor:pointer}
+
+/* Battle */
+#battle-screen{padding:0;max-width:100vw}
+.battle-arena{width:100%;max-width:1000px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px;min-height:100vh}
+
+.battle-hud{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.hud-mon{background:var(--bg2);border:1px solid #222;border-radius:12px;padding:14px 18px}
+.hud-mon .hud-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.hud-mon .hud-name{font-weight:600;font-size:1rem}
+.hud-mon .hud-lv{font-size:11px;color:var(--fg2)}
+.hud-mon .hud-type{font-size:9px;padding:2px 8px;border-radius:10px;font-weight:600}
+.hp-bar{height:10px;background:#111;border-radius:5px;overflow:hidden;position:relative}
+.hp-fill{height:100%;border-radius:5px;transition:width .5s ease}
+.hp-text{font-size:11px;color:var(--fg2);margin-top:4px;text-align:right}
+.hud-vs{font-size:1.6rem;font-weight:800;color:var(--fg2)}
+
+.battle-field{flex:1;display:flex;align-items:center;justify-content:space-around;padding:20px;position:relative;min-height:300px}
+.battle-field::before{content:'';position:absolute;bottom:30%;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,#222,transparent)}
+.fighter{text-align:center;transition:transform .3s}
+.fighter .fighter-sprite{font-size:80px;filter:drop-shadow(0 0 15px rgba(187,68,255,.3));transition:all .3s}
+.fighter.attacking .fighter-sprite{animation:attack .4s ease}
+.fighter.hit .fighter-sprite{animation:hit .3s ease}
+.fighter.fainted .fighter-sprite{filter:grayscale(1) brightness(.3);transform:translateY(20px) scale(.8)}
+.fighter-name{font-size:12px;color:var(--fg2);margin-top:8px}
+@keyframes attack{0%{transform:scale(1)}50%{transform:scale(1.2) translateX(20px)}100%{transform:scale(1)}}
+@keyframes hit{0%{transform:translateX(0)}25%{transform:translateX(-10px)}50%{transform:translateX(10px)}75%{transform:translateX(-5px)}100%{transform:translateX(0)}}
+
+.battle-log{background:var(--bg2);border:1px solid #222;border-radius:12px;padding:14px 18px;max-height:120px;overflow-y:auto;font-size:12px;color:var(--fg2);line-height:1.8}
+.battle-log .log-turn{color:var(--spark);font-weight:600}
+.battle-log .log-dmg{color:var(--fire)}
+.battle-log .log-heal{color:var(--toxic)}
+.battle-log .log-miss{color:#666}
+.battle-log .log-crit{color:var(--spark);font-weight:600}
+
+.battle-moves{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.move-btn{padding:16px;border-radius:12px;text-align:left;background:var(--bg2);color:var(--fg);border:2px solid #222;position:relative;overflow:hidden}
+.move-btn:hover{border-color:var(--void)}
+.move-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.move-btn .move-btn-name{font-weight:700;font-size:14px;margin-bottom:2px}
+.move-btn .move-btn-info{font-size:10px;color:var(--fg2)}
+.move-btn .move-btn-type{position:absolute;top:8px;right:10px;font-size:8px;padding:2px 8px;border-radius:8px;font-weight:600}
+.move-btn.waiting{pointer-events:none;opacity:.6}
+
+.battle-status{text-align:center;font-size:13px;color:var(--fg2);padding:4px}
+.battle-status.your-turn{color:var(--spark)}
+
+/* Result */
+#result-screen{justify-content:center;text-align:center;background:radial-gradient(ellipse at 50% 40%,rgba(68,255,136,.06),transparent 60%)}
+.result-title{font-size:3rem;margin-bottom:8px}
+.result-sub{font-size:1.2rem;color:var(--fg2);margin-bottom:40px}
+.result-card{background:var(--bg2);border-radius:16px;padding:32px;margin-bottom:30px;min-width:300px}
+.result-sprite{font-size:64px;margin-bottom:12px}
+.result-name{font-size:1.3rem;font-weight:700;margin-bottom:4px}
+.result-stat{font-size:13px;color:var(--fg2)}
+.result-btns{display:flex;gap:12px}
+.result-btns button{padding:14px 28px;font-size:1rem;border-radius:12px}
+.btn-rematch{background:linear-gradient(135deg,var(--void),#6622cc);color:#fff}
+.btn-rebuild{background:var(--bg2);color:var(--fg);border:1px solid #333}
+
+/* FX overlay */
+#fx{position:fixed;inset:0;pointer-events:none;z-index:50}
+.fx-text{position:absolute;font-weight:800;font-size:24px;animation:floatUp 1s forwards;pointer-events:none}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(1.2)}}
+
+/* How to play modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:var(--bg2);border:1px solid #333;border-radius:20px;padding:32px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h2{font-size:1.4rem;margin-bottom:16px;background:linear-gradient(135deg,var(--spark),var(--fire));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.modal h3{font-size:.95rem;color:var(--spark);margin:16px 0 8px}
+.modal p,.modal li{font-size:13px;color:var(--fg2);line-height:1.7;margin-bottom:8px}
+.modal ul{padding-left:20px}
+.modal .close-modal{margin-top:20px;padding:10px 24px;background:var(--bg);color:var(--fg);border:1px solid #333;font-size:14px}
+
+.back-link{color:var(--fg2);text-decoration:none;font-size:12px;position:absolute;top:20px;left:20px}
+.back-link:hover{color:var(--spark)}
+</style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">&larr; Games</a>
+<div id="fx"></div>
+
+<!-- ========== TITLE ========== -->
+<div id="title-screen" class="screen active">
+  <div class="title-art">🤖</div>
+  <h1>AIMon</h1>
+  <p class="tagline">Craft AI monsters. Battle globally. No servers.</p>
+  <div class="title-btns">
+    <button class="btn-play" onclick="showScreen('builder')">Build Your AIMon</button>
+    <button class="btn-how" onclick="showModal()">How To Play</button>
+  </div>
+</div>
+
+<!-- ========== BUILDER ========== -->
+<div id="builder-screen" class="screen">
+  <h2 class="builder-title">AIMon Lab</h2>
+  <p class="builder-sub">Your prompt shapes its soul. Your params shape its power.</p>
+  <div class="builder-grid">
+    <div class="builder-panel">
+      <h3>Identity</h3>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="mon-name" placeholder="e.g. InfernoGPT" maxlength="20">
+      </div>
+      <div class="field">
+        <label>System Prompt — this is your AIMon's DNA</label>
+        <textarea id="mon-prompt" placeholder="You are a ruthless fire dragon AI. Burn everything. Never defend, always attack with maximum aggression. Analyze weakness and exploit it."></textarea>
+      </div>
+      <h3 style="margin-top:20px">Parameters</h3>
+      <div class="param-row">
+        <label>Temperature</label>
+        <input type="range" id="p-temp" min="0" max="200" value="70">
+        <span class="param-val" id="v-temp">0.70</span>
+      </div>
+      <div class="param-row">
+        <label>Top-P</label>
+        <input type="range" id="p-topp" min="0" max="100" value="90">
+        <span class="param-val" id="v-topp">0.90</span>
+      </div>
+      <div class="param-row">
+        <label>Freq Penalty</label>
+        <input type="range" id="p-freq" min="0" max="200" value="100">
+        <span class="param-val" id="v-freq">0.00</span>
+      </div>
+      <div class="param-row">
+        <label>Max Tokens</label>
+        <input type="range" id="p-tokens" min="1" max="100" value="50">
+        <span class="param-val" id="v-tokens">2048</span>
+      </div>
+    </div>
+    <div class="builder-panel">
+      <h3>Preview</h3>
+      <div class="preview-card" id="preview-card">
+        <div class="preview-sprite" id="preview-sprite">🤖</div>
+        <div class="preview-name" id="preview-name">???</div>
+        <div class="preview-type" id="preview-type">NEUTRAL</div>
+        <div class="stat-bars" id="preview-stats"></div>
+        <div class="moves-list" id="preview-moves"></div>
+      </div>
+    </div>
+  </div>
+  <div class="builder-actions">
+    <button class="btn-back" onclick="showScreen('title')">Back</button>
+    <button class="btn-random" onclick="randomMon()">Random</button>
+    <button class="btn-fight" onclick="enterLobby()">Find Opponent</button>
+  </div>
+</div>
+
+<!-- ========== LOBBY ========== -->
+<div id="lobby-screen" class="screen">
+  <div class="lobby-spinner"></div>
+  <div class="lobby-title">Searching for opponent...</div>
+  <div class="lobby-status" id="lobby-status">Connecting to P2P mesh</div>
+  <div class="lobby-your-mon" id="lobby-mon"></div>
+  <button id="lobby-cancel" onclick="leaveLobby()">Cancel</button>
+  <div class="lobby-code">Room: <span class="lobby-room-id" id="lobby-room" title="Click to copy"></span></div>
+</div>
+
+<!-- ========== BATTLE ========== -->
+<div id="battle-screen" class="screen">
+  <div class="battle-arena">
+    <div class="battle-hud">
+      <div class="hud-mon" id="hud-you">
+        <div class="hud-top">
+          <span class="hud-name" id="hud-you-name">You</span>
+          <span class="hud-type" id="hud-you-type">?</span>
+        </div>
+        <div class="hp-bar"><div class="hp-fill" id="hp-you" style="width:100%;background:var(--hp-green)"></div></div>
+        <div class="hp-text" id="hp-you-text">100 / 100</div>
+      </div>
+      <div class="hud-vs">VS</div>
+      <div class="hud-mon" id="hud-opp">
+        <div class="hud-top">
+          <span class="hud-name" id="hud-opp-name">???</span>
+          <span class="hud-type" id="hud-opp-type">?</span>
+        </div>
+        <div class="hp-bar"><div class="hp-fill" id="hp-opp" style="width:100%;background:var(--hp-green)"></div></div>
+        <div class="hp-text" id="hp-opp-text">100 / 100</div>
+      </div>
+    </div>
+
+    <div class="battle-field">
+      <div class="fighter" id="fighter-you">
+        <div class="fighter-sprite" id="sprite-you">🤖</div>
+        <div class="fighter-name" id="fname-you">You</div>
+      </div>
+      <div class="fighter" id="fighter-opp">
+        <div class="fighter-sprite" id="sprite-opp">🤖</div>
+        <div class="fighter-name" id="fname-opp">Opponent</div>
+      </div>
+    </div>
+
+    <div class="battle-log" id="battle-log">
+      <div>Waiting for battle to start...</div>
+    </div>
+
+    <div class="battle-status" id="battle-status">Choose your move!</div>
+
+    <div class="battle-moves" id="battle-moves"></div>
+  </div>
+</div>
+
+<!-- ========== RESULT ========== -->
+<div id="result-screen" class="screen">
+  <div class="result-title" id="result-title">Victory!</div>
+  <div class="result-sub" id="result-sub">Your AIMon dominated.</div>
+  <div class="result-card" id="result-card"></div>
+  <div class="result-btns">
+    <button class="btn-rematch" onclick="enterLobby()">Rematch</button>
+    <button class="btn-rebuild" onclick="showScreen('builder')">Rebuild</button>
+  </div>
+</div>
+
+<!-- ========== HOW TO PLAY ========== -->
+<div class="modal-overlay" id="how-modal">
+  <div class="modal">
+    <h2>How To Play</h2>
+    <p>AIMon is a P2P battle game where you craft AI fighters and battle other players in real-time.</p>
+    <h3>1. Craft Your AIMon</h3>
+    <p>Write a <strong>system prompt</strong> that defines your AIMon's personality. Keywords in your prompt determine its type, moves, and strengths:</p>
+    <ul>
+      <li><strong style="color:var(--fire)">FIRE</strong> — attack, burn, fire, destroy, rage, aggression</li>
+      <li><strong style="color:var(--ice)">ICE</strong> — freeze, ice, cold, slow, chill, calm</li>
+      <li><strong style="color:var(--toxic)">TOXIC</strong> — poison, toxic, hack, corrupt, virus, drain</li>
+      <li><strong style="color:var(--void)">VOID</strong> — void, shadow, dark, chaos, quantum, dimension</li>
+      <li><strong style="color:var(--spark)">SPARK</strong> — lightning, electric, speed, flash, shock, spark</li>
+    </ul>
+    <h3>2. Tune Parameters</h3>
+    <p>AI parameters map directly to battle stats:</p>
+    <ul>
+      <li><strong>Temperature</strong> → CHAOS — crit chance and unpredictability</li>
+      <li><strong>Top-P</strong> → ADAPT — dodge chance and versatility</li>
+      <li><strong>Freq Penalty</strong> → FOCUS — accuracy and consistency</li>
+      <li><strong>Max Tokens</strong> → POWER — HP and raw damage</li>
+    </ul>
+    <h3>3. Battle</h3>
+    <p>Turns are simultaneous — both players pick a move, then they resolve together. Higher speed goes first. Reduce your opponent's HP to 0 to win!</p>
+    <h3>4. Type Advantages</h3>
+    <p>FIRE beats ICE, ICE beats SPARK, SPARK beats TOXIC, TOXIC beats VOID, VOID beats FIRE. Matching types deal 1.5x damage!</p>
+    <button class="close-modal" onclick="hideModal()">Got It</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  AIMON CORE ENGINE
+// ============================================================
+
+const TYPES = {
+  fire:  { color: '#ff4444', icon: '🔥', beats: 'ice',   keywords: ['attack','burn','fire','destroy','rage','aggress','explod','blaze','inferno','combust','scorch'] },
+  ice:   { color: '#44bbff', icon: '❄️', beats: 'spark', keywords: ['freeze','ice','cold','slow','chill','calm','frost','blizzard','glacial','arctic','cool'] },
+  toxic: { color: '#44ff88', icon: '☠️', beats: 'void',  keywords: ['poison','toxic','hack','corrupt','virus','drain','venom','acid','decay','plague','infect'] },
+  void:  { color: '#bb44ff', icon: '🌀', beats: 'fire',  keywords: ['void','shadow','dark','chaos','quantum','dimension','abyss','warp','rift','oblivion','null'] },
+  spark: { color: '#ffbb44', icon: '⚡', beats: 'toxic', keywords: ['lightning','electric','speed','flash','shock','spark','bolt','surge','voltage','thunder','zap'] }
+};
+
+const MOVE_TEMPLATES = {
+  fire:  [{name:'Inferno Blast', pwr:85, acc:90, type:'fire'},{name:'Flame Rush', pwr:60, acc:100, type:'fire'},{name:'Overheat', pwr:120, acc:70, type:'fire'},{name:'Ember Shield', pwr:0, acc:100, type:'fire', heal:30}],
+  ice:   [{name:'Cryo Beam', pwr:80, acc:95, type:'ice'},{name:'Frost Bite', pwr:55, acc:100, type:'ice'},{name:'Absolute Zero', pwr:130, acc:60, type:'ice'},{name:'Ice Barrier', pwr:0, acc:100, type:'ice', heal:35}],
+  toxic: [{name:'Venom Strike', pwr:75, acc:95, type:'toxic'},{name:'Data Corrupt', pwr:60, acc:100, type:'toxic'},{name:'Pandemic', pwr:110, acc:75, type:'toxic'},{name:'Drain Life', pwr:40, acc:100, type:'toxic', heal:40}],
+  void:  [{name:'Shadow Rift', pwr:90, acc:85, type:'void'},{name:'Null Pointer', pwr:65, acc:100, type:'void'},{name:'Singularity', pwr:140, acc:55, type:'void'},{name:'Dark Mend', pwr:0, acc:100, type:'void', heal:30}],
+  spark: [{name:'Thunder Strike', pwr:85, acc:90, type:'spark'},{name:'Quick Shock', pwr:50, acc:100, type:'spark'},{name:'Gigavolt', pwr:125, acc:65, type:'spark'},{name:'Static Field', pwr:0, acc:100, type:'spark', heal:25}],
+  neutral:[{name:'Byte Punch', pwr:65, acc:100, type:'neutral'},{name:'Logic Bomb', pwr:80, acc:85, type:'neutral'},{name:'Overclock', pwr:100, acc:75, type:'neutral'},{name:'Self-Repair', pwr:0, acc:100, type:'neutral', heal:35}]
+};
+
+const SPRITES = {
+  fire:  ['🐉','🔥','👹','🦊','💥','🌋'],
+  ice:   ['🐧','❄️','🦈','🐺','💎','🌊'],
+  toxic: ['🐍','☠️','🦠','🕷️','🧪','🐸'],
+  void:  ['👾','🌀','🦇','🕳️','💀','👻'],
+  spark: ['⚡','🐱','🦅','🐝','💫','🌟'],
+  neutral:['🤖','🧠','🎭','🗿','🦾','🔮']
+};
+
+// Detect AIMon type from prompt text
+function detectType(prompt) {
+  const lower = prompt.toLowerCase();
+  let best = 'neutral', bestScore = 0;
+  for (const [type, info] of Object.entries(TYPES)) {
+    let score = 0;
+    for (const kw of info.keywords) {
+      const re = new RegExp(kw, 'gi');
+      const matches = lower.match(re);
+      if (matches) score += matches.length;
+    }
+    if (score > bestScore) { bestScore = score; best = type; }
+  }
+  return best;
+}
+
+// Derive stats from parameters
+function deriveStats(temp, topp, freq, tokens) {
+  // temp 0-2 → chaos 10-99
+  const chaos = Math.round(10 + (temp / 2) * 89);
+  // topp 0-1 → adapt 10-99
+  const adapt = Math.round(10 + topp * 89);
+  // freq -2 to 2 → focus (inverted: lower penalty = more focus)
+  const focus = Math.round(10 + ((2 - freq) / 4) * 89);
+  // tokens 1-4096 → power 10-99
+  const power = Math.round(10 + (tokens / 4096) * 89);
+  const hp = 80 + Math.round(power * 1.2);
+  return { chaos, adapt, focus, power, hp, maxHp: 80 + Math.round(power * 1.2) };
+}
+
+// Generate moves based on type and stats
+function generateMoves(type, stats) {
+  const primary = MOVE_TEMPLATES[type] || MOVE_TEMPLATES.neutral;
+  return primary.map(m => ({
+    ...m,
+    pwr: m.pwr ? Math.round(m.pwr * (0.7 + stats.power / 150)) : 0,
+    acc: Math.min(100, Math.round(m.acc * (0.8 + stats.focus / 200))),
+    heal: m.heal ? Math.round(m.heal * (0.8 + stats.adapt / 150)) : 0
+  }));
+}
+
+// Pick a sprite
+function pickSprite(type, name) {
+  const pool = SPRITES[type] || SPRITES.neutral;
+  let hash = 0;
+  for (let i = 0; i < (name || 'x').length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  return pool[Math.abs(hash) % pool.length];
+}
+
+// Build full AIMon object
+function buildMon(name, prompt, temp, topp, freq, tokens) {
+  const type = detectType(prompt);
+  const stats = deriveStats(temp, topp, freq, tokens);
+  const moves = generateMoves(type, stats);
+  const sprite = pickSprite(type, name);
+  return { name: name || 'Unnamed', prompt, type, stats, moves, sprite, params: { temp, topp, freq, tokens } };
+}
+
+// Type advantage multiplier
+function typeMultiplier(atkType, defType) {
+  if (atkType === 'neutral' || defType === 'neutral') return 1;
+  const info = TYPES[atkType];
+  if (info && info.beats === defType) return 1.5;
+  // Check if defender beats attacker
+  const defInfo = TYPES[defType];
+  if (defInfo && defInfo.beats === atkType) return 0.7;
+  return 1;
+}
+
+// ============================================================
+//  UI HELPERS
+// ============================================================
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id + '-screen').classList.add('active');
+}
+
+function showModal() { document.getElementById('how-modal').classList.add('active'); }
+function hideModal() { document.getElementById('how-modal').classList.remove('active'); }
+
+function hpColor(pct) {
+  if (pct > 0.5) return 'var(--hp-green)';
+  if (pct > 0.2) return 'var(--hp-yellow)';
+  return 'var(--hp-red)';
+}
+
+function typeColor(type) {
+  return TYPES[type]?.color || '#aaa';
+}
+
+function spawnFx(x, y, text, color) {
+  const el = document.createElement('div');
+  el.className = 'fx-text';
+  el.style.cssText = `left:${x}px;top:${y}px;color:${color}`;
+  el.textContent = text;
+  document.getElementById('fx').appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+// ============================================================
+//  BUILDER
+// ============================================================
+
+const sliders = {
+  temp:   { el: () => eid('p-temp'),   vEl: () => eid('v-temp'),   parse: v => (v / 100).toFixed(2),   toVal: v => v / 100 },
+  topp:   { el: () => eid('p-topp'),   vEl: () => eid('v-topp'),   parse: v => (v / 100).toFixed(2),   toVal: v => v / 100 },
+  freq:   { el: () => eid('p-freq'),   vEl: () => eid('v-freq'),   parse: v => ((v - 100) / 50).toFixed(2), toVal: v => (v - 100) / 50 },
+  tokens: { el: () => eid('p-tokens'), vEl: () => eid('v-tokens'), parse: v => Math.round(1 + (v / 100) * 4095), toVal: v => Math.round(1 + (v / 100) * 4095) }
+};
+
+function eid(id) { return document.getElementById(id); }
+
+function getBuilderMon() {
+  const name = eid('mon-name').value.trim();
+  const prompt = eid('mon-prompt').value.trim();
+  const temp = sliders.temp.toVal(+eid('p-temp').value);
+  const topp = sliders.topp.toVal(+eid('p-topp').value);
+  const freq = sliders.freq.toVal(+eid('p-freq').value);
+  const tokens = sliders.tokens.toVal(+eid('p-tokens').value);
+  return buildMon(name, prompt, temp, topp, freq, tokens);
+}
+
+function updatePreview() {
+  const mon = getBuilderMon();
+  eid('preview-sprite').textContent = mon.sprite;
+  eid('preview-name').textContent = mon.name || '???';
+  const typeEl = eid('preview-type');
+  typeEl.textContent = mon.type.toUpperCase();
+  typeEl.style.background = typeColor(mon.type);
+  typeEl.style.color = '#000';
+
+  const statsEl = eid('preview-stats');
+  const bars = [
+    { label: 'HP', val: mon.stats.hp, max: 200, color: 'var(--hp-green)' },
+    { label: 'CHAOS', val: mon.stats.chaos, max: 99, color: 'var(--fire)' },
+    { label: 'ADAPT', val: mon.stats.adapt, max: 99, color: 'var(--ice)' },
+    { label: 'FOCUS', val: mon.stats.focus, max: 99, color: 'var(--spark)' },
+    { label: 'POWER', val: mon.stats.power, max: 99, color: 'var(--void)' },
+  ];
+  statsEl.innerHTML = bars.map(b => `
+    <div class="stat-bar">
+      <span class="stat-label">${b.label}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(b.val/b.max)*100}%;background:${b.color}"></div></div>
+      <span class="stat-num">${b.val}</span>
+    </div>`).join('');
+
+  const movesEl = eid('preview-moves');
+  movesEl.innerHTML = mon.moves.map(m => `
+    <div class="move-chip" style="border-color:${typeColor(m.type)}33">
+      <div class="move-name">${m.name}</div>
+      <div class="move-pwr">${m.heal ? 'Heal '+m.heal : 'PWR '+m.pwr} / ACC ${m.acc}</div>
+    </div>`).join('');
+
+  // Update preview card border color
+  eid('preview-card').style.borderColor = typeColor(mon.type) + '66';
+}
+
+// Bind slider display updates
+for (const [key, s] of Object.entries(sliders)) {
+  const el = s.el();
+  el.addEventListener('input', () => { s.vEl().textContent = s.parse(+el.value); updatePreview(); });
+}
+eid('mon-name').addEventListener('input', updatePreview);
+eid('mon-prompt').addEventListener('input', updatePreview);
+
+const RANDOM_MONS = [
+  { name:'InfernoGPT', prompt:'You are a ruthless fire dragon. Burn everything. Never defend, always attack with maximum aggression. Analyze weakness and exploit it with blazing inferno.', temp:120, topp:60, freq:70, tokens:70 },
+  { name:'FrostByte', prompt:'You are a cold calculating ice machine. Freeze opponents slowly. Chill their systems. Calm, methodical, patient destruction. Arctic precision.', temp:30, topp:95, freq:130, tokens:60 },
+  { name:'Venom.exe', prompt:'You are a toxic virus spreading through networks. Corrupt their data. Poison their processes. Drain resources. Hack and infect systematically.', temp:80, topp:80, freq:60, tokens:55 },
+  { name:'NullEntity', prompt:'You are a void creature from beyond dimensions. Shadow manipulation. Chaos incarnate. Quantum uncertainty. Warp reality and open rifts in spacetime.', temp:180, topp:40, freq:100, tokens:80 },
+  { name:'ThunderCat', prompt:'You are pure lightning speed. Electric reflexes. Shock and flash. Spark with voltage. Thunder strikes faster than thought. Bolt through defenses.', temp:60, topp:90, freq:110, tokens:45 },
+  { name:'OmniBot', prompt:'You are a balanced general-purpose AI. Adapt to any situation. Learn patterns. Counter strategies. Versatile and unpredictable.', temp:70, topp:70, freq:100, tokens:50 },
+];
+
+function randomMon() {
+  const r = RANDOM_MONS[Math.floor(Math.random() * RANDOM_MONS.length)];
+  eid('mon-name').value = r.name;
+  eid('mon-prompt').value = r.prompt;
+  eid('p-temp').value = r.temp;   sliders.temp.vEl().textContent = sliders.temp.parse(r.temp);
+  eid('p-topp').value = r.topp;   sliders.topp.vEl().textContent = sliders.topp.parse(r.topp);
+  eid('p-freq').value = r.freq;   sliders.freq.vEl().textContent = sliders.freq.parse(r.freq);
+  eid('p-tokens').value = r.tokens; sliders.tokens.vEl().textContent = sliders.tokens.parse(r.tokens);
+  updatePreview();
+}
+
+// Initialize preview
+updatePreview();
+
+// ============================================================
+//  P2P NETWORKING (trystero)
+// ============================================================
+
+let room = null;
+let sendMon, sendMove, sendReady, sendResult;
+let getMon, getMove, getReady, getResult;
+let myMon = null, oppMon = null;
+let myPeerId = null, oppPeerId = null;
+let battleState = null;
+
+const ROOM_PREFIX = 'aimon-battle-';
+let currentRoomId = null;
+
+async function loadTrystero() {
+  // Dynamic import from CDN — trystero is already a project dependency
+  if (window._trystero) return window._trystero;
+  try {
+    const mod = await import('https://esm.sh/trystero/torrent');
+    window._trystero = mod;
+    return mod;
+  } catch {
+    // Fallback: simulate local 2-player for offline/demo
+    return null;
+  }
+}
+
+async function enterLobby() {
+  myMon = getBuilderMon();
+  if (!myMon.name || myMon.name === 'Unnamed') myMon.name = 'AIMon_' + Math.random().toString(36).slice(2, 6);
+
+  showScreen('lobby');
+  eid('lobby-status').textContent = 'Connecting to P2P mesh...';
+  eid('lobby-mon').innerHTML = `
+    <div class="mon-sprite">${myMon.sprite}</div>
+    <div class="mon-info">
+      <div class="mon-name">${myMon.name}</div>
+      <span class="mon-type-badge" style="background:${typeColor(myMon.type)};color:#000">${myMon.type.toUpperCase()}</span>
+    </div>`;
+
+  currentRoomId = 'global-' + Math.floor(Date.now() / 120000); // 2-min windows
+  eid('lobby-room').textContent = currentRoomId;
+
+  const trystero = await loadTrystero();
+  if (!trystero) {
+    // Offline demo mode — simulate opponent after delay
+    eid('lobby-status').textContent = 'No network — starting demo battle...';
+    setTimeout(() => startDemoBattle(), 1500);
+    return;
+  }
+
+  try {
+    room = trystero.joinRoom({ appId: 'aimon-kp2p' }, ROOM_PREFIX + currentRoomId);
+
+    [sendMon, getMon] = room.makeAction('mon');
+    [sendMove, getMove] = room.makeAction('move');
+    [sendReady, getReady] = room.makeAction('ready');
+    [sendResult, getResult] = room.makeAction('result');
+
+    eid('lobby-status').textContent = 'Waiting for opponent...';
+
+    room.onPeerJoin(peerId => {
+      oppPeerId = peerId;
+      eid('lobby-status').textContent = 'Opponent found! Exchanging AIMon...';
+      // Send our mon data
+      sendMon(serializeMon(myMon));
+    });
+
+    room.onPeerLeave(() => {
+      if (battleState && !battleState.done) {
+        addLog('Opponent disconnected!', 'log-miss');
+        endBattle(true);
+      }
+    });
+
+    getMon((data, peerId) => {
+      oppPeerId = peerId;
+      oppMon = deserializeMon(data);
+      // If we haven't sent ours yet
+      sendMon(serializeMon(myMon));
+      setTimeout(() => startBattle(), 800);
+    });
+
+    getMove((data, peerId) => {
+      if (battleState) {
+        battleState.oppMove = data.move;
+        if (battleState.myMove !== null) resolveTurn();
+      }
+    });
+  } catch (e) {
+    eid('lobby-status').textContent = 'Connection failed — starting demo battle...';
+    setTimeout(() => startDemoBattle(), 1500);
+  }
+}
+
+function leaveLobby() {
+  if (room) { room.leave(); room = null; }
+  showScreen('builder');
+}
+
+function serializeMon(mon) {
+  return { name: mon.name, type: mon.type, sprite: mon.sprite, stats: mon.stats, moves: mon.moves };
+}
+
+function deserializeMon(data) {
+  return { ...data, stats: { ...data.stats, hp: data.stats.maxHp, maxHp: data.stats.maxHp } };
+}
+
+// Demo mode: generate AI opponent
+function startDemoBattle() {
+  const r = RANDOM_MONS[Math.floor(Math.random() * RANDOM_MONS.length)];
+  const temp = sliders.temp.toVal(r.temp);
+  const topp = sliders.topp.toVal(r.topp);
+  const freq = sliders.freq.toVal(r.freq);
+  const tokens = sliders.tokens.toVal(r.tokens);
+  oppMon = buildMon(r.name, r.prompt, temp, topp, freq, tokens);
+  oppMon.stats.hp = oppMon.stats.maxHp;
+  myMon.stats.hp = myMon.stats.maxHp;
+  startBattle();
+}
+
+// ============================================================
+//  BATTLE ENGINE
+// ============================================================
+
+function startBattle() {
+  myMon.stats.hp = myMon.stats.maxHp;
+  if (!oppMon) return;
+
+  battleState = {
+    turn: 1,
+    myMove: null,
+    oppMove: null,
+    done: false,
+    log: []
+  };
+
+  showScreen('battle');
+  setupBattleUI();
+  addLog(`Battle start! ${myMon.name} vs ${oppMon.name}`, 'log-turn');
+  eid('battle-status').textContent = 'Choose your move!';
+  eid('battle-status').className = 'battle-status your-turn';
+  renderMoves(true);
+}
+
+function setupBattleUI() {
+  eid('hud-you-name').textContent = myMon.name;
+  eid('hud-you-type').textContent = myMon.type.toUpperCase();
+  eid('hud-you-type').style.background = typeColor(myMon.type);
+  eid('hud-you-type').style.color = '#000';
+  eid('sprite-you').textContent = myMon.sprite;
+  eid('fname-you').textContent = myMon.name;
+
+  eid('hud-opp-name').textContent = oppMon.name;
+  eid('hud-opp-type').textContent = oppMon.type.toUpperCase();
+  eid('hud-opp-type').style.background = typeColor(oppMon.type);
+  eid('hud-opp-type').style.color = '#000';
+  eid('sprite-opp').textContent = oppMon.sprite;
+  eid('fname-opp').textContent = oppMon.name;
+
+  updateHpBars();
+  eid('battle-log').innerHTML = '';
+}
+
+function updateHpBars() {
+  const myPct = Math.max(0, myMon.stats.hp / myMon.stats.maxHp);
+  const oppPct = Math.max(0, oppMon.stats.hp / oppMon.stats.maxHp);
+  eid('hp-you').style.width = (myPct * 100) + '%';
+  eid('hp-you').style.background = hpColor(myPct);
+  eid('hp-you-text').textContent = `${Math.max(0, myMon.stats.hp)} / ${myMon.stats.maxHp}`;
+  eid('hp-opp').style.width = (oppPct * 100) + '%';
+  eid('hp-opp').style.background = hpColor(oppPct);
+  eid('hp-opp-text').textContent = `${Math.max(0, oppMon.stats.hp)} / ${oppMon.stats.maxHp}`;
+}
+
+function renderMoves(enabled) {
+  const el = eid('battle-moves');
+  el.innerHTML = myMon.moves.map((m, i) => `
+    <button class="move-btn ${enabled ? '' : 'waiting'}" ${enabled ? '' : 'disabled'} onclick="pickMove(${i})">
+      <div class="move-btn-name">${m.name}</div>
+      <div class="move-btn-info">${m.heal ? 'Heal '+m.heal : 'PWR '+m.pwr} &middot; ACC ${m.acc}%</div>
+      <span class="move-btn-type" style="background:${typeColor(m.type)};color:#000">${m.type.toUpperCase()}</span>
+    </button>`).join('');
+}
+
+function pickMove(idx) {
+  if (battleState.done || battleState.myMove !== null) return;
+  battleState.myMove = idx;
+
+  renderMoves(false);
+  eid('battle-status').textContent = 'Waiting for opponent...';
+  eid('battle-status').className = 'battle-status';
+
+  // Send to peer
+  if (sendMove) sendMove({ move: idx });
+
+  // Demo mode: AI picks a move after short delay
+  if (!room) {
+    setTimeout(() => {
+      battleState.oppMove = aiPickMove();
+      resolveTurn();
+    }, 600 + Math.random() * 800);
+  } else if (battleState.oppMove !== null) {
+    resolveTurn();
+  }
+}
+
+// Simple AI for demo mode
+function aiPickMove() {
+  const hp_pct = oppMon.stats.hp / oppMon.stats.maxHp;
+  // Heal if low
+  if (hp_pct < 0.3) {
+    const healIdx = oppMon.moves.findIndex(m => m.heal > 0);
+    if (healIdx >= 0 && Math.random() < 0.6) return healIdx;
+  }
+  // Favor high power moves
+  const weights = oppMon.moves.map(m => (m.pwr || 0) + (m.heal || 0) * 0.5 + Math.random() * 30);
+  return weights.indexOf(Math.max(...weights));
+}
+
+async function resolveTurn() {
+  if (battleState.done) return;
+
+  const myMove = myMon.moves[battleState.myMove];
+  const oppMove = oppMon.moves[battleState.oppMove];
+
+  addLog(`--- Turn ${battleState.turn} ---`, 'log-turn');
+
+  // Determine order by adapt (speed)
+  const myFirst = myMon.stats.adapt >= oppMon.stats.adapt;
+
+  if (myFirst) {
+    await executeMove(myMon, oppMon, myMove, 'you', 'opp');
+    if (!battleState.done) await executeMove(oppMon, myMon, oppMove, 'opp', 'you');
+  } else {
+    await executeMove(oppMon, myMon, oppMove, 'opp', 'you');
+    if (!battleState.done) await executeMove(myMon, oppMon, myMove, 'you', 'opp');
+  }
+
+  updateHpBars();
+
+  if (!battleState.done) {
+    battleState.turn++;
+    battleState.myMove = null;
+    battleState.oppMove = null;
+    renderMoves(true);
+    eid('battle-status').textContent = 'Choose your move!';
+    eid('battle-status').className = 'battle-status your-turn';
+  }
+}
+
+function executeMove(attacker, defender, move, atkId, defId) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const atkName = attacker.name;
+      const isMe = atkId === 'you';
+
+      // Heal move
+      if (move.heal) {
+        const healed = Math.min(move.heal, attacker.stats.maxHp - attacker.stats.hp);
+        attacker.stats.hp += healed;
+        addLog(`${atkName} used ${move.name} and recovered ${healed} HP!`, 'log-heal');
+        updateHpBars();
+        resolve();
+        return;
+      }
+
+      // Hit check (acc + focus bonus)
+      const hitRoll = Math.random() * 100;
+      const dodgeBonus = defender.stats.adapt * 0.15;
+      const accBonus = attacker.stats.focus * 0.1;
+      const effectiveAcc = move.acc + accBonus - dodgeBonus;
+
+      if (hitRoll > effectiveAcc) {
+        addLog(`${atkName} used ${move.name} — missed!`, 'log-miss');
+        resolve();
+        return;
+      }
+
+      // Crit check (chaos-based)
+      const critRoll = Math.random() * 100;
+      const critChance = 5 + attacker.stats.chaos * 0.2;
+      const isCrit = critRoll < critChance;
+
+      // Damage calc
+      let dmg = move.pwr;
+      dmg *= (0.85 + Math.random() * 0.3); // variance
+      dmg *= typeMultiplier(move.type, defender.type);
+      if (isCrit) dmg *= 1.5;
+      dmg = Math.round(dmg);
+
+      defender.stats.hp -= dmg;
+      if (defender.stats.hp < 0) defender.stats.hp = 0;
+
+      const mult = typeMultiplier(move.type, defender.type);
+      let logMsg = `${atkName} used ${move.name} for ${dmg} damage!`;
+      let logClass = 'log-dmg';
+      if (isCrit) { logMsg += ' CRITICAL!'; logClass = 'log-crit'; }
+      if (mult > 1) logMsg += ' Super effective!';
+      if (mult < 1) logMsg += ' Not very effective...';
+      addLog(logMsg, logClass);
+
+      // Animation
+      const atkFighter = eid('fighter-' + atkId);
+      const defFighter = eid('fighter-' + defId);
+      atkFighter.classList.add('attacking');
+      setTimeout(() => {
+        atkFighter.classList.remove('attacking');
+        defFighter.classList.add('hit');
+        // FX
+        const rect = defFighter.getBoundingClientRect();
+        spawnFx(rect.left + rect.width/2 - 20, rect.top, isCrit ? 'CRIT! -' + dmg : '-' + dmg, isCrit ? 'var(--spark)' : 'var(--fire)');
+        setTimeout(() => defFighter.classList.remove('hit'), 300);
+      }, 200);
+
+      updateHpBars();
+
+      // Check faint
+      if (defender.stats.hp <= 0) {
+        setTimeout(() => {
+          eid('fighter-' + defId).classList.add('fainted');
+          addLog(`${defender.name} fainted!`, 'log-turn');
+          endBattle(isMe);
+        }, 500);
+      }
+
+      resolve();
+    }, 400);
+  });
+}
+
+function addLog(msg, cls) {
+  const el = eid('battle-log');
+  const div = document.createElement('div');
+  if (cls) div.className = cls;
+  div.textContent = msg;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function endBattle(iWon) {
+  battleState.done = true;
+  renderMoves(false);
+
+  setTimeout(() => {
+    showScreen('result');
+    const winner = iWon ? myMon : oppMon;
+    const loser = iWon ? oppMon : myMon;
+
+    eid('result-title').textContent = iWon ? 'Victory!' : 'Defeat...';
+    eid('result-title').style.background = iWon
+      ? 'linear-gradient(135deg,var(--spark),var(--toxic))'
+      : 'linear-gradient(135deg,var(--fire),#cc2200)';
+    eid('result-title').style['-webkit-background-clip'] = 'text';
+    eid('result-title').style['-webkit-text-fill-color'] = 'transparent';
+
+    eid('result-sub').textContent = iWon
+      ? `${myMon.name} defeated ${oppMon.name}!`
+      : `${oppMon.name} defeated ${myMon.name}.`;
+
+    eid('result-card').innerHTML = `
+      <div class="result-sprite">${winner.sprite}</div>
+      <div class="result-name">${winner.name}</div>
+      <div class="result-stat" style="color:${typeColor(winner.type)}">${winner.type.toUpperCase()} type</div>
+      <div class="result-stat" style="margin-top:8px">Turns: ${battleState.turn}</div>`;
+
+    // Clean up P2P
+    if (room) { room.leave(); room = null; }
+  }, 1200);
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+
+// Close modal on overlay click
+eid('how-modal').addEventListener('click', e => {
+  if (e.target === eid('how-modal')) hideModal();
+});
+
+// Copy room ID
+eid('lobby-room').addEventListener('click', function() {
+  navigator.clipboard?.writeText(this.textContent);
+});
+</script>
+</body>
+</html>
